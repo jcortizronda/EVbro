@@ -28,7 +28,7 @@ def upgrade() -> None:
             sa.Column("username", sa.String(120), nullable=True),
             sa.Column("password", sa.Text(), nullable=True),
             sa.Column("use_tls", sa.Boolean(), nullable=False, server_default="false"),
-            sa.Column("topic_prefix", sa.String(60), nullable=False, server_default="ebromate"),
+            sa.Column("topic_prefix", sa.String(60), nullable=False, server_default="evbro"),
             sa.Column("ha_discovery", sa.Boolean(), nullable=False, server_default="true"),
             sa.Column("ha_prefix", sa.String(60), nullable=False, server_default="homeassistant"),
             sa.Column("enabled", sa.Boolean(), nullable=False, server_default="true"),

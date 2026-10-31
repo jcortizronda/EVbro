@@ -1,6 +1,6 @@
 """Export everything a manager's account holds as a ZIP, and import such a ZIP into an account (another server, or after a wipe).
 
-The ZIP has `evbro-export.json` (format `evbro-account/1`; older exports, `ebromate-export.json` / `ebromate-account/1`, are still read) and `files/…` with the decrypted documents, invoices and photos.
+The ZIP has `evbro-export.json` (format `evbro-account/1`) and `files/…` with the decrypted documents, invoices and photos.
 Rows are exported column by column (SQLAlchemy inspection), so nothing is forgotten when a table grows; secrets never travel:
 no Ebro credentials, no API tokens, no notification channels, no passkeys. Importing creates **manual cars** (no Ebro account
 attached; connecting the account later links them by VIN) and skips VINs that already exist on the server, remapping every
@@ -41,9 +41,7 @@ from app.services import uploads
 
 _LOGGER = logging.getLogger(__name__)
 FORMAT = "evbro-account/1"
-LEGACY_FORMATS = ("ebromate-account/1",)
 EXPORT_FILE = "evbro-export.json"
-LEGACY_EXPORT_FILES = ("ebromate-export.json",)
 MAX_IMPORT_BYTES = 500 * 1024 * 1024
 MAX_FILE_BYTES = 20 * 1024 * 1024
 VEHICLE_SKIP = {"id", "owner_id", "photo_filename", "photo_size", "state", "last_seen"}
@@ -149,8 +147,7 @@ async def import_account(session: AsyncSession, user_id: int, blob: bytes, vehic
         raise ImportError_(413, "El fichero es demasiado grande.")
     try:
         zf = zipfile.ZipFile(io.BytesIO(blob))
-        name = next((n for n in (EXPORT_FILE, *LEGACY_EXPORT_FILES) if n in zf.namelist()), EXPORT_FILE)
-        payload = json.loads(zf.read(name))
+        payload = json.loads(zf.read(EXPORT_FILE))
     except (zipfile.BadZipFile, KeyError, ValueError) as ex:
         raise ImportError_(422, "No es una exportación de EVBro (falta evbro-export.json).") from ex
     if payload.get("format") != FORMAT:

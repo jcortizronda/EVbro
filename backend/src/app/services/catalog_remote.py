@@ -250,7 +250,7 @@ async def sync(session: AsyncSession) -> Dict[str, Any]:
         raise RemoteError(502, c.last_error) from ex
     if status == 401:
         c.last_error = "La clave no es válida o ha caducado."
-    elif status != 200 or not isinstance(body, dict) or body.get("format") not in ("evbro-catalog/2", "ebromate-catalog/2"):
+    elif status != 200 or not isinstance(body, dict) or body.get("format") != "evbro-catalog/2":
         c.last_error = f"Respuesta inesperada del servidor ({status})."
     else:
         c.last_error = None

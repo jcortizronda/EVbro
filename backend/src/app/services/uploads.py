@@ -38,7 +38,7 @@ INVOICES_FOLDER = "invoices"
 PHOTOS_FOLDER = "vehicle_photos"
 FOLDERS = (DOCUMENTS_FOLDER, INVOICES_FOLDER, PHOTOS_FOLDER)
 
-MAGIC = b"EBMENC1\n"          # never the start of a PDF, JPEG, PNG or WebP
+MAGIC = b"EVBENC1\n"          # never the start of a PDF, JPEG, PNG or WebP
 _NONCE_LEN = 12
 _TAG_LEN = 16
 TEMP_PREFIX = ".tmp-"
@@ -114,8 +114,11 @@ def file_path(folder: str, stored_name: str) -> str:
 
 
 # ───────────────────────── encryption at rest ─────────────────────────
-def _associated_data(folder: str, stored_name: str) -> bytes:
-    return f"ebromate-file:{os.path.basename(folder)}/{os.path.basename(stored_name)}".encode("utf-8")
+AAD_PREFIX = "evbro-file:"
+
+
+def _associated_data(folder: str, stored_name: str, prefix: str = AAD_PREFIX) -> bytes:
+    return f"{prefix}{os.path.basename(folder)}/{os.path.basename(stored_name)}".encode("utf-8")
 
 
 def is_encrypted(blob: bytes) -> bool:
@@ -130,15 +133,15 @@ def encrypt_bytes(folder: str, stored_name: str, data: bytes) -> bytes:
     return MAGIC + nonce + tag + ciphertext
 
 
-def decrypt_bytes(folder: str, stored_name: str, blob: bytes) -> bytes:
+def decrypt_bytes(folder: str, stored_name: str, blob: bytes, *, key: bytes | None = None, aad_prefix: str = AAD_PREFIX, magic: bytes = MAGIC) -> bytes:
     """The plaintext of a stored file. Without the magic header it is a legacy plaintext file and comes back as it is."""
-    if not is_encrypted(blob):
+    if not blob.startswith(magic):
         return blob
-    body = blob[len(MAGIC):]
+    body = blob[len(magic):]
     nonce, tag, ciphertext = body[:_NONCE_LEN], body[_NONCE_LEN:_NONCE_LEN + _TAG_LEN], body[_NONCE_LEN + _TAG_LEN:]
     try:
-        cipher = AES.new(crypto.get_key(), AES.MODE_GCM, nonce=nonce, mac_len=_TAG_LEN)
-        cipher.update(_associated_data(folder, stored_name))
+        cipher = AES.new(key or crypto.get_key(), AES.MODE_GCM, nonce=nonce, mac_len=_TAG_LEN)
+        cipher.update(_associated_data(folder, stored_name, aad_prefix))
         return cipher.decrypt_and_verify(ciphertext, tag)
     except (ValueError, KeyError) as exc:
         raise FileDecryptionError(f"{folder}/{stored_name}") from exc

@@ -82,7 +82,7 @@ def relying_party(request) -> Tuple[str, List[str]]:
 
 def user_handle(user_id: int) -> bytes:
     """The opaque user handle stored in the passkey (no personal data)."""
-    return f"ebromate-{user_id}".encode()      # historical: the handle is stored in the registered authenticators
+    return f"evbro-{user_id}".encode()
 
 
 def label_from_user_agent(ua: str) -> str:

@@ -45,9 +45,21 @@ class DecryptionError(Exception):
     """El valor no se pudo descifrar: clave distinta a la que lo cifró, o dato corrupto."""
 
 
-def _derive(master: str) -> bytes:
-    # Historical salt: never change it, every stored secret would become unreadable.
-    return HKDF(master.encode("utf-8"), 32, b"ebromate-secrets-v1", SHA256, context=b"field-encryption")
+SALT = b"evbro-secrets-v1"                                 # changing it needs a data migration like 0019
+
+
+def _derive(master: str, salt: bytes = SALT) -> bytes:
+    return HKDF(master.encode("utf-8"), 32, salt, SHA256, context=b"field-encryption")
+
+
+def master_secret() -> str:
+    """The configured master secret (ENCRYPTION_KEY or the key file), for one-off key rotations."""
+    env = (settings.ENCRYPTION_KEY or "").strip()
+    return env or _read_or_create_key_file(os.path.join(get_data_dir(), KEY_FILENAME))
+
+
+def derive_with_salt(salt: bytes) -> bytes:
+    return _derive(master_secret(), salt)
 
 
 def _read_or_create_key_file(path: str) -> str:
@@ -98,22 +110,22 @@ def is_encrypted(value: str) -> bool:
     return isinstance(value, str) and value.startswith(PREFIX)
 
 
-def encrypt(plaintext: str, context: str = "") -> str:
+def encrypt(plaintext: str, context: str = "", key: bytes | None = None) -> str:
     nonce = os.urandom(_NONCE_LEN)
-    cipher = AES.new(get_key(), AES.MODE_GCM, nonce=nonce, mac_len=_TAG_LEN)
+    cipher = AES.new(key or get_key(), AES.MODE_GCM, nonce=nonce, mac_len=_TAG_LEN)
     cipher.update(context.encode("utf-8"))
     ciphertext, tag = cipher.encrypt_and_digest(plaintext.encode("utf-8"))
     return PREFIX + base64.urlsafe_b64encode(nonce + tag + ciphertext).decode("ascii")
 
 
-def decrypt(value: str, context: str = "") -> str:
+def decrypt(value: str, context: str = "", key: bytes | None = None) -> str:
     """Descifra `value`. Si no lleva el prefijo es texto plano heredado y se devuelve igual."""
     if not is_encrypted(value):
         return value
     try:
         raw = base64.urlsafe_b64decode(value[len(PREFIX):].encode("ascii"))
         nonce, tag, ciphertext = raw[:_NONCE_LEN], raw[_NONCE_LEN:_NONCE_LEN + _TAG_LEN], raw[_NONCE_LEN + _TAG_LEN:]
-        cipher = AES.new(get_key(), AES.MODE_GCM, nonce=nonce, mac_len=_TAG_LEN)
+        cipher = AES.new(key or get_key(), AES.MODE_GCM, nonce=nonce, mac_len=_TAG_LEN)
         cipher.update(context.encode("utf-8"))
         return cipher.decrypt_and_verify(ciphertext, tag).decode("utf-8")
     except (ValueError, KeyError) as exc:

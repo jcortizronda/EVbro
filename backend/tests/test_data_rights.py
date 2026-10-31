@@ -152,7 +152,7 @@ async def test_import_skips_existing_vins_respects_the_limit_and_rejects_junk(wo
         payload["vehicles"][0]["photo"] = None
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w") as z:
-            z.writestr("ebromate-export.json", json.dumps(payload))
+            z.writestr("evbro-export.json", json.dumps(payload))
         rep = (await bea.post("/api/account/import", files={"file": ("x.zip", buf.getvalue(), "application/zip")})).json()
         if i == 0:
             assert rep["vehicles"][0]["vin"] == vin and rep["vehicles"][0]["charges"] == 1
