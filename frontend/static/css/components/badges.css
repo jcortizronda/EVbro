@@ -1,0 +1,225 @@
+/* EVBro — Insignias de estado y chips.
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+/* ========================================================
+   HABRO STATUS BADGES & PILL CHIPS
+   ======================================================== */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.85rem;
+  border-radius: var(--radius-pill);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+  transition: var(--transition);
+}
+
+.status-badge.driving {
+  background: rgba(45, 106, 79, 0.14);
+  color: #2e7d32;
+  border-color: rgba(46, 125, 50, 0.25);
+}
+
+[data-theme="dark"] .status-badge.driving {
+  background: rgba(48, 209, 88, 0.16);
+  color: #30d158;
+  border-color: rgba(48, 209, 88, 0.3);
+}
+
+/* Encendido y parado (alta tensión activa, sin velocidad): distinto de «en marcha» y de «estacionado» */
+.status-badge.ready {
+  background: rgba(0, 122, 135, 0.12);
+  color: #00707c;
+  border-color: rgba(0, 122, 135, 0.28);
+}
+
+[data-theme="dark"] .status-badge.ready {
+  background: rgba(100, 210, 255, 0.14);
+  color: #64d2ff;
+  border-color: rgba(100, 210, 255, 0.3);
+}
+
+.status-badge.charging {
+  background: rgba(var(--accent-rgb), 0.14);
+  color: var(--accent);
+  border-color: rgba(var(--accent-rgb), 0.25);
+  animation: pulseCharge 2.4s infinite ease-in-out;
+}
+
+[data-theme="dark"] .status-badge.charging {
+  background: rgba(var(--accent-rgb), 0.16);
+  color: var(--accent);
+  border-color: rgba(var(--accent-rgb), 0.3);
+}
+
+.status-badge.parked {
+  background: rgba(138, 100, 40, 0.12);
+  color: var(--warning);
+  border-color: rgba(138, 100, 40, 0.25);
+}
+
+[data-theme="dark"] .status-badge.parked {
+  background: rgba(255, 214, 10, 0.14);
+  color: #ffd60a;
+  border-color: rgba(255, 214, 10, 0.25);
+}
+
+.status-badge.asleep {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--muted);
+  border-color: var(--line);
+}
+
+[data-theme="dark"] .status-badge.asleep {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted-light);
+}
+
+.vehicle-vin-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--radius-pill);
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-color);
+  font-family: -apple-system-monospaced, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+}
+
+@keyframes pulseCharge {
+  0% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0.35); }
+  70% { box-shadow: 0 0 0 8px rgba(var(--accent-rgb), 0); }
+  100% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0); }
+}
+
+/* Main Container - Full Width Screen Utilization */
+.container {
+  max-width: 1440px;
+  margin: 0.75rem auto;
+  padding: 0 1.5rem 5.5rem 1.5rem;
+  width: 100%;
+  flex: 1;
+}
+
+.tab-content {
+  display: none;
+  animation: fadeIn 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.tab-content.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Overview Layout - HABRO 3-Column Responsive Grid */
+.overview-grid {
+  display: grid;
+  grid-template-columns: 380px 1fr 340px;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 1240px) {
+  .overview-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Vehicle Primary Gauge Card */
+.vehicle-main-card {
+  padding: 2rem 1.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  position: relative;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+
+.vehicle-header-info {
+  margin-bottom: 1.25rem;
+  width: 100%;
+}
+
+.vehicle-header-info h2 {
+  font-size: 26px;
+  font-weight: 750;
+  letter-spacing: -0.04em;
+  margin: 4px 0 6px 0;
+  color: var(--text-primary);
+}
+
+/* Circular Battery Ring - Apple Watch Aesthetic */
+.battery-gauge-wrapper {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  margin: 0.5rem auto 1.25rem auto;
+}
+
+.battery-gauge-wrapper svg {
+  transform: rotate(-90deg);
+  width: 100%;
+  height: 100%;
+}
+
+.battery-gauge-wrapper circle {
+  fill: none;
+  stroke-width: 12;
+}
+
+.battery-bg {
+  stroke: var(--bg-circle-track);
+}
+
+.battery-bar {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s ease-in-out, stroke 0.5s ease;
+  filter: drop-shadow(0 4px 10px var(--accent-glow));
+}
+
+[data-theme="dark"] .battery-bar {
+  stroke: var(--accent);
+  filter: drop-shadow(0 0 12px rgba(var(--accent-rgb), 0.4));
+}
+
+.gauge-center-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.gauge-center-text .pct {
+  font-size: 3rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--text-primary);
+}
+
+.gauge-center-text .pct-label {
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 4px;
+}

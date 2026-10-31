@@ -1,0 +1,54 @@
+/* EVBro — Costes (Más → Costes).
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+.costs-period { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 5px; margin: 14px 0; background: var(--surface-secondary); border: 1px solid var(--border-color); border-radius: 16px; }
+.costs-period-btn { min-height: 44px; font: inherit; font-weight: 600; font-size: 0.88rem; color: var(--text-secondary); background: transparent; border: 0; border-radius: 12px; cursor: pointer; }
+.costs-period-btn.is-active { color: var(--text-primary); background: var(--surface); box-shadow: var(--shadow-pill); outline: 2px solid var(--accent-bright); outline-offset: -2px; }
+
+.costs-hero { padding: 18px 16px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 2px; }
+.costs-hero-label { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-secondary); }
+.costs-hero-value { font-size: 2.1rem; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.costs-hero-sub { font-size: 0.82rem; color: var(--text-secondary); }
+.costs-hero-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-color); }
+.costs-hero-kpis small { display: block; font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+.costs-hero-kpis strong { font-size: 0.95rem; font-variant-numeric: tabular-nums; }
+
+.costs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.costs-card { padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; }
+.costs-card small { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); }
+.costs-card strong { font-size: 1.2rem; font-variant-numeric: tabular-nums; }
+.costs-card span { font-size: 0.74rem; color: var(--text-secondary); }
+
+.costs-pending { padding: 12px 14px; margin-bottom: 12px; font-size: 0.85rem; line-height: 1.4; border-left: 4px solid var(--accent-amber, #ff9f0a); }
+.costs-pending[hidden] { display: none; }
+
+.costs-chart-card, .costs-list-card { padding: 14px 16px; margin-bottom: 12px; }
+.costs-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; font-size: 0.75rem; color: var(--text-secondary); margin: -2px 0 10px; }
+.costs-legend .dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; }
+.c-charges { background: var(--accent-green, #30d158); } .c-refuels { background: var(--accent-amber, #ff9f0a); } .c-maint { background: var(--accent-bright); }
+.costs-bars { display: flex; align-items: flex-end; gap: 6px; height: 170px; overflow-x: auto; padding-bottom: 2px; }
+.costs-bar { flex: 1 0 34px; max-width: 64px; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 3px; }
+.costs-bar-stack { width: 100%; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; justify-content: flex-end; border-radius: 6px; overflow: hidden; background: var(--bg-glass-inset); }
+.costs-bar-stack i { display: block; width: 100%; }
+.costs-bar-total { font-size: 0.66rem; color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.costs-bar-label { font-size: 0.72rem; font-weight: 600; text-transform: capitalize; }
+
+.costs-list-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.costs-list-head button { min-height: 44px; }
+.costs-hint { margin: 8px 0 6px; font-size: 0.76rem; line-height: 1.4; color: var(--text-muted); }
+.costs-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--border-color); width: 100%; text-align: left; }
+.costs-row-btn { font: inherit; color: inherit; background: none; border-left: 0; border-right: 0; border-bottom: 0; cursor: pointer; min-height: 56px; }
+.costs-row-main { display: flex; flex-direction: column; min-width: 0; }
+.costs-row-main strong { font-size: 0.9rem; overflow-wrap: anywhere; }
+.costs-row-main small { font-size: 0.74rem; color: var(--text-muted); overflow-wrap: anywhere; }
+.costs-row-amount { flex: none; font-weight: 700; font-variant-numeric: tabular-nums; }
+.costs-row-amount.is-pending { font-size: 0.78rem; font-weight: 700; color: var(--accent-amber, #ff9f0a); }
+.costs-empty { padding: 18px 8px; text-align: center; color: var(--text-muted); font-size: 0.85rem; }
+
+/* Ajustes → Sistema → Historial guardado */
+.retention-grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin: 10px 0 12px; }
+.retention-item { display: flex; flex-direction: column; gap: 4px; }
+.retention-item label { font-size: 0.85rem; font-weight: 600; }
+.retention-item input { min-height: 44px; }
+.retention-item small { font-size: 0.74rem; color: var(--text-muted); }
+@media (min-width: 700px) { .retention-grid { grid-template-columns: repeat(3, 1fr); } }

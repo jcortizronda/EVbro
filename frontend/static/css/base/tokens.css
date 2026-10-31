@@ -1,0 +1,200 @@
+/* EVBro — Variables de diseño (tokens), tipografía y temas claro/oscuro.
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+/* ========================================================
+   EVBro — Modern Automotive Interface Design System
+   Exact tokens, typography, dark OLED styling & mobile native aesthetics
+   ======================================================== */
+:root,
+[data-theme="light"] {
+  --bg: #f5f5f7;
+  --surface: #ffffff;
+  --surface-secondary: #f2f2f4;
+  --surface-card: #ffffff;
+  --surface-card-hover: #fafafc;
+  --ink: #0b0c0e;
+  --muted: #6e6e73;
+  --muted-light: #86868b;
+  --line: rgba(0, 0, 0, 0.08);
+  --line-subtle: rgba(0, 0, 0, 0.04);
+  --graphite: #17181b;
+  
+  --accent: #234f70;          /* EVBro Sapphire Blue */
+  --accent-rgb: 35, 79, 112;  /* the accent as r, g, b: rgba(var(--accent-rgb), .2) for tints */
+  --accent-bright: #0071e3;   /* Apple iOS Accent Blue */
+  --accent-soft: #e9eef2;
+  --accent-glow: rgba(35, 79, 112, 0.22);
+  --success: #2d6a4f;         /* EVBro Evergreen Success */
+  --warning: #8a6428;         /* EVBro Amber Warning */
+  --danger: #dc2626;
+
+  /* Backward compatibility aliases */
+  --bg-dark: var(--bg);
+  --bg-card: var(--surface);
+  --bg-card-hover: var(--surface-card-hover);
+  --bg-glass: rgba(255, 255, 255, 0.92);
+  --bg-glass-inset: #eeeeF2;
+  --bg-modal: #ffffff;
+  --bg-input: #ffffff;
+  --bg-navbar: rgba(245, 245, 247, 0.88);
+  --bg-bottom-nav: rgba(245, 245, 247, 0.94);
+  --bg-circle-track: rgba(0, 0, 0, 0.06);
+  --border-color: var(--line);
+  --border-glow: rgba(35, 79, 112, 0.2);
+  
+  --primary: #234f70;
+  --primary-glow: rgba(35, 79, 112, 0.25);
+  --primary-dark: #1a3c56;
+  
+  --accent-green: #2d6a4f;
+  --accent-green-glow: rgba(45, 106, 79, 0.2);
+  --accent-amber: #8a6428;
+  --accent-red: #dc2626;
+  --accent-purple: #5e5ce6;
+  
+  --text-primary: var(--ink);
+  --text-secondary: var(--muted);
+  --text-muted: #86868b;
+  
+  --radius-xl: 44px;
+  --radius-lg: 32px;
+  --radius-md: 22px;
+  --radius-sm: 14px;
+  --radius-pill: 999px;
+  
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  --shadow-hover: 0 16px 40px rgba(0, 0, 0, 0.08);
+  --shadow-glow: 0 4px 18px rgba(35, 79, 112, 0.15);
+  --shadow-pill: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-deep: 0 24px 70px rgba(0, 0, 0, 0.08);
+  --transition: all 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --bg: #000000;
+  --surface: #161618;
+  --surface-secondary: #1c1c1f;
+  --surface-card: #161618;
+  --surface-card-hover: #1f1f23;
+  --ink: #f5f5f7;
+  --muted: #8e8e93;
+  --muted-light: #a1a1a6;
+  --line: rgba(255, 255, 255, 0.08);
+  --line-subtle: rgba(255, 255, 255, 0.04);
+  --graphite: #17181b;
+  
+  --accent: #2997ff;          /* Apple iOS Dark Dynamic Blue */
+  --accent-rgb: 41, 151, 255;
+  --accent-bright: #2997ff;
+  --accent-soft: rgba(41, 151, 255, 0.16);
+  --accent-glow: rgba(41, 151, 255, 0.35);
+  --success: #30d158;
+  --warning: #ffd60a;
+  --danger: #ff453a;
+
+  /* Backward compatibility aliases */
+  --bg-dark: var(--bg);
+  --bg-card: var(--surface);
+  --bg-card-hover: var(--surface-card-hover);
+  --bg-glass: rgba(22, 22, 24, 0.88);
+  --bg-glass-inset: rgba(12, 12, 14, 0.8);
+  --bg-modal: #161618;
+  --bg-input: #121214;
+  --bg-navbar: rgba(18, 18, 20, 0.86);
+  --bg-bottom-nav: rgba(18, 18, 20, 0.95);
+  --bg-circle-track: rgba(255, 255, 255, 0.07);
+  --border-color: var(--line);
+  --border-glow: rgba(41, 151, 255, 0.25);
+  
+  --primary: #2997ff;
+  --primary-glow: rgba(41, 151, 255, 0.35);
+  --primary-dark: #0071e3;
+  
+  --accent-green: #30d158;
+  --accent-green-glow: rgba(48, 209, 88, 0.25);
+  --accent-amber: #ffd60a;
+  --accent-red: #ff453a;
+  --accent-purple: #bf5af2;
+  
+  --text-primary: var(--ink);
+  --text-secondary: var(--muted);
+  --text-muted: #6e6e73;
+  
+  --radius-xl: 44px;
+  --radius-lg: 32px;
+  --radius-md: 22px;
+  --radius-sm: 14px;
+  --radius-pill: 999px;
+  
+  --shadow-card: 0 12px 36px rgba(0, 0, 0, 0.5);
+  --shadow-hover: 0 18px 48px rgba(0, 0, 0, 0.7);
+  --shadow-glow: 0 0 24px rgba(41, 151, 255, 0.2);
+  --shadow-pill: 0 4px 14px rgba(0, 0, 0, 0.4);
+  --shadow-deep: 0 28px 80px rgba(0, 0, 0, 0.65);
+  --transition: all 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+  color-scheme: dark;
+}
+
+/* ───── Colour accents (Ajustes → Tema → Color). «blue» is the default above; each accent redefines the accent tokens and tints
+   the surfaces a little. Light and dark are separate because the same accent needs a darker ink on white and a lighter one on black. */
+[data-theme="light"][data-accent="rose"] {
+  --accent: #b83280; --accent-bright: #d53f8c; --accent-rgb: 184, 50, 128; --accent-soft: #f5eaf0; --accent-glow: rgba(184, 50, 128, 0.22);
+  --border-glow: rgba(184, 50, 128, 0.2); --primary: #b83280; --primary-glow: rgba(184, 50, 128, 0.25); --primary-dark: #8f2563;
+  --shadow-glow: 0 4px 18px rgba(184, 50, 128, 0.15);
+  --bg: #faf4f7; --surface-secondary: #f5eaf0; --bg-glass-inset: #f3e6ec; --bg-navbar: rgba(250, 244, 247, 0.88); --bg-bottom-nav: rgba(250, 244, 247, 0.94);
+}
+[data-theme="dark"][data-accent="rose"] {
+  --accent: #f472b6; --accent-bright: #f472b6; --accent-rgb: 244, 114, 182; --accent-soft: rgba(244, 114, 182, 0.16); --accent-glow: rgba(244, 114, 182, 0.35);
+  --border-glow: rgba(244, 114, 182, 0.25); --primary: #f472b6; --primary-glow: rgba(244, 114, 182, 0.35); --primary-dark: #db2777;
+  --shadow-glow: 0 0 24px rgba(244, 114, 182, 0.2);
+  --surface: #1b1418; --surface-card: #1b1418; --surface-secondary: #221a1e; --surface-card-hover: #271e23; --bg-modal: #1b1418; --bg-glass: rgba(27, 20, 24, 0.88);
+}
+[data-theme="light"][data-accent="violet"] {
+  --accent: #6b46c1; --accent-bright: #7c3aed; --accent-rgb: 107, 70, 193; --accent-soft: #efeaf8; --accent-glow: rgba(107, 70, 193, 0.22);
+  --border-glow: rgba(107, 70, 193, 0.2); --primary: #6b46c1; --primary-glow: rgba(107, 70, 193, 0.25); --primary-dark: #553c9a;
+  --shadow-glow: 0 4px 18px rgba(107, 70, 193, 0.15);
+  --bg: #f6f4fb; --surface-secondary: #efeaf8; --bg-glass-inset: #ece6f6; --bg-navbar: rgba(246, 244, 251, 0.88); --bg-bottom-nav: rgba(246, 244, 251, 0.94);
+}
+[data-theme="dark"][data-accent="violet"] {
+  --accent: #a78bfa; --accent-bright: #a78bfa; --accent-rgb: 167, 139, 250; --accent-soft: rgba(167, 139, 250, 0.16); --accent-glow: rgba(167, 139, 250, 0.35);
+  --border-glow: rgba(167, 139, 250, 0.25); --primary: #a78bfa; --primary-glow: rgba(167, 139, 250, 0.35); --primary-dark: #7c3aed;
+  --shadow-glow: 0 0 24px rgba(167, 139, 250, 0.2);
+  --surface: #171521; --surface-card: #171521; --surface-secondary: #1d1a28; --surface-card-hover: #221e2e; --bg-modal: #171521; --bg-glass: rgba(23, 21, 33, 0.88);
+}
+[data-theme="light"][data-accent="green"] {
+  --accent: #2f855a; --accent-bright: #16a34a; --accent-rgb: 47, 133, 90; --accent-soft: #e9f2ec; --accent-glow: rgba(47, 133, 90, 0.22);
+  --border-glow: rgba(47, 133, 90, 0.2); --primary: #2f855a; --primary-glow: rgba(47, 133, 90, 0.25); --primary-dark: #276749;
+  --shadow-glow: 0 4px 18px rgba(47, 133, 90, 0.15);
+  --bg: #f3f8f4; --surface-secondary: #e9f2ec; --bg-glass-inset: #e5efe9; --bg-navbar: rgba(243, 248, 244, 0.88); --bg-bottom-nav: rgba(243, 248, 244, 0.94);
+}
+[data-theme="dark"][data-accent="green"] {
+  --accent: #34d399; --accent-bright: #34d399; --accent-rgb: 52, 211, 153; --accent-soft: rgba(52, 211, 153, 0.16); --accent-glow: rgba(52, 211, 153, 0.35);
+  --border-glow: rgba(52, 211, 153, 0.25); --primary: #34d399; --primary-glow: rgba(52, 211, 153, 0.35); --primary-dark: #059669;
+  --shadow-glow: 0 0 24px rgba(52, 211, 153, 0.2);
+  --surface: #121a16; --surface-card: #121a16; --surface-secondary: #17211c; --surface-card-hover: #1b2620; --bg-modal: #121a16; --bg-glass: rgba(18, 26, 22, 0.88);
+}
+[data-theme="light"][data-accent="amber"] {
+  --accent: #b7791f; --accent-bright: #d97706; --accent-rgb: 183, 121, 31; --accent-soft: #f4ecdd; --accent-glow: rgba(183, 121, 31, 0.22);
+  --border-glow: rgba(183, 121, 31, 0.2); --primary: #b7791f; --primary-glow: rgba(183, 121, 31, 0.25); --primary-dark: #975a16;
+  --shadow-glow: 0 4px 18px rgba(183, 121, 31, 0.15);
+  --bg: #faf6ef; --surface-secondary: #f4ecdd; --bg-glass-inset: #f1e8d7; --bg-navbar: rgba(250, 246, 239, 0.88); --bg-bottom-nav: rgba(250, 246, 239, 0.94);
+}
+[data-theme="dark"][data-accent="amber"] {
+  --accent: #fbbf24; --accent-bright: #fbbf24; --accent-rgb: 251, 191, 36; --accent-soft: rgba(251, 191, 36, 0.16); --accent-glow: rgba(251, 191, 36, 0.35);
+  --border-glow: rgba(251, 191, 36, 0.25); --primary: #fbbf24; --primary-glow: rgba(251, 191, 36, 0.35); --primary-dark: #d97706;
+  --shadow-glow: 0 0 24px rgba(251, 191, 36, 0.2);
+  --surface: #1b1811; --surface-card: #1b1811; --surface-secondary: #221e15; --surface-card-hover: #272218; --bg-modal: #1b1811; --bg-glass: rgba(27, 24, 17, 0.88);
+}
+[data-theme="light"][data-accent="red"] {
+  --accent: #c53030; --accent-bright: #dc2626; --accent-rgb: 197, 48, 48; --accent-soft: #f5e9e9; --accent-glow: rgba(197, 48, 48, 0.22);
+  --border-glow: rgba(197, 48, 48, 0.2); --primary: #c53030; --primary-glow: rgba(197, 48, 48, 0.25); --primary-dark: #9b2c2c;
+  --shadow-glow: 0 4px 18px rgba(197, 48, 48, 0.15);
+  --bg: #faf4f4; --surface-secondary: #f5e9e9; --bg-glass-inset: #f2e4e4; --bg-navbar: rgba(250, 244, 244, 0.88); --bg-bottom-nav: rgba(250, 244, 244, 0.94);
+}
+[data-theme="dark"][data-accent="red"] {
+  --accent: #f87171; --accent-bright: #f87171; --accent-rgb: 248, 113, 113; --accent-soft: rgba(248, 113, 113, 0.16); --accent-glow: rgba(248, 113, 113, 0.35);
+  --border-glow: rgba(248, 113, 113, 0.25); --primary: #f87171; --primary-glow: rgba(248, 113, 113, 0.35); --primary-dark: #dc2626;
+  --shadow-glow: 0 0 24px rgba(248, 113, 113, 0.2);
+  --surface: #1c1414; --surface-card: #1c1414; --surface-secondary: #231a1a; --surface-card-hover: #281e1e; --bg-modal: #1c1414; --bg-glass: rgba(28, 20, 20, 0.88);
+}

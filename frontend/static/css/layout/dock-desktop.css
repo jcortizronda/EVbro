@@ -1,0 +1,13 @@
+/* EVBro — Qué navegación se muestra: dock inferior (táctil) o barra lateral (ratón; ver desktop.css).
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+/* Dispositivos TÁCTILES (móvil, tablet, o el móvil en «sitio de escritorio», cuyo ancho engaña a los media
+   queries por ancho): siempre el dock inferior, sea cual sea el ancho. */
+@media (hover: none) and (pointer: coarse) {
+  .container { padding-bottom: 5.5rem; }          /* hueco para el dock fijo */
+}
+
+/* Con RATÓN y ventana ancha, el dock inferior sobra: manda la barra lateral (desktop.css) */
+@media (min-width: 769px) and (hover: hover) and (pointer: fine) {
+  .native-bottom-dock { display: none; }
+}

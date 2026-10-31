@@ -1,0 +1,143 @@
+/* EVBro — Navegación inferior móvil y adaptación PWA.
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+/* ========================================================
+   MOBILE BOTTOM NAVIGATION & PWA RESPONSIVENESS
+   ======================================================== */
+.mobile-bottom-nav {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .navbar-main {
+    padding: 0 0.75rem;
+    height: 56px;
+    gap: 0.4rem;
+  }
+
+  .brand .logo-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 0.95rem;
+  }
+
+  .brand-title {
+    font-size: 1.2rem;
+  }
+
+  .vehicle-selector-wrapper {
+    padding: 0.2rem 0.35rem 0.2rem 0.45rem;
+  }
+
+  .vehicle-select {
+    max-width: 130px;
+    font-size: 0.8rem;
+  }
+
+  .container {
+    padding: 0 0.75rem 5.5rem 0.75rem;
+  }
+
+  /* Fixed bottom navigation on phones */
+  .mobile-bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 58px;
+    background: var(--bg-bottom-nav, rgba(10, 14, 23, 0.95));
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border-top: 1px solid var(--border-color);
+    z-index: 1000;
+    justify-content: space-around;
+    align-items: center;
+    padding: 0 4px;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+  }
+
+  .mobile-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    color: var(--text-secondary);
+    font-size: 0.65rem;
+    font-weight: 500;
+    background: transparent;
+    border: none;
+    padding: 4px 1px;
+    cursor: pointer;
+    flex: 1;
+    min-width: 0;
+    transition: var(--transition);
+  }
+
+  .mobile-nav-item span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+
+  .mobile-nav-item svg {
+    stroke-width: 2.2;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+
+  .mobile-nav-item.active {
+    color: var(--primary);
+  }
+
+  .mobile-nav-item.active svg {
+    filter: drop-shadow(0 0 6px var(--primary-glow));
+  }
+
+  /* Filters bar wrapping */
+  .filters-bar {
+    gap: 0.5rem;
+    padding: 0.65rem 0.85rem;
+  }
+
+  .summary-cards-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.65rem;
+  }
+
+  .summary-card {
+    padding: 0.85rem;
+  }
+
+  .summary-card .card-val {
+    font-size: 1.25rem;
+  }
+}
+
+@media (max-width: 580px) {
+  .action-btn-text {
+    display: none !important;
+  }
+  .btn-refresh {
+    padding: 0.45rem 0.65rem;
+  }
+  .btn-account .account-btn-label {
+    display: none !important;
+  }
+  .btn-account {
+    padding: 0.45rem 0.65rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .brand .brand-title {
+    display: none !important;
+  }
+  .vehicle-select {
+    max-width: 110px;
+  }
+}

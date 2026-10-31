@@ -1,0 +1,21 @@
+/* EVBro — Facturas y documentos adjuntos.
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+/* ========================================================
+   ESTILOS DE FACTURAS Y DOCUMENTOS ADJUNTOS
+   ======================================================== */
+.btn-info {
+  background: rgba(0, 180, 216, 0.16);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-info:hover {
+  background: rgba(0, 180, 216, 0.3);
+  border-color: #38bdf8;
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+}

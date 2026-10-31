@@ -1,0 +1,13 @@
+/* EVBro — página /legal (aviso legal y privacidad). Usa los tokens del tema; sin estilos en línea (CSP). */
+body { margin: 0; background: var(--bg); color: var(--text-primary); font-family: 'Outfit', -apple-system, 'Segoe UI', Roboto, sans-serif; line-height: 1.55; }
+.legal { max-width: 760px; margin: 0 auto; padding: 24px 20px 48px; }
+.legal h1 { font-size: 1.8rem; margin: 10px 0 6px; letter-spacing: -0.02em; }
+.legal h2 { font-size: 1.1rem; margin: 26px 0 6px; }
+.legal p, .legal li { font-size: 0.98rem; color: var(--text-primary); }
+.legal ul { padding-left: 20px; }
+.legal li { margin: 6px 0; }
+.legal-lead { font-size: 1.05rem; color: var(--text-secondary); }
+.legal-back { display: inline-block; margin-bottom: 8px; color: var(--accent-bright, #0071e3); text-decoration: none; font-weight: 600; }
+.legal code { font-size: 0.9em; padding: 1px 6px; border-radius: 6px; background: var(--surface-secondary); border: 1px solid var(--border-color); }
+.legal a { color: var(--accent-bright, #0071e3); }
+.legal-foot { margin-top: 32px; font-size: 0.85rem; color: var(--text-muted); }

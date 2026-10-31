@@ -1,0 +1,183 @@
+/* EVBro — Vehículos: selector, cabecera, edición del coche y lectura de telemetría.
+ * (Script clásico: comparte el ámbito global con los demás ficheros; ver el orden de carga en templates/index.html.)
+ */
+
+/**
+ * Sincroniza la información del encabezado del vehículo (Nombre y VIN).
+ * Garantiza auditoría y persistencia visual del VIN en la vista principal.
+ * @param {Object} [vehicle] - Metadatos opcionales del vehículo (name, model, vin).
+ */
+function updateVehicleHeaderInfo(vehicle) {
+  const nameEl = document.getElementById('vehicleName');
+  const vinEl = document.getElementById('vehicleVin');
+
+  if (!vehicle && currentVin) {
+    vehicle = (allVehiclesList || []).find(v => v.vin === currentVin);
+  }
+
+  const displayName = vehicle?.name || (vehicle?.model ? `Ebro ${vehicle.model}` : 'Ebro');
+  const modelName = vehicle?.model || 'Ebro Auto';
+  const plateText = vehicle?.license_plate || vehicle?.model || 'EBRO';
+
+  if (nameEl) {
+    nameEl.innerText = displayName;
+  }
+
+  // Actualizar subtítulo en la cabecera
+  const headerSubtitle = document.getElementById('headerVehicleSubtitle');
+  if (headerSubtitle) {
+    headerSubtitle.innerText = modelName;
+  }
+
+  // Actualizar matrícula en las cabeceras de las pestañas
+  const plateBadge = document.getElementById('heroPlateBadge');
+  if (plateBadge) plateBadge.innerText = plateText;
+  const energyPlateBadge = document.getElementById('energyHeroPlateBadge');
+  if (energyPlateBadge) energyPlateBadge.innerText = plateText;
+
+  // Actualizar panel de información en Ajustes -> Cuenta
+  const setName = document.getElementById('settingsVehicleNameDisplay');
+  if (setName) setName.innerText = displayName;
+  const setModel = document.getElementById('settingsVehicleModelDisplay');
+  if (setModel) setModel.innerText = modelName;
+  const setPlate = document.getElementById('settingsVehiclePlateDisplay');
+  if (setPlate) setPlate.innerText = vehicle?.license_plate || '-';
+  const setVin = document.getElementById('settingsVehicleVinDisplay');
+  if (setVin) setVin.innerText = vehicle?.vin || currentVin || '-';
+  if (typeof applyVehiclePhoto === 'function') applyVehiclePhoto(vehicle);
+
+  if (typeof applyAccessLevel === 'function') applyAccessLevel();
+
+  // Actualizar título del navegador
+  document.title = t('EVBro — {p0}', {p0: displayName});
+
+  if (vinEl) {
+    const vin = vehicle?.vin || currentVin;
+    vinEl.innerText = vin ? `VIN: ${vin}` : 'VIN: No detectado';
+    vinEl.title = vin ? t('Número de Identificación de Vehículo (VIN): {p0}', {p0: vin}) : 'Sin VIN detectado';
+  }
+}
+
+async function loadVehicles() {
+  try {
+    const res = await fetch('/api/vehicles');
+    const vehicles = await res.json();
+    const sel = document.getElementById('vehicleSelector');
+    sel.innerHTML = '';
+
+    if (!vehicles || vehicles.length === 0) {
+      sel.innerHTML = '<option value="">Sin vehículos registrados</option>';
+      allVehiclesList = [];
+      updateVehicleHeaderInfo(null);
+      return;
+    }
+
+    allVehiclesList = vehicles;
+
+    vehicles.forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v.vin;
+      opt.innerText = vehicleLabel(v);
+      sel.appendChild(opt);
+    });
+
+    // The car chosen last time (per browser) if it is still there; otherwise the first one
+    let saved = null;
+    try { saved = localStorage.getItem(VEHICLE_KEY); } catch (e) { /* sin almacenamiento */ }
+    const chosen = vehicles.find(v => v.vin === saved) || vehicles[0];
+    currentVin = chosen.vin;
+    sel.value = currentVin;
+
+    // Actualizar nombre y VIN en el encabezado principal
+    updateVehicleHeaderInfo(chosen);
+    applyVehicleCapabilities();                     // fuel type and «no Ebro account» decide what the interface shows
+
+    // Cargar telemetría y detalles de carga del coche elegido
+    loadLatestTelemetry(currentVin);
+    loadLatestCharge(currentVin);
+  } catch (err) {
+    console.error("Error cargando vehículos:", err);
+  }
+}
+
+const VEHICLE_KEY = 'evbro_vin';
+
+/** Name shown in the car pickers: the car's name, and a hint when it has no Ebro account. */
+function vehicleLabel(v) {
+  return `${v.name || 'Ebro'}${v.is_manual ? ' · sin cuenta Ebro' : ''}`;
+}
+
+/** Changes the car the whole app works on: every tab, the car sheet, expenses, costs, maintenance, notifications thresholds... */
+function selectVehicle(vin) {
+  if (!vin) return;
+  currentVin = vin;
+  try { localStorage.setItem(VEHICLE_KEY, vin); } catch (e) { /* da igual */ }
+  const sel = document.getElementById('vehicleSelector');
+  if (sel && sel.value !== vin) sel.value = vin;
+  updateVehicleHeaderInfo();
+  applyVehicleCapabilities();
+  loadLatestTelemetry(vin);
+  loadLatestCharge(vin);
+  // reload what is on screen for the new car (each tab loads its data when it is opened)
+  if (window.currentTabName) switchTab(window.currentTabName);
+  if (window.currentTabName === 'settings' && window.currentSettingsSubTab) switchSettingsSubTab(window.currentSettingsSubTab);
+}
+
+function onVehicleChange(vin) { selectVehicle(vin); }
+
+// Cargar última telemetría
+async function loadLatestTelemetry(vin) {
+  if (!vin) return;
+  try {
+    const res = await fetch(`/api/vehicles/${vin}/latest`);
+    if (res.ok) {
+      const data = await res.json();
+      applyTelemetry(data);
+    }
+  } catch (err) {
+    console.error("Error al cargar última telemetría:", err);
+  }
+}
+
+async function triggerVehicleDiscovery() {
+  // «Sincronizar» (Ajustes → Cuenta and the account dialog): asks Ebro for the cars of the connected account.
+  const buttons = [...document.querySelectorAll('[data-on-click*="triggerVehicleDiscovery"]')];
+  buttons.forEach((b) => { b.disabled = true; b.dataset.label = b.textContent; b.textContent = 'Buscando en Ebro…'; });
+  try {
+    const res = await fetch('/api/vehicles/discover', { method: 'POST' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { showToast(data.detail || 'No se ha podido sincronizar con Ebro.', 'error', 6000); return; }
+    const n = data.count || 0;
+    showToast(n ? `Sincronizado: ${n === 1 ? 'un coche' : `${n} coches`} en tu cuenta de Ebro.` : 'Sincronizado: tu cuenta de Ebro no tiene coches nuevos.', 'success', 5000);
+    loadVehicles();
+  } catch (err) {
+    showToast('Error de red al sincronizar con Ebro.', 'error');
+  } finally {
+    buttons.forEach((b) => { b.disabled = false; b.textContent = b.dataset.label || 'Sincronizar'; });
+    if (typeof checkAccountStatus === 'function') checkAccountStatus();      // keeps «Sincronizar» disabled when there is no account
+  }
+}
+
+
+/** What the chosen car can do decides what the app shows (body[data-fuel], body[data-manual], body[data-gps]):
+ *  Energía and the battery only for PHEV/EV; Repostajes and the tank not for an EV; and for a car without an Ebro account
+ *  nothing that needs live data (figure, orders, tyres, Confort, ranges) — only the map, and only when a Traccar fix exists. */
+async function applyVehicleCapabilities() {
+  const v = typeof currentVehicle === 'function' ? currentVehicle() : null;
+  const fuel = (v && v.fuel_type) || 'phev';
+  const manual = !!(v && v.is_manual);
+  document.body.dataset.fuel = fuel;
+  document.body.dataset.manual = manual ? '1' : '0';
+  const electric = fuel === 'phev' || fuel === 'ev';
+  if ((!electric || manual) && window.currentTabName === 'charges') switchTab('overview');
+  if (manual && window.currentTabName === 'climate') switchTab('overview');
+  if (fuel === 'ev' && window.currentTabName === 'refuels') switchTab('overview');
+  if (!manual) { document.body.dataset.gps = '1'; return; }
+  // a manual car shows the map only when something (Traccar) has ever placed it
+  try {
+    const res = await fetch(`/api/vehicles/${currentVin}/gps/latest`);
+    const data = res.ok ? await res.json() : { position: null };
+    document.body.dataset.gps = data.position ? '1' : '0';
+  } catch (e) { document.body.dataset.gps = '0'; }
+}
+const applyFuelType = applyVehicleCapabilities;      // older name

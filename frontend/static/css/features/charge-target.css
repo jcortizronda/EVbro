@@ -1,0 +1,30 @@
+/* EVBro — Objetivo de batería: círculo deslizante.
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+/* Objetivo de batería: círculo deslizante sobre la barra de carga */
+.energy-target-text { font-size: 0.85rem; font-weight: 700; color: var(--text-primary); }
+.energy-slider {
+  position: relative; height: 40px; margin: 2px 0 0; cursor: pointer;
+  display: flex; align-items: center; touch-action: pan-y; user-select: none; -webkit-user-select: none;
+  --thumb: 26px;
+}
+.energy-slider > .energy-progress-track { width: 100%; }
+.energy-slider:focus-visible { outline: 2px solid var(--accent-bright); outline-offset: 2px; border-radius: 12px; }
+.energy-ticks { position: absolute; left: 0; right: 0; top: 50%; height: 0; pointer-events: none; }
+.energy-ticks i { position: absolute; top: -9px; width: 2px; height: 5px; margin-left: -1px; border-radius: 1px; background: var(--text-muted); opacity: 0.55; }
+.energy-thumb {
+  position: absolute; top: 50%; left: 100%; width: var(--thumb); height: var(--thumb);
+  margin: calc(var(--thumb) / -2) 0 0 calc(var(--thumb) / -2);
+  border-radius: 50%; background: #fff; border: 3px solid var(--accent-bright);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45); transition: left 0.15s ease, transform 0.12s ease;
+}
+.energy-slider.is-dragging .energy-thumb { transition: none; transform: scale(1.18); }
+.energy-slider[data-unlimited="true"] .energy-thumb { border-color: var(--text-muted); }
+.energy-slider.is-busy { opacity: 0.6; pointer-events: none; }
+.sched-status[data-state="pending"] { --sched: var(--accent-amber, #ff9f0a); }
+.sched-status[data-state="pending"] .sched-badge { animation: sched-pulse 1.2s ease-in-out infinite; }
+@keyframes sched-pulse { 50% { opacity: 0.45; } }
+@media (prefers-reduced-motion: reduce) { .sched-status[data-state="pending"] .sched-badge { animation: none; } }
+
+.energy-remaining { margin: 4px 0 0; font-size: 0.85rem; color: var(--text-secondary); }
+.energy-remaining strong { color: var(--text-primary); font-variant-numeric: tabular-nums; }

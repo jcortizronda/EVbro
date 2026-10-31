@@ -1,0 +1,136 @@
+/* EVBro — Geocercas: botones y menú emergente.
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+/* ==========================================================
+   GEOFENCE MODERN ACTION BUTTONS & POPOVER
+   ========================================================== */
+.geofence-action-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 6px 11px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.geofence-action-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.geofence-action-btn.btn-view {
+  color: var(--accent);
+  border-color: rgba(var(--accent-rgb), 0.25);
+}
+
+.geofence-action-btn.btn-edit {
+  color: var(--accent);
+  border-color: rgba(var(--accent-rgb), 0.25);
+}
+
+.geofence-action-btn.btn-delete {
+  color: #ff453a;
+  border-color: rgba(255, 69, 58, 0.25);
+}
+
+.geofence-action-btn.btn-more {
+  color: var(--text-secondary);
+}
+
+.geofence-popover-menu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: 6px;
+  background: #1c1c22;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 14px;
+  padding: 6px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 130px;
+  animation: fadeIn 0.15s ease;
+}
+
+.geofence-popover-item {
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 550;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: background 0.15s ease;
+}
+
+.geofence-popover-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.geofence-popover-item.danger {
+  color: #ff453a;
+}
+.geofence-popover-item.danger:hover {
+  background: rgba(255, 69, 58, 0.15);
+}
+
+/* Entradas y salidas de geocercas */
+.gf-events-card { padding: 14px 16px; margin-top: 12px; }
+.gf-event { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-top: 1px solid var(--border-color); }
+.gf-event-kind { flex: none; min-width: 52px; text-align: center; padding: 3px 8px; border-radius: 999px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; }
+.gf-event.is-enter .gf-event-kind { color: var(--accent-green, #30d158); background: rgba(48, 209, 88, 0.12); }
+.gf-event.is-exit .gf-event-kind { color: var(--accent-amber, #ff9f0a); background: rgba(255, 159, 10, 0.14); }
+.gf-event-main { display: flex; flex-direction: column; min-width: 0; }
+.gf-event-main strong { font-size: 0.9rem; }
+.gf-event-main small { font-size: 0.74rem; color: var(--text-muted); }
+
+/* Second line of a geofence card: alerts and tariff (the old «Info» modal) */
+.geofence-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  margin-top: 0.3rem;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+.geofence-card-meta .is-silent { color: var(--text-muted); }
+.geofence-card-meta .gf-meta-tariff { color: var(--accent); font-weight: 600; }
+
+/* Per-geofence alert switches in the modal */
+.gf-notify-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.gf-notify-opt {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--bg-glass-inset);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.gf-notify-opt input { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; }

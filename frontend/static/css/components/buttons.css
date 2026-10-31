@@ -1,0 +1,83 @@
+/* EVBro — Botones (sistema «píldora»).
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+/* ========================================================
+   HABRO BUTTONS: APPLE PILL SYSTEM
+   ======================================================== */
+.btn-primary,
+.button-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 20px;
+  border-radius: var(--radius-pill);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  font-family: inherit;
+  font-size: 13.5px;
+  background: #111113;
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  white-space: nowrap;
+}
+
+[data-theme="dark"] .btn-primary,
+[data-theme="dark"] .button-primary {
+  background: #ffffff;
+  color: #111113;
+  box-shadow: 0 4px 14px rgba(255, 255, 255, 0.15);
+}
+
+.btn-primary:hover,
+.button-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+}
+
+.btn-primary:active,
+.button-primary:active {
+  transform: scale(0.97);
+}
+
+.btn-secondary,
+.button-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 18px;
+  border-radius: var(--radius-pill);
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  font-family: inherit;
+  font-size: 13.5px;
+  background: var(--surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  white-space: nowrap;
+}
+
+.btn-secondary:hover,
+.button-secondary:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+.btn-secondary:active,
+.button-secondary:active {
+  transform: scale(0.97);
+}
+
+.btn-sm {
+  min-height: 32px !important;
+  padding: 0 12px !important;
+  font-size: 12px !important;
+}

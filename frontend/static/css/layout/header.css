@@ -1,0 +1,325 @@
+/* EVBro — Cabecera de la aplicación y navegación superior.
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+/* ========================================================
+   TOP APPLICATION HEADER & RESPONSIVE NAVIGATION
+   ======================================================== */
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  background: var(--bg-navbar);
+  backdrop-filter: saturate(180%) blur(24px);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+  border-bottom: 1px solid var(--border-color);
+  width: 100%;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Backward compatibility for legacy references */
+.navbar {
+  display: contents;
+}
+
+.navbar-main {
+  height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.5rem;
+  max-width: 1440px;
+  margin: 0 auto;
+  gap: 0.85rem;
+}
+
+.navbar-left {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  flex-shrink: 0;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  user-select: none;
+  transition: opacity 0.2s ease;
+  cursor: pointer;
+}
+
+.brand:hover {
+  opacity: 0.88;
+}
+
+.brand-crest,
+.brand .logo-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #1f4565, #0c1822);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-weight: 850;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+[data-theme="light"] .brand-crest,
+[data-theme="light"] .brand .logo-icon {
+  background: linear-gradient(145deg, var(--accent), var(--primary-dark));
+  box-shadow: 0 4px 14px rgba(var(--accent-rgb), 0.2);
+}
+
+.brand:hover .brand-crest,
+.brand:hover .logo-icon {
+  transform: scale(1.04);
+}
+
+.brand-copy {
+  display: grid;
+  gap: 1px;
+  line-height: 1.15;
+}
+
+.brand-copy strong,
+.brand-title {
+  font-size: 16px;
+  font-weight: 750;
+  letter-spacing: -0.025em;
+  color: var(--text-primary);
+}
+
+.brand-copy small {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 550;
+  letter-spacing: -0.01em;
+}
+
+.brand span.mate {
+  color: var(--accent);
+}
+
+/* Vehicle Selector Glass Pill */
+.vehicle-selector-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-pill);
+  padding: 0.28rem 0.65rem 0.28rem 0.85rem;
+  transition: var(--transition);
+}
+
+.vehicle-selector-wrapper:hover,
+.vehicle-selector-wrapper:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.vehicle-select-icon {
+  color: var(--accent);
+  flex-shrink: 0;
+  margin-right: 0.45rem;
+}
+
+.vehicle-select {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.86rem;
+  font-weight: 650;
+  padding: 0.25rem 1.4rem 0.25rem 0;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236e6e73' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 2px center;
+  max-width: 175px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+[data-theme="dark"] .vehicle-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+
+.vehicle-select option {
+  background: var(--surface);
+  color: var(--text-primary);
+  padding: 0.5rem;
+}
+
+.nav-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  padding: 0.45rem 1rem;
+  border-radius: var(--radius-pill);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  transition: var(--transition);
+  white-space: nowrap;
+}
+
+.nav-btn:hover {
+  color: var(--text-primary);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="dark"] .nav-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.nav-btn.active {
+  color: var(--text-primary);
+  background: var(--surface);
+  border-color: var(--line);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  font-weight: 750;
+}
+
+[data-theme="dark"] .nav-btn.active {
+  background: #252528;
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  color: #ffffff;
+}
+
+/* Right Nav Actions */
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-shrink: 0;
+}
+
+/* Account Status Pill Button */
+.btn-account {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.95rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.82rem;
+  font-weight: 650;
+  border: 1px solid var(--border-color);
+  background: var(--surface);
+  color: var(--text-primary);
+  cursor: pointer;
+  box-shadow: var(--shadow-pill);
+  transition: var(--transition);
+  white-space: nowrap;
+}
+
+.btn-account:hover {
+  border-color: var(--accent);
+  box-shadow: 0 2px 10px var(--accent-glow);
+}
+
+.account-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #94a3b8;
+  display: inline-block;
+  flex-shrink: 0;
+  transition: background 0.3s, box-shadow 0.3s;
+}
+
+.account-dot.connected {
+  background: var(--success);
+  box-shadow: 0 0 8px rgba(45, 106, 79, 0.7);
+}
+
+.account-dot.disconnected {
+  background: var(--warning);
+  box-shadow: 0 0 8px rgba(138, 100, 40, 0.6);
+}
+
+.account-dot.error {
+  background: var(--danger);
+  box-shadow: 0 0 8px rgba(220, 38, 38, 0.7);
+}
+
+/* Quick Theme Toggle Icon Button */
+.nav-icon-btn {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-color);
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 1.05rem;
+  color: var(--text-primary);
+  box-shadow: var(--shadow-pill);
+  transition: var(--transition);
+  flex-shrink: 0;
+}
+
+.nav-icon-btn:hover {
+  border-color: var(--accent);
+  transform: scale(1.05);
+}
+
+/* Action Refresh & Install Button */
+.btn-refresh {
+  background: #111113;
+  color: #ffffff;
+  border: 1px solid transparent;
+  padding: 0.45rem 1.05rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.84rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  font-family: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  transition: var(--transition);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+[data-theme="dark"] .btn-refresh {
+  background: #ffffff;
+  color: #111113;
+  box-shadow: 0 4px 14px rgba(255, 255, 255, 0.15);
+}
+
+.btn-refresh:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+
+.btn-refresh:active {
+  transform: scale(0.97);
+}
+
+.btn-refresh.spin svg {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  100% { transform: rotate(360deg); }
+}

@@ -1,0 +1,70 @@
+/* EVBro — Cuentas asociadas (Ajustes → Cuentas) y ocultación por nivel de acceso.
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+/* Lo que el nivel de la cuenta no permite se oculta (el servidor lo impone igualmente). */
+body:not(.can-edit) .needs-edit,
+body:not(.can-control) .needs-control,
+body:not(.can-owner) .needs-owner,
+body:not(.is-root) .needs-root { display: none !important; }
+
+.acc-card { padding: 14px 16px; margin-bottom: 12px; }
+.acc-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.acc-head button { min-height: 44px; }
+.acc-hint { margin: 8px 0 4px; font-size: 0.78rem; line-height: 1.4; color: var(--text-muted); }
+.acc-limit { font-size: 0.82rem; color: var(--text-secondary); }
+.acc-row { padding: 12px 0; border-top: 1px solid var(--border-color); }
+.acc-row:first-of-type { border-top: 0; }
+.acc-row-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.acc-name { font-weight: 700; overflow-wrap: anywhere; }
+.acc-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.acc-badge { padding: 2px 9px; font-size: 0.72rem; font-weight: 700; border-radius: 999px; color: var(--text-secondary); background: var(--bg-glass-inset); }
+.acc-badge.is-off { color: #b3261e; background: rgba(255, 69, 58, 0.14); }
+.acc-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.acc-actions button { min-height: 40px; padding: 0 12px; font: inherit; font-size: 0.8rem; font-weight: 600; color: var(--text-primary); background: var(--surface-secondary); border: 1px solid var(--border-color); border-radius: 10px; cursor: pointer; }
+.acc-actions .danger { color: var(--accent-red); }
+.acc-links { margin-top: 10px; display: grid; gap: 8px; }
+.acc-link { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px; }
+.acc-link span { font-size: 0.85rem; overflow-wrap: anywhere; }
+.acc-link select { min-height: 40px; min-width: 9.5rem; }
+.acc-empty { padding: 16px 6px; text-align: center; font-size: 0.85rem; color: var(--text-muted); }
+.acc-levels { margin: 6px 0 0; padding-left: 1.1rem; font-size: 0.78rem; line-height: 1.5; color: var(--text-muted); }
+.acc-danger-zone { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--border-color); }
+.acc-danger-zone button { min-height: 44px; width: 100%; font: inherit; font-weight: 700; color: var(--accent-red); background: none; border: 1px solid var(--accent-red); border-radius: 12px; cursor: pointer; }
+
+.auth-switch { margin: 14px 0 0; text-align: center; }
+.auth-switch[hidden] { display: none; }
+
+/* Tema: tres opciones */
+.theme-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 5px; background: var(--surface-secondary); border: 1px solid var(--border-color); border-radius: 16px; }
+.theme-seg-btn { min-height: 48px; font: inherit; font-weight: 600; color: var(--text-secondary); background: transparent; border: 0; border-radius: 12px; cursor: pointer; }
+.theme-seg-btn.selected { color: var(--text-primary); background: var(--surface); outline: 2px solid var(--accent-bright); outline-offset: -2px; }
+
+/* Tus coches (Ajustes, Coche): elegir el coche */
+.car-pick { display: flex; justify-content: space-between; align-items: center; gap: 10px; width: 100%; padding: 12px 10px; margin: 0; text-align: left; font: inherit; color: inherit;
+  background: none; border: 0; border-top: 1px solid var(--border-color); cursor: pointer; min-height: 56px; border-radius: 0; }
+.car-pick:first-child { border-top: 0; }
+.car-pick.is-current { background: var(--bg-glass-inset); border-radius: 12px; }
+.car-pick-check { flex: none; font-size: 0.78rem; font-weight: 700; color: var(--accent-bright); }
+
+/* Manual car modal: the free-text brand/model inputs sit under their select */
+.man-field-extra { margin-top: 0.4rem; }
+
+/* Colour accent swatches (Ajustes → Tema → Color) */
+.accent-current { margin-left: auto; font-size: 0.8rem; font-weight: 600; color: var(--accent); }
+.accent-seg { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; padding: 6px 2px; }
+.accent-dot { display: flex; align-items: center; justify-content: center; min-height: 48px; background: transparent; border: 0; cursor: pointer; border-radius: 14px; }
+.accent-dot span { width: 30px; height: 30px; border-radius: 50%; box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.35), 0 2px 8px rgba(0, 0, 0, 0.18); transition: transform 0.18s ease; }
+.accent-dot.selected span { transform: scale(1.15); outline: 3px solid var(--text-primary); outline-offset: 3px; }
+.accent-dot[data-accent="blue"] span { background: #2997ff; }
+.accent-dot[data-accent="rose"] span { background: #ec4899; }
+.accent-dot[data-accent="violet"] span { background: #8b5cf6; }
+.accent-dot[data-accent="green"] span { background: #22c55e; }
+.accent-dot[data-accent="amber"] span { background: #f59e0b; }
+.accent-dot[data-accent="red"] span { background: #ef4444; }
+.accent-card { margin-top: 1rem; }
+
+/* When orders ask for the PIN (Ajustes → Cuenta) */
+.pin-policy { margin-top: 0.9rem; padding-top: 0.75rem; border-top: 1px solid var(--border-color); }
+.pin-policy-title { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 0.4rem; }
+.pin-policy-seg .theme-seg-btn { min-height: 44px; font-size: 0.85rem; }
+.pin-policy .vp-hint { margin: 0.5rem 0 0; }

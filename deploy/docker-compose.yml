@@ -1,0 +1,98 @@
+# EVBro: the application plus its PostgreSQL database.
+#   Public image:   docker compose pull && docker compose up -d
+#   Source tree:    docker compose up -d --build        (builds the same image locally)
+# Settings come from `.env` next to this file; every variable below has a default, so a minimal `.env`
+# (see .env.example) is enough. The project name is fixed so the volumes do not depend on the folder name.
+name: evbro
+
+x-logging: &logging                    # log rotation, so small servers never fill their disk
+  driver: json-file
+  options: {max-size: "10m", max-file: "3"}
+
+services:
+  app:
+    image: ghcr.io/${EVBRO_IMAGE_OWNER:-jcortizronda}/evbro:${EVBRO_TAG:-latest}
+    pull_policy: missing               # without the source tree the image is pulled; with `--build` it is built
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+      args:
+        EVBRO_COMMIT: ${EVBRO_COMMIT:-}    # commit shown in Settings → System: EVBRO_COMMIT=$(git rev-parse --short HEAD) docker compose up -d --build
+    container_name: evbro
+    restart: unless-stopped
+    logging: *logging
+    ports:
+      - "${BIND_ADDRESS:-0.0.0.0}:${WEB_PORT:-8080}:8080"                  # the app (publish this one)
+      - "${ADMIN_BIND_ADDRESS:-127.0.0.1}:${ADMIN_WEB_PORT:-8082}:8082"     # the admin console (local network only)
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-evbro}:${POSTGRES_PASSWORD:-evbro_password}@db:5432/${POSTGRES_DB:-evbro}
+      # Security
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-}
+      - SETUP_CODE=${SETUP_CODE:-}                       # empty = a random one is printed in the log at first start
+      - SESSION_DAYS=${SESSION_DAYS:-30}
+      - COOKIE_SECURE=${COOKIE_SECURE:-}                 # empty = automatic (true when the request arrives over HTTPS)
+      - FORWARDED_ALLOW_IPS=${FORWARDED_ALLOW_IPS:-127.0.0.1}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-}
+      - WEBAUTHN_RP_ID=${WEBAUTHN_RP_ID:-}
+      - WEBAUTHN_ORIGIN=${WEBAUTHN_ORIGIN:-}
+      # General
+      - TIMEZONE=${TIMEZONE:-}
+      - VAPID_SUBJECT=${VAPID_SUBJECT:-}
+      - LEGAL_OPERATOR=${LEGAL_OPERATOR:-}
+      - LEGAL_CONTACT=${LEGAL_CONTACT:-}
+      - ANDROID_ASSETLINKS_JSON=${ANDROID_ASSETLINKS_JSON:-}
+      - ADMIN_PORT=8082
+      # Accounts: limits a new manager starts with (the administrator changes them per account)
+      - DEFAULT_VEHICLE_LIMIT=${DEFAULT_VEHICLE_LIMIT:-2}
+      - DEFAULT_MEMBER_LIMIT=${DEFAULT_MEMBER_LIMIT:-5}
+      - DEFAULT_STORAGE_MB=${DEFAULT_STORAGE_MB:-50}
+      - INVITE_DEFAULT_DAYS=${INVITE_DEFAULT_DAYS:-14}
+      - ALLOW_PRIVATE_WEBHOOKS=${ALLOW_PRIVATE_WEBHOOKS:-false}
+      # How often the cloud is queried, in minutes, by car state (querying does not wake the car)
+      - POLL_INTERVAL_PARKED_MIN=${POLL_INTERVAL_PARKED_MIN:-60}
+      - POLL_INTERVAL_PLUGGED_MIN=${POLL_INTERVAL_PLUGGED_MIN:-30}
+      - POLL_INTERVAL_CHARGING_MIN=${POLL_INTERVAL_CHARGING_MIN:-2}
+      - POLL_INTERVAL_DRIVING_MIN=${POLL_INTERVAL_DRIVING_MIN:-1}
+      - POLL_INTERVAL_DRIVING_IDLE_MIN=${POLL_INTERVAL_DRIVING_IDLE_MIN:-3}
+      # Live channel with the car (instant doors/lock/cable/engine events and command confirmations; owner account only).
+      # The cloud keeps one live client per account: leave it off while the official app is used on the same account.
+      - CAR_MQTT_ENABLED=${CAR_MQTT_ENABLED:-false}
+      - CAR_MQTT_HOST=${CAR_MQTT_HOST:-tspemqx-app-eu.ebroauto.com}
+      - CAR_MQTT_PORT=${CAR_MQTT_PORT:-8083}
+      # Optional: publish the cars to your own MQTT broker (Home Assistant discovers them). Every manager can also connect
+      # their own broker from Settings → Account without touching this.
+      - MQTT_ENABLED=${MQTT_ENABLED:-false}
+      - MQTT_HOST=${MQTT_HOST:-mosquitto}
+      - MQTT_PORT=${MQTT_PORT:-1883}
+      - MQTT_USER=${MQTT_USER:-}
+      - MQTT_PASSWORD=${MQTT_PASSWORD:-}
+      - MQTT_TOPIC_PREFIX=${MQTT_TOPIC_PREFIX:-evbro}
+      - MQTT_PUBLISH_SCOPE=${MQTT_PUBLISH_SCOPE:-owner}      # owner = the first manager's cars; all = everybody's
+      - MQTT_HA_DISCOVERY=${MQTT_HA_DISCOVERY:-true}
+      - MQTT_HA_PREFIX=${MQTT_HA_PREFIX:-homeassistant}
+    volumes:
+      - evbro_data:/app/data           # tokens, uploaded documents and photos (encrypted), push keys
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    container_name: evbro-db
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-evbro}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-evbro_password}
+      - POSTGRES_DB=${POSTGRES_DB:-evbro}
+    volumes:
+      - evbro_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-evbro} -d ${POSTGRES_DB:-evbro}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  evbro_data:
+  evbro_postgres_data:

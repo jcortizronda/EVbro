@@ -1,0 +1,51 @@
+/* EVBro — Consumibles y referencias (ficha del coche) y selector de piezas de las intervenciones.
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+.vp-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 5px; margin-bottom: 12px; background: var(--surface-secondary); border: 1px solid var(--border-color); border-radius: 16px; }
+.vp-seg-btn { min-height: 44px; font: inherit; font-weight: 600; font-size: 0.9rem; color: var(--text-secondary); background: transparent; border: 0; border-radius: 12px; cursor: pointer; }
+.vp-seg-btn.is-active { color: var(--text-primary); background: var(--surface); outline: 2px solid var(--accent-bright); outline-offset: -2px; }
+#vpPaneData[hidden], #vpPaneParts[hidden] { display: none; }
+
+.parts-head { padding: 14px 16px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 10px; }
+.parts-head input[type="search"] { min-height: 44px; }
+.parts-head > button { min-height: 44px; }
+#partsSuggestWrap[hidden] { display: none; }
+#partsSuggestWrap small { display: block; font-size: 0.74rem; color: var(--text-muted); margin-bottom: 6px; }
+.part-group { padding: 6px 16px 8px; margin-bottom: 12px; }
+.part-group-title { margin: 8px 0 2px; font-size: 0.78rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-secondary); }
+.part-item { display: block; width: 100%; padding: 12px 0; text-align: left; font: inherit; color: inherit; background: none; border: 0; border-top: 1px solid var(--border-color); cursor: pointer; min-height: 56px; }
+.part-group .part-item:first-of-type { border-top: 0; }
+.part-item-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.part-item-main strong { font-size: 0.92rem; }
+.part-item-main span { font-size: 0.86rem; overflow-wrap: anywhere; }
+.part-item-main small { font-size: 0.76rem; color: var(--text-muted); overflow-wrap: anywhere; }
+.part-item-main .part-when { color: var(--text-secondary); }
+
+/* Editor de una pieza (modal de la ficha y selector de las intervenciones) */
+.part-row { position: relative; padding: 12px 0; border-top: 1px solid var(--border-color); }
+.part-row:first-child { border-top: 0; padding-top: 0; }
+.part-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.part-grid label { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.part-grid label > span { font-size: 0.78rem; font-weight: 600; color: var(--text-secondary); }
+.part-grid .form-control { width: 100%; box-sizing: border-box; min-height: 44px; }
+.part-grid [hidden] { display: none; }
+.part-wide { grid-column: 1 / -1; }
+.part-remove { margin-bottom: 8px; min-height: 36px; padding: 0 12px; font: inherit; font-size: 0.8rem; font-weight: 600; color: var(--accent-red); background: none; border: 1px solid var(--border-color); border-radius: 10px; cursor: pointer; }
+
+.parts-picker { padding: 12px; border: 1px dashed var(--border-color); border-radius: 14px; }
+.parts-picker-head { display: flex; flex-direction: column; margin-bottom: 8px; }
+.parts-picker-head small { font-size: 0.76rem; color: var(--text-muted); }
+.parts-add { width: 100%; min-height: 44px; margin-top: 4px; }
+.parts-update { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 0.82rem; color: var(--text-secondary); }
+.parts-update input { width: 20px; height: 20px; }
+.maint-parts { display: block; margin-top: 4px; font-size: 0.78rem; color: var(--text-secondary); }
+
+/* Catálogo compartido: estado de mis propuestas y sugerencias al añadir una pieza */
+.part-tag { display: inline-block; vertical-align: middle; margin-left: 6px; padding: 1px 7px; border-radius: 999px; font-size: 0.64rem; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; border: 1px solid currentColor; }
+.part-tag-pending { color: var(--accent-amber, #ff9f0a); }
+.part-tag-approved { color: var(--accent-green, #30d158); }
+.part-tag-rejected { color: var(--accent-red, #ff453a); }
+.part-suggest { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 10px 0 2px; padding: 10px 12px; border-radius: 12px; background: var(--surface-secondary); border: 1px solid var(--border-color); }
+.part-suggest[hidden] { display: none; }
+.part-suggest-title { flex: 0 0 100%; font-size: 0.74rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.03em; }
+.part-suggest .maint-chip small { opacity: 0.7; }

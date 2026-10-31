@@ -1,0 +1,106 @@
+/* EVBro — Pestaña Confort.
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+/* ==========================================================================
+   PESTAÑA CONFORT (clima, lunas, volante y asientos con estado ON/OFF)
+   ========================================================================== */
+.comfort-section .climate-headline { margin-bottom: 0.85rem; }
+.comfort-hint { color: var(--text-secondary); font-size: 0.84rem; line-height: 1.45; margin: 0.65rem 0 0; }
+.comfort-hint code, .comfort-row code { font-size: 0.78rem; overflow-wrap: anywhere; }
+
+/* Indicador ON / OFF (texto + color, nunca solo color) */
+.comfort-state {
+  display: inline-block; min-width: 3.4rem; text-align: center; margin-left: auto;
+  padding: 0.25rem 0.6rem; border-radius: 999px;
+  font-size: 0.72rem; font-weight: 800; letter-spacing: 0.05em; white-space: nowrap;
+  background: rgba(128, 128, 128, 0.18); color: var(--text-secondary);
+}
+.comfort-state[data-state="on"], .comfort-state[data-state="on-waiting"] { background: rgba(48, 209, 88, 0.2); color: var(--accent-green); }
+.comfort-state[data-state="on-waiting"], .comfort-state[data-state="off-waiting"] { outline: 1px dashed currentColor; outline-offset: -2px; }
+.comfort-state[data-state="unknown"] { opacity: 0.55; }
+.comfort-state[data-state="pending"] { animation: comfort-pulse 1s ease-in-out infinite; }
+@keyframes comfort-pulse { 50% { opacity: 0.35; } }
+.climate-headline small .comfort-state { margin-left: 0.4rem; min-width: 0; padding: 0.1rem 0.45rem; font-size: 0.66rem; vertical-align: middle; }
+
+/* Botones con estado */
+.comfort-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
+.comfort-tile {
+  display: flex; align-items: center; gap: 0.75rem; width: 100%; min-height: 56px;
+  padding: 0.6rem 0.8rem; text-align: left; cursor: pointer;
+  color: var(--text-primary); background: var(--surface-secondary);
+  border: 1px solid var(--border-color); border-radius: 16px;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.comfort-tile:disabled { opacity: 0.8; cursor: progress; }
+.comfort-tile.is-on { background: rgba(48, 209, 88, 0.12); border-color: rgba(48, 209, 88, 0.55); }
+.comfort-icon { font-size: 1.25rem; line-height: 1; flex-shrink: 0; }
+.comfort-text { display: grid; gap: 1px; min-width: 0; }
+.comfort-text strong { font-size: 0.95rem; font-weight: 700; }
+.comfort-text small { color: var(--text-secondary); font-size: 0.74rem; }
+
+/* Asientos: una tarjeta por plaza con sus dos botones */
+.comfort-seats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.seat-card { display: flex; flex-direction: column; gap: 6px; padding: 0.6rem; border: 1px solid var(--border-color); border-radius: 18px; }
+.seat-title { font-size: 0.7rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); padding: 0 0.2rem; }
+.comfort-tile.compact { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 0.25rem 0.5rem; min-height: 64px; padding: 0.5rem 0.6rem; }
+.comfort-tile.compact .comfort-text strong { font-size: 0.85rem; }
+.comfort-tile.compact .comfort-state { grid-column: 1 / -1; margin-left: 0; width: 100%; }
+
+/* Preajustes de temperatura */
+.comfort-chips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 0.5rem; }
+.comfort-chip {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  min-height: 56px; padding: 0.4rem; color: var(--text-primary); cursor: pointer;
+  background: var(--surface-secondary); border: 1px solid var(--border-color); border-radius: 14px;
+}
+.comfort-chip strong { font-size: 0.9rem; }
+.comfort-chip small { font-size: 0.68rem; color: var(--text-secondary); }
+
+
+/* Cabecera de pestaña sin imagen (vehículo, energía, confort) */
+.page-head { margin-bottom: 1rem; }
+.page-head-main { display: flex; align-items: center; flex-wrap: wrap; gap: 0.35rem 0.6rem; }
+.page-head-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem 0.65rem; margin-top: 0.5rem; }
+.page-head .vehicle-vin-badge { margin-top: 0; }
+.page-head-note { color: var(--text-secondary); font-size: 0.82rem; }
+.plate-badge {
+  display: inline-block; padding: 1px 7px; border-radius: 4px;
+  background: #fff; color: #111; border: 1.5px solid #111;
+  font-size: 11px; font-weight: 800; letter-spacing: 1.5px;
+}
+.icon-btn {
+  display: inline-grid; place-items: center; width: var(--tap); height: var(--tap);
+  color: var(--text-secondary); background: transparent; border: 1px solid var(--border-color); border-radius: 12px; cursor: pointer;
+}
+.icon-btn:hover { color: var(--text-primary); border-color: var(--text-muted); }
+
+/* Indicador ON/OFF dentro de una ficha de acción (portada y Energía) */
+.native-card-btn .comfort-state { margin: 6px 0 0; min-width: 0; align-self: flex-start; }
+.native-card-btn[data-state="on"], .native-card-btn[data-state="on-waiting"] { border-color: rgba(48, 209, 88, 0.55); }
+.comfort-icon svg { display: block; width: 28px; height: 28px; }
+.comfort-tile.compact .comfort-icon svg { width: 20px; height: 20px; }
+
+/* Climatización programada */
+.csched-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--border-color); }
+.csched-row:first-child { border-top: 0; }
+.csched-row.is-off .csched-main { opacity: 0.55; }
+.csched-main { display: flex; flex-direction: column; min-width: 0; }
+.csched-main strong { font-size: 0.95rem; }
+.csched-main small { font-size: 0.76rem; color: var(--text-muted); overflow-wrap: anywhere; }
+.csched-last { font-size: 0.72rem; }
+.csched-switch { display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--text-secondary); cursor: pointer; min-height: 44px; }
+.csched-switch input { width: 20px; height: 20px; accent-color: var(--accent-green, #30d158); }
+.csched-form { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 10px; }
+.csched-form-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: end; }
+.csched-field { display: flex; flex-direction: column; gap: 4px; font-size: 0.78rem; color: var(--text-secondary); min-width: 0; }
+.csched-field input[type="time"] { min-height: 44px; }
+.csched-temp { min-width: 160px; }
+.csched-temp output { color: var(--text-primary); font-weight: 700; }
+.csched-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.csched-day { min-height: 40px; font: inherit; font-weight: 700; font-size: 0.85rem; border-radius: 10px; border: 1px solid var(--border-color); background: var(--surface-secondary); color: var(--text-secondary); cursor: pointer; }
+.csched-day.is-on { background: var(--accent-soft); color: var(--accent-bright); border-color: var(--accent-bright); }
+@media (max-width: 480px) { .csched-form-row { grid-template-columns: 1fr; } .csched-row { grid-template-columns: minmax(0, 1fr) auto; } .csched-row .btn-sm { grid-column: 2; } }
+
+/* Timed climate: the PIN notice only shows when there is no PIN saved */
+.csched-pin-hint { color: var(--accent-amber); }
+.csched-pin-hint[hidden] { display: none; }

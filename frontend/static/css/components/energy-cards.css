@@ -1,0 +1,590 @@
+/* EVBro — Tarjetas de energía y combustible (portada).
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+/* ========================================================
+   HABRO PHEV DUAL ENERGY & FUEL CARDS (habroremote.com style)
+   ======================================================== */
+.habro-phev-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.habro-consumption-card {
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  overflow: hidden;
+  position: relative;
+}
+
+.habro-consumption-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-hover);
+}
+
+/* Electric Card: Deep Automotive Sapphire */
+.habro-electric-card {
+  background: linear-gradient(145deg, #16364d, #0d1e2b);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+[data-theme="light"] .habro-electric-card {
+  background: linear-gradient(145deg, #1c4866, #102d42);
+  color: #ffffff;
+}
+
+/* Fuel Card: Warm Bronze / Slate Graphite */
+.habro-fuel-card {
+  background: linear-gradient(145deg, #2a251e, #171513);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+[data-theme="light"] .habro-fuel-card {
+  background: linear-gradient(145deg, #f7f3eb, #ede5d7);
+  color: #0b0c0e;
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+.habro-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.habro-card-top .top-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.habro-card-top .icon {
+  font-size: 1.1rem;
+}
+
+.habro-card-top small {
+  font-size: 10px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.8;
+  display: block;
+}
+
+.habro-tag {
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  background: rgba(255, 255, 255, 0.15);
+  color: inherit;
+}
+
+[data-theme="light"] .habro-fuel-card .habro-tag {
+  background: rgba(0, 0, 0, 0.08);
+  color: #555;
+}
+
+.habro-card-metric {
+  margin: 4px 0 8px 0;
+}
+
+.habro-card-metric .val {
+  font-size: 1.7rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+  display: block;
+}
+
+.habro-card-submetric {
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+}
+
+[data-theme="light"] .habro-fuel-card .habro-card-submetric {
+  border-top-color: rgba(0, 0, 0, 0.08);
+  color: var(--muted);
+}
+
+.habro-card-submetric span {
+  opacity: 0.8;
+}
+
+.habro-card-submetric strong {
+  font-weight: 700;
+}
+
+/* Resumen PHEV Combinado & Odómetro (Hero Strip) */
+.habro-total-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  width: 100%;
+  margin-top: 10px;
+}
+
+.habro-strip-item {
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-color);
+  padding: 10px 8px;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.habro-strip-item .lbl {
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+
+.habro-strip-item .val {
+  font-size: 1.05rem;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+/* Backward compatibility for .ranges-row and .range-box */
+.ranges-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.range-box {
+  background: var(--surface-secondary);
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid var(--border-color);
+  text-align: center;
+}
+
+.range-box .val {
+  font-size: 1.25rem;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.range-box .lbl {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-top: 2px;
+}
+
+/* Charging active bar inside main card */
+.charge-active-bar {
+  margin-top: 1rem;
+  width: 100%;
+  background: rgba(var(--accent-rgb), 0.08);
+  border: 1px solid rgba(var(--accent-rgb), 0.2);
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.88rem;
+  transition: var(--transition);
+}
+
+[data-theme="dark"] .charge-active-bar {
+  background: rgba(var(--accent-rgb), 0.1);
+  border-color: rgba(var(--accent-rgb), 0.25);
+}
+
+.charge-active-bar .kw {
+  font-weight: 750;
+  color: var(--accent);
+}
+
+[data-theme="dark"] .charge-active-bar .kw {
+  color: var(--accent);
+}
+
+/* Center Column: Quick Controls & Map */
+.center-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.controls-card {
+  padding: 1.75rem;
+  border-radius: var(--radius-lg);
+}
+
+.card-title {
+  font-size: 18px;
+  font-weight: 750;
+  letter-spacing: -0.03em;
+  margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: var(--text-primary);
+}
+
+.card-title svg {
+  color: var(--accent);
+}
+
+.controls-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 600px) {
+  .controls-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.cmd-btn {
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 1rem 0.5rem;
+  border-radius: 20px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  box-shadow: var(--shadow-card);
+  transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1), background-color 0.18s ease, border-color 0.18s ease;
+}
+
+.cmd-btn svg {
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+  color: var(--accent);
+  transition: transform 0.2s ease;
+}
+
+[data-theme="dark"] .cmd-btn svg {
+  color: var(--accent);
+}
+
+.cmd-btn:hover {
+  background: var(--surface);
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-hover);
+}
+
+.cmd-btn:active {
+  transform: scale(0.96);
+}
+
+.cmd-btn.danger:hover {
+  background: rgba(220, 38, 38, 0.08);
+  border-color: var(--danger);
+}
+
+.cmd-btn.danger svg {
+  color: var(--danger);
+}
+
+/* Climate quick thermal dial */
+.climate-box {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.climate-temp-select {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--surface-secondary);
+  padding: 4px 6px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-color);
+}
+
+.temp-btn {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  font-size: 1.15rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  transition: var(--transition);
+}
+
+.temp-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: scale(1.06);
+}
+
+.temp-btn:active {
+  transform: scale(0.94);
+}
+
+.temp-display {
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  min-width: 65px;
+  text-align: center;
+  color: var(--text-primary);
+}
+
+/* Live Map Card - Apple Maps Aesthetic */
+.map-card {
+  padding: 0;
+  overflow: hidden;
+  height: 400px;
+  position: relative;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border-color);
+}
+
+#liveMap {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.map-overlay-info {
+  position: absolute;
+  bottom: 14px;
+  left: 14px;
+  right: 14px;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #0b0c0e;
+}
+
+[data-theme="dark"] .map-overlay-info {
+  background: rgba(22, 22, 24, 0.88);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #f5f5f7;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+}
+
+/* Right Column: Car Details & TPMS */
+.right-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.details-card {
+  padding: 1.75rem;
+  border-radius: var(--radius-lg);
+}
+
+/* Doors & Locks Status Visual - HABRO Smart Grid */
+.car-body-status {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 0.5rem;
+}
+
+.body-item {
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-color);
+  padding: 0.65rem 0.85rem;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  font-weight: 650;
+  color: var(--text-primary);
+  transition: var(--transition);
+}
+
+.body-item .status-indicator {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #94a3b8;
+  flex-shrink: 0;
+  transition: all 0.25s ease;
+}
+
+.body-item.active {
+  border-color: rgba(45, 106, 79, 0.35);
+  background: rgba(45, 106, 79, 0.08);
+}
+
+[data-theme="dark"] .body-item.active {
+  border-color: rgba(48, 209, 88, 0.35);
+  background: rgba(48, 209, 88, 0.1);
+}
+
+.body-item.active .status-indicator {
+  background: var(--success);
+  box-shadow: 0 0 8px rgba(48, 209, 88, 0.6);
+}
+
+.body-item.warning {
+  border-color: rgba(220, 38, 38, 0.35);
+  background: rgba(220, 38, 38, 0.08);
+}
+
+.body-item.warning .status-indicator {
+  background: var(--danger);
+  box-shadow: 0 0 8px rgba(220, 38, 38, 0.6);
+}
+
+/* TPMS Tyre Diagram - HABRO Metrics */
+.tpms-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 1rem;
+}
+
+.tyre-box {
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-color);
+  padding: 12px 10px;
+  border-radius: 18px;
+  text-align: center;
+  transition: var(--transition);
+}
+
+.tyre-box:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card);
+}
+
+.tyre-box .pressure {
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+}
+
+.tyre-box .temp {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 650;
+  margin: 2px 0 4px 0;
+}
+
+.tyre-box .label {
+  font-size: 10px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+}
+
+/* Data Tables (Drives & Charges) */
+.table-card {
+  padding: 1rem 1.25rem;
+  overflow-x: auto;
+  border-radius: var(--radius-md);
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-card::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.82rem;
+  table-layout: auto;
+}
+
+.data-table th {
+  padding: 0.65rem 0.45rem;
+  border-bottom: 2px solid var(--border-color);
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+
+.data-table td {
+  padding: 0.6rem 0.45rem;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.data-table td.col-addr,
+.data-table th.col-addr {
+  max-width: 140px;
+  min-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.data-table tr:hover td {
+  background: var(--bg-glass);
+  color: var(--text-primary);
+  cursor: pointer;
+}

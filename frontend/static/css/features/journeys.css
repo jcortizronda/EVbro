@@ -1,0 +1,44 @@
+/* EVBro — «Viajes largos» (features/journeys.js): list rows, the form preview and the detail sheet.
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+.jn-card { margin-bottom: 14px; }
+.jn-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.jn-head .btn-secondary { padding: 7px 12px; font-size: 0.82rem; border-radius: 10px; white-space: nowrap; }
+.jn-list { display: grid; gap: 6px; }
+.jn-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  width: 100%; padding: 10px 12px; text-align: left; font: inherit; color: var(--text-primary);
+  background: var(--surface-secondary); border: 1px solid var(--border-color); border-radius: 12px; cursor: pointer;
+}
+.jn-row-main { display: grid; gap: 2px; min-width: 0; }
+.jn-row-main strong { font-size: 0.95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jn-row-main small, .jn-row-side small { font-size: 0.75rem; color: var(--text-secondary); }
+.jn-row-side { display: grid; gap: 2px; text-align: right; flex-shrink: 0; }
+.jn-row-side b { font-variant-numeric: tabular-nums; }
+
+.jn-preview, .jn-preview-bad { margin-top: 8px; padding: 10px 12px; font-size: 0.85rem; line-height: 1.4; border-radius: 10px; background: rgba(var(--accent-rgb), 0.1); color: var(--text-primary); }
+.jn-preview-bad { background: rgba(255, 69, 58, 0.12); color: var(--accent-red); }
+
+.jn-dates { font-size: 0.82rem; color: var(--text-secondary); margin: -4px 0 12px; }
+.jn-hero { display: grid; gap: 2px; padding: 14px 16px; margin-bottom: 10px; border-radius: 14px; background: rgba(var(--accent-rgb), 0.12); }
+.jn-hero small { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-secondary); }
+.jn-hero strong { font-size: 2rem; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.jn-hero span { font-size: 0.82rem; color: var(--text-secondary); }
+.jn-kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.jn-kpi { display: grid; gap: 2px; padding: 10px 12px; border-radius: 12px; background: var(--surface-secondary); border: 1px solid var(--border-color); min-width: 0; }
+.jn-kpi small { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); }
+.jn-kpi strong { font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.jn-kpi span { font-size: 0.74rem; line-height: 1.3; color: var(--text-secondary); }
+.jn-days { display: grid; gap: 4px; margin-top: 12px; }
+.jn-day { display: grid; grid-template-columns: 76px 1fr 56px; align-items: center; gap: 8px; font-size: 0.78rem; }
+.jn-day small { color: var(--text-secondary); white-space: nowrap; }
+.jn-day b { text-align: right; font-variant-numeric: tabular-nums; }
+.jn-day-bar { height: 8px; border-radius: 4px; background: var(--surface-secondary); overflow: hidden; }
+.jn-day-bar i { display: block; height: 100%; border-radius: 4px; background: var(--accent); }
+.jn-notes { margin: 12px 0 0; font-size: 0.88rem; line-height: 1.45; color: var(--text-secondary); white-space: pre-wrap; }
+.jn-items { margin-top: 12px; }
+.jn-items summary { cursor: pointer; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); padding: 6px 0; }
+.jn-item { display: flex; justify-content: space-between; gap: 10px; width: 100%; padding: 8px 2px; font: inherit; font-size: 0.82rem; text-align: left; color: var(--text-primary); background: none; border: 0; border-top: 1px solid var(--border-color); }
+.jn-item span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jn-item b { flex-shrink: 0; font-variant-numeric: tabular-nums; }
+button.jn-item { cursor: pointer; }

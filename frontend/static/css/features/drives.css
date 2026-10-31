@@ -1,0 +1,192 @@
+/* EVBro — Viajes: filtros y resumen del periodo.
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+/* ========================================================
+   DRIVES FILTERS & PERIOD SUMMARY CARDS
+   ======================================================== */
+.filters-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.85rem 1.25rem;
+  margin-bottom: 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.filter-input,
+.filter-select,
+.form-control {
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 0.5rem 0.85rem;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  outline: none;
+  transition: var(--transition);
+}
+
+.filter-input:focus,
+.filter-select:focus,
+.form-control:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.filter-group label {
+  color: var(--text-muted);
+  font-weight: 500;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+}
+
+.filter-input, .filter-select {
+  background: rgba(10, 14, 23, 0.7);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 0.45rem 0.75rem;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 0.85rem;
+  outline: none;
+  transition: var(--transition);
+}
+
+.filter-input:focus, .filter-select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 8px var(--primary-glow);
+}
+
+.filter-input[type="number"] {
+  width: 75px;
+}
+
+/* Summary of this period */
+.period-summary {
+  margin-bottom: 1.5rem;
+}
+
+.period-summary-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.summary-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+@media (max-width: 1024px) {
+  .summary-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .summary-cards-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.summary-card {
+  background: rgba(22, 31, 49, 0.7);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.summary-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 3px;
+  height: 100%;
+  background: var(--primary);
+}
+
+.summary-card:nth-child(2)::before {
+  background: var(--accent-purple);
+}
+
+.summary-card:nth-child(3)::before {
+  background: var(--accent-green);
+}
+
+.summary-card:nth-child(4)::before {
+  background: var(--accent-amber);
+}
+
+.summary-card .card-lbl {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.4rem;
+}
+
+.summary-card .card-val {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.1;
+}
+
+.summary-card .card-subval {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-top: 0.35rem;
+}
+
+/* Incomplete Drives Banner */
+.incomplete-drives-card {
+  margin-top: 2rem;
+  border: 1px dashed rgba(255, 179, 0, 0.4);
+  background: rgba(255, 179, 0, 0.04);
+  padding: 1.25rem;
+  border-radius: var(--radius-sm);
+}
+
+.incomplete-drives-card h4 {
+  color: var(--accent-amber);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+
+/* Lugares frecuentes (Viajes) */
+.places-card { padding: 14px 16px; margin-bottom: 12px; }
+.places-card[hidden] { display: none; }
+.place-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--border-color); }
+.place-main { display: flex; flex-direction: column; min-width: 0; }
+.place-main strong { font-size: 0.9rem; overflow-wrap: anywhere; }
+.place-main small { font-size: 0.74rem; color: var(--text-muted); }
+.place-row .btn-sm { flex: none; min-height: 40px; }

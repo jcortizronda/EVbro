@@ -1,0 +1,16 @@
+/* EVBro — Fichas de la portada.
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+/* ==========================================================================
+   Fichas de la portada: el ICONO cambia de forma y de color con el estado; el botón no
+   ========================================================================== */
+.native-card-btn[data-state] .card-icon-wrap svg { display: block; width: 22px; height: 22px; }
+.native-card-btn[data-state="closed"] .card-icon-wrap { color: var(--accent-green); }
+.native-card-btn[data-state="open"] .card-icon-wrap { color: var(--accent-amber, #ff9f0a); }
+.native-card-btn[data-state="unknown"] .card-icon-wrap { color: var(--text-muted); }
+
+/* Botones de Confort: lo que se enciende es el icono (y el indicador ON/OFF), no todo el botón */
+.comfort-tile.is-on { background: var(--surface-secondary); border-color: var(--border-color); }
+.comfort-tile .comfort-icon { color: var(--text-muted); transition: color 0.2s ease; }
+.comfort-tile.is-on .comfort-icon { color: var(--accent-green); }
+.native-card-btn[data-state="on"], .native-card-btn[data-state="on-waiting"] { border-color: var(--border-color); }

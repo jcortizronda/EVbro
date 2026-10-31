@@ -1,0 +1,31 @@
+/* EVBro — Shared period picker (features/period-picker.js): preset chips plus «desde / hasta» month fields.
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+.period-picker { display: grid; gap: 8px; margin: 12px 0 10px; }
+/* Same segmented look as the old three-button control, but the chips wrap when there are more */
+.period-picker .pp-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 5px; background: var(--surface-secondary); border: 1px solid var(--border-color); border-radius: 16px; }
+.period-picker .pp-chips .costs-period-btn { flex: 1 1 auto; min-height: 40px; padding: 0 12px; white-space: nowrap; }
+.period-picker .pp-chips .pp-custom-btn { color: var(--accent); }
+.period-picker .pp-custom { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; }
+.period-picker .pp-field { display: grid; gap: 3px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-secondary); }
+.period-picker .pp-field input {
+  min-width: 0;
+  width: 148px;
+  padding: 7px 9px;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+}
+.period-picker .pp-field input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.period-picker .pp-apply { padding: 7px 14px; font-size: 0.85rem; border-radius: 10px; }
+.period-picker .pp-label { font-size: 0.82rem; font-weight: 600; color: var(--accent); }
+.period-picker .pp-label:empty { display: none; }
+
+/* A picker inside the drives filter bar sits in the same row as the other fields */
+.filter-group .period-picker { margin-bottom: 0; }
+@media (max-width: 400px) {
+  .period-picker .pp-field input { width: 132px; }
+}

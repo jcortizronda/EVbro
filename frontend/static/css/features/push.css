@@ -1,0 +1,38 @@
+/* EVBro — Notificaciones Web Push (Ajustes).
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+/* ===== NOTIFICACIONES WEB PUSH (Ajustes → Notificaciones) ===== */
+.push-card {
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.push-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.push-card-head > div { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.push-card-icon { font-size: 1.4rem; }
+.push-status {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 12px; margin-bottom: 14px;
+  background: var(--surface); border: 1px solid var(--border-color); border-radius: 12px;
+}
+.push-status-dot { width: 12px; height: 12px; border-radius: 50%; margin-top: 4px; flex: none; background: var(--muted-light); }
+.push-status[data-state="on"] .push-status-dot { background: var(--accent-green); box-shadow: 0 0 0 4px var(--accent-green-glow); }
+.push-status[data-state="denied"] .push-status-dot,
+.push-status[data-state="insecure"] .push-status-dot { background: var(--accent-red); }
+.push-status-title { font-weight: 700; font-size: 0.95rem; color: var(--text-primary); }
+.push-status-hint { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.45; margin-top: 2px; }
+.push-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.push-actions button { flex: 1 1 200px; min-height: 44px; }
+.push-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+.push-devices-title { margin: 16px 0 8px; font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; }
+.push-devices { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.push-device {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 12px; background: var(--surface); border: 1px solid var(--border-color); border-radius: 12px;
+}
+.push-device > div { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.push-device small { color: var(--text-muted); font-size: 0.75rem; overflow-wrap: anywhere; }
+.push-device .push-device-error { color: var(--accent-red); }
+.push-device button { min-height: 40px; flex: none; }

@@ -1,0 +1,24 @@
+/* EVBro — Respuesta táctil inmediata.
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+/* ==========================================================
+   GLOBAL TOUCH & CLICK RESPONSIVENESS
+   Ensures instantaneous tap response without 300ms mobile delay
+   ========================================================== */
+button, 
+.btn, 
+.btn-primary, 
+.btn-secondary, 
+.nav-btn, 
+.sub-nav-btn, 
+.native-card-btn, 
+.dock-item, 
+.geofence-action-btn, 
+.action-sheet-btn,
+.acc-header,
+[role="button"] {
+  touch-action: manipulation;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}

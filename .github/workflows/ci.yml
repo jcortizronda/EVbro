@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements*
+      # The exact versions of the image (requirements.lock) plus the test tools
+      - run: pip install -r requirements.lock -r requirements-dev.txt
+      - run: ruff check src tests
+      - run: python -m pytest -q          # BD SQLite temporal: no necesita PostgreSQL
+
+  audit:
+    # Known vulnerabilities in the pinned versions. It fails the build on purpose: bump the version in requirements.lock.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install pip-audit
+      - run: pip-audit -r backend/requirements.lock --progress-spinner off
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -f backend/Dockerfile -t evbro:ci .
+      # The container must not run as root, and a root-owned data volume must still be writable
+      - run: |
+          VOL=$(mktemp -d) && sudo chown root:root "$VOL"
+          test "$(docker run --rm -v "$VOL:/app/data" evbro:ci id -un)" = "app"
+          docker run --rm -v "$VOL:/app/data" evbro:ci sh -c 'touch /app/data/ok && ls -l /app/data/ok'

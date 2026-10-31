@@ -1,0 +1,29 @@
+/* EVBro — Cabecera con imagen pequeña.
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+/* ==========================================================================
+   Cabecera con imagen PEQUEÑA (franja panorámica; no empuja el contenido hacia abajo)
+   ========================================================================== */
+.page-banner {
+  position: relative; display: flex; flex-direction: column; justify-content: flex-start; align-items: flex-start; gap: 0.3rem;
+  min-height: 96px; padding: 0.7rem 0.95rem; margin-bottom: 12px; overflow: hidden; border-radius: 20px;
+  color: #fff;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.72) 0%, rgba(0, 0, 0, 0.18) 100%), var(--banner) center 45% / cover no-repeat, #10131a;
+}
+.page-banner .section-tag { display: none; }                       /* el título ya lo dice; ahorra una línea */
+.page-banner .section-title { color: #fff; font-size: 1.4rem; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5); }
+.page-banner .page-head-main { gap: 0.3rem 0.5rem; }
+.page-banner .page-head-meta { margin-top: 0; gap: 0.4rem 0.55rem; }
+.page-banner .page-head-note { color: rgba(255, 255, 255, 0.85); }
+.page-banner .status-badge {
+  background: rgba(8, 10, 16, 0.72) !important; border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.page-banner .vehicle-vin-badge { color: #cdeeff; background: rgba(8, 10, 16, 0.6); border-color: rgba(255, 255, 255, 0.28); }
+.page-banner .icon-btn { width: 36px; height: 36px; color: #fff; border-color: rgba(255, 255, 255, 0.45); background: rgba(8, 10, 16, 0.45); }
+/* Todas las cabeceras con imagen (Inicio, Energía, Confort): título arriba a la izquierda, estado arriba a la derecha y los datos (VIN, matrícula, nota) abajo */
+.page-banner { justify-content: space-between; }
+.page-banner .page-head-main { width: 100%; flex-wrap: nowrap; justify-content: space-between; }
+.page-banner .section-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.page-banner .status-badge.status-badge { flex-shrink: 0; }
+@media (min-width: 700px) { .page-banner { min-height: 118px; padding: 0.9rem 1.2rem; } }

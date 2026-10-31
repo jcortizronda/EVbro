@@ -1,0 +1,98 @@
+/* EVBro — Mantenimiento: interruptor de plan, próxima revisión oficial, escalones y tareas propias.
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+/* Interruptor Oficial / Personalizado */
+.maint-mode-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 5px; margin: 14px 0; background: var(--surface-secondary); border: 1px solid var(--border-color); border-radius: 18px; }
+.maint-mode-switch[hidden] { display: none; }
+.maint-mode-btn { display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 56px; padding: 8px 6px; font: inherit; color: var(--text-secondary); background: transparent; border: 0; border-radius: 14px; cursor: pointer; text-align: center; }
+.maint-mode-btn strong { font-size: 0.95rem; color: var(--text-primary); }
+.maint-mode-btn small { font-size: 0.72rem; }
+.maint-mode-btn.is-active { background: var(--surface); box-shadow: var(--shadow-pill); outline: 2px solid var(--accent-bright); outline-offset: -2px; }
+
+/* Fecha de entrega */
+.maint-baseline { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 14px; margin-bottom: 12px; }
+.maint-baseline.needs-setup { border-color: var(--accent-amber, #ff9f0a); }
+.maint-baseline-text { flex: 1 1 240px; display: flex; flex-direction: column; gap: 2px; }
+.maint-baseline-text small { color: var(--text-secondary); line-height: 1.35; }
+.maint-baseline-form { display: flex; gap: 8px; flex: 0 1 auto; }
+.maint-baseline-form input { min-height: 44px; }
+.maint-baseline-form button { min-height: 44px; }
+
+/* Próxima revisión */
+.maint-next { --st: var(--accent-green, #30d158); padding: 16px; margin-bottom: 12px; border-left: 4px solid var(--st); }
+.maint-next[data-status="warning"] { --st: var(--accent-amber, #ff9f0a); }
+.maint-next[data-status="due"] { --st: var(--accent-red, #ff453a); }
+.maint-next-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px 12px; }
+.maint-pill { display: inline-block; padding: 3px 11px; border-radius: 999px; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--st); border: 1px solid var(--st); }
+.maint-next[data-status="due"] .maint-pill { background: var(--st); color: #fff; }
+.maint-next-labor { font-size: 0.8rem; color: var(--text-secondary); }
+.maint-next h3 { margin: 10px 0 2px; font-size: 1.25rem; }
+.maint-next-rule { margin: 0 0 12px; font-size: 0.82rem; color: var(--text-secondary); }
+.maint-meters { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; margin-bottom: 14px; }
+.maint-meter-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 0.85rem; }
+.maint-meter-top span { color: var(--text-secondary); }
+.maint-meter-top strong { font-size: 0.98rem; }
+.maint-meter small { display: block; margin-top: 4px; color: var(--text-muted); font-size: 0.76rem; }
+.maint-bar { height: 10px; margin-top: 6px; background: var(--bg-glass-inset); border-radius: 999px; overflow: hidden; }
+.maint-bar-fill { height: 100%; border-radius: 999px; background: var(--accent-green, #30d158); transition: width 0.4s ease; }
+.maint-bar-fill.warning { background: var(--accent-amber, #ff9f0a); }
+.maint-bar-fill.due { background: var(--accent-red, #ff453a); }
+.maint-next-notes { margin-bottom: 12px; padding: 8px 10px; font-size: 0.8rem; color: var(--text-secondary); background: var(--bg-glass-inset); border-radius: 10px; }
+.maint-ops { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-bottom: 14px; }
+.maint-ops-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 0.82rem; font-weight: 700; color: var(--text-secondary); }
+.maint-ops-empty { font-size: 0.82rem; color: var(--text-muted); }
+.maint-register-btn { width: 100%; min-height: 48px; }
+
+/* Plan completo */
+.maint-steps-card { padding: 16px; margin-bottom: 12px; }
+.maint-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; margin-bottom: 12px; }
+.maint-step { display: flex; flex-direction: column; gap: 1px; padding: 9px 10px; border: 1px solid var(--border-color); border-radius: 12px; background: var(--surface-secondary); font-size: 0.85rem; }
+.maint-step span, .maint-step small { color: var(--text-secondary); font-size: 0.72rem; }
+.maint-step.done { border-color: var(--accent-green, #30d158); }
+.maint-step.done small { color: var(--accent-green, #30d158); font-weight: 700; }
+.maint-step.next { border-color: var(--accent-bright); box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.2); }
+.maint-step.next small { color: var(--accent-bright); font-weight: 700; }
+.maint-matrix-details summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-weight: 600; font-size: 0.88rem; }
+.ebro-matrix-table .col-done { background: rgba(48, 209, 88, 0.1); }
+
+/* Plan personalizado */
+.maint-custom-bar { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 4px 0 12px; }
+.maint-custom-bar h3 { margin: 0; font-size: 1.1rem; }
+.maint-custom-bar button { min-height: 44px; }
+.maint-empty { grid-column: 1 / -1; padding: 22px 14px; text-align: center; color: var(--text-muted); border: 1px dashed var(--border-color); border-radius: 14px; }
+.maint-card-meta { display: flex; flex-direction: column; gap: 3px; font-size: 0.82rem; color: var(--text-secondary); }
+.maint-card-notes { color: var(--text-muted); font-size: 0.78rem; }
+.maint-over { color: var(--accent-red, #ff453a); }
+.maint-suggest { padding: 14px 16px; margin-top: 12px; }
+.maint-suggest-hint { margin: -2px 0 10px; font-size: 0.8rem; color: var(--text-secondary); }
+.maint-suggest-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.maint-chip { min-height: 44px; padding: 0 14px; font: inherit; font-size: 0.85rem; font-weight: 600; color: var(--text-primary); background: var(--surface-secondary); border: 1px solid var(--border-color); border-radius: 999px; cursor: pointer; }
+.maint-chip:hover { border-color: var(--accent-bright); }
+
+/* Tabla de la marca en móvil: que quepan las 6 columnas sin desplazar (los nombres largos pasan a varias líneas) */
+@media (max-width: 700px) {
+  .maint-matrix-details .ebro-matrix-table { table-layout: fixed; font-size: 0.72rem; min-width: 0; }
+  .maint-matrix-details .ebro-matrix-table th,
+  .maint-matrix-details .ebro-matrix-table td { padding: 6px 2px; }
+  .maint-matrix-details .ebro-matrix-table td.col-op-name,
+  .maint-matrix-details .ebro-matrix-table th:first-child { width: 36%; white-space: normal; overflow-wrap: anywhere; padding-left: 4px; }
+  .maint-matrix-details .badge-r, .maint-matrix-details .badge-i { min-width: 0; width: 20px; height: 20px; font-size: 0.68rem; }
+}
+
+/* ITV, acciones rápidas y fecha de entrega (ahora en la ficha del coche) */
+.maint-itv { --st: var(--text-muted); padding: 14px 16px; margin-bottom: 12px; border-left: 4px solid var(--st); }
+.maint-itv[data-status="ok"] { --st: var(--accent-green, #30d158); }
+.maint-itv[data-status="warning"] { --st: var(--accent-amber, #ff9f0a); }
+.maint-itv[data-status="due"] { --st: var(--accent-red, #ff453a); }
+.maint-itv-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
+.maint-itv-head .btn-secondary { min-height: 44px; }
+.maint-itv h3 { margin: 10px 0 2px; font-size: 1.15rem; }
+.maint-itv-sub { margin: 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4; }
+.maint-itv-rule { display: block; margin-top: 6px; font-size: 0.72rem; color: var(--text-muted); line-height: 1.35; }
+.maint-link { padding: 0; font: inherit; font-weight: 700; color: var(--accent-bright); background: none; border: 0; cursor: pointer; text-decoration: underline; }
+.maint-quick-actions { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.maint-quick-actions .btn-secondary { min-height: 46px; }
+.maint-quick-actions small { color: var(--text-muted); font-size: 0.75rem; line-height: 1.35; }
+.maint-baseline-btn { min-height: 44px; }
+.maint-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.maint-chips .maint-chip { min-height: 36px; padding: 0 12px; font-size: 0.8rem; }

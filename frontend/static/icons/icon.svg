@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- EVBro mark: your phone hitched to the back of the car, with the nexus lit where they meet -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1020"/>
+      <stop offset="1" stop-color="#151b36"/>
+    </linearGradient>
+    <linearGradient id="linkA" gradientUnits="userSpaceOnUse" x1="40" y1="300" x2="190" y2="170">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#3b82f6"/>
+    </linearGradient>
+    <linearGradient id="car" gradientUnits="userSpaceOnUse" x1="120" y1="256" x2="470" y2="256">
+      <stop offset="0" stop-color="#6366f1"/>
+      <stop offset="1" stop-color="#a855f7"/>
+    </linearGradient>
+    <radialGradient id="nexus" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.45" stop-color="#e0f7ff"/>
+      <stop offset="1" stop-color="#22d3ee" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="10"/>
+    </filter>
+    <!-- below this line the car passes over the ring; above it the ring passes over the car (a real weave) -->
+    <clipPath id="underLink"><rect x="0" y="292" width="512" height="300"/></clipPath>
+  </defs>
+
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <rect x="2" y="2" width="508" height="508" rx="114" fill="none" stroke="#ffffff" stroke-opacity="0.07" stroke-width="3"/>
+
+  <g id="mark" fill="none" stroke-width="38" stroke-linecap="round" stroke-linejoin="round">
+    <!-- glow -->
+    <g opacity="0.32" filter="url(#soft)">
+      <rect x="74" y="162" width="104" height="164" rx="26" transform="rotate(-36 126 244)" stroke="#22d3ee"/>
+      <path id="body" d="M150 350 H402 Q452 350 452 308 V278 Q452 256 424 251 L356 243 L322 190 Q310 174 288 174 H222 Q200 174 189 190 L158 243 L128 248 Q102 253 102 278 V308 Q102 350 150 350 Z" stroke="#a855f7"/>
+    </g>
+    <!-- car body (link B) -->
+    <path d="M150 350 H402 Q452 350 452 308 V278 Q452 256 424 251 L356 243 L322 190 Q310 174 288 174 H222 Q200 174 189 190 L158 243 L128 248 Q102 253 102 278 V308 Q102 350 150 350 Z" stroke="url(#car)"/>
+    <!-- link A: the phone (you), hooked through the back of the car -->
+    <rect x="74" y="162" width="104" height="164" rx="26" transform="rotate(-36 126 244)" stroke="url(#linkA)"/>
+    <line x1="114" y1="162" x2="138" y2="162" transform="rotate(-36 126 244)" stroke="#0d1226" stroke-width="7"/>
+    <!-- car again, only the lower part: there it goes over the phone -->
+    <path d="M150 350 H402 Q452 350 452 308 V278 Q452 256 424 251 L356 243 L322 190 Q310 174 288 174 H222 Q200 174 189 190 L158 243 L128 248 Q102 253 102 278 V308 Q102 350 150 350 Z" stroke="url(#car)" clip-path="url(#underLink)"/>
+    <!-- wheels -->
+    <circle cx="238" cy="352" r="34" fill="#0d1226" stroke="url(#car)" stroke-width="24"/>
+    <circle cx="398" cy="352" r="34" fill="#0d1226" stroke="url(#car)" stroke-width="24"/>
+    <!-- the nexus: where the link and the car meet -->
+    <circle cx="170" cy="246" r="30" fill="url(#nexus)" stroke="none" opacity="0.9"/>
+    <circle cx="170" cy="246" r="10" fill="#ffffff" stroke="none"/>
+  </g>
+</svg>

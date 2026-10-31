@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- EVBro mark: two interlocked links (you and the car) with the nexus lit where they meet -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1020"/>
+      <stop offset="1" stop-color="#151b36"/>
+    </linearGradient>
+    <linearGradient id="linkA" gradientUnits="userSpaceOnUse" x1="70" y1="256" x2="322" y2="256">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#3b82f6"/>
+    </linearGradient>
+    <linearGradient id="linkB" gradientUnits="userSpaceOnUse" x1="190" y1="256" x2="442" y2="256">
+      <stop offset="0" stop-color="#6366f1"/>
+      <stop offset="1" stop-color="#a855f7"/>
+    </linearGradient>
+    <radialGradient id="nexus" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.45" stop-color="#e0f7ff"/>
+      <stop offset="1" stop-color="#22d3ee" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="10"/>
+    </filter>
+    <clipPath id="lowerHalf"><rect x="-100" y="256" width="712" height="400"/></clipPath>
+  </defs>
+
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <rect x="2" y="2" width="508" height="508" rx="114" fill="none" stroke="#ffffff" stroke-opacity="0.07" stroke-width="3"/>
+
+  <g transform="rotate(-32 256 256)" fill="none" stroke-width="48" stroke-linecap="round">
+    <!-- glow under the links -->
+    <g opacity="0.35" filter="url(#soft)">
+      <rect x="78" y="186" width="236" height="140" rx="70" stroke="#22d3ee"/>
+      <rect x="198" y="186" width="236" height="140" rx="70" stroke="#a855f7"/>
+    </g>
+    <!-- link B (the car), then link A (you) over it, then B again only below the centre: a real weave -->
+    <rect x="198" y="186" width="236" height="140" rx="70" stroke="url(#linkB)"/>
+    <rect x="78" y="186" width="236" height="140" rx="70" stroke="url(#linkA)"/>
+    <rect x="198" y="186" width="236" height="140" rx="70" stroke="url(#linkB)" clip-path="url(#lowerHalf)"/>
+  </g>
+
+  <!-- the nexus: where both links meet -->
+  <circle cx="256" cy="256" r="40" fill="url(#nexus)" opacity="0.9"/>
+  <circle cx="256" cy="256" r="15" fill="#ffffff"/>
+</svg>

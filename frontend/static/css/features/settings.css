@@ -1,0 +1,43 @@
+/* EVBro — Ajustes en móvil: relleno y submenú.
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+/* Ajustes en móvil: menos relleno anidado para que el texto no se quede en una columna estrecha */
+@media (max-width: 600px) {
+  #tabSettings .details-card { padding: 16px 14px; }
+  .notif-trigger-card { padding: 12px; gap: 10px; }
+  .notif-trigger-left { gap: 10px; min-width: 0; }
+  .notif-trigger-icon { width: 34px; height: 34px; font-size: 1.05rem; }
+  .notif-trigger-title { font-size: 0.9rem; }
+  .notif-trigger-desc { font-size: 0.76rem; }
+}
+
+/* Submenú de Ajustes: las 5 secciones caben en el ancho del móvil (icono sobre texto) */
+@media (max-width: 600px) {
+  .settings-sub-nav { gap: 2px; overflow-x: visible; }
+  .settings-sub-nav .sub-nav-btn {
+    flex: 1 1 0; min-width: 0; flex-direction: column; gap: 4px;
+    padding: 8px 2px; min-height: 52px; font-size: 0.7rem; justify-content: center;
+  }
+  .settings-sub-nav .sub-nav-btn svg { width: 20px; height: 20px; }
+}
+#carChannelDetail { font-size: 0.78rem; font-weight: 600; line-height: 1.35; }
+
+/* Posición desde el móvil (Ajustes → Sistema) */
+.pt-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--border-color); }
+.pt-main { display: flex; flex-direction: column; min-width: 0; }
+.pt-main strong { font-size: 0.92rem; }
+.pt-main small { font-size: 0.76rem; color: var(--text-muted); overflow-wrap: anywhere; }
+.pt-add { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; margin-top: 12px; }
+.pt-setup { margin-top: 12px; padding: 12px 14px; border-radius: 14px; background: var(--surface-secondary); border: 1px solid var(--border-color); font-size: 0.86rem; line-height: 1.45; }
+.pt-setup[hidden] { display: none; }
+.pt-setup h4 { margin: 0 0 6px; font-size: 0.95rem; }
+.pt-setup ol { margin: 6px 0 10px 18px; padding: 0; }
+.pt-url { display: flex; gap: 8px; align-items: center; margin: 6px 0; }
+.pt-url code { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; font-size: 0.76rem; padding: 8px 10px; border-radius: 10px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); }
+.pt-url button { flex: none; min-height: 40px; }
+@media (max-width: 480px) { .pt-add { grid-template-columns: 1fr; } }
+
+/* Tus datos (exportar / importar) */
+.ad-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 8px 0; }
+.ad-report { margin: 10px 0 0; padding: 10px 12px; border-radius: 10px; background: var(--surface-secondary); border: 1px solid var(--border-color); font: inherit; font-size: 0.82rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ad-report[hidden] { display: none; }

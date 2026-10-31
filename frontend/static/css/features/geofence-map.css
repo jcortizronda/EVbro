@@ -1,0 +1,79 @@
+/* EVBro — Selector de geocercas sobre el mapa.
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+/* ========================================================
+   MAP-BASED GEOFENCE SELECTOR & SEARCH
+   ======================================================== */
+.geofence-search-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  z-index: 1200;
+  max-height: 220px;
+  overflow-y: auto;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(12px);
+}
+
+[data-theme="light"] .geofence-search-dropdown {
+  background: #ffffff;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
+}
+
+.geofence-search-item {
+  padding: 0.65rem 0.85rem;
+  font-size: 0.84rem;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.geofence-search-item:last-child {
+  border-bottom: none;
+}
+
+.geofence-search-item:hover {
+  background: rgba(var(--accent-rgb), 0.12);
+  color: var(--primary);
+}
+
+[data-theme="light"] .geofence-search-item:hover {
+  background: rgba(var(--accent-rgb), 0.1);
+}
+
+.geofence-address-pill {
+  transition: var(--transition);
+}
+
+[data-theme="light"] .geofence-address-pill {
+  background: rgba(255, 255, 255, 0.95) !important;
+  color: #0f172a !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+
+.geofence-pin-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #ffffff;
+  font-weight: 700;
+  cursor: grab;
+  transition: transform 0.15s ease;
+}
+
+.geofence-pin-marker:active {
+  cursor: grabbing;
+  transform: scale(1.15);
+}
+
+/* Pin de cada geocerca en el mapa: el color va por data-css (applyDataStyles) */
+.gf-pin-dot { width: 24px; height: 24px; border-radius: 50%; border: 2px solid #fff; display: flex; align-items: center; justify-content: center; color: #fff; }

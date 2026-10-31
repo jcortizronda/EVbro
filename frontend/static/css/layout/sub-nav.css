@@ -1,0 +1,156 @@
+/* EVBro — Submenús de sección (Energía y Ajustes).
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+/* ==========================================================
+   SUBMENÚS DE SECCIÓN (CARGAS & AJUSTES)
+   ========================================================== */
+.sub-nav-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 18px;
+  padding: 6px;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+[data-theme="dark"] .sub-nav-bar {
+  background: #151518;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+.sub-nav-bar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.sub-nav-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  padding: 0.65rem 1rem;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  white-space: normal;
+  text-align: center;
+  user-select: none;
+  flex: 1 1 auto;
+}
+
+.sub-nav-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.sub-nav-btn.active {
+  color: var(--text-primary);
+  background: var(--surface);
+  border-color: var(--line);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  font-weight: 750;
+}
+
+[data-theme="dark"] .sub-nav-btn.active {
+  background: #25252a;
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+
+@media (max-width: 840px) {
+  .sub-nav-bar {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    padding: 6px;
+    width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+  .sub-nav-bar .sub-nav-btn {
+    width: 100%;
+    min-width: 0;
+    padding: 0.75rem 0.5rem;
+    font-size: 12.5px;
+    box-sizing: border-box;
+  }
+  .sub-nav-bar .sub-nav-btn:last-child:nth-child(odd) {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 480px) {
+  .sub-nav-bar {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+    padding: 5px;
+  }
+  .sub-nav-bar .sub-nav-btn {
+    font-size: 11.5px;
+    padding: 0.65rem 0.35rem;
+    gap: 0.35rem;
+  }
+}
+
+.sub-tab-panel {
+  display: none;
+  animation: fadeInSubTab 0.22s ease-out forwards;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.sub-tab-panel.active {
+  display: block;
+}
+
+@keyframes fadeInSubTab {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Badge de VIN en la Tarjeta Principal */
+.vehicle-vin-badge {
+  font-family: 'JetBrains Mono', monospace, Consolas;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.75px;
+  background: rgba(var(--accent-rgb), 0.06);
+  border: 1px solid rgba(var(--accent-rgb), 0.25);
+  color: var(--primary);
+  padding: 0.25rem 0.65rem;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.25rem;
+  transition: var(--transition);
+}
+
+[data-theme="light"] .vehicle-vin-badge {
+  background: rgba(var(--accent-rgb), 0.08);
+  border-color: rgba(var(--accent-rgb), 0.3);
+  color: var(--primary);
+}

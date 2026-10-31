@@ -1,0 +1,80 @@
+/* EVBro — Pantalla de acceso a EVBro.
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+/* ==================== Acceso a EVBro (login) ==================== */
+[hidden] { display: none !important; }
+
+body.auth-open { overflow: hidden; }
+
+.auth-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;                       /* por encima de cualquier modal */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem 1rem;
+  overflow-y: auto;
+  background: var(--bg);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 1.75rem;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+}
+
+.auth-brand-copy { display: grid; gap: 1px; line-height: 1.15; }
+.auth-tagline { font-size: 0.78rem; font-weight: 500; color: var(--text-secondary); }
+
+.auth-logo { width: 40px; height: 40px; border-radius: 11px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25); }
+
+.auth-card h2 { font-size: 1.4rem; margin-bottom: 0.4rem; color: var(--text-primary); }
+.auth-sub { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.45; margin-bottom: 1.1rem; }
+
+.auth-field { display: block; margin-bottom: 0.9rem; text-align: left; }
+.auth-field > span { display: block; font-size: 0.78rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.3rem; text-transform: uppercase; }
+.auth-field input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.7rem 0.9rem;
+  font-size: 1rem;                     /* 16px: evita el zoom automático de iOS al enfocar */
+  color: var(--text-primary);
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  outline: none;
+}
+.auth-field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+
+.auth-error {
+  margin: 0.25rem 0 0.9rem;
+  padding: 0.65rem 0.8rem;
+  font-size: 0.88rem;
+  color: var(--accent-red);
+  background: rgba(220, 38, 38, 0.1);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  border-radius: 12px;
+}
+
+.auth-card .btn-primary { width: 100%; min-height: 46px; }
+
+/* Consentimiento al registrarse con invitación */
+.auth-consent { display: flex; align-items: flex-start; gap: 10px; margin: 10px 0 2px; font-size: 0.85rem; line-height: 1.4; color: var(--text-secondary); }
+.auth-consent[hidden] { display: none; }
+.auth-consent input { width: 20px; height: 20px; flex: none; margin-top: 1px; accent-color: var(--accent-bright); }
+.auth-consent span { flex: 1; min-width: 0; text-align: left; }
+.auth-consent a { color: var(--accent-bright); white-space: nowrap; }

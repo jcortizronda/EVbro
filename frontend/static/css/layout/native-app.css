@@ -1,0 +1,735 @@
+/* EVBro — Interfaz nativa móvil: cabeceras, dock y paneles.
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+/* ========================================================
+   EVBRO NATIVE MOBILE APPLICATION UI STYLES
+   Exact layout, colors, hero headers and bottom dock matching app images
+   ======================================================== */
+.native-app-container {
+  width: 100%;
+  max-width: 680px;
+  margin: 0 auto 5rem auto;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (min-width: 1200px) {
+  .native-app-container {
+    max-width: 900px;
+  }
+}
+
+/* Dual Range Overlay Card (Batería 29 km / Gasolina 374 km) */
+.native-dual-range {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  background: #131620;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+[data-theme="light"] .native-dual-range {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.05);
+}
+
+.native-dual-range .range-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.native-dual-range .range-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.native-dual-range .range-lbl {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+}
+
+[data-theme="light"] .native-dual-range .range-lbl {
+  color: var(--muted);
+}
+
+.native-dual-range .range-pct-badge {
+  font-size: 11px;
+  font-weight: 750;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+
+[data-theme="light"] .native-dual-range .range-pct-badge {
+  background: rgba(0, 0, 0, 0.06);
+  color: #111;
+}
+
+.native-dual-range .range-metric-row {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  margin: 4px 0 10px 0;
+}
+
+.native-dual-range .range-big-num {
+  font-size: 2.3rem;
+  font-weight: 800;
+  line-height: 1;
+  color: #ffffff;
+  letter-spacing: -0.04em;
+}
+
+[data-theme="light"] .native-dual-range .range-big-num {
+  color: #0b0c0e;
+}
+
+.native-dual-range .range-unit-km {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #ffffff;
+  opacity: 0.85;
+}
+
+[data-theme="light"] .native-dual-range .range-unit-km {
+  color: #555;
+}
+
+.native-dual-range .range-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.native-dual-range .range-icon {
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  color: var(--accent);
+}
+
+.native-dual-range .range-track {
+  flex: 1;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+[data-theme="light"] .native-dual-range .range-track {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.native-dual-range .range-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+.native-dual-range .range-fill.cyan {
+  background: #00d2ff;
+  box-shadow: 0 0 8px rgba(0, 210, 255, 0.5);
+}
+
+.native-dual-range .range-fill.amber {
+  background: #ff9f0a;
+  box-shadow: 0 0 8px rgba(255, 159, 10, 0.5);
+}
+
+/* Asymmetric Action Grid */
+.native-action-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.native-action-grid .action-row-top {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.native-action-grid .action-row-bottom {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+}
+
+.native-action-grid .action-row-single {
+  grid-template-columns: 1fr;
+}
+
+.native-card-btn {
+  background: #141721;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  padding: 14px 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  user-select: none;
+}
+
+[data-theme="light"] .native-card-btn {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.08);
+  color: #0b0c0e;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+}
+
+.native-card-btn:hover {
+  transform: translateY(-2px);
+  border-color: rgba(var(--accent-rgb), 0.4);
+  background: #191d2a;
+}
+
+[data-theme="light"] .native-card-btn:hover {
+  background: #f7f9fc;
+}
+
+.native-card-btn:active {
+  transform: scale(0.97);
+}
+
+.native-card-btn .card-icon-wrap {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.07);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  transition: background 0.2s;
+}
+
+[data-theme="light"] .native-card-btn .card-icon-wrap {
+  background: rgba(0, 0, 0, 0.05);
+  color: #111;
+}
+
+.native-card-btn:hover .card-icon-wrap {
+  background: rgba(var(--accent-rgb), 0.2);
+  color: var(--accent);
+}
+
+.native-card-btn .card-text-block {
+  display: flex;
+  flex-direction: column;
+}
+
+.native-card-btn .card-title {
+  font-size: 13.5px;
+  font-weight: 750;
+  line-height: 1.25;
+  color: #ffffff;
+  margin: 0;
+}
+
+[data-theme="light"] .native-card-btn .card-title {
+  color: #0b0c0e;
+}
+
+.native-card-btn .card-subtitle {
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1.2;
+  margin-top: 3px;
+}
+
+[data-theme="light"] .native-card-btn .card-subtitle {
+  color: var(--muted);
+}
+
+/* Screen 2: Energía (Charging Hero & Battery Display) */
+.native-energy-panel {
+  background: #131620;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 18px 18px 14px 18px;
+  margin-bottom: 12px;
+}
+
+[data-theme="light"] .native-energy-panel {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+.native-energy-panel .energy-charge-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0 0 4px 0;
+}
+
+.native-energy-panel .energy-big-pct {
+  font-size: 3.2rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+[data-theme="light"] .native-energy-panel .energy-big-pct {
+  color: #0b0c0e;
+}
+
+.native-energy-panel .energy-pct-sign {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+[data-theme="light"] .native-energy-panel .energy-pct-sign {
+  color: #666;
+}
+
+.native-energy-panel .energy-bar-sublabels {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.65);
+  margin-bottom: 8px;
+}
+
+[data-theme="light"] .native-energy-panel .energy-bar-sublabels {
+  color: var(--muted);
+}
+
+.native-energy-panel .energy-progress-track {
+  height: 9px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+}
+
+[data-theme="light"] .native-energy-panel .energy-progress-track {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.native-energy-panel .energy-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #00d2ff 0%, #30d158 100%);
+  border-radius: 999px;
+  box-shadow: 0 0 10px rgba(48, 209, 88, 0.4);
+  transition: width 0.4s ease;
+}
+
+/* 3 KPI Pill Cards */
+.native-kpi-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.native-kpi-box {
+  background: #141721;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 12px 8px;
+  text-align: center;
+}
+
+[data-theme="light"] .native-kpi-box {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+.native-kpi-box .kpi-lbl {
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.55);
+  margin-bottom: 5px;
+}
+
+[data-theme="light"] .native-kpi-box .kpi-lbl {
+  color: var(--muted);
+}
+
+.native-kpi-box .kpi-val {
+  font-size: 13px;
+  font-weight: 750;
+  color: #ffffff;
+}
+
+[data-theme="light"] .native-kpi-box .kpi-val {
+  color: #0b0c0e;
+}
+
+/* Expandable Action Cards (Telemetría de batería / Limitar carga) */
+.native-accordion-card {
+  background: #141721;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  margin-bottom: 10px;
+  overflow: hidden;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="light"] .native-accordion-card {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+.native-accordion-card .acc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: background 0.18s;
+  user-select: none;
+}
+
+.native-accordion-card .acc-header:hover {
+  background: #191d2a;
+}
+
+[data-theme="light"] .native-accordion-card .acc-header:hover {
+  background: #f7f9fc;
+}
+
+.native-accordion-card .acc-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.native-accordion-card .acc-icon-wrap {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: rgba(var(--accent-rgb), 0.16);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.native-accordion-card .acc-title {
+  font-size: 14px;
+  font-weight: 750;
+  color: #ffffff;
+  margin: 0;
+}
+
+[data-theme="light"] .native-accordion-card .acc-title {
+  color: #0b0c0e;
+}
+
+.native-accordion-card .acc-sub {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+  margin-top: 2px;
+}
+
+[data-theme="light"] .native-accordion-card .acc-sub {
+  color: var(--muted);
+}
+
+.native-accordion-card .acc-chevron {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.4);
+  transition: transform 0.22s ease;
+}
+
+.native-accordion-card.open .acc-chevron {
+  transform: rotate(180deg);
+  color: var(--accent);
+}
+
+.native-accordion-card .acc-content {
+  display: none;
+  padding: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: #0e1017;
+  animation: fadeInSubTab 0.2s ease-out;
+}
+
+[data-theme="light"] .native-accordion-card .acc-content {
+  background: #f9fafb;
+  border-top-color: rgba(0, 0, 0, 0.06);
+}
+
+.native-accordion-card.open .acc-content {
+  display: block;
+}
+
+/* Screen 3: Clima (Climate Bubble Dial & Sliders) */
+.native-climate-panel {
+  background: #131620;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 22px;
+  padding: 18px;
+  margin-bottom: 12px;
+}
+
+[data-theme="light"] .native-climate-panel {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+.native-climate-panel .climate-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.native-climate-panel .climate-headline small {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.55);
+  text-transform: uppercase;
+  display: block;
+}
+
+[data-theme="light"] .native-climate-panel .climate-headline small {
+  color: var(--muted);
+}
+
+.native-climate-panel .climate-headline h3 {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin: 2px 0 0;
+}
+
+[data-theme="light"] .native-climate-panel .climate-headline h3 {
+  color: #0b0c0e;
+}
+
+.native-climate-panel .climate-power-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #1a1e2b;
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+[data-theme="light"] .native-climate-panel .climate-power-btn {
+  background: #f0f2f5;
+  border-color: rgba(0, 0, 0, 0.1);
+  color: #555;
+}
+
+.native-climate-panel .climate-power-btn.active {
+  background: rgba(48, 209, 88, 0.2);
+  border-color: #30d158;
+  color: #30d158;
+  box-shadow: 0 0 16px rgba(48, 209, 88, 0.45);
+}
+
+.native-climate-panel .climate-bubble-container {
+  display: flex;
+  justify-content: center;
+  margin: 10px 0 20px 0;
+}
+
+.native-climate-panel .climate-bubble {
+  width: 124px;
+  height: 124px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #1c2233, #0a0c12);
+  border: 2px solid rgba(var(--accent-rgb), 0.45);
+  box-shadow: 0 0 30px rgba(var(--accent-rgb), 0.22), inset 0 0 25px rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+[data-theme="light"] .native-climate-panel .climate-bubble {
+  background: radial-gradient(circle at 40% 35%, #ffffff, #e6ecf3);
+  border-color: var(--accent);
+  box-shadow: 0 4px 20px rgba(var(--accent-rgb), 0.25);
+}
+
+.native-climate-panel .climate-dial-temp {
+  font-size: 2.3rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.04em;
+}
+
+[data-theme="light"] .native-climate-panel .climate-dial-temp {
+  color: #0b0c0e;
+}
+
+.native-climate-panel .climate-slider-wrap {
+  max-width: 380px;
+  margin: 0 auto 16px auto;
+}
+
+.native-climate-panel .native-range-slider {
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(var(--accent-rgb), 0.25);
+  outline: none;
+}
+
+.native-climate-panel .native-range-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.8), 0 2px 6px rgba(0,0,0,0.4);
+  border: 2.5px solid #ffffff;
+}
+
+.native-climate-panel .climate-tick-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 8px;
+  padding: 0 4px;
+}
+
+[data-theme="light"] .native-climate-panel .climate-tick-row {
+  color: var(--muted);
+}
+
+.native-climate-presets {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 12px;
+}
+
+/* Floating Native Bottom Navigation Dock */
+.native-bottom-dock {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: rgba(10, 12, 17, 0.94);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 8px 12px max(8px, env(safe-area-inset-bottom));
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.6);
+}
+
+[data-theme="light"] .native-bottom-dock {
+  background: rgba(255, 255, 255, 0.95);
+  border-top-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.06);
+}
+
+.native-bottom-dock .dock-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 16px;
+  position: relative;
+  transition: color 0.18s ease;
+  user-select: none;
+}
+
+[data-theme="light"] .native-bottom-dock .dock-item {
+  color: var(--muted);
+}
+
+.native-bottom-dock .dock-item svg {
+  transition: transform 0.18s;
+}
+
+.native-bottom-dock .dock-item:hover svg {
+  transform: translateY(-2px);
+}
+
+.native-bottom-dock .dock-item.active {
+  color: var(--accent);
+  font-weight: 750;
+}
+
+.native-bottom-dock .dock-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 22px;
+  height: 2.5px;
+  background: var(--accent);
+  border-radius: 999px;
+  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.8);
+}
+
+/* Hide the old bottom nav when dock is active */
+.mobile-bottom-nav {
+  display: none !important;
+}
+
+/* Fuel type of the chosen car (body[data-fuel], core/vehicles.js): no Energía nor battery for petrol/diesel, no Repostajes nor tank for an EV */
+body[data-fuel="gasoline"] #mobTabCharges, body[data-fuel="diesel"] #mobTabCharges,
+body[data-fuel="gasoline"] .side-item[data-tab="charges"], body[data-fuel="diesel"] .side-item[data-tab="charges"],
+body[data-fuel="gasoline"] .range-col.is-battery, body[data-fuel="diesel"] .range-col.is-battery,
+body[data-fuel="gasoline"] #chargeStatusBanner, body[data-fuel="diesel"] #chargeStatusBanner { display: none !important; }
+body[data-fuel="ev"] .range-col.is-fuel, body[data-fuel="ev"] .side-item[data-tab="refuels"],
+body[data-fuel="ev"] #tabMore [data-on-click="switchTab('refuels')"] { display: none !important; }
+
+/* Car without an Ebro account (body[data-manual="1"]): nothing that needs live data; the map only with a GPS fix (body[data-gps]) */
+.manual-note { display: none; margin-bottom: 12px; font-size: 0.88rem; line-height: 1.45; color: var(--text-secondary); }
+body[data-manual="1"] .manual-note { display: block; }
+/* Scoped to the home tab on purpose: the «Más» menu is also a .native-action-grid and must stay */
+body[data-manual="1"] #carFigure, body[data-manual="1"] #tabOverview .native-dual-range, body[data-manual="1"] #tabOverview .native-action-grid,
+body[data-manual="1"] #tabOverview .native-kpi-row, body[data-manual="1"] #chargeActiveBar, body[data-manual="1"] #tabOverview .details-card:not(.manual-note),
+body[data-manual="1"] #tabOverview .native-app-container > .btn-secondary,
+body[data-manual="1"] #mobTabCharges, body[data-manual="1"] #mobTabClimate,
+body[data-manual="1"] .side-item[data-tab="charges"], body[data-manual="1"] .side-item[data-tab="climate"],
+body[data-manual="1"] .side-item[data-on-click="openAllSensorsModal()"],
+body[data-manual="1"] #tabMore [data-on-click="openAllSensorsModal()"] { display: none !important; }
+body[data-manual="1"]:not([data-gps="1"]) #liveMapCard { display: none !important; }

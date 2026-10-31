@@ -1,0 +1,32 @@
+/* EVBro — Iconos SVG, iconos de los avisos, spinner y punto de estado (sustituyen a los emojis).
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+.ico { flex: none; vertical-align: -0.2em; }
+button .ico, .nav-btn .ico, .geofence-action-btn .ico { vertical-align: middle; }
+
+/* Avisos (toast): el icono toma el color según el tipo */
+.toast-icon { display: inline-flex; flex: none; }
+.app-toast.toast-success .toast-icon { color: var(--accent-green, #30d158); }
+.app-toast.toast-error .toast-icon { color: var(--accent-red, #ff453a); }
+.app-toast.toast-warning .toast-icon { color: var(--accent-amber, #ff9f0a); }
+.app-toast.toast-info .toast-icon, .app-toast.toast-loading .toast-icon { color: var(--accent-bright); }
+.toast-spinner {
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 2.5px solid rgba(255, 255, 255, 0.25); border-top-color: currentColor;
+  animation: toast-spin 0.8s linear infinite;
+}
+@keyframes toast-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .toast-spinner { animation-duration: 2.4s; } }
+
+/* Franja «En vivo»: punto de color delante del texto (antes un emoji de círculo) */
+#freshnessText::before {
+  content: ""; display: inline-block; width: 0.55em; height: 0.55em; margin-right: 0.45em;
+  border-radius: 50%; background: var(--text-muted); vertical-align: 0.05em;
+}
+#freshnessText[data-level="ok"]::before { background: var(--accent-green, #30d158); box-shadow: 0 0 0 3px rgba(48, 209, 88, 0.2); }
+#freshnessText[data-level="warn"]::before { background: var(--accent-amber, #ff9f0a); }
+#freshnessText[data-level="off"]::before { background: var(--accent-red, #ff453a); }
+
+/* Iconos de las tarjetas de avisos y de Ajustes */
+.notif-trigger-icon .ico { vertical-align: middle; }
+.push-card-icon, .range-icon, #chargeCableIcon { display: inline-flex; align-items: center; }

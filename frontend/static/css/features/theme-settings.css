@@ -1,0 +1,32 @@
+/* EVBro — Selector de tema en Ajustes.
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+/* ========================================================
+   THEME SELECTOR CARDS IN SETTINGS
+   ======================================================== */
+.theme-option-card {
+  background: var(--bg-card);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.15rem 1.25rem;
+  cursor: pointer;
+  transition: var(--transition);
+  position: relative;
+  user-select: none;
+}
+
+.theme-option-card:hover {
+  border-color: var(--primary);
+  background: var(--bg-card-hover);
+  transform: translateY(-2px);
+}
+
+.theme-option-card.selected {
+  border-color: var(--primary);
+  box-shadow: 0 0 18px var(--primary-glow);
+  background: rgba(var(--accent-rgb), 0.05);
+}
+
+[data-theme="light"] .theme-option-card.selected {
+  background: rgba(var(--accent-rgb), 0.08);
+}

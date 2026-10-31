@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>EVBro · Consola de administración</title>
+  <link rel="stylesheet" href="/assets/admin.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><span class="logo" aria-hidden="true"></span><strong>EVBro</strong><span class="sub">Consola de administración</span></div>
+    <div class="who" id="who" hidden>
+      <span id="whoName"></span>
+      <select id="adminLanguage" class="lang" data-i18n-skip title="Idioma"><option value="es">Español</option><option value="en">English</option><option value="pt">Português</option></select>
+      <button type="button" class="ghost" id="btnPassword">Cambiar contraseña</button>
+      <span class="who-gap" aria-hidden="true"></span>
+      <button type="button" class="logout" id="btnLogout">Cerrar sesión</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Acceso -->
+    <section id="viewAuth" class="card narrow" hidden>
+      <h1 id="authTitle">Iniciar sesión</h1>
+      <p class="hint" id="authHint"></p>
+      <form id="authForm" novalidate>
+        <label id="rowCode" hidden><span>Código de configuración</span><input id="authCode" autocomplete="off" spellcheck="false"></label>
+        <label><span>Usuario</span><input id="authUser" autocomplete="username" spellcheck="false"></label>
+        <label><span>Contraseña</span><input id="authPass" type="password" autocomplete="current-password"></label>
+        <label id="rowPass2" hidden><span>Repite la contraseña</span><input id="authPass2" type="password" autocomplete="new-password"></label>
+        <p class="error" id="authError" role="alert" hidden></p>
+        <button type="submit" class="primary" id="authSubmit">Entrar</button>
+      </form>
+    </section>
+
+    <!-- Consola -->
+    <div id="viewApp" hidden>
+      <nav class="tabs" role="tablist" aria-label="Secciones">
+        <button type="button" role="tab" class="tab is-active" data-tab="managers" aria-selected="true">Gestores</button>
+        <button type="button" role="tab" class="tab" data-tab="stats" aria-selected="false">Estadísticas</button>
+        <button type="button" role="tab" class="tab" data-tab="invites" aria-selected="false">Invitaciones</button>
+        <button type="button" role="tab" class="tab" data-tab="server" aria-selected="false">Servidor</button>
+        <button type="button" role="tab" class="tab" data-tab="catalog" aria-selected="false">Catálogo</button>
+        <button type="button" role="tab" class="tab" data-tab="audit" aria-selected="false">Registro</button>
+      </nav>
+
+      <section id="tabManagers" class="pane">
+        <div class="card">
+          <div class="row-between"><h2>Gestores</h2><button type="button" class="primary" id="btnNewManager">Crear gestor</button></div>
+          <p class="hint">Un gestor tiene los coches y crea sus cuentas asociadas. <strong>No ves sus coches</strong>: solo cuántos tiene, si su cuenta de Ebro conecta y los límites que le pones.</p>
+          <form id="formManager" class="inline-form" hidden>
+            <label><span>Usuario</span><input id="mgrUser" autocomplete="off" spellcheck="false"></label>
+            <label><span>Contraseña (mín. 10)</span><input id="mgrPass" type="text" autocomplete="off"></label>
+            <label><span>Coches (-1 sin límite)</span><input id="mgrVeh" type="number" min="-1" max="1000" value="2"></label>
+            <label><span>Cuentas asociadas</span><input id="mgrMem" type="number" min="-1" max="1000" value="5"></label>
+            <label><span>Espacio (MB)</span><input id="mgrSto" type="number" min="-1" max="1000000" placeholder="Por defecto"></label>
+            <div class="actions"><button type="submit" class="primary">Crear</button><button type="button" class="ghost" id="btnCancelManager">Cancelar</button></div>
+          </form>
+          <div class="table-wrap"><table id="tblManagers"><thead><tr>
+            <th>Usuario</th><th>Coches</th><th>Cuentas asociadas</th><th>Espacio</th><th>Cuenta Ebro</th><th>Caduca</th><th>Último acceso</th><th>Estado</th><th></th>
+          </tr></thead><tbody></tbody></table></div>
+          <p class="empty" id="emptyManagers" hidden>Todavía no hay gestores. Crea uno o invita a alguien en «Invitaciones».</p>
+        </div>
+      </section>
+
+      <section id="tabStats" class="pane" hidden>
+        <div class="card">
+          <div class="row-between"><h2>Estadísticas</h2><button type="button" class="ghost" id="btnRefreshStats">Actualizar</button></div>
+          <p class="hint">Cifras agregadas de todo el servidor. Aquí no aparece ningún coche, matrícula, posición ni cuenta asociada: solo recuentos. <span id="statsStamp"></span></p>
+          <div class="kpis" id="kpiMain"></div>
+        </div>
+        <div class="grid2">
+          <div class="card"><h2>Uso reciente</h2><div class="kpis small" id="kpiUsage"></div></div>
+          <div class="card"><h2>Cuentas y acceso</h2><div class="kpis small" id="kpiAccounts"></div></div>
+        </div>
+        <div class="grid2">
+          <div class="card"><h2>Datos guardados</h2><div class="kpis small" id="kpiData"></div></div>
+          <div class="card"><h2>Altas de cuentas por semana</h2><svg id="chartGrowth" class="chart" viewBox="0 0 480 160" role="img" aria-label="Altas de cuentas por semana"></svg></div>
+        </div>
+        <div class="card">
+          <h2>Uso por gestor</h2>
+          <div class="table-wrap"><table id="tblUsage"><thead><tr><th>Gestor</th><th>Coches</th><th>Cuentas asociadas</th><th>Órdenes (7 días)</th><th>Espacio usado</th><th>Último acceso</th></tr></thead><tbody></tbody></table></div>
+        </div>
+      </section>
+
+      <section id="tabInvites" class="pane" hidden>
+        <div class="card">
+          <h2>Invitar a un gestor</h2>
+          <p class="hint">La persona se registra en la app con el código, una sola vez. El código solo se muestra al crearlo.</p>
+          <form id="formInvite" class="inline-form">
+            <label class="wide"><span>Para quién es</span><input id="invNote" maxlength="120" placeholder="Ej. María (beta)"></label>
+            <label><span>Coches (-1 sin límite)</span><input id="invVeh" type="number" min="-1" max="1000" value="2"></label>
+            <label><span>Cuentas asociadas</span><input id="invMem" type="number" min="-1" max="1000" value="5"></label>
+            <label><span>Espacio (MB)</span><input id="invSto" type="number" min="-1" max="1000000" placeholder="Por defecto"></label>
+            <label><span>Caduca en (días)</span><input id="invDays" type="number" min="1" max="90" value="14"></label>
+            <div class="actions"><button type="submit" class="primary">Crear invitación</button></div>
+          </form>
+          <div class="token" id="tokenBox" hidden>
+            <strong>Código de invitación</strong>
+            <code id="tokenValue"></code>
+            <small>Cópialo ahora: no se puede recuperar.</small>
+            <button type="button" class="ghost" id="btnCopy">Copiar</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Invitaciones</h2>
+          <div class="table-wrap"><table id="tblInvites"><thead><tr><th>Para</th><th>Estado</th><th>Creada</th><th>Caduca</th><th>Usada por</th><th></th></tr></thead><tbody></tbody></table></div>
+          <p class="empty" id="emptyInvites" hidden>No hay invitaciones.</p>
+        </div>
+      </section>
+
+      <section id="tabServer" class="pane" hidden>
+        <div class="card">
+          <h2>Historial guardado</h2>
+          <p class="hint">Días que se conserva cada tipo de dato (0 = para siempre). Es una política de todo el servidor. La telemetría en bruto es lo que más crece.</p>
+          <form id="formRetention" class="inline-form">
+            <label><span>Viajes (días)</span><input id="retTrips" type="number" min="0" max="3650"><small id="retTripsInfo"></small></label>
+            <label><span>Cargas (días)</span><input id="retCharges" type="number" min="0" max="3650"><small id="retChargesInfo"></small></label>
+            <label><span>Telemetría en bruto (días)</span><input id="retSnap" type="number" min="0" max="3650"><small id="retSnapInfo"></small></label>
+            <div class="actions"><button type="submit" class="primary">Guardar y aplicar</button></div>
+          </form>
+        </div>
+        <div class="card">
+          <h2>Sondeo a la nube</h2>
+          <p class="hint">Cada cuánto se consulta la nube de Chery según el estado del coche. Consultar no despierta el coche, pero se compite con la app oficial: no lo bajes sin motivo.</p>
+          <form id="formPolling" class="inline-form">
+            <label><span>Aparcado (min)</span><input id="polParked" type="number" min="0" max="1440"></label>
+            <label><span>Enchufado (min)</span><input id="polPlugged" type="number" min="1" max="1440"></label>
+            <label><span>Cargando (min)</span><input id="polCharging" type="number" min="1" max="1440"></label>
+            <label><span>En marcha (min)</span><input id="polDriving" type="number" min="1" max="1440"></label>
+            <label><span>Parado encendido (min)</span><input id="polIdle" type="number" min="1" max="1440"></label>
+            <div class="actions"><button type="submit" class="primary">Guardar intervalos</button></div>
+          </form>
+        </div>
+      </section>
+
+      <section id="tabCatalog" class="pane" hidden>
+        <div class="card">
+          <h2>Catálogo compartido de consumibles</h2>
+          <p class="hint">Los gestores proponen referencias (aceite, filtros, pastillas, neumáticos…) desde la ficha de su coche. Solo lo aprobado lo ven los demás dueños del mismo modelo. Una propuesta igual a una entrada aprobada (modelo, categoría, marca y referencia) cuenta como confirmación de esa entrada.</p>
+          <div class="inline-form">
+            <label><span>Ver</span><select id="catStatus"><option value="pending">Pendientes</option><option value="approved">Aprobadas</option><option value="rejected">Rechazadas</option><option value="all">Todas</option></select></label>
+            <div class="actions"><a class="ghost" id="btnCatalogExport" href="/api/admin/catalog/export" download="evbro-catalogo.json">Exportar aprobadas (JSON)</a></div>
+          </div>
+          <div class="table-wrap"><table id="tblCatalog"><thead><tr><th>Coches</th><th>Pieza</th><th>Marca · referencia</th><th>Detalles</th><th>Propuesta por</th><th>Estado</th><th></th></tr></thead><tbody></tbody></table></div>
+          <p class="empty" id="emptyCatalog" hidden>No hay propuestas en este estado.</p>
+        </div>
+
+        <div class="card">
+          <h2>Origen del catálogo de este servidor</h2>
+          <p class="hint">«Propio»: solo lo que apruebas aquí. «En línea»: además se descarga a diario el catálogo de otro servidor EVBro con el enlace que te hayan dado (<code>https://servidor#clave</code>; la clave se guarda cifrada y no se vuelve a mostrar), y las propuestas de tus usuarios se envían también a su cola. Sin enlace válido, el servidor sigue con su catálogo propio.</p>
+          <form id="formCatalogSource" class="inline-form">
+            <label><span>Origen</span><select id="srcMode"><option value="own">Propio</option><option value="remote">En línea</option></select></label>
+            <label class="wide"><span>Enlace del catálogo en línea</span><input id="srcLink" type="text" autocomplete="off" placeholder="https://servidor#ebc_…"><small id="srcLinkInfo"></small></label>
+            <div class="actions"><button type="submit" class="primary">Guardar</button> <button type="button" class="ghost" id="btnCatalogSync">Sincronizar ahora</button></div>
+          </form>
+          <p class="hint" id="srcStatus"></p>
+        </div>
+
+        <div class="card">
+          <h2>Claves para otros servidores</h2>
+          <p class="hint">Cada clave deja a otra instalación de EVBro leer tu catálogo aprobado y enviarte propuestas, que verás en la cola de arriba con la nota de la clave (nunca con una persona). La clave se enseña una sola vez, como enlace; si pones la URL pública de este servidor, el enlace sale completo.</p>
+          <form id="formPublicUrl" class="inline-form">
+            <label class="wide"><span>URL pública de este servidor</span><input id="pubUrl" type="text" autocomplete="off" placeholder="https://catalogo.tudominio.es"></label>
+            <div class="actions"><button type="submit" class="ghost">Guardar URL</button></div>
+          </form>
+          <form id="formCatalogKey" class="inline-form">
+            <label><span>Para quién</span><input id="keyNote" type="text" maxlength="120" placeholder="Luis, servidor de casa"></label>
+            <label><span>Caduca en (días)</span><input id="keyDays" type="number" min="1" max="3650" placeholder="nunca"></label>
+            <div class="actions"><button type="submit" class="primary">Nueva clave</button></div>
+          </form>
+          <p class="hint" id="keyResult" hidden></p>
+          <div class="table-wrap"><table id="tblKeys"><thead><tr><th>Para</th><th>Estado</th><th>Creada</th><th>Caduca</th><th>Último uso</th><th>Descargas</th><th>Propuestas</th><th></th></tr></thead><tbody></tbody></table></div>
+          <p class="empty" id="emptyKeys" hidden>Todavía no has dado ninguna clave.</p>
+        </div>
+      </section>
+
+      <section id="tabAudit" class="pane" hidden>
+        <div class="card">
+          <h2>Registro de acciones</h2>
+          <p class="hint">Lo que han hecho los administradores en esta consola: entradas, gestores creados o borrados, límites, invitaciones y catálogo. No se borra desde aquí.</p>
+          <div class="table-wrap"><table id="tblAudit"><thead><tr><th>Cuándo</th><th>Quién</th><th>Acción</th><th>Sobre</th><th>Detalle</th><th>IP</th></tr></thead><tbody></tbody></table></div>
+          <p class="empty" id="emptyAudit" hidden>Todavía no hay acciones registradas.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <dialog id="dlgLimits">
+    <form id="formLimits" method="dialog">
+      <h2 id="limTitle">Límites</h2>
+      <p class="hint">Se aplican a la cuenta del gestor y a sus cuentas asociadas. -1 es sin límite; 0, ninguno.</p>
+      <label><span>Coches</span><input id="limVeh" type="number" min="-1" max="1000"></label>
+      <label><span>Cuentas asociadas</span><input id="limMem" type="number" min="-1" max="1000"></label>
+      <label><span>Espacio (MB)</span><input id="limSto" type="number" min="-1" max="1000000"><small>-1 = sin límite; vacío = el valor por defecto del servidor. Cuentan los documentos, las facturas y las fotos de sus coches.</small></label>
+      <label><span>Caduca el (vacío = nunca)</span><input id="limExp" type="date"></label>
+      <label class="check"><input id="limRo" type="checkbox"><span>Solo lectura: toda la cuenta del gestor deja de poder escribir</span></label>
+      <div class="actions"><button type="submit" class="primary">Guardar</button><button type="button" class="ghost" id="btnLimCancel">Cancelar</button></div>
+    </form>
+  </dialog>
+
+  <!-- Diálogo propio de la consola (en lugar de alert / confirm / prompt del navegador; ask() en admin.js) -->
+  <dialog id="dlgAsk">
+    <form id="formAsk" method="dialog">
+      <h2 id="askTitle">Confirmar</h2>
+      <p class="hint" id="askMessage"></p>
+      <label id="askField" hidden><span id="askLabel"></span><input id="askInput" type="text" autocomplete="off"></label>
+      <div class="actions"><button type="button" class="ghost" id="askCancel">Cancelar</button> <button type="submit" class="primary" id="askOk">Aceptar</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="dlgCatalog">
+    <form id="formCatalog" method="dialog">
+      <h2 id="catTitle">Editar propuesta</h2>
+      <p class="hint" id="catHint">Completa o corrige lo que haga falta; el tipo de pieza no cambia. Lo que dejes vacío se borra.</p>
+      <label><span>Coches a los que vale (uno por línea: marca | modelo | años)</span><textarea id="catFits" rows="3" placeholder="Ebro | S900 PHEV | 2024-2026&#10;Ebro | S800 | 2024-2026" required></textarea><small>La misma referencia suele valer para varios modelos; el primero es el principal.</small></label>
+      <label><span>Nombre de la pieza</span><input id="catName" maxlength="150" required></label>
+      <label><span>Marca de la pieza</span><input id="catBrand" maxlength="80"></label>
+      <label><span>Referencia</span><input id="catRef" maxlength="120"></label>
+      <label><span id="catSpecLabel">Especificación</span><input id="catSpec" maxlength="120"></label>
+      <label><span id="catQtyLabel">Cantidad</span><input id="catQty" type="number" min="0" step="0.01"></label>
+      <label><span>Notas</span><textarea id="catNotes" rows="3" maxlength="2000"></textarea></label>
+      <div class="actions"><button type="submit" class="primary">Guardar</button><button type="button" class="ghost" id="btnCatCancel">Cancelar</button></div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" hidden></div>
+  <script src="/assets/admin.js"></script>
+</body>
+</html>

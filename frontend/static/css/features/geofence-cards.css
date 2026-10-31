@@ -1,0 +1,118 @@
+/* EVBro — Geocercas: tarjetas táctiles.
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+/* ==========================================================
+   GEOFENCES NATIVE TOUCH CARDS SYSTEM
+   ========================================================== */
+.geofence-cards-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.geofence-card-item {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+[data-theme="dark"] .geofence-card-item {
+  background: #151518;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+.geofence-card-item:hover {
+  border-color: var(--accent);
+}
+
+.geofence-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.geofence-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.geofence-card-name {
+  font-size: 1.05rem;
+  font-weight: 750;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.geofence-card-coords {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.geofence-card-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  flex-shrink: 0;
+}
+
+.geofence-card-badge.charging {
+  background: rgba(var(--accent-rgb), 0.12);
+  color: var(--accent);
+  border: 1px solid rgba(var(--accent-rgb), 0.3);
+}
+
+.geofence-card-badge.presence {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+}
+
+.geofence-card-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.1fr 42px;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+}
+
+.geofence-card-actions .geofence-action-btn {
+  justify-content: center;
+  padding: 8px 6px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 480px) {
+  .geofence-card-actions {
+    grid-template-columns: 1fr 1fr 1.1fr 38px;
+    gap: 5px;
+  }
+  .geofence-card-actions .geofence-action-btn {
+    font-size: 11.5px;
+    padding: 7px 3px;
+    gap: 3px;
+  }
+}

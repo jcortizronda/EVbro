@@ -1,0 +1,330 @@
+/* EVBro — Checklist oficial de mantenimiento y matriz.
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+/* ========================================================
+   CHECKLIST OFICIAL DE MANTENIMIENTO EBRO & MATRIX TABLE
+   ======================================================== */
+.ebro-checklist-card {
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  border: 1px solid rgba(var(--accent-rgb), 0.2);
+  background: linear-gradient(135deg, rgba(18, 25, 40, 0.85) 0%, rgba(10, 14, 23, 0.95) 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.ebro-checklist-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 1.25rem;
+}
+
+.ebro-title-block {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.ebro-brand-badge {
+  background: linear-gradient(135deg, #e50914, #b71c1c);
+  color: #fff;
+  font-weight: 900;
+  font-size: 1rem;
+  letter-spacing: 2px;
+  padding: 0.35rem 0.85rem;
+  border-radius: 6px;
+  box-shadow: 0 0 12px rgba(229, 9, 20, 0.4);
+}
+
+.ebro-title-block h3 {
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: var(--text-primary);
+}
+
+.ebro-title-block p {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.ebro-mo-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: rgba(var(--accent-rgb), 0.1);
+  border: 1px solid rgba(var(--accent-rgb), 0.3);
+  color: var(--primary);
+  padding: 0.4rem 0.9rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* Hero Banner: Próxima Revisión */
+.next-revision-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  padding: 1.25rem 1.5rem;
+  background: rgba(var(--accent-rgb), 0.04);
+  border: 1px solid rgba(var(--accent-rgb), 0.25);
+  border-radius: var(--radius-sm);
+  margin-bottom: 1.5rem;
+}
+
+.revision-main-info h4 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin: 0.35rem 0;
+  color: var(--text-primary);
+}
+
+.rev-badge-due {
+  display: inline-block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  background: rgba(0, 230, 118, 0.15);
+  color: var(--accent-green);
+  border: 1px solid rgba(0, 230, 118, 0.3);
+}
+
+.rev-badge-due.overdue {
+  background: rgba(255, 61, 0, 0.15);
+  color: var(--accent-red);
+  border-color: rgba(255, 61, 0, 0.3);
+}
+
+.rev-metrics-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  flex-wrap: wrap;
+}
+
+.rev-metrics-row strong {
+  color: var(--text-primary);
+}
+
+.rev-sep {
+  color: var(--text-muted);
+}
+
+.rev-extra-notes {
+  margin-top: 0.4rem;
+  font-size: 0.82rem;
+  color: var(--accent-amber);
+}
+
+.btn-complete-rev {
+  padding: 0.75rem 1.4rem;
+  font-size: 0.92rem;
+  white-space: nowrap;
+}
+
+/* 2 Columnas: R (Reemplazo) vs I (Inspección) */
+.checklist-grid-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 900px) {
+  .checklist-grid-cols {
+    grid-template-columns: 1fr;
+  }
+}
+
+.checklist-col {
+  background: rgba(10, 14, 23, 0.6);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 1.2rem;
+}
+
+.checklist-col .col-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.checklist-col .col-header h4 {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.badge-r {
+  background: #ff3d00;
+  color: #fff;
+  font-weight: 900;
+  font-size: 0.75rem;
+  padding: 2px 7px;
+  border-radius: 4px;
+  box-shadow: 0 0 8px rgba(255, 61, 0, 0.4);
+}
+
+.badge-i {
+  background: #0288d1;
+  color: #fff;
+  font-weight: 900;
+  font-size: 0.75rem;
+  padding: 2px 7px;
+  border-radius: 4px;
+  box-shadow: 0 0 8px rgba(2, 136, 209, 0.4);
+}
+
+.badge-mo {
+  background: rgba(var(--accent-rgb), 0.2);
+  color: var(--primary);
+  font-weight: 800;
+  font-size: 0.75rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.badge-sp {
+  background: rgba(124, 77, 255, 0.2);
+  color: #b388ff;
+  font-weight: 800;
+  font-size: 0.75rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.checklist-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.check-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0.65rem 0.9rem;
+  transition: var(--transition);
+}
+
+.check-item-row:hover {
+  background: var(--bg-glass);
+  border-color: rgba(var(--accent-rgb), 0.25);
+}
+
+.check-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.check-item-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.check-item-spec {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+/* Matriz Completa Oficial EBRO */
+.matrix-section {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: rgba(10, 14, 23, 0.4);
+}
+
+.matrix-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.9rem 1.25rem;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--radius-sm);
+  user-select: none;
+  transition: var(--transition);
+}
+
+.matrix-header:hover {
+  background: var(--bg-glass);
+}
+
+.matrix-arrow {
+  font-size: 0.85rem;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.matrix-body {
+  padding: 1.25rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.table-responsive-matrix {
+  overflow-x: auto;
+}
+
+.ebro-matrix-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+.ebro-matrix-table th,
+.ebro-matrix-table td {
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--border-color);
+}
+
+.ebro-matrix-table th {
+  background: rgba(18, 25, 40, 0.8);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.ebro-matrix-table td.col-op-name {
+  text-align: left;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.ebro-matrix-table th.col-active,
+.ebro-matrix-table td.col-active {
+  background: rgba(var(--accent-rgb), 0.08);
+  border-left: 2px solid var(--primary);
+  border-right: 2px solid var(--primary);
+  font-weight: 700;
+}
+
+.matrix-legend-bar {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  margin-top: 1rem;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  flex-wrap: wrap;
+}

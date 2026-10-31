@@ -1,0 +1,30 @@
+# Entorno / secretos
+.env
+*.env.local
+deploy/.env
+backend/.venv/
+.venv/
+.venv-test/
+data/
+token.json
+taskid.txt
+secret.key
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+
+# Restos locales
+scratch_*.json
+.DS_Store
+
+# Paquetes de despliegue (tools/package.sh)
+dist/
+
+# Directorios de trabajo de agentes y capturas locales
+.claude/worktrees/
+shots/

@@ -1,0 +1,43 @@
+/* EVBro — Tablas convertidas en tarjetas.
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+/* ───────── Tablas → tarjetas (en TODAS las anchuras) ─────────
+   La tabla de viajes tiene 16 columnas (1.571 px) y su contenedor mide 680-900 px: nunca cabe, y desplazar en
+   horizontal con la barra oculta dejaba las columnas cortadas sin avisar. Cada fila es una tarjeta con rejilla
+   adaptable (2 columnas en móvil, más en pantallas anchas; etiqueta pequeña encima del valor).
+   Ocupan todo el ancho: la primera celda, los textos largos y las acciones.
+   `ui.js` rellena `data-label` desde el <thead>. */
+table.data-table, table.data-table tbody, table.data-table tr, table.data-table td { display: block; width: 100%; }
+table.data-table thead {                    /* oculto a la vista, pero accesible para lectores de pantalla */
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+  clip: rect(0, 0, 0, 0); border: 0;
+}
+table.data-table tr {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); column-gap: 0.8rem; row-gap: 0.1rem;
+  margin-bottom: 0.65rem; padding: 0.7rem 0.9rem;
+  background: var(--surface-secondary); border: 1px solid var(--border-color); border-radius: 14px;
+}
+table.data-table td {
+  display: block; min-width: 0; padding: 0.3rem 0; border: 0; text-align: left;
+  white-space: normal; overflow-wrap: anywhere; max-width: none;
+  color: var(--text-primary); font-weight: 600; font-size: 0.92rem;
+}
+table.data-table td::before {
+  content: attr(data-label); display: block; margin-bottom: 0.1rem;
+  color: var(--text-muted); font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;
+}
+table.data-table td:not([data-label])::before { display: none; }
+table.data-table td:empty { display: none; }
+table.data-table td:first-child,
+table.data-table td:last-child,
+table.data-table td.col-addr,
+table.data-table td[colspan],
+table.data-table td[data-label="Origen"],
+table.data-table td[data-label="Destino"],
+table.data-table td[data-label="Componente / Servicio"],
+table.data-table td[data-label="Taller / Profesional"],
+table.data-table td[data-label="Notas"] { grid-column: 1 / -1; }
+table.data-table td[colspan] { text-align: center; }
+table.data-table td.col-addr { max-width: none; overflow: visible; text-overflow: clip; white-space: normal; }
+table.data-table tr:hover td { background: transparent; }
+table.data-table tr:active { background: var(--bg-glass); }

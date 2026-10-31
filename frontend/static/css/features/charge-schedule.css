@@ -1,0 +1,23 @@
+/* EVBro — Estado de la carga programada.
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+/* Estado de la carga programada (Energía): un bloque con color y etiqueta, no una línea de texto */
+.sched-status {
+  --sched: var(--text-muted);
+  border: 1px solid var(--border-color); border-left: 4px solid var(--sched);
+  border-radius: var(--radius-sm); background: var(--bg-glass-inset);
+  padding: 12px 14px; margin: 4px 0 14px;
+}
+.sched-status[data-state="on"] { --sched: var(--accent-green); }
+.sched-status[data-state="external"] { --sched: var(--primary); }
+.sched-status[data-state="paused"] { --sched: var(--accent-amber, #ff9f0a); }
+.sched-badge {
+  display: inline-block; padding: 3px 10px; border-radius: var(--radius-pill);
+  font-size: 0.7rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--sched); border: 1px solid var(--sched);
+}
+.sched-status[data-state="on"] .sched-badge { background: var(--sched); color: #fff; }
+.sched-main { margin-top: 8px; font-size: 1.35rem; font-weight: 800; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.sched-status[data-state="off"] .sched-main, .sched-status[data-state="unknown"] .sched-main { color: var(--text-secondary); font-size: 1.1rem; }
+.sched-sub { margin-top: 2px; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.4; }
+#btnScheduleClear[hidden] { display: none !important; }

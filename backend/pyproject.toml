@@ -1,0 +1,33 @@
+[project]
+name = "app"
+version = "0.1.0"
+description = "Plataforma autoalojada para monitorizar y controlar vehículos Ebro (telemática Chery)."
+requires-python = ">=3.11"
+readme = "../README.md"
+license = { text = "GPL-3.0-or-later" }
+# Las dependencias viven en requirements.txt / requirements-dev.txt: la imagen Docker no instala el paquete,
+# lo ejecuta desde `src/` (así `FRONTEND_DIR` y los datos quedan fuera del paquete).
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+src = ["src", "tests"]
+# `core/` y `vehicle/` (protocolo del coche) se mantienen aparte, con su propio estilo
+extend-exclude = ["src/app/core", "src/app/vehicle", "tests/core", "tests/vehicle"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B"]
+ignore = [
+    "E501",  # líneas largas: se vigilan en revisión
+    "B008",  # patrón `Depends(...)` de FastAPI
+    "E712",  # `Columna == True` es la forma correcta en expresiones de SQLAlchemy
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/conftest.py" = ["E402"]   # el entorno (DATABASE_URL, DATA_DIR) se fija antes de importar la app

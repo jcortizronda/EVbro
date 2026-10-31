@@ -1,0 +1,85 @@
+/* EVBro — Avisos tipo toast.
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+/* ==========================================================
+   TOAST NOTIFICATIONS (IOS / DYNAMIC ISLAND STYLE)
+   ========================================================== */
+.app-toast-container {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+  max-width: 90vw;
+  width: 400px;
+}
+
+.app-toast {
+  pointer-events: auto;
+  background: rgba(18, 22, 34, 0.94);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  padding: 12px 18px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65), 0 0 1px 1px rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #ffffff;
+  font-size: 13.5px;
+  font-weight: 550;
+  animation: toastSlideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.25s ease;
+}
+
+.app-toast.toast-success {
+  border-left: 4px solid #30d158;
+}
+
+.app-toast.toast-error {
+  border-left: 4px solid #ff453a;
+}
+
+.app-toast.toast-info {
+  border-left: 4px solid var(--accent);
+}
+
+.app-toast.toast-loading {
+  border-left: 4px solid #ffd60a;
+}
+
+@keyframes toastSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Franja «Sin conexión» (core/offline.js): fija bajo la cabecera, no tapa nada */
+.offline-banner {
+  position: sticky; top: 0; z-index: 1001; padding: 8px 16px; text-align: center;
+  font-size: 0.82rem; font-weight: 600; color: #111; background: var(--warning, #ffd60a);
+}
+.offline-banner[hidden] { display: none; }
+
+/* In-app notification banners (features/notifications.js): they live in the toast column, under the toasts */
+.app-banner {
+  pointer-events: auto;
+  background: var(--surface); color: var(--text-primary);
+  border: 1px solid var(--accent); border-radius: var(--radius-md);
+  box-shadow: var(--shadow-deep); padding: 0.9rem 1.1rem;
+  animation: toastSlideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.app-banner-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; }
+.app-banner-head strong { font-size: 0.95rem; }
+.app-banner-close { background: none; border: 0; color: var(--text-muted); cursor: pointer; font-size: 1rem; padding: 0 0.2rem; }
+.app-banner-body { font-size: 0.82rem; color: var(--text-secondary); margin-top: 0.35rem; line-height: 1.4; white-space: pre-wrap; }

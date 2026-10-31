@@ -1,0 +1,428 @@
+/* EVBro — Detalle de sesiones de carga (histórico y gráficas).
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+/* ========================================================
+   CHARGE DETAILS DASHBOARD 
+   ======================================================== */
+.charge-dashboard-card {
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-card);
+  position: relative;
+}
+
+.charge-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.charge-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.charge-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.charge-icon {
+  color: var(--primary);
+}
+
+.charge-title-row h3 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.charge-location-text {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.charge-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.charge-select-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.charge-select {
+  min-width: 260px;
+  max-width: 380px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  padding: 0.45rem 0.85rem;
+  font-size: 0.88rem;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+}
+
+.charge-select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-glow);
+}
+
+/* Layout 2 Columnas Principal */
+.charge-main-grid {
+  display: grid;
+  grid-template-columns: 1.55fr 1.25fr;
+  gap: 1.25rem;
+  margin-top: 1.25rem;
+}
+
+.charge-temporal-panel {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-glass-inset);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.15rem;
+  min-width: 0;
+}
+
+.charge-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.panel-subtitle {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.charge-time-range {
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.charge-canvas-container {
+  position: relative;
+  width: 100%;
+  height: 280px;
+  min-height: 260px;
+}
+
+.charge-canvas-container canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+.charge-chart-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid var(--border-color);
+  color: #ffffff;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+  line-height: 1.4;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  z-index: 50;
+  white-space: nowrap;
+  backdrop-filter: blur(8px);
+}
+
+[data-theme="light"] .charge-chart-tooltip {
+  background: rgba(255, 255, 255, 0.96);
+  color: #0f172a;
+  border-color: rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+/* Leyenda */
+.charge-legend-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.85rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dot-soc { background-color: #10b981; box-shadow: 0 0 6px rgba(16, 185, 129, 0.6); }
+.dot-power { background-color: #f59e0b; box-shadow: 0 0 6px rgba(245, 158, 11, 0.6); }
+.dot-range { background-color: #f97316; box-shadow: 0 0 6px rgba(249, 115, 22, 0.6); }
+
+.legend-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.legend-stats {
+  font-variant-numeric: tabular-nums;
+}
+
+.legend-stats b {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* Panel Derecho: KPI Grid + Mapa */
+.charge-kpis-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.charge-kpis-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.65rem;
+}
+
+.charge-kpi-card {
+  background: var(--bg-glass-inset);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 0.95rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  transition: var(--transition);
+}
+
+.charge-kpi-card:hover {
+  background: var(--bg-card-hover);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+[data-theme="light"] .charge-kpi-card:hover {
+  border-color: rgba(0, 0, 0, 0.15);
+}
+
+.kpi-span-2 {
+  grid-column: span 2;
+}
+
+.kpi-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 0.2rem;
+}
+
+.kpi-value {
+  font-size: 1.45rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.kpi-subtext {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-top: 0.15rem;
+}
+
+.kpi-triplet {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  text-align: center;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.kpi-triplet.compact {
+  margin-top: 0;
+}
+
+.triplet-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.triplet-lbl {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.triplet-val {
+  font-size: 1.15rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Mini Mapa Leaflet */
+.charge-minimap-container {
+  height: 155px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  position: relative;
+}
+
+#chargeMiniMap {
+  width: 100%;
+  height: 100%;
+}
+
+/* Curva Inferior: Potencia vs Batería % */
+.charge-curve-panel {
+  margin-top: 1.25rem;
+  background: var(--bg-glass-inset);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.15rem;
+}
+
+.curve-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.curve-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.charge-curve-canvas-container {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  min-height: 180px;
+  margin-top: 0.5rem;
+}
+
+.charge-curve-canvas-container canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+/* Colores de Resalte */
+.text-green { color: #10b981 !important; }
+.text-yellow { color: #f59e0b !important; }
+.text-cyan { color: #06b6d4 !important; }
+.text-orange { color: #f97316 !important; }
+
+[data-theme="light"] .text-green { color: #059669 !important; }
+[data-theme="light"] .text-yellow { color: #d97706 !important; }
+[data-theme="light"] .text-cyan { color: #0891b2 !important; }
+[data-theme="light"] .text-orange { color: #ea580c !important; }
+
+/* Responsive */
+@media (max-width: 992px) {
+  .charge-main-grid {
+    grid-template-columns: 1fr;
+  }
+  .charge-canvas-container {
+    height: 250px;
+  }
+}
+
+@media (max-width: 600px) {
+  .charge-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .charge-header-right {
+    width: 100%;
+  }
+  .charge-select {
+    width: 100%;
+    min-width: unset;
+  }
+  .charge-kpis-grid {
+    grid-template-columns: 1fr;
+  }
+  .kpi-span-2 {
+    grid-column: span 1;
+  }
+
+  /* Responsive Modal and Form Grid */
+  .modal-overlay {
+    padding: 0.75rem 0.5rem;
+  }
+  .modal-card {
+    padding: 1.25rem 1rem;
+    max-height: calc(100dvh - 1.5rem);
+    border-radius: var(--radius-md);
+  }
+  .form-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem;
+  }
+  .form-group.full {
+    grid-column: span 1 !important;
+  }
+  .modal-actions {
+    flex-direction: column-reverse;
+    gap: 0.5rem;
+  }
+  .modal-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Coste y energía de la carga: edición manual y nota sobre qué es estimado */
+.kpi-edit-btn { margin-top: 8px; min-height: 36px; padding: 0 12px; font: inherit; font-size: 0.78rem; font-weight: 700; color: var(--accent-bright); background: transparent; border: 1px solid currentColor; border-radius: 999px; cursor: pointer; }
+.kpi-edit-btn[hidden] { display: none; }
+.kpi-note { margin: 10px 0 0; font-size: 0.74rem; line-height: 1.4; color: var(--text-muted); }
+.cc-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 4px; margin-bottom: 12px; background: var(--surface-secondary); border: 1px solid var(--border-color); border-radius: 12px; }
+.cc-modes label { display: flex; align-items: center; justify-content: center; min-height: 40px; border-radius: 9px; cursor: pointer; font-size: 0.85rem; font-weight: 600; }
+.cc-modes input { position: absolute; opacity: 0; pointer-events: none; }
+.cc-modes label:has(input:checked) { background: var(--surface); box-shadow: var(--shadow-pill); outline: 2px solid var(--accent-bright); outline-offset: -2px; }

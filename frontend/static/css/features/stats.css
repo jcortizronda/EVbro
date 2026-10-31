@@ -1,0 +1,13 @@
+/* EVBro — Estadísticas (features/stats.js): tarjetas con una gráfica cada una.
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+.st-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 900px) { .st-grid { grid-template-columns: 1fr 1fr; } }
+.st-card { padding: 14px 14px 10px; }
+.st-card .card-title { margin-bottom: 2px; }
+.st-card small.st-sub { display: block; margin-bottom: 8px; font-size: 0.76rem; color: var(--text-muted); line-height: 1.35; }
+.st-card canvas { display: block; width: 100%; }
+.st-totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: 8px 12px; margin-top: 10px; }
+.st-totals small { display: block; font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+.st-totals strong { font-size: 1rem; font-variant-numeric: tabular-nums; }
+.st-hint { margin: 8px 0 0; font-size: 0.76rem; color: var(--text-muted); line-height: 1.4; }

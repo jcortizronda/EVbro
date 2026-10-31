@@ -1,0 +1,36 @@
+/* EVBro — Gastos (Más → Gastos) y complementos de Costes.
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+.ex-card, .ex-due-card { padding: 14px 16px; margin-bottom: 12px; }
+.ex-filters { display: flex; flex-direction: column; gap: 10px; margin: 12px 0 6px; }
+.ex-filters select { min-height: 44px; }
+.ex-chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+.ex-chip { flex: none; min-height: 40px; padding: 0 14px; font: inherit; font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); background: var(--surface-secondary); border: 1px solid var(--border-color); border-radius: 999px; cursor: pointer; }
+.ex-chip.is-active { color: var(--text-primary); border-color: var(--accent-bright); box-shadow: inset 0 0 0 1px var(--accent-bright); }
+.ex-total { display: flex; justify-content: space-between; align-items: baseline; padding: 10px 0 4px; border-top: 1px solid var(--border-color); margin-top: 8px; font-size: 0.85rem; color: var(--text-secondary); }
+.ex-total strong { font-size: 1.15rem; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+
+.ex-due-card[hidden] { display: none; }
+.ex-due-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; padding: 10px 0; text-align: left; font: inherit; color: inherit; background: none; border: 0; border-top: 1px solid var(--border-color); }
+button.ex-due-row { cursor: pointer; min-height: 52px; }
+.ex-row-main { display: flex; flex-direction: column; min-width: 0; }
+.ex-row-main strong { font-size: 0.9rem; overflow-wrap: anywhere; }
+.ex-row-main small { font-size: 0.74rem; color: var(--text-muted); }
+.ex-due-chip { flex: none; padding: 4px 10px; font-size: 0.74rem; font-weight: 700; border-radius: 999px; color: var(--text-secondary); background: var(--bg-glass-inset); }
+.ex-due-row[data-tone="soon"] .ex-due-chip { color: #8a5a00; background: rgba(255, 159, 10, 0.18); }
+.ex-due-row[data-tone="urgent"] .ex-due-chip { color: #b3261e; background: rgba(255, 69, 58, 0.16); }
+.ex-due-row[data-tone="overdue"] .ex-due-chip { color: #fff; background: #d92d20; }
+[data-theme="dark"] .ex-due-row[data-tone="soon"] .ex-due-chip { color: #ffd60a; }
+[data-theme="dark"] .ex-due-row[data-tone="urgent"] .ex-due-chip { color: #ff6961; }
+
+/* Costes: tarjeta ancha, serie de gastos y desglose por categoría */
+.costs-card-wide { grid-column: 1 / -1; }
+.c-exp { background: var(--accent-violet, #bf5af2); }
+.costs-by-cat { padding: 14px 16px; margin-bottom: 12px; }
+.costs-cat { padding: 6px 0; }
+.costs-cat-head { display: flex; justify-content: space-between; gap: 10px; font-size: 0.85rem; }
+.costs-cat-head strong { font-variant-numeric: tabular-nums; }
+.costs-cat-track { height: 8px; margin-top: 4px; border-radius: 6px; background: var(--bg-glass-inset); overflow: hidden; }
+.costs-cat-track i { display: block; height: 100%; border-radius: 6px; background: var(--accent-violet, #bf5af2); }
+.costs-goto { padding: 0 4px; margin: 0 0 12px; }
+.link-btn { font: inherit; font-weight: 700; color: var(--accent-bright); background: none; border: 0; padding: 4px 2px; min-height: 32px; cursor: pointer; text-decoration: underline; }

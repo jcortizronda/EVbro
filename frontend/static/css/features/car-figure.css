@@ -1,0 +1,89 @@
+/* EVBro — Car figure on the home tab, plan view (features/car-figure.js).
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies.
+   Colour tokens: --cf-body is the car's own colour when the car sheet names one (set by car-figure.js), --cf-line its seam colour. */
+
+.car-figure {
+  --cf-body: var(--surface-secondary);
+  --cf-line: var(--muted-light);
+  --cf-roof: rgba(0, 0, 0, 0.05);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+  padding: 8px 12px 10px;
+  margin-bottom: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: 18px;
+}
+:root:not([data-theme="light"]) .car-figure { --cf-roof: rgba(255, 255, 255, 0.06); }
+.car-figure svg {
+  display: block;
+  width: 100%;
+  max-width: 236px;
+  height: auto;
+  margin: 0 auto;
+  overflow: visible;
+}
+.car-figure-summary {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
+  color: var(--text-muted);
+}
+.car-figure-summary[data-state="closed"] { color: var(--accent-green); }
+.car-figure-summary[data-state="open"] { color: var(--accent-amber); }
+
+/* Body, roof, mirrors and lights */
+.cf-body { fill: var(--cf-body); stroke: var(--cf-line); stroke-width: 1.3; stroke-linejoin: round; }
+.cf-roof { fill: var(--cf-roof); stroke: var(--cf-line); stroke-width: 0.6; }
+.cf-mirror { fill: var(--cf-body); stroke: var(--cf-line); stroke-width: 1; }
+.cf-light { stroke: none; }
+.cf-light-front { fill: rgba(255, 236, 170, 0.9); }
+.cf-light-rear { fill: rgba(255, 92, 92, 0.85); }
+
+/* Glass: windshield, rear window, side windows and sunroof share one gradient */
+.cf-glass-stop-a { stop-color: rgba(var(--accent-rgb), 0.5); }
+.cf-glass-stop-b { stop-color: rgba(var(--accent-rgb), 0.2); }
+.cf-glass { fill: url(#cfGlassGrad); stroke: rgba(var(--accent-rgb), 0.55); stroke-width: 0.7; }
+
+/* Parts that report a state (doors, windows, hood, trunk, sunroof) */
+.cf-part { cursor: pointer; transition: fill 0.2s ease, stroke 0.2s ease, transform 0.3s ease; }
+.cf-part[data-state="closed"] { fill: transparent; stroke: var(--cf-line); stroke-width: 1; }
+.cf-part.cf-glass-part[data-state="closed"] { fill: url(#cfGlassGrad); stroke: rgba(var(--accent-rgb), 0.55); stroke-width: 0.7; }
+.cf-part.cf-panel[data-state="closed"] { fill: rgba(0, 0, 0, 0.035); }
+:root:not([data-theme="light"]) .cf-part.cf-panel[data-state="closed"] { fill: rgba(255, 255, 255, 0.04); }
+.cf-part[data-state="open"] { fill: var(--accent-amber); stroke: var(--accent-amber); stroke-width: 1.2; fill-opacity: 0.8; }
+.cf-part.cf-panel[data-state="open"] { fill-opacity: 0.55; filter: drop-shadow(0 1.5px 1.5px rgba(0, 0, 0, 0.35)); }
+.cf-part[data-state="unknown"] { fill: none; stroke: var(--text-muted); stroke-width: 1; stroke-dasharray: 2 2; }
+
+/* Doors swing out on the hinge at their front edge: right side (top of the drawing) upwards, left side downwards */
+.cf-door { transform-box: fill-box; }
+.cf-door-right { transform-origin: 0% 0%; }
+.cf-door-left { transform-origin: 0% 100%; }
+.cf-door-right[data-state="open"] { transform: rotate(-20deg); }
+.cf-door-left[data-state="open"] { transform: rotate(20deg); }
+
+/* Wheels (always dark rubber, whatever the theme) and their pressure pills */
+.cf-wheel rect { fill: #26272b; stroke: rgba(255, 255, 255, 0.16); stroke-width: 0.6; }
+.cf-wheel .cf-rim { fill: rgba(255, 255, 255, 0.3); stroke: none; }
+.cf-wheel[data-state="unknown"] rect { opacity: 0.45; }
+.cf-wheel[data-state="warn"] rect:first-child { fill: var(--accent-red); }
+.cf-pill rect { fill: var(--surface); stroke: var(--border-color); stroke-width: 0.8; }
+.cf-pill[data-state="unknown"] { display: none; }
+.cf-pill[data-state="warn"] rect { fill: rgba(255, 69, 58, 0.14); stroke: var(--accent-red); }
+.cf-tyre { font-size: 8.6px; font-weight: 700; fill: var(--text-secondary); text-anchor: middle; font-family: inherit; }
+.cf-pill[data-state="warn"] .cf-tyre { fill: var(--accent-red); }
+
+/* Lock glyph on the hood and the charge port at the rear */
+.cf-lock { cursor: pointer; }
+.cf-lock path, .cf-lock rect { stroke-width: 1.6; fill: none; stroke: var(--text-muted); }
+.cf-lock[data-state="locked"] path, .cf-lock[data-state="locked"] rect { stroke: var(--accent-green); }
+.cf-lock[data-state="unlocked"] path, .cf-lock[data-state="unlocked"] rect { stroke: var(--accent-amber); }
+.cf-lock[data-state="locked"] rect { fill: rgba(48, 209, 88, 0.2); }
+.cf-lock[data-state="unlocked"] rect { fill: rgba(255, 159, 10, 0.2); }
+.cf-lock[data-state="unlocked"] .cf-lock-shackle { transform: translate(-3px, -2px) rotate(-18deg); transform-origin: 10px 10px; }
+.cf-cable { display: none; }
+.cf-cable[data-state="plugged"], .cf-cable[data-state="charging"] { display: block; }
+.cf-cable circle { fill: var(--accent); stroke: var(--surface); stroke-width: 1.5; }
+.cf-cable[data-state="charging"] circle { fill: var(--accent-green); }
+.cf-cable path { stroke: var(--surface); stroke-width: 1.4; fill: none; }

@@ -1,0 +1,43 @@
+{
+  "name": "EVBro — El compañero de tu coche",
+  "short_name": "EVBro",
+  "description": "EVBro, el compañero de tu coche Ebro: telemetría en directo, viajes, control remoto, mantenimiento y costes, sin suscripciones.",
+  "start_url": "/",
+  "id": "/",
+  "display": "standalone",
+  "background_color": "#0a0e17",
+  "theme_color": "#000000",
+  "orientation": "any",
+  "lang": "es",
+  "categories": [
+    "auto",
+    "utilities",
+    "productivity"
+  ],
+  "icons": [
+    {
+      "src": "/static/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icons/icon-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/static/icons/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

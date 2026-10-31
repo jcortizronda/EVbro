@@ -1,0 +1,36 @@
+/* EVBro — Cronología y búsqueda (features/timeline.js). Reuses the history list (months, empty states) and the expense chips.
+   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+
+.tl-search { position: relative; margin: 0 0 10px; }
+.tl-search input { width: 100%; box-sizing: border-box; padding-right: 2.6rem; }
+.tl-search .tl-clear {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  width: 36px; height: 36px; border: 0; border-radius: 50%; background: transparent; color: var(--text-muted); font-size: 1.1rem; cursor: pointer;
+}
+.tl-search .tl-clear:hover { background: var(--surface-secondary); color: var(--text-primary); }
+
+.tl-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+
+.tl-row {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: 10px;
+  width: 100%; min-height: 56px; padding: 8px 10px; text-align: left;
+  font: inherit; color: var(--text-primary); background: var(--surface-secondary); border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm); cursor: pointer;
+}
+.tl-row:hover { background: var(--surface-card-hover); }
+.tl-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.tl-ico {
+  display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 10px;
+  background: rgba(var(--accent-rgb), 0.12); color: var(--accent);
+}
+.tl-kind-charge .tl-ico { color: var(--accent-green); background: rgba(48, 209, 88, 0.14); }
+.tl-kind-refuel .tl-ico { color: var(--accent-amber); background: rgba(255, 159, 10, 0.14); }
+.tl-kind-maintenance .tl-ico, .tl-kind-part .tl-ico { color: var(--accent-purple); background: rgba(139, 92, 246, 0.14); }
+.tl-kind-expense .tl-ico { color: var(--accent-red); background: rgba(255, 69, 58, 0.12); }
+.tl-kind-document .tl-ico { color: var(--text-secondary); background: var(--surface); }
+.tl-main { display: flex; flex-direction: column; min-width: 0; }
+.tl-main strong { font-size: 0.9rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tl-main small { font-size: 0.76rem; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tl-side { display: flex; flex-direction: column; align-items: flex-end; white-space: nowrap; }
+.tl-side b { font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+.tl-side small { font-size: 0.72rem; color: var(--text-muted); }
