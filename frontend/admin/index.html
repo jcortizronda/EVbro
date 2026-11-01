@@ -20,7 +20,7 @@
   </header>
 
   <main>
-    <!-- Acceso -->
+    <!-- Sign-in -->
     <section id="viewAuth" class="card narrow" hidden>
       <h1 id="authTitle">Iniciar sesión</h1>
       <p class="hint" id="authHint"></p>
@@ -34,7 +34,7 @@
       </form>
     </section>
 
-    <!-- Consola -->
+    <!-- Console -->
     <div id="viewApp" hidden>
       <nav class="tabs" role="tablist" aria-label="Secciones">
         <button type="button" role="tab" class="tab is-active" data-tab="managers" aria-selected="true">Gestores</button>
@@ -200,7 +200,7 @@
     </form>
   </dialog>
 
-  <!-- Diálogo propio de la consola (en lugar de alert / confirm / prompt del navegador; ask() en admin.js) -->
+  <!-- The console's own dialog (instead of the browser's alert / confirm / prompt; ask() in admin.js) -->
   <dialog id="dlgAsk">
     <form id="formAsk" method="dialog">
       <h2 id="askTitle">Confirmar</h2>

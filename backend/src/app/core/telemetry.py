@@ -1,4 +1,4 @@
-"""Normalización y decodificación de telemetría de vehículos Ebro / Chery."""
+"""Normalisation and decoding of Ebro / Chery vehicle telemetry."""
 from __future__ import annotations
 
 import datetime
@@ -9,7 +9,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def safe_float(val: Any, default: Optional[float] = None) -> Optional[float]:
-    """Convierte de forma segura a float."""
+    """Safely convert to float."""
     if val is None or val == "":
         return default
     try:
@@ -19,7 +19,7 @@ def safe_float(val: Any, default: Optional[float] = None) -> Optional[float]:
 
 
 def safe_int(val: Any, default: Optional[int] = None) -> Optional[int]:
-    """Convierte de forma segura a entero."""
+    """Safely convert to int."""
     if val is None or val == "":
         return default
     try:
@@ -29,7 +29,7 @@ def safe_int(val: Any, default: Optional[int] = None) -> Optional[int]:
 
 
 def kpa_to_bar(kpa: Optional[float]) -> Optional[float]:
-    """Convierte kPa a Bar."""
+    """Convert kPa to bar."""
     if kpa is None:
         return None
     return round(kpa / 100.0, 2)
@@ -45,8 +45,8 @@ def parse_telemetry_data(
     pos_data: Optional[Dict[str, Any]] = None,
     mqtt_data: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """Combina y normaliza las lecturas de los distintos canales (Realtime REST, GPS y MQTT).
-    Integra el conjunto completo de sensores y cables de la integración de Home Assistant.
+    """Merge and normalise the readings from the different channels (Realtime REST, GPS and MQTT).
+    Covers the full set of sensors and cables of the Home Assistant integration.
     """
     raw = {}
     if realtime_data:
@@ -58,47 +58,47 @@ def parse_telemetry_data(
 
     online_status = str(raw.get("onlineStatus", "")).strip() in ("1", "1.0", "true")
 
-    # 1. Batería, Combustible y Rangos (PHEV)
+    # 1. Battery, fuel and ranges (PHEV)
     battery_level = safe_float(raw.get("dumpEnergy"))
     electric_range = safe_float(raw.get("pureElectricRange"))
     fuel_range = safe_float(raw.get("mileageSurplus"))
-    # Autonomía total = eléctrica + gasolina
+    # Total range = electric + petrol
     if electric_range is not None and fuel_range is not None:
         total_range = round(electric_range + fuel_range, 1)
     else:
         total_range = safe_float(raw.get("mileageSurplus"))
 
     odometer = safe_float(raw.get("odometer"))
-    ev_odometer = safe_float(raw.get("electricRange"))       # Acumulado modo 100% eléctrico
-    hybrid_odometer = safe_float(raw.get("hybridMileage"))   # Kilometraje híbrido
+    ev_odometer = safe_float(raw.get("electricRange"))       # Accumulated in 100% electric mode
+    hybrid_odometer = safe_float(raw.get("hybridMileage"))   # Hybrid mileage
     speed = safe_float(raw.get("vehicleSpeed") or raw.get("speed") or raw.get("gpsSpeed"), 0.0)
-    fuel_level_pct = safe_float(raw.get("oilSurplus"))       # Nivel de combustible en %
-    average_fuel = safe_float(raw.get("averageFuel"))        # Consumo medio L/100 km
-    average_power = safe_float(raw.get("avgHkPowerKwh50km")) # Consumo medio kWh/100 km
+    fuel_level_pct = safe_float(raw.get("oilSurplus"))       # Fuel level in %
+    average_fuel = safe_float(raw.get("averageFuel"))        # Average consumption L/100 km
+    average_power = safe_float(raw.get("avgHkPowerKwh50km")) # Average consumption kWh/100 km
 
-    # 2. Posición GPS y Movimiento
+    # 2. GPS position and movement
     lat = safe_float(raw.get("lat") or raw.get("latitude"))
     lon = safe_float(raw.get("lon") or raw.get("longitude"))
     altitude = safe_float(raw.get("altitude"))
     heading = safe_float(raw.get("direction") or raw.get("heading"))
 
-    # 3. Cables y Sistema de Carga
-    # chargeGunState: 0=desconectado, 1=cable conectado
+    # 3. Cables and charging system
+    # chargeGunState: 0=disconnected, 1=cable connected
     cable_connected = str(raw.get("chargeGunState", "")).strip() in ("1", "1.0")
-    # fastChargingGunStatus: 0=desconectada, 1=conectada AC, 2=conectada DC carga rápida
+    # fastChargingGunStatus: 0=disconnected, 1=AC connected, 2=DC fast-charge connected
     fast_gun_raw = str(raw.get("fastChargingGunStatus", "0")).strip()
     fast_charging = fast_gun_raw in ("1", "2")
     fast_charging_gun_desc = FAST_GUN_MAP.get(fast_gun_raw, f"Desconocida ({fast_gun_raw})")
 
-    # chargeState: 0=sin cargar, 1=cargando, 2=carga completada
+    # chargeState: 0=not charging, 1=charging, 2=charge complete
     charge_state_raw = str(raw.get("chargeState", "0")).strip()
     is_charging = charge_state_raw == "1"
     charge_state_desc = CHARGE_STATE_MAP.get(charge_state_raw, f"Desconocido ({charge_state_raw})")
 
-    # appointmentChargeState: carga programada
+    # appointmentChargeState: scheduled charging
     appt_charge_raw = str(raw.get("appointmentChargeState", "0")).strip()
     appointment_charge_desc = APPOINTMENT_CHARGE_MAP.get(appt_charge_raw, f"Desconocido ({appt_charge_raw})")
-    # None = el coche aún no ha informado (no confundir con «desactivada»)
+    # None = the car has not reported yet (not to be confused with «disabled»)
     appointment_charge_on = (appt_charge_raw in ("1", "2")) if raw.get("appointmentChargeState") not in (None, "") else None
 
     remaining_charge_min = safe_int(raw.get("remainChargeTime"))
@@ -110,7 +110,7 @@ def parse_telemetry_data(
         if power_kw < 0:
             power_kw = abs(power_kw)
 
-    # 4. Climatización, Asientos y Confort
+    # 4. Climate, seats and comfort
     climate_on = str(raw.get("frontHVACState", "")).strip() in ("1", "1.0")
     target_temp_left = safe_float(raw.get("frontSetTempLeft"))
     target_temp_right = safe_float(raw.get("frontSetTempRight"))
@@ -136,9 +136,9 @@ def parse_telemetry_data(
         "rear_right": safe_int(raw.get("rSeatVentilateState2"), 0),
     }
 
-    # 5. Bloqueo, Puertas, Ventanillas y Carrocería
-    # doorLock: 0 = bloqueado, 1 = desbloqueado. Sin dato → None: antes el valor por defecto era "0", y
-    # la interfaz afirmaba «Vehículo cerrado» (y puertas, maletero y ventanas cerrados) sin saberlo.
+    # 5. Locking, doors, windows and body
+    # doorLock: 0 = locked, 1 = unlocked. No data → None: the default used to be "0", and
+    # the interface claimed «Vehículo cerrado» (and doors, boot and windows closed) without knowing.
     door_lock = raw.get("doorLock")
     is_locked = None if door_lock in (None, "") else str(door_lock).strip() == "0"
     doors = {
@@ -160,7 +160,7 @@ def parse_telemetry_data(
         "sunshade": safe_int(raw.get("sunshadeState")),
     }
 
-    # 6. Neumáticos TPMS (Presión en Bar, Temperatura en °C y Avisos)
+    # 6. TPMS tyres (pressure in bar, temperature in °C and warnings)
     tyre_pressures = {
         "fl": kpa_to_bar(safe_float(raw.get("lFrontTyreKpa"))),
         "fr": kpa_to_bar(safe_float(raw.get("rFrontTyreKpa"))),
@@ -191,16 +191,16 @@ def parse_telemetry_data(
     charge_needed_alert = safe_int(raw.get("electricityCall"), 0) == 1
     fuel_low_alert = safe_int(raw.get("oilCall"), 0) == 1
 
-    # 7. Motor Térmico y Estado Operativo
+    # 7. Combustion engine and operating state
     engine_state = str(raw.get("engineState", "")).strip() in ("1", "1.0")
-    # hVoltageState (alta tensión): 1 con el coche encendido (también parado en un semáforo) y 0 apagado. Es la señal fiable de
-    # «coche apagado»: `engineState` es solo el motor térmico y vale 0 conduciendo en eléctrico. None = sin dato.
+    # hVoltageState (high voltage): 1 with the car switched on (also when stopped at a traffic light) and 0 when off. It is the
+    # reliable «car off» signal: `engineState` is only the combustion engine and is 0 when driving on electric. None = no data.
     hv_raw = raw.get("hVoltageState")
     high_voltage_on = None if hv_raw in (None, "") else str(hv_raw).strip() in ("1", "1.0")
 
-    # Deducción del estado del vehículo (driving, ready, charging, plugged, parked, asleep). Ver docs/trips.md, «Estados».
-    # Con la alta tensión conocida, manda ella: encendido = ready/driving; apagado = parked/asleep (la velocidad o el motor
-    # térmico de una lectura vieja ya no cuentan). Sin ese dato se usa la regla antigua (velocidad o motor térmico).
+    # Vehicle state deduction (driving, ready, charging, plugged, parked, asleep). See docs/trips.md, «Estados».
+    # When the high voltage is known it wins: on = ready/driving; off = parked/asleep (speed or the combustion
+    # engine from a stale reading no longer count). Without it the old rule is used (speed or combustion engine).
     state = "parked"
     if cable_connected and is_charging:
         state = "charging"
@@ -213,7 +213,7 @@ def parse_telemetry_data(
     elif not online_status:
         state = "asleep"
 
-    # 8. Reporte honesto de frescura de los datos (Honest status reporting)
+    # 8. Honest data-freshness reporting
     from app.core.probe import freshness
     freshness_text = freshness(raw)
 

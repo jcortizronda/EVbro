@@ -1,5 +1,5 @@
 /* EVBro — «Viajes largos» (features/journeys.js): list rows, the form preview and the detail sheet.
-   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
 .jn-card { margin-bottom: 14px; }
 .jn-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }

@@ -1,7 +1,7 @@
-/* EVBro — Cuentas asociadas (Ajustes → Cuentas) y ocultación por nivel de acceso.
-   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+/* EVBro — Linked accounts (Ajustes → Cuentas) and hiding by access level.
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
-/* Lo que el nivel de la cuenta no permite se oculta (el servidor lo impone igualmente). */
+/* What the account's level does not allow is hidden (the server enforces it anyway). */
 body:not(.can-edit) .needs-edit,
 body:not(.can-control) .needs-control,
 body:not(.can-owner) .needs-owner,
@@ -34,12 +34,12 @@ body:not(.is-root) .needs-root { display: none !important; }
 .auth-switch { margin: 14px 0 0; text-align: center; }
 .auth-switch[hidden] { display: none; }
 
-/* Tema: tres opciones */
+/* Theme: three options */
 .theme-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 5px; background: var(--surface-secondary); border: 1px solid var(--border-color); border-radius: 16px; }
 .theme-seg-btn { min-height: 48px; font: inherit; font-weight: 600; color: var(--text-secondary); background: transparent; border: 0; border-radius: 12px; cursor: pointer; }
 .theme-seg-btn.selected { color: var(--text-primary); background: var(--surface); outline: 2px solid var(--accent-bright); outline-offset: -2px; }
 
-/* Tus coches (Ajustes, Coche): elegir el coche */
+/* Tus coches (Ajustes, Coche): pick the car */
 .car-pick { display: flex; justify-content: space-between; align-items: center; gap: 10px; width: 100%; padding: 12px 10px; margin: 0; text-align: left; font: inherit; color: inherit;
   background: none; border: 0; border-top: 1px solid var(--border-color); cursor: pointer; min-height: 56px; border-radius: 0; }
 .car-pick:first-child { border-top: 0; }

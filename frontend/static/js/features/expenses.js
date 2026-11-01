@@ -1,6 +1,6 @@
-/* EVBro — Gastos (Más → Gastos): lo que se paga y no es mantenimiento, carga ni gasolina: seguro, impuestos, garaje, peajes, multas…
- * Los repostajes tienen su sección (features/refuels.js); el balance de todo está en Costes (solo lectura).
- * (Script clásico: comparte el ámbito global con los demás ficheros; ver el orden de carga en templates/index.html.)
+/* EVBro — Expenses (Más → Gastos): what is paid that is not maintenance, charging or fuel: insurance, taxes, garage, tolls, fines…
+ * Refuels have their own section (features/refuels.js); the overall balance is in Costes (read only).
+ * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
 let expensesData = [];
@@ -27,13 +27,13 @@ async function loadExpenses() {
     expensesData = e; expenseCategories = c;
     renderExpenses();
   } catch (err) {
-    console.warn('No se pudieron cargar los gastos:', err);
+    console.warn('Could not load the expenses:', err);
   }
 }
 
 function setExpenseCat(c) { expensesCat = c; renderExpenses(); }
 
-/** Vencimientos: la renovación del seguro de la ficha y el último gasto de cada concepto con «próxima vez» (misma regla que el servidor). */
+/** Due dates: the insurance renewal from the car sheet and the latest expense of each item with a «next time» (same rule as the server). */
 function pendingDue() {
   const out = [];
   const veh = (typeof currentVehicle === 'function') ? currentVehicle() : null;
@@ -52,7 +52,7 @@ function pendingDue() {
 }
 
 function renderExpenses() {
-  // vencimientos
+  // due dates
   const due = pendingDue();
   exEl('exDueCard').hidden = !due.length;
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -65,7 +65,7 @@ function renderExpenses() {
       <div class="ex-row-main"><strong>${escapeHtml(d.label)}</strong><small>${exDay(d.due)}</small></div><span class="ex-due-chip">${txt}</span></${tag}>`;
   }).join('');
 
-  // filtros: el periodo lo aplica el servidor (selector compartido); aquí solo las categorías
+  // filters: the server applies the period (shared picker); here only the categories
   exEl('exChips').innerHTML = [{ key: 'all', label: 'Todas' }, ...expenseCategories].map((c) =>
     `<button type="button" class="ex-chip ${expensesCat === c.key ? 'is-active' : ''}" data-on-click="setExpenseCat('${c.key}')">${escapeHtml(c.label)}</button>`).join('');
 
@@ -79,7 +79,7 @@ function renderExpenses() {
 
 }
 
-// ───────────────────────── Gastos ─────────────────────────
+// ───────────────────────── Expenses ─────────────────────────
 function fillNameHints(cat) {
   exEl('exNameList').innerHTML = (EXPENSE_NAME_HINTS[cat] || []).map((n) => `<option value="${escapeHtml(n)}"></option>`).join('');
 }

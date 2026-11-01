@@ -1,8 +1,8 @@
-/* EVBro — Energía: objetivo de batería y control de carga.
-   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+/* EVBro — Energía: battery target and charge control.
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
 /* ==========================================================================
-   ENERGÍA: objetivo de batería, control de carga y carga programada
+   ENERGÍA: battery target, charge control and scheduled charging
    ========================================================================== */
 .energy-status { display: flex; align-items: center; gap: 0.5rem; margin: 0.7rem 0 0; font-size: 0.88rem; font-weight: 700; color: var(--text-primary); }
 .energy-status::before { content: ""; flex-shrink: 0; width: 0.6rem; height: 0.6rem; border-radius: 50%; background: var(--text-muted); }
@@ -31,7 +31,7 @@
 .charge-info { margin-top: 0.9rem; padding: 0; background: transparent; border: 0; }
 .charge-list { margin: 0.4rem 0 0; padding-left: 1.1rem; display: grid; gap: 0.35rem; }
 
-/* Formularios (hora, duración…) */
+/* Forms (time, duration…) */
 .field { display: grid; gap: 0.3rem; text-align: left; }
 .field > span { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; }
 .field input, .field select {

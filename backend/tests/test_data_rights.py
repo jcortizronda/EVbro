@@ -99,7 +99,7 @@ async def world(db):
         await c.aclose()
 
 
-# ───────────────────────── libro del coche ─────────────────────────
+# ───────────────────────── car logbook ─────────────────────────
 async def test_the_car_book_is_a_pdf_with_the_chosen_sections(world) -> None:
     ana, mia = world["ana"], world["mia"]
     r = await ana.post(f"/api/vehicles/{VIN}/book", json={})

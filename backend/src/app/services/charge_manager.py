@@ -1,30 +1,30 @@
-"""Control de la carga usando SOLO la programación del coche.
+"""Charge control using ONLY the car's charging schedule.
 
-**Por qué.** Este coche no acepta arrancar ni parar la carga (`chargeStartStopControl` → A00084). Lo único que
-la nube de Ebro deja tocar es la programación (`chargeAppointControl`). Todo lo que ofrece la interfaz se
-construye encima de eso:
+**Why.** This car does not accept starting or stopping a charge (`chargeStartStopControl` → A00084). The only thing
+the Ebro cloud lets us touch is the schedule (`chargeAppointControl`). Everything the interface offers is
+built on top of that:
 
-  * **Parar carga** → programación cuya ventana ya terminó (ahora−90 min, 60 min de duración). Estando
-    fuera de la ventana, el coche no carga. Esa ventana vuelve a abrirse al día siguiente a la misma hora:
-    el gestor la desplaza solo antes de que llegue (`hold_needs_refresh`), de forma transparente.
-  * **Iniciar carga** → quita la pausa y devuelve el coche a lo que tenía: su programación (la guardada en
-    EVBro o, si «Parar» la sustituyó, la que el coche tenía puesta) o, si no había ninguna, apaga el interruptor
-    general y el coche carga ya.
-  * **Programar** → ventana de inicio/fin (o inicio/duración) escrita en el coche.
-  * **Objetivo de batería** (< 100 %) → al alcanzarlo cargando, se pasa a «pausa por objetivo». Se libera sola
-    cuando el coche está enchufado y la batería baja `HYSTERESIS` puntos por debajo del objetivo, y al subir
-    el objetivo a 100 %. Con 100 % el gestor no hace nada.
+  * **Stop charging** → a schedule whose window has already ended (now−90 min, 60 min long). Being
+    outside the window, the car does not charge. That window opens again the next day at the same time:
+    the manager moves it on its own before it arrives (`hold_needs_refresh`), transparently.
+  * **Start charging** → removes the pause and gives the car back what it had: its schedule (the one stored in
+    EVBro or, if «Stop» replaced it, the one the car had set) or, if there was none, turns the main switch
+    off and the car charges right away.
+  * **Schedule** → a start/end (or start/duration) window written to the car.
+  * **Battery target** (< 100 %) → when it is reached while charging, it switches to «paused at target». It releases
+    itself when the car is plugged in and the battery drops `HYSTERESIS` points below the target, and when the
+    target is raised to 100 %. At 100 % the manager does nothing.
 
-**Seguridad de diseño.** Con los valores por defecto (objetivo 100 %, sin pausa ni programación) el gestor está
-inerte: solo actúa cuando el usuario lo pide o fija un objetivo < 100 %. Los cambios AUTOMÁTICOS se espacian
-`MIN_AUTO_GAP_MIN` minutos entre sí, también tras un fallo, para no martillear la nube de Chery con reintentos
-(las órdenes del usuario no cuentan: tras programar, un objetivo alcanzado se atiende en la siguiente lectura).
+**Safe by design.** With the defaults (target 100 %, no pause and no schedule) the manager is
+inert: it only acts when the user asks or sets a target < 100 %. AUTOMATIC changes are spaced
+`MIN_AUTO_GAP_MIN` minutes apart, also after a failure, so as not to hammer the Chery cloud with retries
+(user commands do not count: after scheduling, a reached target is handled on the next reading).
 
-**Verificación.** La nube acepta la orden (`A00079`) antes de que el coche la ejecute. Pasado `VERIFY_DELAY_S` se
-lee la programación real y, si no coincide con lo esperado, se reenvía UNA vez (no se encadena otra verificación).
+**Verification.** The cloud accepts the command (`A00079`) before the car runs it. After `VERIFY_DELAY_S` the
+real schedule is read and, if it does not match what was expected, it is resent ONCE (no further verification is chained).
 
-**Límites conocidos.** Si la programación se cambia desde la app oficial, el gestor no lo detecta hasta que la
-lee (`GET .../charge/plan?live=1`). Un plan nuevo puede tardar unos segundos en verse en el coche.
+**Known limits.** If the schedule is changed from the official app, the manager does not notice until it
+reads it (`GET .../charge/plan?live=1`). A new plan may take a few seconds to show up in the car.
 """
 from __future__ import annotations
 
@@ -46,19 +46,19 @@ from app.vehicle.constants import DEFAULT_CHARGE_DURATION_MIN, DEFAULT_CHARGE_ST
 
 _LOGGER = logging.getLogger("app.services.charge_manager")
 
-HYSTERESIS = 5            # puntos por debajo del objetivo para volver a permitir la carga
-MIN_AUTO_GAP_MIN = 10     # separación mínima entre acciones automáticas del gestor
-TICK_EVERY_S = 300        # cada cuánto se revisa que la ventana de pausa siga «cerrada»
-TARGET_CHOICES = tuple(range(50, 101, 5))     # de 5 en 5; el objetivo NO se envía al coche: lo vigila EVBro
-VERIFY_DELAY_S = 20        # espera antes de comprobar que el coche aplicó la orden
-PENDING_WINDOW_S = 90      # durante este tiempo una lectura que no coincide se considera «aplicándose»
+HYSTERESIS = 5            # points below the target before charging is allowed again
+MIN_AUTO_GAP_MIN = 10     # minimum gap between the manager's automatic actions
+TICK_EVERY_S = 300        # how often to check that the pause window is still «closed»
+TARGET_CHOICES = tuple(range(50, 101, 5))     # in steps of 5; the target is NOT sent to the car: EVBro watches it
+VERIFY_DELAY_S = 20        # wait before checking that the car applied the command
+PENDING_WINDOW_S = 90      # during this time a reading that does not match counts as «being applied»
 
 MODE_FREE, MODE_SCHEDULED, MODE_HOLD = "free", "scheduled", "hold"
 HOLD_USER, HOLD_TARGET = "user", "target"
 
 
 class ChargeError(Exception):
-    """No se pudo aplicar el cambio. `reason` es estable (la web decide por él); `status` es el HTTP."""
+    """The change could not be applied. `reason` is stable (the web acts on it); `status` is the HTTP status."""
 
     def __init__(self, reason: str, message: str, status: int = 422) -> None:
         super().__init__(message)
@@ -78,19 +78,19 @@ class PlanState:
 
 def decide(state: PlanState, *, soc: Optional[float], plugged: bool, charging_now: bool,
            now: Optional[datetime.datetime] = None) -> Optional[str]:
-    """Qué hacer ahora: `release`, `refresh_hold`, `hold_target` o `None`. Función pura.
+    """What to do now: `release`, `refresh_hold`, `hold_target` or `None`. Pure function.
 
-    `soc` ≤ 0 o `None` = el coche no ha informado (con la alta tensión apagada manda 0): nunca cuenta como
-    «objetivo alcanzado» ni como «batería baja»."""
+    `soc` ≤ 0 or `None` = the car has not reported (with high voltage off it sends 0): it never counts as
+    «target reached» nor as «battery low»."""
     soc = soc if soc is not None and soc > 0 else None
 
     if state.mode == MODE_HOLD and state.hold_reason == HOLD_TARGET:
         if state.target_pct >= 100:
-            return "release"                                   # se quitó el límite
+            return "release"                                   # the limit was removed
         if plugged and soc is not None and soc <= state.target_pct - HYSTERESIS:
-            return "release"                                   # hay hueco: se vuelve a permitir cargar
+            return "release"                                   # there is room: charging is allowed again
     if state.mode == MODE_HOLD and charging.hold_needs_refresh(state.hold_start_utc, now):
-        return "refresh_hold"                                  # que la ventana de pausa no se reabra sola
+        return "refresh_hold"                                  # so the pause window does not reopen by itself
     if (state.mode in (MODE_FREE, MODE_SCHEDULED) and state.target_pct < 100
             and charging_now and soc is not None and soc >= state.target_pct):
         return "hold_target"
@@ -102,7 +102,7 @@ def _hhmm(minutes: Optional[int]) -> Optional[str]:
 
 
 def status_code(state: PlanState, charging_now: bool) -> str:
-    """Etiqueta estable para la interfaz."""
+    """Stable label for the interface."""
     if state.mode == MODE_HOLD:
         return "hold_target" if state.hold_reason == HOLD_TARGET else "hold_user"
     if state.mode == MODE_SCHEDULED:
@@ -125,15 +125,15 @@ class ChargeManager:
                  verify_delay_s: Optional[float] = VERIFY_DELAY_S) -> None:
         self._sender = sender or self._send_via_poller
         self._reader = reader or self._read_car_schedule
-        self._verify_delay = verify_delay_s          # None = no verificar (tests)
+        self._verify_delay = verify_delay_s          # None = do not verify (tests)
         self._tasks: set[asyncio.Task] = set()
         self._clock = clock
         self._locks: dict[str, asyncio.Lock] = {}
-        self._fast: dict[str, bool] = {}          # vehículos en pausa por objetivo: sondear más a menudo
-        self._last_auto: dict[str, datetime.datetime] = {}   # última acción AUTOMÁTICA intentada (acierte o falle)
+        self._fast: dict[str, bool] = {}          # vehicles paused at the target: poll more often
+        self._last_auto: dict[str, datetime.datetime] = {}   # last AUTOMATIC action attempted (successful or not)
         self._last_tick = 0.0
 
-    # ───────────────────────── infraestructura ─────────────────────────
+    # ───────────────────────── infrastructure ─────────────────────────
     def _lock(self, vin: str) -> asyncio.Lock:
         return self._locks.setdefault(vin, asyncio.Lock())
 
@@ -143,13 +143,13 @@ class ChargeManager:
         return await VehiclePoller.get_instance().execute_internal(vin, key, params, origin)
 
     async def warm_up(self) -> None:
-        """Al arrancar: qué vehículos están en pausa por objetivo (para sondear más fino)."""
+        """At start-up: which vehicles are paused at the target (to poll them more closely)."""
         async with async_session_factory() as s:
             for row in (await s.execute(select(ChargePlan))).scalars():
                 self._fast[row.vin] = row.mode == MODE_HOLD and row.hold_reason == HOLD_TARGET
 
     def wants_fast_poll(self, vin: str) -> bool:
-        """En pausa por objetivo hay que enterarse pronto de que se enchufa el coche (el sondeo parado va cada hora)."""
+        """Paused at the target we must learn early that the car is plugged in (the parked poll runs every hour)."""
         return self._fast.get(vin, False)
 
     @staticmethod
@@ -165,10 +165,10 @@ class ChargeManager:
         return PlanState(row.target_pct or 100, row.mode or MODE_FREE, row.hold_reason, row.hold_start_utc,
                          bool(row.sched_enabled), row.sched_start_min, row.sched_duration_min)
 
-    # ───────────────────────── aplicar un plan al coche ─────────────────────────
+    # ───────────────────────── applying a plan to the car ─────────────────────────
     async def _apply(self, session, row: ChargePlan, kind: str, origin: str, reason: Optional[str] = None,
                      verify: bool = True) -> None:
-        """Manda al coche el plan `kind` (hold | schedule | clear) y actualiza `row`. Lanza ChargeError si falla."""
+        """Sends the `kind` plan (hold | schedule | clear) to the car and updates `row`. Raises ChargeError on failure."""
         tz, now = get_timezone(), self._clock()
         if kind == "hold":
             plan = charging.build_stop_plan(now)
@@ -176,7 +176,7 @@ class ChargeManager:
         elif kind == "schedule":
             plan = charging.build_plan(row.sched_start_min, row.sched_duration_min, 1, tz, now)
             key, params = "carga_prog_on", {"mainSwitch": 1, "chargeAppointPlans": [plan]}
-        else:  # clear: interruptor general apagado → el coche carga ya
+        else:  # clear: main switch off → the car charges right away
             plan = charging.build_plan(row.sched_start_min if row.sched_start_min is not None else DEFAULT_CHARGE_START_MIN,
                                        row.sched_duration_min or DEFAULT_CHARGE_DURATION_MIN, 0, tz, now)
             key, params = "carga_prog_off", {"mainSwitch": 0, "chargeAppointPlans": [plan]}
@@ -203,63 +203,63 @@ class ChargeManager:
 
     @staticmethod
     def _expected_enabled(row: ChargePlan) -> bool:
-        """¿Debe haber una programación activa en el coche? (la pausa también es una ventana activa)."""
+        """Should the car have an active schedule? (the pause is an active window too)."""
         return row.mode in (MODE_HOLD, MODE_SCHEDULED)
 
     async def _verify_later(self, vin: str) -> None:
         try:
             await asyncio.sleep(self._verify_delay or 0)
             await self.verify_applied(vin)
-        except Exception:                                    # noqa: BLE001 - nunca debe romper nada
-            _LOGGER.exception("Gestor de carga (%s): error al verificar", vin)
+        except Exception:                                    # noqa: BLE001 - must never break anything
+            _LOGGER.exception("Charge manager (%s): error while verifying", vin)
 
     async def verify_applied(self, vin: str) -> bool:
-        """Comprueba que el coche tiene lo que se le pidió; si no, reenvía UNA vez. Devuelve True si coincide."""
+        """Checks that the car has what it was asked for; otherwise resends ONCE. Returns True when it matches."""
         car = await self._reader(vin)
         if car is None:
-            return True                                      # no se pudo leer: no se toca nada
+            return True                                      # could not read it: nothing is touched
         async with self._lock(vin), async_session_factory() as s:
             row = await s.get(ChargePlan, vin)
             if row is None or bool(car.get("enabled")) == self._expected_enabled(row):
                 return True
             kind = "hold" if row.mode == MODE_HOLD else ("schedule" if row.mode == MODE_SCHEDULED else "clear")
-            _LOGGER.warning("Gestor de carga (%s): el coche no refleja «%s»; se reenvía una vez", vin, kind)
+            _LOGGER.warning("Charge manager (%s): the car does not show «%s»; resending once", vin, kind)
             await self._apply(s, row, kind, "automático (verificación)", row.hold_reason, verify=False)
         return False
 
     async def _release(self, session, row: ChargePlan, origin: str) -> None:
-        """Sale de la pausa: vuelve a la programación del usuario si la tiene; si no, carga libre."""
+        """Leaves the pause: back to the user's schedule if there is one; otherwise free charging."""
         await self._apply(session, row, "schedule" if row.sched_enabled else "clear", origin)
 
-    # ───────────────────────── acciones del usuario ─────────────────────────
+    # ───────────────────────── user actions ─────────────────────────
     async def stop(self, vin: str, origin: str = "usuario") -> dict:
-        """Parar carga: pausa manual (se mantiene hasta que el usuario pulse Iniciar o programe)."""
+        """Stop charging: manual pause (kept until the user presses Start or sets a schedule)."""
         async with self._lock(vin), async_session_factory() as s:
             row = await self._row(s, vin)
             if row.mode != MODE_HOLD and not row.sched_enabled:
-                await self._remember_car_schedule(row)       # la que tenga puesta el coche, para devolvérsela al iniciar
+                await self._remember_car_schedule(row)       # whatever the car has set, to give it back on start
             await self._apply(s, row, "hold", origin, HOLD_USER)
         return await self.state(vin)
 
     async def _remember_car_schedule(self, row: ChargePlan) -> None:
-        """Si el coche tiene una programación activa que EVBro no conoce, se guarda antes de pisarla con la pausa."""
+        """If the car has an active schedule EVBro does not know about, it is stored before the pause overwrites it."""
         try:
             car = await self._reader(row.vin)
-        except Exception:                                    # noqa: BLE001 - es un extra: parar no debe fallar por esto
+        except Exception:                                    # noqa: BLE001 - an extra: stopping must not fail because of this
             return
         if car and car.get("enabled") and car.get("start") and car.get("duration_min"):
             h, m = car["start"].split(":")
             row.sched_enabled, row.sched_start_min, row.sched_duration_min = True, int(h) * 60 + int(m), int(car["duration_min"])
 
     async def start(self, vin: str, origin: str = "usuario") -> dict:
-        """Iniciar carga: se quita la pausa y se vuelve a lo anterior: su programación si la había; si no, carga ya."""
+        """Start charging: removes the pause and goes back to what was there: its schedule if any; otherwise it charges now."""
         async with self._lock(vin), async_session_factory() as s:
             row = await self._row(s, vin)
             await self._release(s, row, origin)
         return await self.state(vin)
 
     async def set_schedule(self, vin: str, start_min: int, duration_min: int, origin: str = "usuario") -> dict:
-        """Programa la carga: ventana de inicio/duración en el coche (días: todos)."""
+        """Schedules the charge: a start/duration window in the car (days: all)."""
         if duration_min < charging.CHARGE_MIN_DURATION_MIN:
             raise ChargeError("duration_too_short", "El coche exige al menos 1 hora de carga programada.")
         if duration_min >= MINUTES_PER_DAY:
@@ -271,7 +271,7 @@ class ChargeManager:
         return await self.state(vin)
 
     async def clear_schedule(self, vin: str, origin: str = "usuario") -> dict:
-        """Quita la programación (también la creada fuera de EVBro). Si hay pausa, se mantiene (no se carga)."""
+        """Removes the schedule (also one created outside EVBro). If paused, the pause stays (no charging)."""
         async with self._lock(vin), async_session_factory() as s:
             row = await self._row(s, vin)
             row.sched_enabled = False
@@ -282,10 +282,10 @@ class ChargeManager:
         return await self.state(vin)
 
     async def set_target(self, vin: str, pct: int, origin: str = "usuario") -> dict:
-        """Fija la batería objetivo (solo se guarda en EVBro; el coche no tiene esa función). 100 = sin límite.
+        """Sets the battery target (stored in EVBro only; the car has no such feature). 100 = no limit.
 
-        Solo se habla con el coche si hay que levantar una pausa por objetivo (al subirlo a 100 %) o, al evaluar
-        la última lectura, si ya se ha alcanzado el nuevo objetivo y toca pausar."""
+        The car is only contacted to lift a pause at the target (when raised to 100 %) or, when evaluating
+        the latest reading, if the new target is already reached and it is time to pause."""
         if pct not in TARGET_CHOICES:
             raise ChargeError("target_invalid", f"El objetivo debe ser uno de {', '.join(map(str, TARGET_CHOICES))} %.")
         async with self._lock(vin), async_session_factory() as s:
@@ -298,7 +298,7 @@ class ChargeManager:
         await self._evaluate_latest(vin)
         return await self.state(vin)
 
-    # ───────────────────────── automático ─────────────────────────
+    # ───────────────────────── automatic ─────────────────────────
     async def _evaluate_latest(self, vin: str) -> None:
         from app.services.poller import VehiclePoller
         latest = VehiclePoller.get_instance().get_latest(vin)
@@ -306,18 +306,18 @@ class ChargeManager:
             await self.on_snapshot(vin, latest)
 
     async def on_snapshot(self, vin: str, telemetry: dict) -> None:
-        """Se llama tras cada lectura del coche. Nunca lanza: un fallo aquí no debe romper el sondeo."""
+        """Called after each reading of the car. Never raises: a failure here must not break the polling."""
         try:
             await self._auto(vin, telemetry)
         except ChargeError as err:
-            _LOGGER.warning("Gestor de carga (%s): %s", vin, err.message)
+            _LOGGER.warning("Charge manager (%s): %s", vin, err.message)
         except Exception:                                    # noqa: BLE001
-            _LOGGER.exception("Gestor de carga (%s): error inesperado", vin)
+            _LOGGER.exception("Charge manager (%s): unexpected error", vin)
 
     async def _auto(self, vin: str, telemetry: dict) -> None:
         async with self._lock(vin), async_session_factory() as s:
             row = await s.get(ChargePlan, vin)
-            if row is None:                                   # nunca se ha tocado: el gestor no existe para este coche
+            if row is None:                                   # never touched: the manager does not exist for this car
                 return
             state = self._to_state(row)
             action = decide(state, soc=telemetry.get("battery_level"), plugged=bool(telemetry.get("cable_connected")),
@@ -327,9 +327,9 @@ class ChargeManager:
             now = self._clock()
             last = self._last_auto.get(vin)
             if last and (now - last) < datetime.timedelta(minutes=MIN_AUTO_GAP_MIN):
-                return                       # solo entre acciones automáticas (también tras un fallo): no martillear la nube
+                return                       # only between automatic actions (also after a failure): do not hammer the cloud
             self._last_auto[vin] = now
-            _LOGGER.info("Gestor de carga (%s): %s (objetivo %s%%, batería %s%%)", vin, action, state.target_pct,
+            _LOGGER.info("Charge manager (%s): %s (target %s%%, battery %s%%)", vin, action, state.target_pct,
                          telemetry.get("battery_level"))
             if action == "release":
                 await self._release(s, row, "automático")
@@ -339,7 +339,7 @@ class ChargeManager:
                 await self._apply(s, row, "hold", "automático", HOLD_TARGET)
 
     async def tick(self) -> None:
-        """Revisa periódicamente que la ventana de pausa no esté a punto de reabrirse. Barato: lee la BD."""
+        """Periodically checks that the pause window is not about to reopen. Cheap: it reads the DB."""
         if time.monotonic() - self._last_tick < TICK_EVERY_S:
             return
         self._last_tick = time.monotonic()
@@ -347,15 +347,15 @@ class ChargeManager:
             vins = [r.vin for r in (await s.execute(select(ChargePlan).where(ChargePlan.mode == MODE_HOLD))).scalars()]
         for vin in vins:
             try:
-                await self._auto(vin, {})                    # sin telemetría: solo puede salir `refresh_hold`
+                await self._auto(vin, {})                    # no telemetry: only `refresh_hold` can come out
             except ChargeError as err:
-                _LOGGER.warning("Gestor de carga (%s): %s", vin, err.message)
+                _LOGGER.warning("Charge manager (%s): %s", vin, err.message)
             except Exception:                                # noqa: BLE001
-                _LOGGER.exception("Gestor de carga (%s): error inesperado", vin)
+                _LOGGER.exception("Charge manager (%s): unexpected error", vin)
 
-    # ───────────────────────── consulta ─────────────────────────
+    # ───────────────────────── query ─────────────────────────
     async def state(self, vin: str, live: bool = False) -> dict[str, Any]:
-        """Estado para la interfaz. `live=True` lee además la programación REAL del coche (red)."""
+        """State for the interface. `live=True` also reads the car's REAL schedule (network)."""
         async with async_session_factory() as s:
             row = await s.get(ChargePlan, vin)
         st = self._to_state(row) if row else PlanState()

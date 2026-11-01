@@ -1,4 +1,4 @@
-"""Rutas de gestión y autenticación de cuentas Ebro / Chery desde la interfaz web."""
+"""Routes to manage and authenticate Ebro / Chery accounts from the web interface."""
 from __future__ import annotations
 
 import asyncio
@@ -37,7 +37,7 @@ class EbroLoginRequest(BaseModel):
 
 
 def mask_phone(phone: str) -> str:
-    """Enmascara el teléfono para privacidad visual (ej: +34 6** *** 890)."""
+    """Masks the phone number for visual privacy (e.g. +34 6** *** 890)."""
     clean = phone.strip()
     if len(clean) >= 9:
         return f"{clean[:3]} {'*' * (len(clean) - 6)} {clean[-3:]}"
@@ -46,7 +46,7 @@ def mask_phone(phone: str) -> str:
 
 @router.get("/status")
 async def get_account_status(session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)):
-    """Devuelve el estado de conexión de la cuenta oficial Ebro de este usuario."""
+    """Returns the connection status of this user's official Ebro account."""
     stmt = select(EbroAccount).where(EbroAccount.is_active == True, EbroAccount.user_id == user.id).order_by(EbroAccount.id.desc())  # noqa: E712
     account = (await session.execute(stmt)).scalars().first()
 
@@ -67,7 +67,7 @@ async def get_account_status(session: AsyncSession = Depends(get_db), user: AppU
             "vehicles": [{"vin": v.vin, "name": v.name, "model": v.model} for v in vehicles],
         }
 
-    # Si no hay en DB, comprobar si se configuró por variable de entorno (la cuenta del servidor es del administrador)
+    # if there is none in the DB, check whether it was set through an environment variable (the server account belongs to the administrator)
     if user.role == "admin" and settings.EBRO_PHONE and settings.EBRO_PASSWORD:
         return {
             "connected": True,
@@ -107,17 +107,17 @@ async def _own_vins(session: AsyncSession, user_id: int) -> set:
 
 @router.post("/login")
 async def login_ebro_account(req: EbroLoginRequest, session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)):
-    """Inicia sesión con la cuenta oficial Ebro, guarda credenciales en BD y descubre vehículos."""
+    """Logs in with the official Ebro account, stores the credentials in the DB and discovers vehicles."""
     phone_clean = req.phone.strip().replace(" ", "").replace("-", "")
     area = req.area_code.strip().replace("+", "")
 
-    # Si el usuario introdujo el teléfono con el prefijo +34 delante, normalizarlo
+    # if the user typed the phone with the +34 prefix in front, normalise it
     if phone_clean.startswith(f"+{area}"):
         phone_clean = phone_clean[len(area) + 1 :]
     elif phone_clean.startswith(area) and len(phone_clean) > 9:
         phone_clean = phone_clean[len(area) :]
 
-    _LOGGER.info(f"Intentando login en la nube Ebro para el teléfono: +{area} {mask_phone(phone_clean)}")
+    _LOGGER.info(f"Trying to log in to the Ebro cloud for phone: +{area} {mask_phone(phone_clean)}")
 
     def _do_auth():
         return ebro_login.login_with_password(phone_clean, req.password, area)
@@ -126,7 +126,7 @@ async def login_ebro_account(req: EbroLoginRequest, session: AsyncSession = Depe
     try:
         token_data = await loop.run_in_executor(None, _do_auth)
     except Exception as e:
-        _LOGGER.error(f"Error de red o criptografía en login Ebro: {e}")
+        _LOGGER.error(f"Network or cryptography error on Ebro login: {e}")
         # The exception text can name internal hosts or library internals: it stays in the log.
         raise HTTPException(
             status_code=502,
@@ -140,7 +140,7 @@ async def login_ebro_account(req: EbroLoginRequest, session: AsyncSession = Depe
             detail=_("No se pudo iniciar sesión: {p0}. Verifica tu teléfono, código de país y contraseña.", p0=err_msg),
         )
 
-    # 1. Guardar o actualizar la cuenta en la Base de Datos
+    # 1. save or update the account in the database
     acc_stmt = select(EbroAccount).where(EbroAccount.phone == phone_clean)
     existing_acc = (await session.execute(acc_stmt)).scalar_one_or_none()
     if existing_acc is not None and existing_acc.user_id not in (None, user.id):
@@ -172,11 +172,11 @@ async def login_ebro_account(req: EbroLoginRequest, session: AsyncSession = Depe
     await session.commit()
     await session.refresh(account_obj)
 
-    # 2. Descubrir vehículos automáticamente usando el token obtenido
+    # 2. discover vehicles automatically with the token just obtained
     try:
         cars_list = await loop.run_in_executor(None, fetch_account_vehicles, token_data, await foreign_vins(session, user.id))
     except Exception as e:
-        _LOGGER.error(f"Error al listar vehículos tras login: {e}")
+        _LOGGER.error(f"Error listing vehicles after login: {e}")
         cars_list = []
 
     discovered = []
@@ -218,12 +218,12 @@ async def login_ebro_account(req: EbroLoginRequest, session: AsyncSession = Depe
             discovered.append({"vin": vin, "name": nickname, "model": model, "is_new": False})
 
         v_ctx = poller._get_or_create_ctx(vin)
-        # El PIN de la cuenta recién conectada sustituye al anterior (si no trae, queda vacío) y se
-        # reinicia el anti-bloqueo: son credenciales nuevas, no reintentos de las viejas.
+        # the PIN of the newly connected account replaces the previous one (empty if none is given) and the
+        # anti-lockout is reset: these are new credentials, not retries of the old ones.
         v_ctx.pin = (req.pin or "").strip()
         v_ctx.reset_pin_lockout()
 
-    # Si se descubrieron vehículos reales, limpiar vehículo dummy demo si existía
+    # if real vehicles were discovered, remove the dummy demo vehicle if it existed
     if discovered:
         dummy_stmt = select(Vehicle).where(Vehicle.vin == "LSJA8888888888888")
         dummy_v = (await session.execute(dummy_stmt)).scalar_one_or_none()
@@ -232,10 +232,10 @@ async def login_ebro_account(req: EbroLoginRequest, session: AsyncSession = Depe
 
     await session.commit()
 
-    # Cuenta nueva: el canal MQTT del coche se reconecta con ella (en segundo plano: tarda)
+    # new account: the car's MQTT channel reconnects with it (in the background: it takes a while)
     asyncio.create_task(CarEventHub.get_instance().restart_owner(account_obj.user_id, poller))
 
-    # Si hay vehículos, disparar sondeo inicial
+    # if there are vehicles, trigger an initial poll
     if discovered:
         first_vin = discovered[0]["vin"]
         asyncio.create_task(poller.poll_vehicle(first_vin, force=True))
@@ -258,7 +258,7 @@ class UpdatePinRequest(BaseModel):
 
 @router.post("/pin")
 async def update_account_pin(req: UpdatePinRequest, session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)):
-    """Guarda o actualiza el PIN de control remoto de la cuenta activa."""
+    """Saves or updates the remote control PIN of the active account."""
     stmt = select(EbroAccount).where(EbroAccount.is_active == True, EbroAccount.user_id == user.id).order_by(EbroAccount.id.desc())  # noqa: E712
     account = (await session.execute(stmt)).scalars().first()
     if not account:
@@ -268,8 +268,8 @@ async def update_account_pin(req: UpdatePinRequest, session: AsyncSession = Depe
     account.pin = clean_pin
     await session.commit()
 
-    # Cambiar el PIN es un gesto explícito de remedio: se pone a cero el anti-bloqueo y el taskId en
-    # caché (ligado al PIN anterior), igual que hacía la integración al reconfigurar el PIN.
+    # changing the PIN is an explicit remedy: the anti-lockout and the cached taskId (tied to the
+    # previous PIN) are reset, just as the integration did when the PIN was reconfigured.
     poller = VehiclePoller.get_instance()
     own = await _own_vins(session, user.id)
     for vin, ctx in poller._contexts.items():
@@ -393,7 +393,7 @@ async def test_mqtt_link(req: MqttLinkIn, session: AsyncSession = Depends(get_db
 
 @router.post("/logout")
 async def logout_ebro_account(session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)):
-    """Desvincula la cuenta de Ebro activa de este usuario."""
+    """Unlinks this user's active Ebro account."""
     stmt = select(EbroAccount).where(EbroAccount.is_active == True, EbroAccount.user_id == user.id)  # noqa: E712
     accounts = (await session.execute(stmt)).scalars().all()
 

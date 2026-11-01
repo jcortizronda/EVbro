@@ -1,5 +1,5 @@
-/* EVBro — Variables de diseño (tokens), tipografía y temas claro/oscuro.
-   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+/* EVBro — Design variables (tokens), typography and light/dark themes.
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
 /* ========================================================
    EVBro — Modern Automotive Interface Design System

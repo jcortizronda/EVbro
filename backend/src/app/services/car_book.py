@@ -1,4 +1,4 @@
-"""El libro del coche: a PDF with everything EVBro knows about a car, section by section, made with reportlab.
+"""The car book («Libro del coche»): a PDF with everything EVBro knows about a car, section by section, made with reportlab.
 
 Sections (the user picks): `sheet` (identity, purchase, insurance, tyres, energy), `maintenance` (plan and interventions),
 `parts` (consumables and references), `drives`, `charges`, `refuels`, `expenses` (with the cost balance), `geofences`,

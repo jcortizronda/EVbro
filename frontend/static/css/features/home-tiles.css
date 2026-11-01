@@ -1,15 +1,15 @@
-/* EVBro — Fichas de la portada.
-   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+/* EVBro — Home tab tiles.
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
 /* ==========================================================================
-   Fichas de la portada: el ICONO cambia de forma y de color con el estado; el botón no
+   Home tab tiles: the ICON changes shape and colour with the state; the button does not
    ========================================================================== */
 .native-card-btn[data-state] .card-icon-wrap svg { display: block; width: 22px; height: 22px; }
 .native-card-btn[data-state="closed"] .card-icon-wrap { color: var(--accent-green); }
 .native-card-btn[data-state="open"] .card-icon-wrap { color: var(--accent-amber, #ff9f0a); }
 .native-card-btn[data-state="unknown"] .card-icon-wrap { color: var(--text-muted); }
 
-/* Botones de Confort: lo que se enciende es el icono (y el indicador ON/OFF), no todo el botón */
+/* Confort buttons: what lights up is the icon (and the ON/OFF indicator), not the whole button */
 .comfort-tile.is-on { background: var(--surface-secondary); border-color: var(--border-color); }
 .comfort-tile .comfort-icon { color: var(--text-muted); transition: color 0.2s ease; }
 .comfort-tile.is-on .comfort-icon { color: var(--accent-green); }

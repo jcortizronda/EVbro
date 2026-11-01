@@ -1,12 +1,12 @@
-"""Núcleo de protocolo Ebro/Chery de EVBro.
+"""EVBro's Ebro/Chery protocol core.
 
-Contiene la lógica verificada sobre el terreno: autenticación BFF, firma de las peticiones,
-catálogo y envío de comandos, sonda realtime, despertar. Procede de la integración
-la integración de Home Assistant para estos coches y se mantiene lo más parecido
-posible a ella para poder sincronizar correcciones en ambos sentidos. Ni la API ni la interfaz
-hablan nunca directamente con la nube: pasan todas por aquí.
+Holds the logic verified in the field: BFF authentication, request signing, the command
+catalogue and sending, the realtime probe, waking the car. It comes from the Home Assistant
+integration for these cars and is kept as close to it as possible so fixes can be synced
+both ways. Neither the API nor the interface ever talks to the cloud directly: everything
+goes through here.
 
-Los módulos de esta carpeta se importan entre sí con imports relativos de paquete
-(`from .core import …` / `from . import …`), así es Python quien garantiza qué módulo se
-carga y los loggers quedan atribuidos a EVBro.
+The modules in this folder import each other with package-relative imports
+(`from .core import …` / `from . import …`), so Python guarantees which module gets
+loaded and the loggers are attributed to EVBro.
 """

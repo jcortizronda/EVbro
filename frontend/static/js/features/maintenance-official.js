@@ -1,6 +1,6 @@
-/* EVBro — Mantenimiento: plan oficial de EBRO (próxima revisión, plan completo y registro de escalones).
- * El servidor calcula todo (services/maintenance_official.py); aquí solo se pinta y se piden las acciones.
- * (Script clásico: comparte el ámbito global con los demás ficheros; ver el orden de carga en templates/index.html.)
+/* EVBro — Maintenance: official EBRO plan (next service, full plan and logging of steps).
+ * The server computes everything (services/maintenance_official.py); here it is only drawn and the actions requested.
+ * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
 const fmtKm = (n) => Math.round(n).toLocaleString(I18n.locale);
@@ -32,14 +32,14 @@ function renderOfficialPlan(plan) {
     document.getElementById('maintNextTitle').textContent = t('Revisión de {p0}', {p0: next.label});
     document.getElementById('maintNextLabor').textContent = t('{p0} h de mano de obra', {p0: String(next.labor_hours).replace('.', ',')});
 
-    // Kilómetros
+    // Kilometres
     const kmOver = next.remaining_km <= 0;
     document.getElementById('maintMeterKmText').textContent = kmOver
       ? t('Pasada por {p0} km', {p0: fmtKm(Math.abs(next.remaining_km))}) : t('Faltan {p0} km', {p0: fmtKm(next.remaining_km)});
     document.getElementById('maintMeterKmSub').textContent = t('A los {p0} km (llevas {p1})', {p0: fmtKm(next.km), p1: fmtKm(plan.vehicle.odometer)});
     setMeter('maintMeterKmBar', next.progress_km_pct, kmOver ? 'due' : (next.remaining_km <= 1500 ? 'warning' : 'ok'));
 
-    // Fecha (solo si hay fecha de entrega)
+    // Date (only if there is a delivery date)
     const dateBox = document.getElementById('maintMeterDateBox');
     if (next.due_date === null) {
       dateBox.hidden = true;
@@ -59,7 +59,7 @@ function renderOfficialPlan(plan) {
     document.getElementById('checklistInspectList').innerHTML = opsList(next.inspect_items, 'I', 'Nada que inspeccionar en esta revisión.');
   }
 
-  // Escalones: hechos / siguiente / pendientes
+  // Steps: done / next / pending
   stepsCard.innerHTML = plan.official.matrix.columns.map(c => {
     const done = plan.official.history.find(h => h.step_km === c.km);
     const state = c.is_done ? 'done' : (c.is_next ? 'next' : 'todo');
@@ -85,7 +85,7 @@ function opsList(items, badge, empty) {
     </div>`).join('');
 }
 
-// ───────────────────────── Fecha de entrega (se configura en la ficha del coche) ─────────────────────────
+// ───────────────────────── Delivery date (set in the car sheet) ─────────────────────────
 function renderBaseline(plan) {
   const configured = plan.baseline.configured;
   document.getElementById('maintBaselineTitle').textContent = configured
@@ -96,7 +96,7 @@ function renderBaseline(plan) {
   document.getElementById('maintBaselineCard').classList.toggle('needs-setup', !configured);
 }
 
-// ───────────────────────── Tabla completa de la marca ─────────────────────────
+// ───────────────────────── Brand's full table ─────────────────────────
 function renderEbroMatrix(plan) {
   const table = document.getElementById('ebroMatrixTable');
   if (!table || !plan) return;
@@ -115,7 +115,7 @@ function renderEbroMatrix(plan) {
   table.innerHTML = html + '</tbody>';
 }
 
-// ───────────────────────── Registrar una revisión oficial ─────────────────────────
+// ───────────────────────── Log an official service ─────────────────────────
 function showRegisterOfficialRevisionModal() {
   const plan = maintenancePlan;
   if (!plan) return;

@@ -1,56 +1,56 @@
 #!/usr/bin/env python3
 """
-session.py — salud del token Ebro (keep-alive de la sesión).
+session.py — Ebro token health (session keep-alive).
 
-El token que hace funcionar los botones de comando vive en token.json (wake.TOKEN_PATH).
-Puede "caerse" de dos formas:
-  1) el access_token caduca con normalidad  -> refresh() lo renueva con el refresh_token;
-  2) se abre la app oficial                 -> la sesión se invalida y ni el refresh basta
-                                               -> hace falta volver a autenticarse (contraseña).
+The token that makes the command buttons work lives in token.json (wake.TOKEN_PATH).
+It can "drop" in two ways:
+  1) the access_token expires normally      -> refresh() renews it with the refresh_token;
+  2) the official app is opened             -> the session is invalidated and not even refresh is enough
+                                               -> the user must authenticate again (password).
 
-Este módulo expone las primitivas de salud de la sesión que usa EVBro:
-  - check()   -> (ok, detalle, status) : ¿el token es válido? (prueba un login BFF)
-  - refresh() -> bool                  : renueva el access_token (keep-alive)
+This module exposes the session-health primitives EVBro uses:
+  - check()   -> (ok, detail, status)  : is the token valid? (tries a BFF login)
+  - refresh() -> bool                  : renews the access_token (keep-alive)
 """
 import time
 
-# import relativo de paquete
-from . import wake  # reutiliza _bff_login / _refresh_token / TOKEN_PATH
+# package-relative import
+from . import wake  # reuses _bff_login / _refresh_token / TOKEN_PATH
 
-# Carpeta de este paquete: la usan los contextos reducidos de diagnóstico.
+# This package's folder: used by the reduced diagnostic contexts.
 
-# Marcadores ESTABLES del resultado de check(). El llamador enruta el remedio según estos,
-# NUNCA según el texto humano (que está localizado y puede cambiar con cada retoque de copy).
-STATUS_OK = "OK"                # login BFF correcto con el token actual
-STATUS_EXPIRED = "EXPIRED"      # token/sesión muertos → hace falta reautenticar
-STATUS_NET_ERROR = "NET_ERROR"  # error de red/transitorio → NO es una sesión caducada
+# STABLE markers of check()'s result. The caller routes the remedy on these,
+# NEVER on the human text (which is localised and may change with every copy tweak).
+STATUS_OK = "OK"                # BFF login correct with the current token
+STATUS_EXPIRED = "EXPIRED"      # dead token/session → re-authentication needed
+STATUS_NET_ERROR = "NET_ERROR"  # network/transient error → NOT an expired session
 
-# Cuánto tiempo el motivo de la última renovación sigue siendo fiable para decidir el remedio.
-# La renovación y el control de sesión ocurren en la misma vuelta (fracciones de segundo): un
-# motivo más viejo que esto habla de otro intento y se ignora.
+# How long the reason of the last renewal stays reliable for deciding the remedy.
+# The renewal and the session check happen in the same pass (fractions of a second): a
+# reason older than this refers to another attempt and is ignored.
 _REASON_FRESH_S = 60.0
-# Fracción de vida del token pasada la cual se renueva por adelantado (0.8 = a las 9h36m de 12h):
-# lo bastante pronto para tener margen, lo bastante tarde para no malgastar renovaciones.
+# Fraction of the token's lifetime after which it is renewed ahead of time (0.8 = at 9h36m of 12h):
+# early enough to have margin, late enough not to waste renewals.
 RENEWAL_QUOTA = 0.8
 
 
 def check(ctx):
-    """Devuelve (ok: bool, detalle: str, status: str).
+    """Return (ok: bool, detail: str, status: str).
 
-    `status` es el marcador estable (STATUS_OK/EXPIRED/NET_ERROR): es sobre lo que el
-    el poller y la interfaz deciden si pedir otro inicio de sesión. `detalle` es solo para el usuario.
-    Distinguir EXPIRED de NET_ERROR es esencial: un corte de red NO debe pedir
-    otro inicio de sesión (el usuario lo haría en balde)."""
+    `status` is the stable marker (STATUS_OK/EXPIRED/NET_ERROR): it is what the
+    poller and the interface use to decide whether to ask for another login. `detail` is for the user only.
+    Telling EXPIRED from NET_ERROR is essential: a network outage must NOT ask for
+    another login (the user would do it for nothing)."""
     try:
         ut, _tu = wake._bff_login(ctx)
     except Exception as e:
         return False, f"error de red: {type(e).__name__}", STATUS_NET_ERROR
     if ut:
         return True, "Sesión activa ✅", STATUS_OK
-    # El login ha fallado. Pero si falló porque la RENOVACIÓN ni siquiera arrancó (red caída,
-    # timeout, DNS), la sesión puede perfectamente seguir viva al otro lado: declararla
-    # caducada haría pedir otro inicio de sesión sin motivo.
-    # Se confía en el marcador solo si es RECIENTE: uno viejo se refiere a otra vuelta.
+    # The login failed. But if it failed because the RENEWAL did not even start (network down,
+    # timeout, DNS), the session may well still be alive on the other side: declaring it
+    # expired would ask for another login for no reason.
+    # The marker is trusted only if it is RECENT: an old one refers to another pass.
     reason = ctx.state.refresh_reason or ""
     fresh = (time.time() - (ctx.state.refresh_ts or 0.0)) < _REASON_FRESH_S
     if fresh and reason.startswith("red:"):
@@ -61,7 +61,7 @@ def check(ctx):
 
 
 def refresh(ctx):
-    """Renueva el access_token con el refresh_token. True si se renovó."""
+    """Renew the access_token with the refresh_token. True if it was renewed."""
     try:
         return bool(wake._refresh_token(ctx))
     except Exception:
@@ -69,17 +69,17 @@ def refresh(ctx):
 
 
 def refresh_if_expiring(ctx, quota: float = RENEWAL_QUOTA) -> tuple[bool, str]:
-    """Renovación PROACTIVA: renueva cuando el access token ha consumido `quota` de su vida,
-    en vez de esperar a que ya esté muerto.
+    """PROACTIVE renewal: renew when the access token has used up `quota` of its lifetime,
+    instead of waiting until it is already dead.
 
-    Por qué no basta la renovación reactiva: el control de sesión corre cada 15 minutos, y la
-    reactiva salta solo DESPUÉS de que el token caduca — es decir, hasta un cuarto de hora
-    tarde, con la ventana del refresh_token ya cerrándose. Anticipando se renueva siempre con
-    la sesión aún viva; y si la renovación falla se descubre mientras todavía hay tiempo, en
-    vez de con la sesión ya muerta.
+    Why reactive renewal is not enough: the session check runs every 15 minutes, and the
+    reactive one only kicks in AFTER the token expires — that is, up to a quarter of an hour
+    late, with the refresh_token window already closing. Renewing ahead of time always does so with
+    the session still alive; and if the renewal fails it is found out while there is still time,
+    instead of with the session already dead.
 
-    Devuelve (renovado, motivo). `(False, "no_hace_falta")` = no tocaba, ninguna llamada.
-    Nunca lanza: es una optimización, no debe poder romper el keep-alive."""
+    Returns (renewed, reason). `(False, "no_hace_falta")` = not due, no call made.
+    Never raises: it is an optimisation, it must not be able to break the keep-alive."""
     try:
         eta, lifetime = wake._eta_token(ctx)
         if eta < 0 or lifetime <= 0:

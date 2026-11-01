@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Comprueba que ninguna pantalla se sale de un móvil. Requiere Playwright (no está en requirements-dev).
+"""Checks that no screen overflows a phone. Requires Playwright (not in requirements-dev).
 
-    pip install playwright && playwright install chromium     # una vez
+    pip install playwright && playwright install chromium     # once
     EVBRO_URL=http://127.0.0.1:8080 EVBRO_USER=juan EVBRO_PASSWORD=... python tools/mobile_check.py
 
-Recorre todas las pestañas y subpestañas de Ajustes a 360, 390 y 430 px y falla (código 1) si algún
-elemento visible sobrepasa el borde derecho. Los dos tests de abajo existían como dolor de cabeza
-real: la cabecera medía 444 px en un móvil de 390 y las tablas de Viajes y Mantenimiento 1.400–1.600 px.
+Walks through every tab and every Ajustes sub-tab at 360, 390 and 430 px and fails (exit code 1) if any
+visible element goes past the right edge. The two checks below were a real headache: the header was
+444 px wide on a 390 px phone and the Viajes and Mantenimiento tables 1,400–1,600 px.
 
-Con `--shots CARPETA` guarda además una captura de cada pantalla para revisarla a ojo. Las capturas
-siguen siendo necesarias: este script detecta desbordes, no que algo se vea feo.
+With `--shots DIR` it also saves a screenshot of each screen to review by eye. Screenshots are still
+needed: this script detects overflows, not whether something looks ugly.
 """
 from __future__ import annotations
 
@@ -23,8 +23,8 @@ TABS = ["overview", "charges", "climate", "drives", "refuels", "more", "vehicle"
 SETTINGS = ["account", "polling", "notifs", "theme", "system"]
 WIDTHS = [360, 390, 430]
 
-# Elementos visibles cuyo borde derecho pasa del viewport, salvo los que se desplazan a propósito
-# (subpestañas, mapas, matriz de mantenimiento) o están ocultos de forma accesible.
+# Visible elements whose right edge goes past the viewport, except those that scroll on purpose
+# (sub-tabs, maps, maintenance matrix) or are visually hidden for accessibility.
 FIND_OVERFLOW = """(width) => {
   const bad = [];
   for (const e of document.querySelectorAll('body *')) {
@@ -39,12 +39,12 @@ FIND_OVERFLOW = """(width) => {
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--shots", help="carpeta donde guardar una captura por pantalla")
+    ap.add_argument("--shots", help="folder where a screenshot of each screen is saved")
     args = ap.parse_args()
     base = os.environ.get("EVBRO_URL", "http://127.0.0.1:8080").rstrip("/")
     user, password = os.environ.get("EVBRO_USER", ""), os.environ.get("EVBRO_PASSWORD", "")
     if not (user and password):
-        print("Define EVBRO_USER y EVBRO_PASSWORD", file=sys.stderr)
+        print("Set EVBRO_USER and EVBRO_PASSWORD", file=sys.stderr)
         return 2
     if args.shots:
         os.makedirs(args.shots, exist_ok=True)
@@ -57,7 +57,7 @@ def main() -> int:
             login = ctx.request.post(f"{base}/api/auth/login", headers={"Origin": base},
                                      data={"username": user, "password": password})
             if not login.ok:
-                print(f"Login fallido ({login.status})", file=sys.stderr)
+                print(f"Login failed ({login.status})", file=sys.stderr)
                 return 2
             page = ctx.new_page()
             page.goto(base)
@@ -73,7 +73,7 @@ def main() -> int:
                 page_wide = page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
                 bad = page.evaluate(FIND_OVERFLOW, width)
                 if page_wide > 0 or bad:
-                    failures.append(f"{width}px · {name}: página +{page_wide}px · {bad}")
+                    failures.append(f"{width}px · {name}: page +{page_wide}px · {bad}")
                 if args.shots:
                     page.screenshot(path=f"{args.shots}/{width}-{name}.png", full_page=True)
             ctx.close()
@@ -81,7 +81,7 @@ def main() -> int:
 
     for f in failures:
         print("✘", f)
-    print(f"{len(failures)} pantalla(s) con desborde" if failures else "✔ ninguna pantalla se sale en 360, 390 y 430 px")
+    print(f"{len(failures)} screen(s) with overflow" if failures else "✔ no screen overflows at 360, 390 and 430 px")
     return 1 if failures else 0
 
 

@@ -1,4 +1,4 @@
-"""Motor de sondeo inteligente y máquina de estados."""
+"""Smart polling engine and state machine."""
 from __future__ import annotations
 
 import asyncio
@@ -34,12 +34,12 @@ from app.services.trip_detector import TripDetector
 
 _LOGGER = logging.getLogger(__name__)
 
-# Minutos que debe mantenerse «coche dejado con puertas/ventanas abiertas» o sin cerrar antes de avisar
-# Sondeo máximo mientras hay un viaje abierto (solo consulta la nube: no despierta el coche)
+# Longest poll interval while a trip is open (it only asks the cloud: it does not wake the car)
 OPEN_TRIP_POLL_SECONDS = 150
+# How long «car left with doors/windows open» or unlocked must last before alerting
 SECURITY_CONFIRM_SECONDS = 5 * 60
-# Presión de neumáticos: debe mantenerse fuera de rango este tiempo (al arrancar o con el neumático caliente sube un 10 % sin ser un problema)
-# y no se repite el aviso antes de TYRE_ALERT_COOLDOWN
+# Tyre pressure: it must stay out of range this long (when starting off or with a warm tyre it rises 10 % without being a problem)
+# and the alert is not repeated before TYRE_ALERT_COOLDOWN
 TYRE_CONFIRM_SECONDS = 10 * 60
 TYRE_ALERT_COOLDOWN = datetime.timedelta(hours=12)
 UNEXPECTED_COMMAND_ERROR = "No se pudo enviar la orden al coche por un error inesperado del servidor (mira el log)."
@@ -55,12 +55,12 @@ class VehiclePoller:
     _task: Optional[asyncio.Task] = None
     _ws_subscribers: Set[Callable[[Dict], None]] = set()
 
-    # Última instantánea en memoria por VIN para respuestas instantáneas
+    # Latest in-memory snapshot per VIN for instant answers
     _latest_snapshots: Dict[str, Dict] = {}
-    # Marca de tiempo de la última consulta realizada
+    # Timestamp of the last poll made
     _last_poll_times: Dict[str, datetime.datetime] = {}
 
-    # Memoria de estados para disparar alertas móviles (evitar duplicados)
+    # State memory for firing mobile alerts (avoids duplicates)
     _last_geofence_by_vin: Dict[str, Optional[int]] = {}
     _last_charging_by_vin: Dict[str, bool] = {}
     _last_maint_check_km: Dict[str, float] = {}
@@ -68,7 +68,7 @@ class VehiclePoller:
     _last_renewal_check_at: Dict[str, datetime.datetime] = {}
     _last_retention_run: Optional[datetime.datetime] = None
     _last_catalog_sync: Optional[datetime.datetime] = None
-    # Situaciones de aviso aún sin confirmar: (vin, clave) -> desde cuándo se ven
+    # Alert situations not yet confirmed: (vin, key) -> since when they are seen
     _pending_since: Dict[tuple, datetime.datetime] = {}
     _last_tyre_alert_time: Dict[str, datetime.datetime] = {}
     _maint_alert_sent: Dict[str, datetime.datetime] = {}
@@ -76,7 +76,7 @@ class VehiclePoller:
     _last_fuel_alert_time: Dict[str, datetime.datetime] = {}
     _last_windows_alert_time: Dict[str, datetime.datetime] = {}
     _last_fault_alert_time: Dict[str, datetime.datetime] = {}
-    # Sondas pedidas por eventos del coche (una a la vez por vehículo)
+    # Polls requested by car events (one at a time per vehicle)
     _poll_requests: Dict[str, "asyncio.Task"] = {}
     _poll_semaphore: Optional[asyncio.Semaphore] = None
 
@@ -93,26 +93,26 @@ class VehiclePoller:
         self._ws_subscribers.discard(callback)
 
     def broadcast_telemetry(self, vin: str, data: Dict) -> None:
-        """Emite actualizaciones a los clientes WebSocket conectados."""
+        """Sends updates to the connected WebSocket clients."""
         self.broadcast_event({"type": "telemetry", "vin": vin, "data": data})
 
     def broadcast_event(self, payload: Dict) -> None:
-        """Emite un evento cualquiera (`type`, …) a los clientes WebSocket conectados."""
+        """Sends any event (`type`, …) to the connected WebSocket clients."""
         for sub in list(self._ws_subscribers):
             try:
                 sub(payload)
             except Exception as e:
-                _LOGGER.debug(f"Error al notificar suscriptor WS: {e}")
+                _LOGGER.debug(f"Error notifying WS subscriber: {e}")
 
     def get_latest(self, vin: str) -> Optional[Dict]:
         return self._latest_snapshots.get(vin)
 
     def apply_car_fields(self, vin: str, fields: Dict, geo: Optional[Dict] = None) -> Dict:
-        """Funde un push MQTT del coche (puertas, cierre, cable, motor…) sobre la última lectura.
+        """Merges an MQTT push from the car (doors, lock, cable, engine…) over the latest reading.
 
-        Solo toca la copia en memoria y avisa por WebSocket: no escribe en la BD. La instantánea
-        que alimenta los detectores de viajes y cargas la sigue guardando la sonda, que los
-        disparadores de `car_events` adelantan cuando hace falta. El push manda sobre la sonda."""
+        It only touches the in-memory copy and notifies over WebSocket: it does not write to the DB. The
+        snapshot that feeds the trip and charge detectors is still saved by the poll, which the
+        `car_events` triggers bring forward when needed. The push wins over the poll."""
         base_raw = (self._latest_snapshots.get(vin) or {}).get("raw_data") or {}
         telemetry = parse_telemetry_data(base_raw, geo, fields)
         self._latest_snapshots[vin] = telemetry
@@ -120,14 +120,14 @@ class VehiclePoller:
         return telemetry
 
     def request_poll(self, vin: str, force: bool = False) -> None:
-        """Pide una sonda ya, sin esperar al bucle. Si hay una en curso para ese vehículo, no hace nada."""
+        """Requests a poll now, without waiting for the loop. Does nothing if one is already running for that vehicle."""
         task = self._poll_requests.get(vin)
         if task is not None and not task.done():
             return
         self._poll_requests[vin] = asyncio.create_task(self.poll_vehicle(vin, force=force))
 
     def _get_or_create_ctx(self, vin: str) -> CoreCtx:
-        """Crea o recupera el CoreCtx para un VIN concreto."""
+        """Creates or returns the CoreCtx for a given VIN."""
         if vin not in self._contexts:
             data_dir = vehicle_data_dir(vin)
 
@@ -144,9 +144,9 @@ class VehiclePoller:
         return self._contexts[vin]
 
     async def initialize(self) -> None:
-        """Inicializa los vehículos desde la base de datos o mediante login en la nube Ebro."""
+        """Loads the vehicles from the database or by logging in to the Ebro cloud."""
         async with async_session_factory() as session:
-            # 1. Cargar vehículos ya existentes en DB
+            # 1. Load the vehicles already in the DB
             stmt = select(Vehicle).where(Vehicle.is_manual.is_(False))        # manual cars have nothing to poll
             result = await session.execute(stmt)
             vehicles = result.scalars().all()
@@ -167,14 +167,14 @@ class VehiclePoller:
             owners_with_cars = {v.owner_id for v in vehicles}
             for acc in accounts:
                 if acc.user_id not in owners_with_cars:
-                    _LOGGER.info("Autodescubriendo vehículos de la cuenta Ebro del usuario %s...", acc.user_id)
+                    _LOGGER.info("Auto-discovering vehicles of the Ebro account of user %s...", acc.user_id)
                     await self.discover_vehicles(account=acc)
             if not accounts and not vehicles and settings.EBRO_PHONE and settings.EBRO_PASSWORD:
-                _LOGGER.info("Autodescubriendo vehículos desde la cuenta Ebro del entorno...")
+                _LOGGER.info("Auto-discovering vehicles from the environment's Ebro account...")
                 await self.discover_vehicles(account=None)
 
     async def discover_vehicles(self, account: Optional[EbroAccount] = None) -> List[Vehicle]:
-        """Realiza login en la nube Ebro y descubre los vehículos asociados a la cuenta."""
+        """Logs in to the Ebro cloud and discovers the vehicles linked to the account."""
         phone = None
         password = None
         area_code = "34"
@@ -201,7 +201,7 @@ class VehiclePoller:
             area_code = settings.EBRO_AREA_CODE
 
         if not phone or not password:
-            _LOGGER.info("No hay cuenta Ebro vinculada aún. Esperando inicio de sesión en la interfaz web.")
+            _LOGGER.info("No Ebro account linked yet. Waiting for a login in the web interface.")
             return []
 
         owner_for_skip = acc_user_id
@@ -221,19 +221,19 @@ class VehiclePoller:
         try:
             token_data = await loop.run_in_executor(None, _do_login)
         except Exception as e:
-            _LOGGER.error(f"Error al iniciar sesión en Ebro: {e}")
+            _LOGGER.error(f"Error logging in to Ebro: {e}")
             return []
 
         if not token_data or "access_token" not in token_data:
             # Only the shape of the answer: it may carry partial tokens or account details that do not belong in the log.
-            _LOGGER.error("Respuesta de login inválida (claves: %s)", sorted(token_data) if isinstance(token_data, dict) else type(token_data).__name__)
+            _LOGGER.error("Invalid login answer (keys: %s)", sorted(token_data) if isinstance(token_data, dict) else type(token_data).__name__)
             return []
 
         try:
             skip = await foreign_vins(owner_for_skip)
             v_list = await loop.run_in_executor(None, fetch_account_vehicles, token_data, skip)
         except Exception as e:
-            _LOGGER.error(f"Error al consultar lista de vehículos: {e}")
+            _LOGGER.error(f"Error fetching the vehicle list: {e}")
             v_list = []
 
         discovered = []
@@ -253,10 +253,10 @@ class VehiclePoller:
                 existing = (await session.execute(stmt)).scalar_one_or_none()
 
                 if existing is not None and existing.owner_id not in (None, owner_id):
-                    _LOGGER.warning("El vehículo %s ya pertenece a otra cuenta: no se toca.", vin[-6:])
+                    _LOGGER.warning("Vehicle %s already belongs to another account: left alone.", vin[-6:])
                     continue
                 if existing is None and (owner_id is None or not await within_vehicle_limit(session, owner_id)):
-                    _LOGGER.warning("No se registra el vehículo %s: se alcanzó el límite de vehículos de la cuenta.", vin[-6:])
+                    _LOGGER.warning("Vehicle %s not registered: the account's vehicle limit was reached.", vin[-6:])
                     continue
 
                 if not existing:
@@ -271,7 +271,7 @@ class VehiclePoller:
                     session.add(new_v)
                     await session.commit()
                     discovered.append(new_v)
-                    _LOGGER.info(f"Vehículo registrado: {nickname} (VIN: {vin})")
+                    _LOGGER.info(f"Vehicle registered: {nickname} (VIN: {vin})")
                 else:
                     existing.owner_id = existing.owner_id or owner_id
                     existing.name = nickname
@@ -282,7 +282,7 @@ class VehiclePoller:
 
                 self._get_or_create_ctx(vin)
 
-            # Si se descubrieron vehículos reales, limpiar vehículo dummy demo si existía
+            # If real vehicles were found, remove the dummy demo vehicle if it exists
             if discovered:
                 dummy_stmt = select(Vehicle).where(Vehicle.vin == "LSJA8888888888888")
                 dummy_v = (await session.execute(dummy_stmt)).scalar_one_or_none()
@@ -293,7 +293,7 @@ class VehiclePoller:
         return discovered
 
     async def poll_vehicle(self, vin: str, force: bool = False) -> Optional[Dict]:
-        """Ejecuta una lectura de telemetría para un vehículo específico."""
+        """Runs one telemetry read for a given vehicle."""
         ctx = self._get_or_create_ctx(vin)
         loop = asyncio.get_running_loop()
 
@@ -308,33 +308,33 @@ class VehiclePoller:
         try:
             res, raw_data = await loop.run_in_executor(None, _probe)
         except Exception as e:
-            _LOGGER.error(f"Excepción en sondeo de {vin}: {e}")
+            _LOGGER.error(f"Exception polling {vin}: {e}")
             return None
 
-        # Si no hubo datos en tiempo real (por ejemplo coche dormido), usar el resumen "rich" de la
-        # sonda. Las coordenadas NO viajan en el resultado de `probe_once` (ver core/probe.py):
-        # los datos en crudo solo llegan por el callback `on_data` de arriba.
+        # With no real-time data (e.g. the car is asleep), use the probe's "rich" summary.
+        # Coordinates do NOT travel in the result of `probe_once` (see core/probe.py):
+        # raw data only arrives through the `on_data` callback above.
         if not raw_data and isinstance(res, dict):
             raw_data = res.get("rich", {})
 
         if not raw_data:
             return None
 
-        # Normalizar telemetría
-        # El push MQTT manda sobre la sonda cuando ambos traen la misma clave: la sonda devuelve a
-        # veces una instantánea de la nube más vieja que el último evento del coche.
+        # Normalise the telemetry
+        # The MQTT push wins over the poll when both carry the same key: the poll sometimes returns
+        # a cloud snapshot older than the car's last event.
         telemetry = parse_telemetry_data(raw_data, None, CarEventHub.get_instance().fields_for(vin))
         self._latest_snapshots[vin] = telemetry
         self._last_poll_times[vin] = datetime.datetime.utcnow()
 
-        # Guardar en Base de Datos y procesar en detectores
+        # Save to the database and run the detectors
         async with async_session_factory() as session:
             v = await session.execute(select(Vehicle).where(Vehicle.vin == vin))
             vehicle = v.scalar_one_or_none()
             if not vehicle:
                 return telemetry
 
-            # Actualizar campos rápidos en vehículo
+            # Update the quick fields on the vehicle
             vehicle.state = telemetry["state"]
             vehicle.last_seen = datetime.datetime.utcnow()
             if telemetry.get("battery_level") is not None:
@@ -349,7 +349,7 @@ class VehiclePoller:
                 vehicle.latitude = telemetry["latitude"]
                 vehicle.longitude = telemetry["longitude"]
 
-            # Registrar Snapshot
+            # Record the snapshot
             snap = TelemetrySnapshot(
                 vin=vin,
                 online_status=telemetry["online_status"],
@@ -384,12 +384,12 @@ class VehiclePoller:
             )
             session.add(snap)
 
-            # Procesar Viajes y Cargas
+            # Process trips and charges
             await TripDetector.process_snapshot(session, vehicle, telemetry)
             await ChargeDetector.process_snapshot(session, vehicle, telemetry)
             await RefuelDetector.process_snapshot(session, vehicle, telemetry)
 
-            # Comprobar y disparar alertas push para móvil (Geocercas, Mantenimiento, Carga, Seguridad)
+            # Check and fire mobile push alerts (geofences, maintenance, charging, security)
             await self._check_and_dispatch_alerts(session, vehicle, telemetry)
 
             # The server's MQTT broker belongs to whoever runs the server: by default only their own cars are published there
@@ -398,14 +398,14 @@ class VehiclePoller:
 
             await session.commit()
 
-        # Control de carga: objetivo de batería, pausas y su renovación
+        # Charge control: battery target, pauses and their renewal
         await ChargeManager.get_instance().on_snapshot(vin, telemetry)
 
-        # Publicar en MQTT si aplica
+        # Publish to MQTT if enabled
         if publish_mqtt:
             MqttPublisher.publish_telemetry(vin, telemetry, vehicle)
         MqttHub.get_instance().publish(vehicle.owner_id, vin, telemetry, vehicle)      # the owner's own broker, if they linked one
-        # Notificar a los WebSockets de la Web UI
+        # Notify the web UI's WebSockets
         self.broadcast_telemetry(vin, telemetry)
 
         return telemetry
@@ -413,7 +413,7 @@ class VehiclePoller:
     async def _check_and_dispatch_alerts(
         self, session: AsyncSession, vehicle: Vehicle, telemetry: Dict
     ) -> None:
-        """Verifica transiciones de estado y despacha alertas a Android e iOS."""
+        """Checks state transitions and sends alerts to Android and iOS."""
         vin = vehicle.vin
         lat = telemetry.get("latitude")
         lon = telemetry.get("longitude")
@@ -424,13 +424,13 @@ class VehiclePoller:
 
         # What each account wants to receive is decided when sending (per account); here only the car's own settings matter.
 
-        # 1. Alertas de Geocercas (Entrada / Salida - Configurable por usuario)
+        # 1. Geofence alerts (enter / exit - configurable per user)
         if lat is not None and lon is not None:
             current_gf = await find_geofence(session, lat, lon, owner_id=vehicle.owner_id)
             current_gf_id = current_gf.id if current_gf else None
 
             if vin not in self._last_geofence_by_vin:
-                # Inicializar estado sin disparar alerta espuria en el primer arranque
+                # Initialise the state without a spurious alert on the first start
                 self._last_geofence_by_vin[vin] = current_gf_id
             else:
                 last_gf_id = self._last_geofence_by_vin.get(vin)
@@ -438,7 +438,7 @@ class VehiclePoller:
                     await self._geofence_transition(session, vehicle, current_gf, last_gf_id, lat, lon, battery, odo)
                     self._last_geofence_by_vin[vin] = current_gf_id
 
-        # 2. Alertas de Carga (Inicio / Fin / Interrupción)
+        # 2. Charging alerts (start / end / interruption)
         is_charging = bool(telemetry.get("is_charging"))
         if vin in self._last_charging_by_vin:
             was_charging = self._last_charging_by_vin[vin]
@@ -447,7 +447,7 @@ class VehiclePoller:
                     vehicle.name, battery or 0.0, telemetry.get("electric_range_km"), vin=vin
                 )
             elif was_charging and not is_charging:
-                # Si se detuvo antes de completarse (< 95%) y no fue desconexión programada
+                # If it stopped before completing (< 95%) and it was not a scheduled stop
                 if battery is not None and battery < 95:
                     await NotificationService.notify_charge_interrupted(
                         vehicle.name, battery, "Suministro eléctrico cortado o manguera desconectada.", vin=vin
@@ -458,7 +458,7 @@ class VehiclePoller:
                     )
         self._last_charging_by_vin[vin] = is_charging
 
-        # 3. Alerta de Bajada / Reserva de Combustible
+        # 3. Low fuel / reserve alert
         if fuel is not None:
             if fuel <= (vehicle.fuel_low_threshold or 15):         # the car's own threshold (a car setting, not an account one)
                 now = datetime.datetime.utcnow()
@@ -467,9 +467,9 @@ class VehiclePoller:
                     self._last_fuel_alert_time[vin] = now
                     await NotificationService.notify_fuel_low(vehicle.name, fuel, fuel_range, vin=vin)
 
-        # 4. Alertas de mantenimiento (plan oficial de EBRO o tareas propias, según el modo del coche).
-        #    Se revisa al avanzar 200 km o cada 6 h (los plazos en meses vencen sin que el coche se mueva) y cada aviso
-        #    se manda como mucho una vez al día.
+        # 4. Maintenance alerts (EBRO's official plan or custom tasks, depending on the car's mode).
+        #    Checked every 200 km or every 6 h (month-based deadlines expire without the car moving) and each alert
+        #    is sent at most once a day.
         if odo is not None:
             now = datetime.datetime.utcnow()
             last_km = self._last_maint_check_km.get(vin, 0.0)
@@ -491,9 +491,9 @@ class VehiclePoller:
                             alert["items"], alert["labor_hours"], remaining_days=alert["remaining_days"], vin=vin,
                         )
                 except Exception as ex:
-                    _LOGGER.debug(f"Aviso al comprobar avisos de mantenimiento: {ex}")
+                    _LOGGER.debug(f"Warning while checking maintenance alerts: {ex}")
 
-        # 4b. Vencimientos con fecha (seguro, impuestos…): se mira cada 6 h; cada aviso se repite según su urgencia
+        # 4b. Dated renewals (insurance, taxes…): checked every 6 h; each alert repeats according to its urgency
         now = datetime.datetime.utcnow()
         last_r = self._last_renewal_check_at.get(vin)
         if not last_r or (now - last_r).total_seconds() >= 6 * 3600:
@@ -510,13 +510,13 @@ class VehiclePoller:
                     self._maint_alert_sent[k] = now
                     await NotificationService.notify_renewal(vehicle.name, alert["label"], alert["remaining_days"], vin=vin)
             except Exception as ex:
-                _LOGGER.debug(f"Aviso al comprobar vencimientos: {ex}")
+                _LOGGER.debug(f"Warning while checking renewals: {ex}")
 
-        # «El coche se ha dejado»: parado Y apagado (alta tensión a 0; sin ese dato, solo parado). Con el coche encendido
-        # (semáforo, acabas de llegar y estás bajando) no se avisa de puertas ni de cierre.
+        # «The car has been left»: stopped AND switched off (high voltage at 0; without that signal, just stopped). With the car on
+        # (traffic light, you just arrived and are getting out) there is no alert about doors or locking.
         left_car = telemetry.get("state") == "parked" and telemetry.get("high_voltage_on") is not True
 
-        # 5. Ventanas / Techo Olvidados Abiertos al aparcar (la situación debe mantenerse SECURITY_CONFIRM_SECONDS)
+        # 5. Windows / sunroof left open when parking (the situation must last SECURITY_CONFIRM_SECONDS)
         windows = telemetry.get("windows") or {}
         open_windows = [k for k, v in windows.items() if v]
         is_parked = left_car or telemetry.get("is_locked") is True
@@ -533,7 +533,7 @@ class VehiclePoller:
                 desc = [win_names.get(k, k) for k in open_windows]
                 await NotificationService.notify_windows_open_alert(vehicle.name, desc, vin=vin)
 
-        # 6. Alertas de Fallos / DTCs del Vehículo
+        # 6. Vehicle fault / DTC alerts
         faults = telemetry.get("dtcs") or telemetry.get("fault_messages") or []
         if faults:
             now = datetime.datetime.utcnow()
@@ -542,9 +542,9 @@ class VehiclePoller:
                 self._last_fault_alert_time[vin] = now
                 await NotificationService.notify_vehicle_fault(vehicle.name, ", ".join(faults), vin=vin)
 
-        # 7. Alertas de Seguridad al estacionar (puertas abiertas o sin cerrar con llave). Antes saltaban con la primera
-        #    lectura «aparcado» (llegas, abres la puerta y sales: falsa alarma); ahora el coche debe estar apagado y la
-        #    situación mantenerse SECURITY_CONFIRM_SECONDS.
+        # 7. Security alerts when parked (doors open or not locked). They used to fire on the first «parked» reading
+        #    (you arrive, open the door and get out: false alarm); now the car must be off and the situation must last
+        #    SECURITY_CONFIRM_SECONDS.
         issues = []
         if left_car:
             if telemetry.get("is_locked") is False:
@@ -559,12 +559,12 @@ class VehiclePoller:
                 self._last_security_alert_time[vin] = now
                 await NotificationService.notify_security_alert(vehicle.name, issues, vin=vin)
 
-        # 8. Presión de neumáticos fuera del rango configurado en el vehículo
+        # 8. Tyre pressure outside the range set on the vehicle
         await self._check_tyre_pressure(vehicle, telemetry)
 
     @staticmethod
     def tyre_pressure_issues(vehicle: Vehicle, telemetry: Dict) -> list:
-        """Neumáticos cuya presión se aleja más del % configurado de la de referencia del vehículo (delantera/trasera)."""
+        """Tyres whose pressure differs from the vehicle's reference (front/rear) by more than the configured %."""
         ref = {"fl": vehicle.tyre_front_pressure_bar, "fr": vehicle.tyre_front_pressure_bar,
                "rl": vehicle.tyre_rear_pressure_bar, "rr": vehicle.tyre_rear_pressure_bar}
         names = {"fl": "Delantero izquierdo", "fr": "Delantero derecho", "rl": "Trasero izquierdo", "rr": "Trasero derecho"}
@@ -584,7 +584,7 @@ class VehiclePoller:
         now = datetime.datetime.utcnow()
         vin = vehicle.vin
         if last_gf_id is not None:
-            # Acaba de salir de la geocerca previa (también si ha entrado directamente en otra)
+            # It just left the previous geofence (also when it went straight into another one)
             prev_gf = await session.get(Geofence, last_gf_id)
             if prev_gf is not None:
                 session.add(GeofenceEvent(vin=vin, geofence_id=prev_gf.id, geofence_name=prev_gf.name, kind="exit", timestamp=now,
@@ -600,7 +600,7 @@ class VehiclePoller:
         await session.commit()
 
     async def _check_tyre_pressure(self, vehicle: Vehicle, telemetry: Dict) -> None:
-        """Avisa si algún neumático se sale del rango configurado y se mantiene así TYRE_CONFIRM_SECONDS (una vez cada 12 h)."""
+        """Alerts when a tyre leaves the configured range and stays there TYRE_CONFIRM_SECONDS (once every 12 h)."""
         issues = self.tyre_pressure_issues(vehicle, telemetry)
         now = datetime.datetime.utcnow()
         if self._confirmed(vehicle.vin, "tyres", bool(issues), now, TYRE_CONFIRM_SECONDS):
@@ -610,8 +610,8 @@ class VehiclePoller:
                 await NotificationService.notify_tyre_pressure(vehicle.name, issues, vin=vehicle.vin)
 
     def _confirmed(self, vin: str, key: str, active: bool, now: datetime.datetime, confirm_s: int = SECURITY_CONFIRM_SECONDS) -> bool:
-        """True cuando `active` lleva SECURITY_CONFIRM_SECONDS seguidos. Al empezar se pide una lectura para cuando venza el
-        plazo (con el coche aparcado el sondeo es de 60 min y, si no, el aviso llegaría tarde)."""
+        """True when `active` has held for SECURITY_CONFIRM_SECONDS in a row. On the first sighting a read is scheduled for when the
+        delay expires (with the car parked the poll is every 60 min, so otherwise the alert would arrive late)."""
         k = (vin, key)
         if not active:
             self._pending_since.pop(k, None)
@@ -622,12 +622,12 @@ class VehiclePoller:
             try:
                 asyncio.get_running_loop().call_later(confirm_s + 5, lambda: self.request_poll(vin, force=True))
             except RuntimeError:
-                pass                       # sin bucle de eventos (tests síncronos)
+                pass                       # no event loop (synchronous tests)
             return False
         return (now - since).total_seconds() >= confirm_s
 
     def _calculate_sleep_seconds(self, state: str, telemetry: Optional[Dict] = None) -> int:
-        """Determina el intervalo de sondeo dinámico según el estado del vehículo."""
+        """Picks the dynamic poll interval from the vehicle's state."""
         if state in ("driving", "ready"):
             speed = (telemetry or {}).get("speed_kmh", 0.0)
             if speed and speed > 1.0:
@@ -646,7 +646,7 @@ class VehiclePoller:
             return 3600
 
     def get_polling_status(self) -> Dict:
-        """Devuelve el estado actual de los temporizadores de sondeo para cada vehículo."""
+        """Returns the current state of the poll timers for each vehicle."""
         now = datetime.datetime.utcnow()
         vehicles_status = []
         for vin in self._contexts:
@@ -685,7 +685,7 @@ class VehiclePoller:
         driving_min: Optional[int] = None,
         driving_idle_min: Optional[int] = None,
     ) -> Dict:
-        """Actualiza los intervalos de sondeo en memoria y configuración."""
+        """Updates the poll intervals in memory and in the settings."""
         if parked_min is not None:
             settings.POLL_INTERVAL_PARKED_MIN = max(0, parked_min)
         if plugged_min is not None:
@@ -698,15 +698,15 @@ class VehiclePoller:
             settings.POLL_INTERVAL_DRIVING_IDLE_MIN = max(1, driving_idle_min)
 
         _LOGGER.info(
-            f"Intervalos de sondeo adaptativo actualizados: Parked={settings.POLL_INTERVAL_PARKED_MIN}m, "
+            f"Adaptive poll intervals updated: Parked={settings.POLL_INTERVAL_PARKED_MIN}m, "
             f"Plugged={settings.POLL_INTERVAL_PLUGGED_MIN}m, Charging={settings.POLL_INTERVAL_CHARGING_MIN}m, "
             f"Driving={settings.POLL_INTERVAL_DRIVING_MIN}m, Idle={settings.POLL_INTERVAL_DRIVING_IDLE_MIN}m"
         )
         return self.get_polling_status()
 
     async def _poller_loop(self) -> None:
-        """Bucle principal de sondeo continuo adaptativo."""
-        _LOGGER.info("Iniciando bucle de sondeo inteligente EVBro...")
+        """Main adaptive, continuous polling loop."""
+        _LOGGER.info("Starting the EVBro smart polling loop...")
         while self._running:
             try:
                 async with async_session_factory() as session:
@@ -722,25 +722,25 @@ class VehiclePoller:
 
                     interval = self._calculate_sleep_seconds(current_state, latest)
                     if ChargeManager.get_instance().wants_fast_poll(vin):
-                        interval = min(interval, 300)        # pausa por objetivo: enterarse pronto de que se enchufa
+                        interval = min(interval, 300)        # paused at the target: learn early that it gets plugged in
                     if TripDetector.has_open_trip(vin):
-                        interval = min(interval, OPEN_TRIP_POLL_SECONDS)     # viaje abierto: cerrarlo pronto al aparcar
+                        interval = min(interval, OPEN_TRIP_POLL_SECONDS)     # open trip: close it soon after parking
 
                     if last_poll is None or (now - last_poll).total_seconds() >= interval:
                         _LOGGER.info(
-                            f"Sondeo adaptativo para {vin}: estado '{current_state}', intervalo {interval}s"
+                            f"Adaptive poll for {vin}: state '{current_state}', interval {interval}s"
                         )
                         due.append(vin)
 
-                # Los coches que tocan se sondean a la vez (como mucho POLL_CONCURRENCY): uno lento no retrasa a los demás.
-                # force=True en los sondeos periódicos para superar el cooldown de lectura oportunista.
+                # Due cars are polled together (at most POLL_CONCURRENCY): a slow one does not delay the rest.
+                # force=True on scheduled polls to get past the opportunistic-read cooldown.
                 if due:
                     await asyncio.gather(*(self._poll_limited(vin) for vin in due))
 
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                _LOGGER.error(f"Error en iteración del sondeo: {e}")
+                _LOGGER.error(f"Error in a polling iteration: {e}")
 
             await ChargeManager.get_instance().tick()
             await self._run_climate_schedules()
@@ -756,7 +756,7 @@ class VehiclePoller:
             try:
                 await self.poll_vehicle(vin, force=True)
             except Exception as e:                            # noqa: BLE001 — logged; the other cars of the pass go on
-                _LOGGER.error(f"Error en el sondeo de {vin}: {e}")
+                _LOGGER.error(f"Error polling {vin}: {e}")
 
     async def _run_climate_schedules(self) -> None:
         """Timetabled pre-conditioning: sends `clima_on` with the stored PIN when a schedule is due (services/climate_schedule.py)."""
@@ -769,10 +769,10 @@ class VehiclePoller:
             async with async_session_factory() as session:
                 await climate_schedule.run_due(session, send)
         except Exception as ex:                               # noqa: BLE001 — the poll loop must survive
-            _LOGGER.warning(f"No se pudo ejecutar la climatización programada: {ex}")
+            _LOGGER.warning(f"Could not run the climate schedules: {ex}")
 
     async def _maybe_apply_retention(self) -> None:
-        """Aplica los plazos de retención del historial una vez cada 24 h (y al arrancar)."""
+        """Applies the history retention periods once every 24 h (and at start-up)."""
         now = datetime.datetime.utcnow()
         if self._last_retention_run and (now - self._last_retention_run).total_seconds() < 24 * 3600:
             return
@@ -782,9 +782,9 @@ class VehiclePoller:
             async with async_session_factory() as session:
                 deleted = await retention.apply(session, now)
             if any(deleted.values()):
-                _LOGGER.info(f"Retención del historial: borrados {deleted}")
+                _LOGGER.info(f"History retention: deleted {deleted}")
         except Exception as ex:
-            _LOGGER.warning(f"No se pudo aplicar la retención del historial: {ex}")
+            _LOGGER.warning(f"Could not apply the history retention: {ex}")
 
     async def _maybe_sync_catalog(self) -> None:
         """Mirror of the online catalogue once a day (and at start-up) when the server is set to use one."""
@@ -797,7 +797,7 @@ class VehiclePoller:
             async with async_session_factory() as session:
                 await catalog_remote.sync_if_enabled(session)
         except Exception as ex:                               # noqa: BLE001 — the poll loop must survive
-            _LOGGER.warning(f"No se pudo sincronizar el catálogo en línea: {ex}")
+            _LOGGER.warning(f"Could not sync the online catalogue: {ex}")
 
     async def start(self) -> None:
         if self._running:
@@ -832,12 +832,12 @@ class VehiclePoller:
         params: Optional[Dict] = None,
         client_ip: Optional[str] = None,
     ) -> Dict:
-        """Ejecuta un comando remoto contra el vehículo.
+        """Runs a remote command on the vehicle.
 
-        Devuelve `{"success", "message", "reason", "retry_after"}`. `reason` es estable (la UI
-        decide según él): `pin_required`, `pin_invalid`, `pin_locked`, `params_invalid` (rechazados
-        antes de enviar), o el `reason` del core (`pin`, `reauth`, `config`) si falló el envío.
-        Las reglas de PIN y de parámetros están en `command_policy`."""
+        Returns `{"success", "message", "reason", "retry_after"}`. `reason` is stable (the UI
+        acts on it): `pin_required`, `pin_invalid`, `pin_locked`, `params_invalid` (rejected
+        before sending), or the core's `reason` (`pin`, `reauth`, `config`) if sending failed.
+        The PIN and parameter rules live in `command_policy`."""
         ctx = self._get_or_create_ctx(vin)
         stored_pin = await self._stored_pin(ctx)
         policy = await self._pin_policy(vin)
@@ -849,13 +849,13 @@ class VehiclePoller:
             await self._audit_command(vin, command_key, params, False, rej.reason, rej.message, client_ip)
             return {"success": False, "message": rej.message, "reason": rej.reason, "retry_after": rej.retry_after}
 
-        # El PIN tecleado vale solo para ESTE envío: una copia del contexto (comparte el estado del
-        # vehículo: anti-bloqueo y caché del taskId). Antes se asignaba a `ctx.pin` para siempre,
-        # así que un PIN mal escrito se quedaba y gastaba intentos en los comandos siguientes.
+        # The typed PIN is good for THIS send only: a copy of the context (it shares the vehicle's
+        # state: lock-out guard and taskId cache). It used to be assigned to `ctx.pin` for good,
+        # so a mistyped PIN stayed and used up attempts on the following commands.
         cmd_ctx = dataclasses.replace(ctx, pin=effective_pin)
         if command_policy.requires_pin(command_key, policy) and not stored_pin:
-            # Sin PIN guardado, el taskId en caché ya no prueba que quien manda conozca el PIN:
-            # se fuerza a Chery a verificar el tecleado.
+            # Without a stored PIN, the cached taskId no longer proves the sender knows the PIN:
+            # Chery is forced to check the typed one.
             ctx.invalidate_taskid()
 
         loop = asyncio.get_running_loop()
@@ -871,20 +871,20 @@ class VehiclePoller:
             message, code, reason = str(e), e.code, e.reason
         except Exception:
             # The text of an unexpected exception (library internals, hosts) is for the log, not for the client.
-            _LOGGER.exception("Fallo inesperado al enviar '%s' a %s", command_key, vin[-6:])
+            _LOGGER.exception("Unexpected failure sending '%s' to %s", command_key, vin[-6:])
             message = UNEXPECTED_COMMAND_ERROR
 
         await self._audit_command(vin, command_key, clean_params, success, code or reason, message, client_ip)
 
-        # Si el comando fue exitoso, disparar sondeo rápido para refrescar el estado
+        # If the command succeeded, trigger a quick poll to refresh the state
         if success:
             asyncio.create_task(self.poll_vehicle(vin, force=True))
 
         return {"success": success, "message": message, "reason": reason, "retry_after": 0}
 
     async def execute_internal(self, vin: str, command_key: str, params: Optional[Dict], origin: str) -> Dict:
-        """Orden que EVBro se manda a sí mismo (p. ej. el gestor de carga): usa el PIN guardado y NO pasa por la
-        lista blanca de parámetros de la API, que existe para frenar a un cliente, no a EVBro. Se audita igual."""
+        """A command EVBro sends itself (e.g. the charge manager): it uses the stored PIN and does NOT go through the
+        API's parameter whitelist, which exists to restrain a client, not EVBro. It is audited all the same."""
         ctx = self._get_or_create_ctx(vin)
         stored_pin = await self._stored_pin(ctx)
         if not stored_pin:
@@ -900,7 +900,7 @@ class VehiclePoller:
         except CommandError as e:
             message, code, reason = str(e), e.code, e.reason
         except Exception:
-            _LOGGER.exception("Fallo inesperado al enviar '%s' (%s) a %s", command_key, origin, vin[-6:])
+            _LOGGER.exception("Unexpected failure sending '%s' (%s) to %s", command_key, origin, vin[-6:])
             message = UNEXPECTED_COMMAND_ERROR
         await self._audit_command(vin, command_key, params, success, code or reason, message, origin)
         if success:
@@ -933,7 +933,7 @@ class VehiclePoller:
 
     @staticmethod
     async def _audit_command(vin, command_key, params, success, code, message, client_ip) -> None:
-        """Apunta el intento en la auditoría, también los rechazados (PIN incorrecto, etc.)."""
+        """Records the attempt in the audit log, rejected ones too (wrong PIN, etc.)."""
         async with async_session_factory() as session:
             session.add(CommandAudit(
                 vin=vin, command=command_key, params=params, success=success,

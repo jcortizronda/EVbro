@@ -1,5 +1,5 @@
-/* EVBro — Geocercas: mapa, listado, alta/edición y tarifas de recarga.
- * (Script clásico: comparte el ámbito global con los demás ficheros; ver el orden de carga en templates/index.html.)
+/* EVBro — Geofences: map, list, create/edit and charging tariffs.
+ * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
 let geofencesOverviewMapInstance = null;
@@ -12,7 +12,7 @@ let geofenceModalMarker = null;
 
 let geofenceModalCircle = null;
 
-// Inicializar Mapa General de Geocercas (Tab Geocercas)
+// Initialise the geofence overview map (Geocercas tab)
 function initGeofencesOverviewMap() {
   const container = document.getElementById('geofencesOverviewMap');
   if (!container || geofencesOverviewMapInstance) return;
@@ -26,13 +26,13 @@ function initGeofencesOverviewMap() {
 
   geofencesOverviewLayer = L.layerGroup().addTo(geofencesOverviewMapInstance);
 
-  // Al hacer clic en cualquier parte del mapa general, abrir modal para crear geocerca allí
+  // Clicking anywhere on the overview map opens the modal to create a geofence there
   geofencesOverviewMapInstance.on('click', (e) => {
     openCreateGeofenceModal(e.latlng.lat, e.latlng.lng);
   });
 }
 
-// Actualizar marcadores y zonas circulares en el mapa general de geocercas
+// Update markers and circular zones on the geofence overview map
 function updateGeofencesOverviewMap() {
   const container = document.getElementById('geofencesOverviewMap');
   if (!container) return;
@@ -46,14 +46,14 @@ function updateGeofencesOverviewMap() {
 
   const bounds = [];
 
-  // 1. Dibujar cada geocerca
+  // 1. Draw each geofence
   (cachedGeofencesList || []).forEach(gf => {
     const isCharging = gf.is_charging_spot !== false;
     const color = isCharging ? themeAccent() : '#a855f7';
     const latLng = [gf.latitude, gf.longitude];
     bounds.push(latLng);
 
-    // Círculo de cobertura
+    // Coverage circle
     const circle = L.circle(latLng, {
       radius: gf.radius_meters || 100,
       color: color,
@@ -62,7 +62,7 @@ function updateGeofencesOverviewMap() {
       weight: 2
     }).addTo(geofencesOverviewLayer);
 
-    // Marcador central con icono descriptivo
+    // Centre marker with a descriptive icon
     const iconHtml = icon(isCharging ? 'bolt' : 'pin', 14);
     const pin = L.divIcon({
       className: 'custom-geofence-pin',
@@ -87,7 +87,7 @@ function updateGeofencesOverviewMap() {
     circle.bindPopup(popupContent);
   });
 
-  // 2. Dibujar posición actual del coche en el mapa si está disponible
+  // 2. Draw the car's current position on the map if available
   if (latestTelemetryData && latestTelemetryData.latitude && latestTelemetryData.longitude) {
     const carPos = [latestTelemetryData.latitude, latestTelemetryData.longitude];
     bounds.push(carPos);
@@ -115,7 +115,7 @@ function updateGeofencesOverviewMap() {
   }, 200);
 }
 
-// Centrar y hacer zoom sobre una geocerca al pulsar "Ver" en la tabla o tarjeta
+// Centre and zoom on a geofence when "Ver" is tapped in the table or card
 function zoomToGeofenceOnOverviewMap(id) {
   const gf = (cachedGeofencesList || []).find(item => item.id == id);
   if (!gf) return;
@@ -150,7 +150,7 @@ function toggleGeofenceMenu(event, id) {
   }
 }
 
-// Cargar y mostrar la lista de geocercas en tarjetas táctiles (100% responsive, sin scroll lateral)
+// Load and show the geofence list as touch cards (fully responsive, no sideways scroll)
 /** Tariff of a charging spot in one short phrase («0,150 €/kWh», «2.0TD», «PVPC», «Gratis»); empty for a plain location. */
 function geofenceTariffText(gf) {
   if (gf.is_charging_spot !== true) return '';
@@ -197,7 +197,7 @@ async function loadGeofences() {
     const geofences = await res.json();
     cachedGeofencesList = geofences || [];
 
-    // Actualizar mapa general de geocercas
+    // Update the geofence overview map
     updateGeofencesOverviewMap();
 
     if (!geofences || geofences.length === 0) {
@@ -302,12 +302,12 @@ async function loadGeofences() {
   }
 }
 
-// Configurar el mapa interactivo dentro del modal de geocerca
+// Set up the interactive map inside the geofence modal
 function setupGeofenceModalMap(initialLat, initialLon, radius = 100) {
   const container = document.getElementById('geofenceModalMap');
   if (!container) return;
 
-  // Si no se pasaron coordenadas válidas, usar las del coche o fallback Madrid
+  // Without valid coordinates, use the car's or fall back to Madrid
   let lat = parseFloat(initialLat);
   let lon = parseFloat(initialLon);
   if (isNaN(lat) || isNaN(lon)) {
@@ -320,7 +320,7 @@ function setupGeofenceModalMap(initialLat, initialLon, radius = 100) {
     }
   }
 
-  // Inicializar Leaflet en el modal si no existe
+  // Initialise Leaflet in the modal if it does not exist
   if (!geofenceModalMapInstance) {
     geofenceModalMapInstance = L.map('geofenceModalMap', {
       zoomControl: true,
@@ -329,7 +329,7 @@ function setupGeofenceModalMap(initialLat, initialLon, radius = 100) {
 
     createStandardTileLayer().addTo(geofenceModalMapInstance);
 
-    // Al hacer clic en el mapa, mover el marcador y círculo
+    // Clicking the map moves the marker and the circle
     geofenceModalMapInstance.on('click', (e) => {
       setGeofencePosition(e.latlng.lat, e.latlng.lng);
     });
@@ -337,7 +337,7 @@ function setupGeofenceModalMap(initialLat, initialLon, radius = 100) {
     geofenceModalMapInstance.setView([lat, lon], 16);
   }
 
-  // Pin interactivo arrastrable
+  // Draggable interactive pin
   const pinIcon = L.divIcon({
     className: 'geofence-pin-marker',
     html: '<div class="u-background-00e5ff_width-30px_height-30px_border-radius-50pct_border-3px-solid-ffffff_box-shadow-0-0-16px-rgba-0-229-255-0p85_display-flex_align-items-center_justify-content-center_color-000">' + icon('pin', 16) + '</div>',
@@ -359,7 +359,7 @@ function setupGeofenceModalMap(initialLat, initialLon, radius = 100) {
     geofenceModalMarker.setLatLng([lat, lon]);
   }
 
-  // Círculo de radio visual
+  // Visual radius circle
   if (!geofenceModalCircle) {
     geofenceModalCircle = L.circle([lat, lon], {
       radius: radius,
@@ -373,13 +373,13 @@ function setupGeofenceModalMap(initialLat, initialLon, radius = 100) {
     geofenceModalCircle.setRadius(radius);
   }
 
-  // Actualizar valores de los campos y slider
+  // Update the field values and the slider
   document.getElementById('gfRadius').value = radius;
   document.getElementById('gfRadiusSlider').value = radius;
   document.getElementById('gfRadiusDisplay').innerText = radius;
   setGeofencePosition(lat, lon, false);
 
-  // Asegurar renderizado correcto al abrir el modal
+  // Make sure it renders correctly when the modal opens
   setTimeout(() => {
     if (geofenceModalMapInstance) {
       geofenceModalMapInstance.invalidateSize();
@@ -388,7 +388,7 @@ function setupGeofenceModalMap(initialLat, initialLon, radius = 100) {
   }, 200);
 }
 
-// Fijar la posición seleccionada en el mapa y geocodificar dirección
+// Set the selected position on the map and geocode the address
 async function setGeofencePosition(lat, lon, updateAddress = true) {
   document.getElementById('gfLat').value = lat;
   document.getElementById('gfLon').value = lon;
@@ -413,7 +413,7 @@ async function setGeofencePosition(lat, lon, updateAddress = true) {
       const addr = data.address || `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
       if (addrText) addrText.innerText = `${addr}`;
       
-      // Si el nombre está vacío, sugerir automáticamente la calle/zona
+      // If the name is empty, suggest the street/area automatically
       const nameInput = document.getElementById('gfName');
       if (nameInput && nameInput.value.trim() === '') {
         nameInput.value = addr.split(',')[0].trim();
@@ -424,7 +424,7 @@ async function setGeofencePosition(lat, lon, updateAddress = true) {
   }
 }
 
-// Cambio en el slider de radio interactivo
+// Change of the interactive radius slider
 function onGeofenceRadiusSlider(val) {
   const r = parseInt(val) || 100;
   document.getElementById('gfRadius').value = r;
@@ -434,7 +434,7 @@ function onGeofenceRadiusSlider(val) {
   }
 }
 
-// Búsqueda de direcciones en el modal para posicionar el mapa
+// Address search in the modal to position the map
 async function searchGeofenceLocation() {
   const input = document.getElementById('gfAddressSearchInput');
   const resultsDropdown = document.getElementById('gfSearchResultsList');
@@ -476,7 +476,7 @@ async function searchGeofenceLocation() {
   }
 }
 
-// Centrar geocerca en el coche
+// Centre the geofence on the car
 async function centerGeofenceOnCar() {
   let lat = latestTelemetryData ? latestTelemetryData.latitude : null;
   let lon = latestTelemetryData ? latestTelemetryData.longitude : null;
@@ -505,7 +505,7 @@ async function centerGeofenceOnCar() {
   }
 }
 
-// Centrar geocerca en mi ubicación GPS (navegador)
+// Centre the geofence on my GPS location (browser)
 function centerGeofenceOnUserLocation() {
   if (!navigator.geolocation) {
     showToast('Tu navegador no soporta geolocalización.', 'warning');
@@ -527,7 +527,7 @@ function centerGeofenceOnUserLocation() {
   );
 }
 
-// Abrir modal para crear una nueva geocerca
+// Open the modal to create a new geofence
 function openCreateGeofenceModal(customLat = null, customLon = null) {
   const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
   const setCheck = (id, val) => { const el = document.getElementById(id); if (el) el.checked = val; };
@@ -557,7 +557,7 @@ function openCreateGeofenceModal(customLat = null, customLon = null) {
   toggleGeofenceChargingOptions();
   onGeofenceCostModeChange();
 
-  // Posición inicial: si se pulsó en el mapa general, usar esas coordenadas; si no, la del coche o Madrid
+  // Initial position: if the overview map was clicked, use those coordinates; otherwise the car's or Madrid
   let lat = customLat;
   let lon = customLon;
   if (!lat || !lon) {
@@ -575,12 +575,12 @@ function openCreateGeofenceModal(customLat = null, customLon = null) {
   setupGeofenceModalMap(lat, lon, 100);
 }
 
-// Compatibilidad hacia atrás
+// Backward compatibility
 function showAddGeofenceModal() {
   openCreateGeofenceModal();
 }
 
-// Abrir modal para editar geocerca existente
+// Open the modal to edit an existing geofence
 async function openEditGeofenceModal(id) {
   let gf = (cachedGeofencesList || []).find(item => String(item.id) === String(id));
   if (!gf) {
@@ -590,7 +590,7 @@ async function openEditGeofenceModal(id) {
         gf = await res.json();
       }
     } catch (e) {
-      console.warn("No se pudo obtener la geocerca de la API:", e);
+      console.warn("Could not fetch the geofence from the API:", e);
     }
   }
   if (!gf) {
@@ -638,7 +638,7 @@ function closeGeofenceModal() {
   if (searchDrop) searchDrop.style.display = 'none';
 }
 
-// Conmutar visibilidad desplegable de costes según checkbox de punto de carga
+// Toggle the cost section depending on the charging-point checkbox
 function toggleGeofenceChargingOptions() {
   const chk = document.getElementById('gfIsCharging');
   const isCharging = chk ? chk.checked : false;
@@ -648,7 +648,7 @@ function toggleGeofenceChargingOptions() {
   }
 }
 
-// Conmutar paneles de tarifas según el modo seleccionado (fixed, free, time_of_use, pvpc)
+// Toggle the tariff panels by the selected mode (fixed, free, time_of_use, pvpc)
 function onGeofenceCostModeChange() {
   const modeEl = document.getElementById('gfCostMode');
   const mode = modeEl ? modeEl.value : 'fixed';
@@ -663,7 +663,7 @@ function onGeofenceCostModeChange() {
   if (pvpcP) pvpcP.style.display = (mode === 'pvpc') ? 'block' : 'none';
 }
 
-// Guardar Geocerca (Crear o Actualizar)
+// Save geofence (create or update)
 async function submitGeofenceModal() {
   const getVal = (id, def = '') => { const el = document.getElementById(id); return el ? el.value : def; };
   const getFloat = (id, def = 0.0) => { const el = document.getElementById(id); return el && el.value !== '' ? parseFloat(el.value) || def : def; };
@@ -732,7 +732,7 @@ async function submitGeofenceModal() {
   }
 }
 
-// Eliminar geocerca
+// Delete geofence
 async function deleteGeofence(id) {
   const gf = (cachedGeofencesList || []).find(item => item.id == id);
   const name = gf ? gf.name : 'esta geocerca';
@@ -751,7 +751,7 @@ async function deleteGeofence(id) {
 }
 
 
-// ───────────────────────── Entradas y salidas ─────────────────────────
+// ───────────────────────── Entries and exits ─────────────────────────
 async function loadGeofenceEvents() {
   const box = document.getElementById('gfEventsList');
   if (!box || !currentVin) return;

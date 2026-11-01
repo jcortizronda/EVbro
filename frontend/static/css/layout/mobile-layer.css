@@ -1,19 +1,19 @@
-/* EVBro — Capa móvil (360–430 px).
-   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+/* EVBro — Mobile layer (360–430 px).
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
 /* ==========================================================================
-   CAPA MÓVIL  (2026-10)
-   Revisada a 360–430 px en tema claro y oscuro. Todo usa las variables del tema.
-   Antes de esta capa la página se ensanchaba a ~444 px en un móvil de 390: la cabecera se
-   salía (las reglas ocultaban `.brand-title`, que ya no existe: ahora es `.brand-copy`), las
-   tablas de Viajes/Mantenimiento medían 1.400–1.600 px y el panel de notificaciones se pasaba.
+   MOBILE LAYER  (2026-10)
+   Checked at 360–430 px in light and dark themes. Everything uses the theme variables.
+   Before this layer the page widened to ~444 px on a 390 px phone: the header overflowed
+   (the rules hid `.brand-title`, which no longer exists: it is now `.brand-copy`), the
+   Viajes/Mantenimiento tables were 1,400–1,600 px wide and the notification panel overflowed.
    ========================================================================== */
-:root { --tap: 44px; }                       /* tamaño mínimo táctil recomendado */
+:root { --tap: 44px; }                       /* recommended minimum touch size */
 
 html { -webkit-text-size-adjust: 100%; }
 img, svg, video, canvas { max-width: 100%; }
 
-/* Componentes nuevos (válidos a cualquier ancho) */
+/* New components (valid at any width) */
 .setting-hint { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.45; margin: 0.25rem 0 1rem; }
 
 .kv-list { display: grid; gap: 0.5rem; margin: 0 0 1rem; }
@@ -25,11 +25,11 @@ img, svg, video, canvas { max-width: 100%; }
 .kv-list dt { color: var(--text-muted); font-size: 0.76rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; flex-shrink: 0; }
 .kv-list dd { margin: 0; color: var(--text-primary); font-weight: 600; text-align: right; min-width: 0; overflow-wrap: anywhere; }
 
-/* Cifras con su unidad: nunca se parten en dos líneas */
+/* Figures with their unit: never split across two lines */
 .native-dual-range .range-metric-row { flex-wrap: nowrap; white-space: nowrap; }
 
 @media (max-width: 600px) {
-  /* ───────── Cabecera: logo + selector de coche (flexible) + 3 botones de 44 px ───────── */
+  /* ───────── Header: logo + car picker (flexible) + 3 buttons of 44 px ───────── */
   .navbar-main { padding: 0 0.75rem; height: 56px; gap: 0.5rem; }
   .brand-copy { display: none; }
   .navbar-left { flex: 1 1 auto; min-width: 0; gap: 0.5rem; }
@@ -41,13 +41,13 @@ img, svg, video, canvas { max-width: 100%; }
     padding: 0; justify-content: center; align-items: center;
   }
 
-  /* ───────── Formularios ───────── */
-  /* 16 px: por debajo, iOS hace zoom automático al enfocar el campo */
+  /* ───────── Forms ───────── */
+  /* 16 px: below that, iOS auto-zooms when the field gets focus */
   input, select, textarea, .form-control, .filter-input, .filter-select { font-size: 16px; }
   .form-grid > * { min-width: 0; }
   .modal-card { padding: 1.25rem; }
 
-  /* ───────── Barras de subpestañas: una sola fila que se desliza ───────── */
+  /* ───────── Sub-tab bars: a single row that scrolls ───────── */
   .sub-nav-bar {
     display: flex; flex-wrap: nowrap; gap: 0.4rem; padding: 0.35rem;
     overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
@@ -59,7 +59,7 @@ img, svg, video, canvas { max-width: 100%; }
     scroll-snap-align: center; padding: 0 0.9rem;
   }
 
-  /* ───────── Portada ───────── */
+  /* ───────── Home tab ───────── */
   .native-dual-range .range-big-num { font-size: 2rem; }
   .native-action-grid .action-row-top,
   .native-action-grid .action-row-bottom { grid-auto-rows: 1fr; }
@@ -67,7 +67,7 @@ img, svg, video, canvas { max-width: 100%; }
   .native-card-btn .card-title { font-size: 0.95rem; line-height: 1.2; overflow-wrap: anywhere; hyphens: auto; }
   .native-card-btn .card-subtitle { font-size: 0.74rem; line-height: 1.25; }
 
-  /* ───────── Filtros de Viajes: rejilla de 2 columnas, etiqueta encima del campo ───────── */
+  /* ───────── Viajes filters: 2-column grid, label above the field ───────── */
   .filters-bar { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; align-items: end; padding: 0.9rem; }
   .filters-bar .filter-group { display: flex; flex-direction: column; align-items: stretch; gap: 0.3rem; min-width: 0; }
   .filters-bar .filter-group:nth-child(1),
@@ -76,26 +76,26 @@ img, svg, video, canvas { max-width: 100%; }
   .filters-bar .filter-select, .filters-bar .filter-input { width: 100%; min-height: var(--tap); }
   .filters-bar > .btn-primary { grid-column: 1 / -1; min-height: 46px; }
 
-  /* La matriz de mantenimiento SÍ es una rejilla: se desliza en horizontal dentro de su tarjeta */
+  /* The maintenance matrix IS a grid: it scrolls horizontally inside its card */
   .table-responsive-matrix { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
-  /* ───────── Dock inferior: que no tape el final del contenido ───────── */
+  /* ───────── Bottom dock: do not cover the end of the content ───────── */
   .tab-content { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
 }
 
-/* Móviles muy estrechos (≤ 360 px) */
+/* Very narrow phones (≤ 360 px) */
 @media (max-width: 360px) {
   .navbar-main { padding: 0 0.5rem; }
   .native-card-btn .card-title { font-size: 0.88rem; }
   .native-dual-range .range-big-num { font-size: 1.75rem; }
 }
 
-/* Mapa de la portada: la tarjeta medía 400 px y el mapa 180, y quedaba un hueco vacío debajo.
-   Ahora la tarjeta se ajusta al mapa y el texto de ubicación va debajo, no encima. */
+/* Home tab map: the card was 400 px tall and the map 180, leaving an empty gap below.
+   Now the card fits the map and the location text goes below it, not above. */
 .map-card:has(> .live-map-wrap) { height: auto; }
 .map-card > .live-map-wrap + .map-overlay-info { position: static; margin: 10px 12px 12px; }
 
-/* Botones de acción dentro de las tarjetas de tabla: tamaño táctil de 44 px (pisa el padding en línea) */
+/* Action buttons inside table cards: 44 px touch size (overrides the inline padding) */
 @media (min-width: 0px) {
   table.data-table td[data-label="Acciones"],
   table.data-table td[data-label="Acción"],
@@ -109,16 +109,16 @@ img, svg, video, canvas { max-width: 100%; }
   }
 }
 
-/* Cabeceras de tarjeta con un botón al lado (p. ej. «Activar en este navegador»): en móvil el botón baja a su línea */
+/* Card headers with a button beside them (e.g. «Activar en este navegador»): on a phone the button drops to its own line */
 @media (max-width: 600px) {
   .card-title { flex-wrap: wrap; row-gap: 0.5rem; }
   .card-title > .btn-sm, .card-title > button { white-space: normal; text-align: left; max-width: 100%; }
 }
 
-/* Menú «Más»: icono y título siempre a la misma altura, sea cual sea la longitud del subtítulo */
+/* «Más» menu: icon and title always at the same height, whatever the subtitle length */
 #tabMore .native-card-btn { justify-content: flex-start; }
 
-/* Filas «título ........ interruptor» de Ajustes: si no caben, el interruptor baja a otra línea */
+/* «title ........ switch» rows in Ajustes: if they do not fit, the switch drops to another line */
 @media (max-width: 600px) {
   #settingsSubTabNotifs [style*="justify-content: space-between"] { flex-wrap: wrap; gap: 0.5rem; }
 }

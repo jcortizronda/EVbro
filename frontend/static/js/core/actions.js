@@ -1,19 +1,19 @@
-/* EVBro — Manejadores de eventos declarativos, sin código en línea.
+/* EVBro — Declarative event handlers, with no inline code.
  *
- * La Content-Security-Policy de la app no permite `onclick="…"` ni `<script>` en línea (así un texto colado en el HTML nunca puede
- * ejecutar nada). En su lugar, los elementos declaran qué función llamar:
+ * The app's Content-Security-Policy allows neither `onclick="…"` nor inline `<script>` (so text slipped into the HTML can never
+ * run anything). Instead, elements declare which function to call:
  *
  *   <button data-on-click="switchTab('settings'); switchSettingsSubTab('notifs')">
  *   <select data-on-change="setMemberLevel('VIN', 7, this.value)">
  *   <input data-on-input="onGeofenceRadiusSlider(this.value)" data-on-enter="searchGeofenceLocation()">
- *   <div data-on-click="closeActionSheet()" data-self-only>      ← solo si se toca el propio elemento, no un hijo
+ *   <div data-on-click="closeActionSheet()" data-self-only>      ← only when the element itself is touched, not a child
  *
- * El valor es una lista de llamadas separadas por «;». Cada llamada es `nombre(args)`; `nombre` es una función global (se admite
- * `Objeto.metodo`) y los argumentos solo pueden ser literales ('texto', "texto", números, true, false, null) o los comodines
- * `this`, `this.value`, `this.checked` y `event`. No se evalúa nada más: no hay `eval` ni `new Function`.
+ * The value is a list of calls separated by «;». Each call is `name(args)`; `name` is a global function (`Object.method` is
+ * allowed) and the arguments can only be literals ('text', "text", numbers, true, false, null) or the placeholders
+ * `this`, `this.value`, `this.checked` and `event`. Nothing else is evaluated: there is no `eval` and no `new Function`.
  *
- * Un único oyente por tipo de evento en `document` atiende también a los elementos que el JavaScript crea después.
- * (Script clásico: comparte el ámbito global con los demás ficheros; ver el orden de carga en templates/index.html.)
+ * A single listener per event type on `document` also serves the elements that JavaScript creates later.
+ * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 (function () {
   'use strict';
@@ -84,9 +84,9 @@
     let result;
     for (const call of splitCalls(text)) {
       const parsed = parseCall(call);
-      if (!parsed) { console.error('[actions] expresión no admitida:', call); continue; }
+      if (!parsed) { console.error('[actions] unsupported expression:', call); continue; }
       const fn = resolve(parsed.name);
-      if (!fn) { console.error('[actions] función desconocida:', parsed.name); continue; }
+      if (!fn) { console.error('[actions] unknown function:', parsed.name); continue; }
       const path = parsed.name.split('.');
       const owner = path.length > 1 ? path.slice(0, -1).reduce((o, k) => (o == null ? o : o[k]), window) : window;
       result = fn.apply(owner, parsed.args.map((t) => argValue(t, el, event)));

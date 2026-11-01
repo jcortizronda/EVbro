@@ -1,14 +1,14 @@
-/* EVBro — Pestaña Confort.
-   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+/* EVBro — Confort tab.
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
 /* ==========================================================================
-   PESTAÑA CONFORT (clima, lunas, volante y asientos con estado ON/OFF)
+   CONFORT TAB (climate, windows, steering wheel and seats with ON/OFF state)
    ========================================================================== */
 .comfort-section .climate-headline { margin-bottom: 0.85rem; }
 .comfort-hint { color: var(--text-secondary); font-size: 0.84rem; line-height: 1.45; margin: 0.65rem 0 0; }
 .comfort-hint code, .comfort-row code { font-size: 0.78rem; overflow-wrap: anywhere; }
 
-/* Indicador ON / OFF (texto + color, nunca solo color) */
+/* ON / OFF indicator (text + colour, never colour alone) */
 .comfort-state {
   display: inline-block; min-width: 3.4rem; text-align: center; margin-left: auto;
   padding: 0.25rem 0.6rem; border-radius: 999px;
@@ -22,7 +22,7 @@
 @keyframes comfort-pulse { 50% { opacity: 0.35; } }
 .climate-headline small .comfort-state { margin-left: 0.4rem; min-width: 0; padding: 0.1rem 0.45rem; font-size: 0.66rem; vertical-align: middle; }
 
-/* Botones con estado */
+/* Stateful buttons */
 .comfort-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
 .comfort-tile {
   display: flex; align-items: center; gap: 0.75rem; width: 100%; min-height: 56px;
@@ -38,7 +38,7 @@
 .comfort-text strong { font-size: 0.95rem; font-weight: 700; }
 .comfort-text small { color: var(--text-secondary); font-size: 0.74rem; }
 
-/* Asientos: una tarjeta por plaza con sus dos botones */
+/* Seats: one card per seat with its two buttons */
 .comfort-seats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .seat-card { display: flex; flex-direction: column; gap: 6px; padding: 0.6rem; border: 1px solid var(--border-color); border-radius: 18px; }
 .seat-title { font-size: 0.7rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); padding: 0 0.2rem; }
@@ -46,7 +46,7 @@
 .comfort-tile.compact .comfort-text strong { font-size: 0.85rem; }
 .comfort-tile.compact .comfort-state { grid-column: 1 / -1; margin-left: 0; width: 100%; }
 
-/* Preajustes de temperatura */
+/* Temperature presets */
 .comfort-chips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 0.5rem; }
 .comfort-chip {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
@@ -57,7 +57,7 @@
 .comfort-chip small { font-size: 0.68rem; color: var(--text-secondary); }
 
 
-/* Cabecera de pestaña sin imagen (vehículo, energía, confort) */
+/* Tab header without image (vehicle, energy, comfort) */
 .page-head { margin-bottom: 1rem; }
 .page-head-main { display: flex; align-items: center; flex-wrap: wrap; gap: 0.35rem 0.6rem; }
 .page-head-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem 0.65rem; margin-top: 0.5rem; }
@@ -74,13 +74,13 @@
 }
 .icon-btn:hover { color: var(--text-primary); border-color: var(--text-muted); }
 
-/* Indicador ON/OFF dentro de una ficha de acción (portada y Energía) */
+/* ON/OFF indicator inside an action tile (home tab and Energía) */
 .native-card-btn .comfort-state { margin: 6px 0 0; min-width: 0; align-self: flex-start; }
 .native-card-btn[data-state="on"], .native-card-btn[data-state="on-waiting"] { border-color: rgba(48, 209, 88, 0.55); }
 .comfort-icon svg { display: block; width: 28px; height: 28px; }
 .comfort-tile.compact .comfort-icon svg { width: 20px; height: 20px; }
 
-/* Climatización programada */
+/* Scheduled climate */
 .csched-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--border-color); }
 .csched-row:first-child { border-top: 0; }
 .csched-row.is-off .csched-main { opacity: 0.55; }

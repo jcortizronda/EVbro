@@ -1,4 +1,4 @@
-"""Catálogo compartido: proponer una pieza desde la ficha, aprobarla en la consola y verla sugerida al añadir otra. Ver tools/e2e/README.md."""
+"""Shared catalogue: propose a part from the car sheet, approve it in the console and see it suggested when adding another. See tools/e2e/README.md."""
 import os
 import sys
 import tempfile
@@ -40,30 +40,30 @@ with sync_playwright() as p:
     pg.wait_for_timeout(1200)
     pg.evaluate(f"openPartModal({part['id']})")
     pg.wait_for_timeout(600)
-    ok(pg.is_visible("#partPropose"), "una pieza con marca y referencia ofrece «Proponer al catálogo»")
+    ok(pg.is_visible("#partPropose"), "a part with brand and part number offers «Proponer al catálogo»")
     pg.click("#partPropose")
     try:
         pg.wait_for_function("document.getElementById('partsGroups').textContent.includes('Propuesta enviada')", timeout=6000)
     except Exception:
         pass
     raw = lambda sel: pg.evaluate(f"document.querySelector('{sel}').textContent")      # innerText applies the CSS uppercase of the tag
-    ok("Propuesta enviada" in raw("#partsGroups"), "la pieza queda marcada como propuesta")
+    ok("Propuesta enviada" in raw("#partsGroups"), "the part is marked as proposed")
 
     # the administrator approves it in the console
     admin = b.new_context()
     r = admin.request.post(f"{CONSOLE}/api/auth/login", headers={"Origin": CONSOLE}, data={"username": ADMIN, "password": ADMIN_PW})
-    ok(r.ok, f"el administrador entra en la consola ({r.status})")
+    ok(r.ok, f"the admin gets into the console ({r.status})")
     queue = admin.request.get(f"{CONSOLE}/api/admin/catalog").json()
     mine = [q for q in queue if q.get("reference") == "P 85 020" and q["status"] == "pending"]
-    ok(len(mine) == 1 and mine[0]["proposed_by"] == USER, "la propuesta está en la cola con quien la propuso")
-    ok(admin.request.post(f"{CONSOLE}/api/admin/catalog/{mine[0]['id']}/approve", headers={"Origin": CONSOLE}).ok, "se aprueba")
+    ok(len(mine) == 1 and mine[0]["proposed_by"] == USER, "the proposal is in the queue with who proposed it")
+    ok(admin.request.post(f"{CONSOLE}/api/admin/catalog/{mine[0]['id']}/approve", headers={"Origin": CONSOLE}).ok, "it is approved")
     cpg = admin.new_page()
     cpg.goto(CONSOLE)
     cpg.wait_for_timeout(800)
     cpg.click("text=Catálogo")
     cpg.select_option("#catStatus", "approved")
     cpg.wait_for_timeout(800)
-    ok("Brembo" in cpg.inner_text("#tblCatalog") and "Aprobada" in cpg.inner_text("#tblCatalog"), "la consola la lista como aprobada")
+    ok("Brembo" in cpg.inner_text("#tblCatalog") and "Aprobada" in cpg.inner_text("#tblCatalog"), "the console lists it as approved")
     cpg.screenshot(path=f"{OUT}/catalog-console.png", full_page=True)
 
     pg.evaluate("loadParts()")
@@ -71,20 +71,20 @@ with sync_playwright() as p:
         pg.wait_for_function("document.getElementById('partsGroups').textContent.includes('En el catálogo')", timeout=6000)
     except Exception:
         pass
-    ok("En el catálogo" in raw("#partsGroups"), "en la ficha pasa a «En el catálogo»")
+    ok("En el catálogo" in raw("#partsGroups"), "in the sheet it becomes «En el catálogo»")
     pg.evaluate("openPartModal(null, 'brake_pads')")
     pg.wait_for_timeout(1200)
-    ok(pg.is_visible("#partCatalogSuggest") and "Brembo" in txt("#partCatalogSuggest"), "al añadir otra pieza igual se sugiere la del catálogo")
+    ok(pg.is_visible("#partCatalogSuggest") and "Brembo" in txt("#partCatalogSuggest"), "adding another identical part suggests the catalogue one")
     pg.click("#partCatalogSuggest .maint-chip >> nth=0")
     pg.wait_for_timeout(300)
-    ok(pg.input_value('#partModalFields [data-f="brand"]') == "Brembo" and pg.input_value('#partModalFields [data-f="reference"]') == "P 85 020", "tocarla rellena marca y referencia")
+    ok(pg.input_value('#partModalFields [data-f="brand"]') == "Brembo" and pg.input_value('#partModalFields [data-f="reference"]') == "P 85 020", "tapping it fills in brand and part number")
     pg.screenshot(path=f"{OUT}/catalog-suggest.png", full_page=True)
     pg.click("#partModal >> text=Cancelar")
 
     # tidy up: the test part goes away (the approved entry stays: it is public knowledge now)
     ctx.request.delete(f"{BASE}/api/parts/{part['id']}", headers={"Origin": BASE})
-    ok(not errors, f"sin errores JS {errors}")
+    ok(not errors, f"no JS errors {errors}")
     admin.close()
     b.close()
-print("FALLOS:", fails if fails else "ninguno")
+print("FAILURES:", fails if fails else "none")
 sys.exit(1 if fails else 0)

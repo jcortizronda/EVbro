@@ -1,54 +1,54 @@
 """
-ebro_auth.py — réplica EXACTA de la firma y del login de la app Chery 'legend' (marca Ebro).
-Reconstruido a partir del comportamiento de la app oficial:
+ebro_auth.py — EXACT replica of the signature and login of the Chery 'legend' app (Ebro brand).
+Rebuilt from the official app's behaviour:
   - EncryptUtils.headerSignature  (encrypt_utils.dart ~299)
-  - HttpUtils.request             (http_utils.dart ~438, bloque de firma ~1200)
+  - HttpUtils.request             (http_utils.dart ~438, signature block ~1200)
   - UserService.mailVerifyLogin   (user_service.dart ~3478)
   - SM4 / sm4RandomString         (sm4.dart createHexKey/encrypt)
 
-FIRMA (para peticiones POST): el mapa de valores pasado a headerSignature está VACÍO
+SIGNATURE (for POST requests): the value map passed to headerSignature is EMPTY
   => signature = SHA256_hex(secret + nonce + url + timestamp_ms)
-     (SIN "[valores]", SIN header 'keys')
+     (NO "[values]", NO 'keys' header)
   secret = (prod, CURRENT_CAR_CONTROL_ENV=0), nonce = "chery_legend_h5".
-Headers enviados: signature, nonce, url, timestamp (+ tenant, Authorization, etc.).
+Headers sent: signature, nonce, url, timestamp (+ tenant, Authorization, etc.).
 
-CODE: el campo 'code' del login = base64( SM4_ECB_PKCS7( <code-transformado>, key ) )
-  key = b"mHU80av2zFtf4OY6" (16 bytes, de SM4.createHexKey, fija).
+CODE: the login's 'code' field = base64( SM4_ECB_PKCS7( <transformed-code>, key ) )
+  key = b"mHU80av2zFtf4OY6" (16 bytes, from SM4.createHexKey, fixed).
 
-EMAIL: el campo 'email' del login = "APP-LOGIN@" + email (del builder).
+EMAIL: the login's 'email' field = "APP-LOGIN@" + email (from the builder).
 
-Uso estrictamente personal (coche/cuenta del usuario).
+Strictly personal use (the user's own car/account).
 """
 import base64
 import hashlib
 import time
 
-# ── Constantes (de la app oficial) ──────────────────────────────────
-# Los parámetros de REGIÓN (BFF/channel/country/tenant) NO son globales de módulo
-# reescritos en cada llamada: llegan del `CoreCtx` del vehículo. Aquí quedan solo las
-# constantes de la APP — idénticas para cada usuario, extraíbles del APK, no son datos
-# por cuenta.
-APP_BASIC    = "Basic bGVnZW5kQXBwOmxlZ2VuZEFwcA=="   # legendApp:legendApp (cliente OAuth, VERIFICADO)
+# ── Constants (from the official app) ──────────────────────────────────
+# The REGION parameters (BFF/channel/country/tenant) are NOT module globals
+# rewritten on every call: they come from the vehicle's `CoreCtx`. Only the APP
+# constants stay here — identical for every user, extractable from the APK, not
+# per-account data.
+APP_BASIC    = "Basic bGVnZW5kQXBwOmxlZ2VuZEFwcA=="   # legendApp:legendApp (OAuth client, VERIFIED)
 APP_VERSION  = "1.0.11"
 
-# Valores por defecto de región, usados solo cuando `headers_post` se llama sin contexto
-# (diagnóstico por línea de comandos). En EVBro el contexto siempre está.
+# Region defaults, used only when `headers_post` is called without a context
+# (command-line diagnostics). In EVBro the context is always there.
 #
-# Se importan de `context`, que es donde vive la definición: antes eran cuatro `os.environ`
-# LEÍDOS AL IMPORTAR, o sea una segunda fuente de verdad para los mismos parámetros de región
-# que el `CoreCtx` ya transporta — y que además no se podía cambiar en runtime.
-from .context import (  # noqa: E402 — tras las constantes de app, a propósito
+# Imported from `context`, where the definition lives: they used to be four `os.environ`
+# READ AT IMPORT, i.e. a second source of truth for the same region parameters
+# that `CoreCtx` already carries — and that could not be changed at runtime either.
+from .context import (  # noqa: E402 — after the app constants, on purpose
     DEFAULT_CHANNEL_ID as CHANNEL_ID,
     DEFAULT_COUNTRY_ID as COUNTRY_ID,
     DEFAULT_TENANT_CODE as TENANT_CODE,
 )
 
-SIGN_NONCE   = "chery_legend_h5"                       # nonce de headerSignature (VERIFICADO)
-SIGN_SECRET  = "5c7af05e6fbf562842ef483ee96e06a0"     # Ebro prod: SHA256(secret+nonce+url+ts) VERIFICADO
+SIGN_NONCE   = "chery_legend_h5"                       # headerSignature nonce (VERIFIED)
+SIGN_SECRET  = "5c7af05e6fbf562842ef483ee96e06a0"     # Ebro prod: SHA256(secret+nonce+url+ts) VERIFIED
 SIGN_SECRET_TEST = "eQ9fQ9zM9yI7bZ1uY9wR2dQ1pJ6xU0zT"
-SM4_KEY      = b"mHU80av2zFtf4OY6"                     # SM4.createHexKey -> hex de esta
+SM4_KEY      = b"mHU80av2zFtf4OY6"                     # SM4.createHexKey -> hex of this
 
-# ── SM4 (ECB) — implementación pura ──────────────────────────────────────────
+# ── SM4 (ECB) — pure implementation ──────────────────────────────────────────
 _SM4_SBOX = bytes([
 0xd6,0x90,0xe9,0xfe,0xcc,0xe1,0x3d,0xb7,0x16,0xb6,0x14,0xc2,0x28,0xfb,0x2c,0x05,
 0x2b,0x67,0x9a,0x76,0x2a,0xbe,0x04,0xc3,0xaa,0x44,0x13,0x26,0x49,0x86,0x06,0x99,
@@ -115,27 +115,27 @@ def sm4_code(code: str, transform: str="plain") -> str:
     ct = sm4_ecb_encrypt_pkcs7(s.encode("utf-8"))
     return base64.b64encode(ct).decode()
 
-# ── Firma app (POST: mapa de valores vacío -> sin brackets/keys) ──────────────
+# ── App signature (POST: empty value map -> no brackets/keys) ──────────────
 def sign_post(url_path: str, ts_ms: int | None = None, secret: str=SIGN_SECRET, nonce: str=SIGN_NONCE):
     ts = ts_ms if ts_ms is not None else int(time.time()*1000)
     sig = hashlib.sha256(f"{secret}{nonce}{url_path}{ts}".encode()).hexdigest()
     return sig, ts
 
-DEPT_ID = "34"   # CountryArea.value() = prefijo de país (España=34, Italia=39, Francia=33...). VERIFICADO: 34.
+DEPT_ID = "34"   # CountryArea.value() = country prefix (Spain=34, Italy=39, France=33...). VERIFIED: 34.
 
 def headers_post(url_path: str, secret: str=SIGN_SECRET, nonce: str=SIGN_NONCE,
                  dept_id: str=DEPT_ID, extra=None, ctx=None):
-    """Headers firmados para una POST. `ctx` (CoreCtx) proporciona los parámetros de región.
+    """Signed headers for a POST. `ctx` (CoreCtx) provides the region parameters.
 
-    Sin contexto se recurre a los valores por defecto del módulo — solo sirve al diagnóstico
-    por línea de comandos. EVBro pasa siempre el contexto del vehículo, así dos
-    entradas con regiones distintas no se pisan entre sí."""
+    Without a context the module defaults are used — only useful for command-line
+    diagnostics. EVBro always passes the vehicle's context, so two
+    entries with different regions do not step on each other."""
     channel_id = ctx.channel_id if ctx is not None else CHANNEL_ID
     country_id = ctx.country_id if ctx is not None else COUNTRY_ID
     tenant = ctx.tenant_code if ctx is not None else TENANT_CODE
     sig, ts = sign_post(url_path, secret=secret, nonce=nonce)
-    # Conjunto de headers COMPLETO como la app (http_config.dart headersJson + headerSignature).
-    # Content-Type/Authorization son override del extraHeaderParams del builder del token.
+    # FULL header set as the app sends it (http_config.dart headersJson + headerSignature).
+    # Content-Type/Authorization override the token builder's extraHeaderParams.
     h = {
         "Accept": "application/json, text/plain, */*",
         "Content-Type": "application/x-www-form-urlencoded",
@@ -148,12 +148,12 @@ def headers_post(url_path: str, secret: str=SIGN_SECRET, nonce: str=SIGN_NONCE,
         "TENANT-ID": tenant,
         "TENANT-CODE": tenant,
         "CLIENT-TOC": "Y",
-        # variantes en minúscula que enviábamos antes (inocuas, algunas rutas las leen)
+        # lower-case variants we used to send (harmless, some routes read them)
         "tenantCode": tenant, "tenantID": tenant,
         "channelId": channel_id, "countryId": country_id,
         "appversion": APP_VERSION,
         "User-Agent": "okhttp/4.9.0",
-        # firma
+        # signature
         "nonce": nonce, "timestamp": str(ts), "url": url_path,
         "signature": sig,
     }

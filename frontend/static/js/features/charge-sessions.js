@@ -1,5 +1,5 @@
-/* EVBro — Energía: sesiones de carga (histórico y gráficas), gráficas, mini mapa y banner PVPC.
- * (Script clásico: comparte el ámbito global con los demás ficheros; ver el orden de carga en templates/index.html.)
+/* EVBro — Energía: charging sessions (history and charts), charts, mini map and PVPC banner.
+ * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
 let chargesPage = { offset: 0, months: {}, lastMonth: null, gen: 0 };
@@ -126,7 +126,7 @@ async function loadLatestCharge(vin = currentVin, chargeId = null) {
     const data = await res.json();
     currentChargeData = data;
 
-    // Selector de sesiones
+    // Session picker
     const select = document.getElementById('chargeSessionSelect');
     if (select && data.recent_sessions && data.recent_sessions.length > 0) {
       select.innerHTML = '';
@@ -181,7 +181,7 @@ async function loadLatestCharge(vin = currentVin, chargeId = null) {
 
     const c = data.charge;
 
-    // Estado (Live vs Completada)
+    // Status (live vs completed)
     const badge = document.getElementById('chargeStatusBadge');
     if (badge) {
       if (c.is_active) {
@@ -193,13 +193,13 @@ async function loadLatestCharge(vin = currentVin, chargeId = null) {
       }
     }
 
-    // Ubicación
+    // Location
     const locElem = document.getElementById('chargeLocationText');
     if (locElem) {
       locElem.innerText = `${c.address || 'Punto de recarga'}`;
     }
 
-    // Horas y Duración
+    // Times and duration
     const startDate = serverDate(c.start_time);
     const endDate = c.end_time ? serverDate(c.end_time) : new Date();
     const startTimeStr = startDate.toLocaleTimeString(I18n.locale, { hour: '2-digit', minute: '2-digit' });
@@ -222,7 +222,7 @@ async function loadLatestCharge(vin = currentVin, chargeId = null) {
     document.getElementById('kpiDuration').innerText = durFormatted;
     document.getElementById('kpiDurationDates').innerText = `${startTimeStr} - ${endTimeStr}`;
 
-    // Coste: una carga sin tarifa (fuera de geocercas y sin precio por defecto) se muestra SIN coste, no como 0,00 €
+    // Cost: a charge without a tariff (outside geofences and with no default price) is shown WITHOUT a cost, not as 0,00 €
     window.currentChargeDetail = c;
     const costLabels = { fixed: 'Tarifa fija', free: 'Gratis', pvpc: 'Tarifa PVPC (horaria)', time_of_use: 'Tarifa 2.0TD', default: 'Sin tarifa (0 €/kWh)' };
     const effectiveCost = c.effective_cost_per_kwh ? ` (${c.effective_cost_per_kwh.toFixed(3).replace('.', ',')} €/kWh)` : '';
@@ -230,10 +230,10 @@ async function loadLatestCharge(vin = currentVin, chargeId = null) {
     document.getElementById('kpiCostMode').innerText = c.has_cost
       ? `${costLabels[c.cost_mode] || c.cost_source}${effectiveCost}` : 'Sin tarifa: toca «Editar coste»';
     const editBtn = document.getElementById('btnEditChargeCost');
-    editBtn.hidden = !!c.is_active;                              // una carga en curso aún no se puede valorar
+    editBtn.hidden = !!c.is_active;                              // a charge in progress cannot be priced yet
     editBtn.textContent = c.has_cost ? 'Editar coste' : 'Añadir coste';
 
-    // Energía. La de la batería se ESTIMA (% ganado × batería útil); la de la red y la eficiencia solo existen si indicas los kWh del contador
+    // Energy. The battery energy is ESTIMATED (% gained × usable battery); grid energy and efficiency only exist if you enter the meter kWh
     const fmtKwh = (n) => `${n.toFixed(1).replace('.', ',')} kWh`;
     document.getElementById('kpiEnergyAdded').innerText = fmtKwh(c.kwh_added || 0);
     document.getElementById('kpiEnergyUsed').innerText = c.kwh_used ? fmtKwh(c.kwh_used) : '--';
@@ -243,31 +243,31 @@ async function loadLatestCharge(vin = currentVin, chargeId = null) {
       ? `Eficiencia = energía a la batería ÷ energía de la red. La de la batería es estimada: ${Math.round(c.added_battery_pct || 0)} % ganado × ${cap} kWh de batería útil.`
       : t('La energía a la batería es una estimación: {p0} % ganado × {p1} kWh de batería útil. La eficiencia solo se puede calcular si indicas los kWh de tu contador (Editar coste).', {p0: Math.round(c.added_battery_pct || 0), p1: cap});
 
-    // Batería
+    // Battery
     document.getElementById('kpiBatStart').innerText = `${Math.round(c.start_battery_pct || 0)}%`;
     document.getElementById('kpiBatAdded').innerText = `+${Math.round(c.added_battery_pct || 0)}%`;
     document.getElementById('kpiBatEnd').innerText = `${Math.round(c.end_battery_pct || 0)}%`;
 
-    // Potencias
+    // Power
     document.getElementById('kpiAvgPower').innerText = `${(c.avg_charge_power_kw || 0).toFixed(1)} kW`;
     document.getElementById('kpiMaxPower').innerText = `${(c.max_charge_power_kw || 0).toFixed(1)} kW`;
 
-    // Autonomías
+    // Ranges
     document.getElementById('kpiRangeStart').innerText = `${Math.round(c.start_range_km || 0)} km`;
     document.getElementById('kpiRangeAdded').innerText = `+${Math.round(c.added_range_km || 0)} km`;
     document.getElementById('kpiRangeEnd').innerText = `${Math.round(c.end_range_km || 0)} km`;
 
-    // Mini Mapa Leaflet
+    // Leaflet mini map
     if (c.latitude && c.longitude) {
       initOrUpdateChargeMiniMap(c.latitude, c.longitude, c.address);
     }
 
-    // Renderizar Canvases
+    // Render the canvases
     renderChargeTemporalChart(data.curve || [], c);
     renderChargingCurveChart(data.curve || []);
 
   } catch (err) {
-    console.error("Error al cargar detalles de carga:", err);
+    console.error("Error loading the charge details:", err);
   }
 }
 
@@ -320,7 +320,7 @@ function initOrUpdateChargeMiniMap(lat, lon, address) {
   }, 150);
 }
 
-// Renderizador del Gráfico Temporal (SOC %, Potencia kW, Autonomía km vs Tiempo)
+// Time chart renderer (SOC %, power kW, range km vs time)
 function renderChargeTemporalChart(points, meta) {
   const canvas = document.getElementById('chargeDetailsCanvas');
   if (!canvas) return;
@@ -340,7 +340,7 @@ function renderChargeTemporalChart(points, meta) {
   const gridColor = isLight ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.08)';
   const textColor = isLight ? '#64748b' : '#94a3b8';
 
-  // Si no hay puntos
+  // No points
   if (!points || points.length === 0) {
     ctx.clearRect(0, 0, width, height);
     ctx.fillStyle = textColor;
@@ -354,13 +354,13 @@ function renderChargeTemporalChart(points, meta) {
   const plotW = width - padding.left - padding.right;
   const plotH = height - padding.top - padding.bottom;
 
-  // Tiempos
+  // Times
   const times = points.map(p => serverDate(p.ts).getTime());
   let minT = Math.min(...times);
   let maxT = Math.max(...times);
   if (maxT === minT) maxT += 15 * 60 * 1000;
 
-  // Rangos de valores
+  // Value ranges
   const socs = points.map(p => p.battery_pct);
   const minSoc = Math.min(...socs);
   const maxSoc = Math.max(...socs);
@@ -375,7 +375,7 @@ function renderChargeTemporalChart(points, meta) {
   const maxRng = ranges.length ? Math.max(...ranges) : (maxSoc * 0.8);
   const rngScale = Math.max(20, (maxRng - minRng) * 1.15);
 
-  // Actualizar Leyenda Mín/Máx
+  // Update the min/max legend
   const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
   setEl('legSocMin', `${Math.round(minSoc)}%`);
   setEl('legSocMax', `${Math.round(maxSoc)}%`);
@@ -387,7 +387,7 @@ function renderChargeTemporalChart(points, meta) {
   function drawBaseChart(cursorX = null) {
     ctx.clearRect(0, 0, width, height);
 
-    // Líneas Guía Horizontales (0%, 25%, 50%, 75%, 100%)
+    // Horizontal guide lines (0%, 25%, 50%, 75%, 100%)
     ctx.lineWidth = 1;
     ctx.strokeStyle = gridColor;
     ctx.fillStyle = textColor;
@@ -403,7 +403,7 @@ function renderChargeTemporalChart(points, meta) {
       ctx.fillText(`${pct}%`, padding.left - 8, y + 4);
     }
 
-    // Eje X: Etiquetas de tiempo (4 a 5 marcas)
+    // X axis: time labels (4 to 5 ticks)
     ctx.textAlign = 'center';
     const tickCount = Math.min(5, Math.max(2, Math.floor(plotW / 85)));
     for (let i = 0; i <= tickCount; i++) {
@@ -419,7 +419,7 @@ function renderChargeTemporalChart(points, meta) {
     const getY_Power = (kw) => padding.top + plotH * (1 - (kw / powScale));
     const getY_Range = (km) => padding.top + plotH * (1 - ((km - minRng) / rngScale));
 
-    // 1. Serie: Potencia kW (Amarillo / Oro con área)
+    // 1. Series: power kW (yellow / gold with area)
     if (powers.some(p => p > 0)) {
       ctx.save();
       const gradPow = ctx.createLinearGradient(0, padding.top, 0, padding.top + plotH);
@@ -438,7 +438,7 @@ function renderChargeTemporalChart(points, meta) {
       ctx.fillStyle = gradPow;
       ctx.fill();
 
-      // Línea
+      // Line
       ctx.beginPath();
       points.forEach((p, idx) => {
         const x = getX(serverDate(p.ts).getTime());
@@ -451,7 +451,7 @@ function renderChargeTemporalChart(points, meta) {
       ctx.restore();
     }
 
-    // 2. Serie: Autonomía km (Naranja)
+    // 2. Series: range km (orange)
     if (ranges.length > 0) {
       ctx.save();
       ctx.beginPath();
@@ -469,7 +469,7 @@ function renderChargeTemporalChart(points, meta) {
       ctx.restore();
     }
 
-    // 3. Serie: SOC % (Verde Esmeralda con área)
+    // 3. Series: SOC % (emerald green with area)
     ctx.save();
     const gradSoc = ctx.createLinearGradient(0, padding.top, 0, padding.top + plotH);
     gradSoc.addColorStop(0, 'rgba(16, 185, 129, 0.28)');
@@ -487,7 +487,7 @@ function renderChargeTemporalChart(points, meta) {
     ctx.fillStyle = gradSoc;
     ctx.fill();
 
-    // Línea de SOC
+    // SOC line
     ctx.beginPath();
     points.forEach((p, idx) => {
       const x = getX(serverDate(p.ts).getTime());
@@ -501,7 +501,7 @@ function renderChargeTemporalChart(points, meta) {
     ctx.stroke();
     ctx.restore();
 
-    // Línea de Cursor interactivo
+    // Interactive cursor line
     if (cursorX !== null && cursorX >= padding.left && cursorX <= padding.left + plotW) {
       ctx.save();
       ctx.lineWidth = 1;
@@ -517,7 +517,7 @@ function renderChargeTemporalChart(points, meta) {
 
   drawBaseChart();
 
-  // Interacción Tooltip
+  // Tooltip interaction
   const tooltip = document.getElementById('chargeChartTooltip');
   
   canvas.onmousemove = (e) => {
@@ -549,7 +549,7 @@ function renderChargeTemporalChart(points, meta) {
 
     drawBaseChart(ptX);
 
-    // Dibujar puntos resaltados
+    // Draw the highlighted points
     const ptSocY = padding.top + plotH * (1 - (closestPt.battery_pct / 100.0));
     ctx.beginPath();
     ctx.arc(ptX, ptSocY, 5, 0, Math.PI * 2);
@@ -570,7 +570,7 @@ function renderChargeTemporalChart(points, meta) {
       ctx.stroke();
     }
 
-    // Posicionar Tooltip
+    // Position the tooltip
     if (tooltip) {
       const d = serverDate(closestPt.ts);
       const timeStr = d.toLocaleTimeString(I18n.locale, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -596,7 +596,7 @@ function renderChargeTemporalChart(points, meta) {
   };
 }
 
-// Renderizador de la Curva de Carga (Potencia kW vs % Batería)
+// Charging curve renderer (power kW vs battery %)
 function renderChargingCurveChart(points) {
   const canvas = document.getElementById('chargeCurveCanvas');
   if (!canvas) return;
@@ -625,7 +625,7 @@ function renderChargingCurveChart(points) {
     return;
   }
 
-  // Filtrar y ordenar puntos por SOC
+  // Filter and sort points by SOC
   const curvePts = points
     .filter(p => p.battery_pct !== null && p.battery_pct !== undefined)
     .sort((a, b) => a.battery_pct - b.battery_pct);
@@ -643,7 +643,7 @@ function renderChargingCurveChart(points) {
   function drawCurveChart(hoverIdx = null) {
     ctx.clearRect(0, 0, width, height);
 
-    // Eje Y: Guías de potencia kW (0, 25%, 50%, 75%, 100%)
+    // Y axis: power guides kW (0, 25%, 50%, 75%, 100%)
     ctx.lineWidth = 1;
     ctx.strokeStyle = gridColor;
     ctx.fillStyle = textColor;
@@ -661,7 +661,7 @@ function renderChargingCurveChart(points) {
       ctx.fillText(`${kwVal} kW`, padding.left - 8, y + 4);
     }
 
-    // Eje X: Batería %
+    // X axis: battery %
     ctx.textAlign = 'center';
     const socSteps = Math.min(6, Math.max(3, Math.floor(socSpan / 10)));
     for (let i = 0; i <= socSteps; i++) {
@@ -673,7 +673,7 @@ function renderChargingCurveChart(points) {
     const getX = (soc) => padding.left + plotW * ((soc - minSoc) / socSpan);
     const getY = (kw) => padding.top + plotH * (1 - ((kw || 0) / maxKw));
 
-    // Dibujar Área de Curva (Cyan eléctrico)
+    // Draw the curve area (electric cyan)
     ctx.save();
     const grad = ctx.createLinearGradient(0, padding.top, 0, padding.top + plotH);
     grad.addColorStop(0, themeAccent(0.25));
@@ -689,7 +689,7 @@ function renderChargingCurveChart(points) {
     ctx.fillStyle = grad;
     ctx.fill();
 
-    // Línea de Curva
+    // Curve line
     ctx.beginPath();
     curvePts.forEach((p, idx) => {
       const x = getX(p.battery_pct);
@@ -703,7 +703,7 @@ function renderChargingCurveChart(points) {
     ctx.stroke();
     ctx.restore();
 
-    // Puntos
+    // Points
     curvePts.forEach((p, idx) => {
       const x = getX(p.battery_pct);
       const y = getY(p.power_kw);
@@ -780,7 +780,7 @@ window.addEventListener('resize', () => {
   window._chargeResizeTimeout = setTimeout(redrawChargeCharts, 150);
 });
 
-// Consultar tarifa eléctrica PVPC en tiempo real y tramo 2.0TD
+// Query the live PVPC electricity price and the 2.0TD period
 async function loadPvpcLiveBanner() {
   const badge = document.getElementById('geofenceLivePeriodBadge');
   const desc = document.getElementById('geofenceLivePvpcDesc');
@@ -806,12 +806,12 @@ async function loadPvpcLiveBanner() {
       priceElem.innerText = `${(data.pvpc_price_kwh || 0).toFixed(4)} €/kWh`;
     }
   } catch (err) {
-    console.warn("Aviso al consultar PVPC en vivo:", err);
+    console.warn("Live PVPC query failed:", err);
   }
 }
 
 
-// ───────────────────────── Editar el coste y la energía de una carga ─────────────────────────
+// ───────────────────────── Edit a charge's cost and energy ─────────────────────────
 function openChargeCostModal() {
   const c = window.currentChargeDetail;
   if (!c) return;

@@ -1,5 +1,5 @@
-/* EVBro — Climatización programada (Confort): a una hora, los días elegidos, EVBro enciende el climatizador a la
- * temperatura indicada. Lo envía el servidor con el PIN guardado (como el gestor de carga): el coche se despierta.
+/* EVBro — Scheduled climate (Confort): at a set time on the chosen days, EVBro turns the climate control on at the
+ * given temperature. The server sends it with the saved PIN (like the charge manager): the car wakes up.
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 (function () {
@@ -25,7 +25,7 @@
       schedules = await res.json();
       render();
     } catch (e) {
-      console.warn('No se pudo cargar la climatización programada:', e);
+      console.warn('Could not load the climate schedule:', e);
     }
   }
 

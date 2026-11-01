@@ -1,7 +1,7 @@
-"""Plan de mantenimiento de un coche: oficial de EBRO o personalizado.
+"""Maintenance plan of a car: EBRO's official one or a custom one.
 
-Un único plan por coche con un interruptor (`mode`). El historial de intervenciones y las facturas son comunes a los dos
-modos (ver `routes_maintenance.py`). La lógica de la tabla oficial está en `services/maintenance_official.py`.
+A single plan per car with a switch (`mode`). The intervention history and the invoices are shared by both
+modes (see `routes_maintenance.py`). The logic of the official table lives in `services/maintenance_official.py`.
 """
 from __future__ import annotations
 
@@ -27,8 +27,8 @@ OFFICIAL_ITEM_NAME = "Revisión oficial EBRO"
 
 
 class PlanUpdate(BaseModel):
-    """Modo del plan y odómetro de entrega. Las FECHAS de entrega y matriculación se configuran en el vehículo
-    (`PUT /vehicles/{vin}`); `baseline_date` se acepta por compatibilidad y escribe la fecha de entrega del vehículo."""
+    """Plan mode and delivery odometer. The delivery and registration DATES are set on the vehicle
+    (`PUT /vehicles/{vin}`); `baseline_date` is accepted for compatibility and writes the vehicle's delivery date."""
     mode: Optional[str] = Field(default=None, pattern="^(official|custom)$")
     baseline_date: Optional[datetime.datetime] = None
     baseline_odometer: Optional[float] = Field(default=None, ge=0)
@@ -37,7 +37,7 @@ class PlanUpdate(BaseModel):
 
 class ItvCompleteRequest(BaseModel):
     service_date: Optional[datetime.datetime] = None
-    valid_until: Optional[datetime.datetime] = None        # «válida hasta» de la pegatina; si no, se calcula
+    valid_until: Optional[datetime.datetime] = None        # "valid until" from the sticker; otherwise it is computed
     odometer: Optional[float] = None
     cost: float = 0.0
     workshop: Optional[str] = None
@@ -45,7 +45,7 @@ class ItvCompleteRequest(BaseModel):
 
 
 class EventRequest(BaseModel):
-    """Intervención puntual, sin intervalo (pastillas de freno, reparar una rueda…)."""
+    """One-off intervention, with no interval (brake pads, repairing a tyre…)."""
     title: str = Field(min_length=2, max_length=150)
     category: str = "General"
     service_date: Optional[datetime.datetime] = None
@@ -58,7 +58,7 @@ class EventRequest(BaseModel):
 
 
 class OfficialCompleteRequest(BaseModel):
-    step_km: int                                             # escalón que se registra (15000, 30000…)
+    step_km: int                                             # step being recorded (15000, 30000…)
     odometer: Optional[float] = None
     cost: float = 0.0
     workshop: Optional[str] = "Taller Oficial Ebro"
@@ -85,7 +85,7 @@ async def get_or_create_plan(session: AsyncSession, vin: str) -> MaintenancePlan
 
 
 async def _holder(session: AsyncSession, vin: str, origin: str, name: str, category: str) -> MaintenanceItem:
-    """«Contenedor» de los registros de una procedencia (revisión oficial, ITV, intervenciones puntuales): no es una tarea propia."""
+    """'Container' for the records of one source (official service, ITV, one-off interventions): not a task of the user's own."""
     item = (await session.execute(
         select(MaintenanceItem).where(MaintenanceItem.vin == vin, MaintenanceItem.origin == origin)
     )).scalars().first()
@@ -137,7 +137,7 @@ async def build_plan(session: AsyncSession, vin: str, today: Optional[datetime.d
     logs = await _official_logs(session, vin)
     done_by_km = {log.revision_km: log for log in logs}
     last_done = max(done_by_km) if done_by_km else None
-    delivery = vehicle.delivery_date or plan.baseline_date          # (plan.baseline_date: dato anterior a mover la fecha al vehículo)
+    delivery = vehicle.delivery_date or plan.baseline_date          # (plan.baseline_date: data from before the date moved to the vehicle)
     nxt = official.official_next(odo, today, last_done, delivery, plan.baseline_odometer or 0.0, vehicle.model)
 
     items = (await session.execute(
@@ -174,7 +174,7 @@ async def build_plan(session: AsyncSession, vin: str, today: Optional[datetime.d
 
 
 async def _itv(session: AsyncSession, vehicle: Vehicle, today: datetime.date) -> Dict[str, Any]:
-    """Estado de la ITV: la fecha de matriculación manda (cuenta desde ella); la «válida hasta» de la última pegatina, si se indicó."""
+    """ITV status: the registration date rules (it counts from it); the "valid until" of the last sticker, if given."""
     item = (await session.execute(
         select(MaintenanceItem).where(MaintenanceItem.vin == vehicle.vin, MaintenanceItem.origin == "itv")
     )).scalars().first()
@@ -197,15 +197,15 @@ async def _itv(session: AsyncSession, vehicle: Vehicle, today: datetime.date) ->
 
 @router.get("/vehicles/{vin}/maintenance/plan")
 async def get_maintenance_plan(vin: str, session: AsyncSession = Depends(get_db)):
-    """Plan del coche: modo, punto de partida, próxima revisión oficial, tareas propias y sugerencias."""
+    """The car's plan: mode, starting point, next official service, own tasks and suggestions."""
     data = await build_plan(session, vin)
-    await session.commit()          # (el plan se crea la primera vez que se consulta)
+    await session.commit()          # (the plan is created the first time it is read)
     return data
 
 
 @router.put("/vehicles/{vin}/maintenance/plan")
 async def update_maintenance_plan(vin: str, req: PlanUpdate, session: AsyncSession = Depends(get_db)):
-    """Cambia el modo (official/custom) y/o el punto de partida del plan oficial (fecha de entrega y odómetro)."""
+    """Changes the mode (official/custom) and/or the starting point of the official plan (delivery date and odometer)."""
     vehicle = await _vehicle(session, vin)
     if req.mode == "official" and not official.is_ebro(vehicle.brand):
         raise HTTPException(status_code=409, detail="El plan oficial de EBRO solo está disponible para coches de la marca Ebro.")
@@ -225,7 +225,7 @@ async def update_maintenance_plan(vin: str, req: PlanUpdate, session: AsyncSessi
 
 @router.post("/vehicles/{vin}/maintenance/official/complete")
 async def complete_official_step(vin: str, req: OfficialCompleteRequest, session: AsyncSession = Depends(get_db)):
-    """Registra como realizada una revisión oficial: el plan pasa al escalón siguiente."""
+    """Records an official service as done: the plan moves on to the next step."""
     vehicle = await _vehicle(session, vin)
     step = next((s for s in official.STEPS if s["km"] == req.step_km), None)
     if step is None:
@@ -260,7 +260,7 @@ async def complete_official_step(vin: str, req: OfficialCompleteRequest, session
 
 @router.post("/vehicles/{vin}/maintenance/itv/complete")
 async def complete_itv(vin: str, req: ItvCompleteRequest, session: AsyncSession = Depends(get_db)):
-    """Registra una ITV pasada. Con `valid_until` (la de la pegatina) esa es la próxima; si no, se calcula por antigüedad."""
+    """Records a passed ITV. With `valid_until` (the one on the sticker) that is the next one; otherwise it is computed from the car's age."""
     vehicle = await _vehicle(session, vin)
     when = (req.service_date or datetime.datetime.utcnow()).replace(tzinfo=None)
     holder = await _holder(session, vin, "itv", "Inspección técnica (ITV)", "Legal")
@@ -277,7 +277,7 @@ async def complete_itv(vin: str, req: ItvCompleteRequest, session: AsyncSession 
 
 @router.post("/vehicles/{vin}/maintenance/events")
 async def add_event(vin: str, req: EventRequest, session: AsyncSession = Depends(get_db)):
-    """Registra una intervención puntual (sin intervalo): pastillas de freno, reparación de una rueda…"""
+    """Records a one-off intervention (no interval): brake pads, tyre repair…"""
     vehicle = await _vehicle(session, vin)
     holder = await _holder(session, vin, "oneoff", "Intervenciones puntuales", "Puntual")
     log = MaintenanceLog(

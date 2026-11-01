@@ -1,9 +1,9 @@
-/* EVBro — Sondeo inmediato de la nube (botón de actualizar). Los intervalos del sondeo son del servidor y se ajustan en la consola de
- * administración, no aquí.
- * (Script clásico: comparte el ámbito global con los demás ficheros; ver el orden de carga en templates/index.html.)
+/* EVBro — Immediate cloud poll (refresh button). The poll intervals belong to the server and are set in the admin
+ * console, not here.
+ * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
-// Forzar sondeo inmediato del coche actual
+// Force an immediate poll of the current car
 async function pollCurrentVehicle() {
   if (!currentVin) {
     showToast('Elige un coche primero.', 'warning');
@@ -19,7 +19,7 @@ async function pollCurrentVehicle() {
       showToast(data.detail || 'No se pudo actualizar.', 'error', 6000);
     }
   } catch (e) {
-    console.error("Error forzando sondeo:", e);
+    console.error("Error forcing a poll:", e);
     showToast('Error de conexión al actualizar.', 'error');
   }
 }

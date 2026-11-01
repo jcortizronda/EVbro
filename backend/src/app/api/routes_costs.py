@@ -1,5 +1,5 @@
-"""Balance de costes del vehículo: compra, cargas, repostajes, mantenimiento y gastos (seguro, impuestos…). Solo lectura:
-las altas se hacen en Energía (cargas), Gastos (repostajes y gastos) y Mantenimiento (intervenciones)."""
+"""Vehicle cost balance: purchase, charges, refuels, maintenance and expenses (insurance, taxes…). Read only:
+entries are added in Energía (charges), Gastos (refuels and expenses) and Mantenimiento (interventions)."""
 from __future__ import annotations
 
 import datetime
@@ -27,7 +27,7 @@ def _month(d: datetime.datetime) -> str:
 @router.get("/vehicles/{vin}/costs")
 async def get_costs(vin: str, period: str = Query("all"), frm: Optional[str] = Query(None, alias="from", max_length=10),
                     to: Optional[str] = Query(None, max_length=10), session: AsyncSession = Depends(get_db)) -> Dict[str, Any]:
-    """Resumen de costes: totales por tipo, por mes, por 100 km y los últimos movimientos (`period` o `from`/`to`, services/periods.py)."""
+    """Cost summary: totals per type, per month, per 100 km and the latest entries (`period` or `from`/`to`, services/periods.py)."""
     vehicle = (await session.execute(select(Vehicle).where(Vehicle.vin == vin))).scalar_one_or_none()
     if vehicle is None:
         raise HTTPException(status_code=404, detail="Vehículo no encontrado.")
@@ -48,11 +48,11 @@ async def get_costs(vin: str, period: str = Query("all"), frm: Optional[str] = Q
     sum_refuels = round(sum(r.total_cost or 0.0 for r in refuels), 2)
     sum_maint = round(sum(m.cost or 0.0 for m, _ in maint), 2)
     sum_expenses = round(sum(e.amount or 0.0 for e in expenses), 2)
-    purchase_date = vehicle.delivery_date or vehicle.registration_date          # la compra cuenta desde la entrega
+    purchase_date = vehicle.delivery_date or vehicle.registration_date          # the purchase counts from the delivery
     purchase = vehicle.purchase_price if (vehicle.purchase_price and (start is None or (purchase_date and purchase_date >= start))) else 0.0
     running = round(sum_charges + sum_refuels + sum_maint + sum_expenses, 2)
 
-    # Coste por 100 km: sobre los km recorridos desde la compra (periodo «todo») o los de los viajes registrados en el periodo
+    # cost per 100 km: over the km driven since the purchase (period "all") or those of the drives recorded in the period
     km = None
     if everything and vehicle.odometer is not None:
         km = max(0.0, vehicle.odometer - (vehicle.purchase_odometer or 0.0))
@@ -94,7 +94,7 @@ async def get_costs(vin: str, period: str = Query("all"), frm: Optional[str] = Q
         "energy": {"kwh": round(sum(c.kwh_added or 0.0 for c in charges), 1), "liters": round(sum(r.liters or 0.0 for r in refuels), 1)},
         "pending": {"charges": sum(1 for c in charges if not c.cost_mode), "refuels": sum(1 for r in refuels if r.total_cost is None)},
         "km": round(km, 0) if km else None,
-        "per_100km": round(running / km * 100.0, 2) if km and km >= 50 else None,        # con menos de 50 km no es una cifra con sentido
+        "per_100km": round(running / km * 100.0, 2) if km and km >= 50 else None,        # under 50 km the figure is meaningless
         "by_category": [{"key": k, "label": EXPENSE_CATEGORIES.get(k, k), "amount": round(v, 2)} for k, v in sorted(by_category.items(), key=lambda kv: -kv[1])],
         "monthly": [{"month": k, **{a: round(b, 2) for a, b in v.items()}} for k, v in sorted(monthly.items())][-12:],
         "recent": recent[:25],

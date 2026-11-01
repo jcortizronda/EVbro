@@ -1,5 +1,5 @@
-/* EVBro — Insignias de estado y chips.
-   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+/* EVBro — Status badges and chips.
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
 /* ========================================================
    HABRO STATUS BADGES & PILL CHIPS
@@ -30,7 +30,7 @@
   border-color: rgba(48, 209, 88, 0.3);
 }
 
-/* Encendido y parado (alta tensión activa, sin velocidad): distinto de «en marcha» y de «estacionado» */
+/* On and stopped (high voltage active, no speed): different from «en marcha» and «estacionado» */
 .status-badge.ready {
   background: rgba(0, 122, 135, 0.12);
   color: #00707c;

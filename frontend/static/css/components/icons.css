@@ -1,10 +1,10 @@
-/* EVBro — Iconos SVG, iconos de los avisos, spinner y punto de estado (sustituyen a los emojis).
-   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+/* EVBro — SVG icons, toast icons, spinner and status dot (they replace the emojis).
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
 .ico { flex: none; vertical-align: -0.2em; }
 button .ico, .nav-btn .ico, .geofence-action-btn .ico { vertical-align: middle; }
 
-/* Avisos (toast): el icono toma el color según el tipo */
+/* Toasts: the icon takes its colour from the type */
 .toast-icon { display: inline-flex; flex: none; }
 .app-toast.toast-success .toast-icon { color: var(--accent-green, #30d158); }
 .app-toast.toast-error .toast-icon { color: var(--accent-red, #ff453a); }
@@ -18,7 +18,7 @@ button .ico, .nav-btn .ico, .geofence-action-btn .ico { vertical-align: middle; 
 @keyframes toast-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .toast-spinner { animation-duration: 2.4s; } }
 
-/* Franja «En vivo»: punto de color delante del texto (antes un emoji de círculo) */
+/* «En vivo» strip: coloured dot before the text (formerly a circle emoji) */
 #freshnessText::before {
   content: ""; display: inline-block; width: 0.55em; height: 0.55em; margin-right: 0.45em;
   border-radius: 50%; background: var(--text-muted); vertical-align: 0.05em;
@@ -27,6 +27,6 @@ button .ico, .nav-btn .ico, .geofence-action-btn .ico { vertical-align: middle; 
 #freshnessText[data-level="warn"]::before { background: var(--accent-amber, #ff9f0a); }
 #freshnessText[data-level="off"]::before { background: var(--accent-red, #ff453a); }
 
-/* Iconos de las tarjetas de avisos y de Ajustes */
+/* Icons of the alert cards and of Ajustes */
 .notif-trigger-icon .ico { vertical-align: middle; }
 .push-card-icon, .range-icon, #chargeCableIcon { display: inline-flex; align-items: center; }

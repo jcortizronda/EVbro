@@ -1,5 +1,5 @@
-/* EVBro — Navegación: pestañas, subpestañas y acordeones.
- * (Script clásico: comparte el ámbito global con los demás ficheros; ver el orden de carga en templates/index.html.)
+/* EVBro — Navigation: tabs, sub-tabs and accordions.
+ * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
 // Tab switcher: the desktop sidebar (`.side-item[data-tab]`) and the touch bottom dock (`#mobTab…`) share the same sections
@@ -17,7 +17,7 @@ function switchTab(tabName) {
   if (mobBtn) mobBtn.classList.add('active');
   if (tab) tab.classList.add('active');
 
-  // Si estamos en un submenú en móvil, resaltar el botón Más si no hay botón propio
+  // In a submenu on a phone, highlight the Más button if there is no button of its own
   if (['drives', 'maintenance', 'geofences', 'settings', 'costs', 'expenses', 'refuels', 'timeline', 'stats', 'vehicle'].includes(tabName)) {
     const mobMore = document.getElementById('mobTabMore');
     if (mobMore && !mobBtn) mobMore.classList.add('active');
@@ -79,29 +79,29 @@ function switchTab(tabName) {
 }
 
 /**
- * Control de navegación de subpestañas dentro del módulo de Configuración/Ajustes.
- * Aplica diseño desacoplado y carga perezosa bajo demanda de cada sección.
+ * Sub-tab navigation inside the Ajustes (settings) module.
+ * Each section is decoupled and lazy-loaded on demand.
  * @param {'account'|'accounts'|'notifs'|'theme'|'system'} subTabName
  */
 function switchSettingsSubTab(subTabName) {
   window.currentSettingsSubTab = subTabName;
   const validSubTabs = ['account', 'accounts', 'notifs', 'theme', 'system'];
   if (!validSubTabs.includes(subTabName)) {
-    console.warn(`[Ajustes] Subpestaña no reconocida: ${subTabName}`);
+    console.warn(`[Ajustes] Unknown sub-tab: ${subTabName}`);
     return;
   }
 
-  // Desactivar botones de submenú
+  // Deactivate the submenu buttons
   document.querySelectorAll('.settings-sub-nav .sub-nav-btn').forEach(btn => btn.classList.remove('active'));
 
-  // Ocultar todos los subpaneles
+  // Hide every sub-panel
   validSubTabs.forEach(tab => {
     const panelId = 'settingsSubTab' + tab.charAt(0).toUpperCase() + tab.slice(1);
     const panel = document.getElementById(panelId);
     if (panel) panel.classList.remove('active');
   });
 
-  // Activar botón y panel seleccionados
+  // Activate the selected button and panel
   const btnId = 'btnSettingsSub' + subTabName.charAt(0).toUpperCase() + subTabName.slice(1);
   const panelId = 'settingsSubTab' + subTabName.charAt(0).toUpperCase() + subTabName.slice(1);
 
@@ -110,7 +110,7 @@ function switchSettingsSubTab(subTabName) {
   if (btn) btn.classList.add('active');
   if (panel) panel.classList.add('active');
 
-  // Carga modular reactiva
+  // Load the section on demand
   if (subTabName === 'account') {
     if (typeof checkAccountStatus === 'function') checkAccountStatus();
     if (window.EbroPasskeys) EbroPasskeys.refresh();        // «Acceso con huella» lives here
@@ -142,31 +142,31 @@ async function loadAppVersion() {
     if (data.commit) document.getElementById('appCommitHash').textContent = data.commit;
     commit.hidden = !data.commit;
     appVersionLoaded = true;
-  } catch (e) { /* sin conexión: se intenta otra vez al volver a la pestaña */ }
+  } catch (e) { /* offline: try again when coming back to the tab */ }
 }
 
 /**
- * Control de navegación de subpestañas en el módulo de Recargas (Detalles vs Historial).
+ * Sub-tab navigation in the charges module (details vs history).
  * @param {'details'|'history'} subTabName
  */
 function switchChargesSubTab(subTabName) {
   const validSubTabs = ['details', 'history'];
   if (!validSubTabs.includes(subTabName)) {
-    console.warn(`[Recargas] Subpestaña no reconocida: ${subTabName}`);
+    console.warn(`[Recargas] Unknown sub-tab: ${subTabName}`);
     return;
   }
 
-  // Desactivar botones de submenú de recargas
+  // Deactivate the charges submenu buttons
   document.querySelectorAll('.charges-sub-nav .sub-nav-btn').forEach(btn => btn.classList.remove('active'));
 
-  // Ocultar subpaneles
+  // Hide the sub-panels
   validSubTabs.forEach(tab => {
     const panelId = 'chargesSubTab' + tab.charAt(0).toUpperCase() + tab.slice(1);
     const panel = document.getElementById(panelId);
     if (panel) panel.classList.remove('active');
   });
 
-  // Activar botón y panel seleccionados
+  // Activate the selected button and panel
   const btnId = 'btnChargesSub' + subTabName.charAt(0).toUpperCase() + subTabName.slice(1);
   const panelId = 'chargesSubTab' + subTabName.charAt(0).toUpperCase() + subTabName.slice(1);
 
@@ -191,8 +191,8 @@ function switchChargesSubTab(subTabName) {
 }
 
 /**
- * Navega desde una fila del historial de recargas directamente al detalle y gráfica de dicha sesión.
- * @param {number} chargeId - Identificador único de la sesión de recarga.
+ * Goes from a row of the charge history straight to that session's detail and chart.
+ * @param {number} chargeId - Unique id of the charging session.
  */
 function viewChargeDetails(chargeId) {
   switchChargesSubTab('details');

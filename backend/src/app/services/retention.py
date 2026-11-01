@@ -1,10 +1,10 @@
-"""Cuánto tiempo se guarda el historial. Tres plazos independientes (0 = para siempre):
+"""How long the history is kept. Three independent periods (0 = forever):
 
-  * **viajes** (y los puntos de su ruta),
-  * **cargas** (y su curva de potencia),
-  * **telemetría bruta** (las lecturas completas del coche, la que más crece y la menos útil con los años).
+  * **drives** (and the points of their route),
+  * **charges** (and their power curve),
+  * **raw telemetry** (the car's full readings: the one that grows most and is least useful over the years).
 
-Se aplica una vez al día (poller) y a petición desde Ajustes. Solo se borran viajes y cargas ya CERRADOS.
+Applied once a day (poller) and on demand from Settings. Only drives and charges already CLOSED are deleted.
 """
 from __future__ import annotations
 
@@ -54,7 +54,7 @@ async def set_config(session: AsyncSession, values: Dict[str, Optional[int]]) ->
 
 
 async def counts(session: AsyncSession) -> Dict[str, Any]:
-    """Cuánto hay guardado ahora (para enseñarlo junto a los plazos)."""
+    """How much is stored now (shown next to the periods)."""
     async def one(model, ts_col):
         n, oldest = (await session.execute(select(func.count(), func.min(ts_col)).select_from(model))).one()
         return {"count": n, "oldest": oldest.isoformat() if oldest else None}
@@ -66,7 +66,7 @@ async def counts(session: AsyncSession) -> Dict[str, Any]:
 
 
 async def apply(session: AsyncSession, now: Optional[datetime.datetime] = None) -> Dict[str, int]:
-    """Borra lo más antiguo que el plazo de cada tipo. Devuelve cuántos registros se borraron de cada uno."""
+    """Deletes whatever is older than each kind's period. Returns how many rows of each kind were deleted."""
     now = now or datetime.datetime.utcnow()
     cfg = await get_config(session)
     deleted = {"trips": 0, "charges": 0, "snapshots": 0}

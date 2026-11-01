@@ -1,5 +1,5 @@
-/* Notificaciones Web Push de este dispositivo (en Android, Chrome las entrega vía Google FCM).
-   El servidor guarda la suscripción cifrada y envía los avisos; aquí solo se activa/desactiva. */
+/* Web Push notifications of this device (on Android, Chrome delivers them through Google FCM).
+   The server stores the encrypted subscription and sends the alerts; here they are only turned on/off. */
 (function () {
   const $ = (id) => document.getElementById(id);
   const api = (path, opts) => fetch('/api/notifications' + path, opts);
@@ -31,7 +31,7 @@
     return reg.pushManager.getSubscription();
   }
 
-  /* Estado de este dispositivo: unsupported | insecure | denied | on | off */
+  /* State of this device: unsupported | insecure | denied | on | off */
   async function state() {
     if (!window.isSecureContext) return 'insecure';
     if (!supported()) return 'unsupported';
@@ -82,7 +82,7 @@
       const wanted = keyToBytes(public_key);
       const same = sub && sub.options && sub.options.applicationServerKey
         && new Uint8Array(sub.options.applicationServerKey).join() === wanted.join();
-      if (sub && !same) { await sub.unsubscribe(); sub = null; }   // clave VAPID distinta: suscripción inservible
+      if (sub && !same) { await sub.unsubscribe(); sub = null; }   // different VAPID key: the subscription is useless
       if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: wanted });
       const json = sub.toJSON();
       const r = await post('/push/subscribe', { endpoint: json.endpoint, keys: json.keys, label: deviceLabel() });
@@ -151,7 +151,7 @@
         list.append(li);
       }
       $('pushDevicesWrap').hidden = rows.length === 0;
-    } catch (e) { /* sin sesión o sin red: la lista queda como estaba */ }
+    } catch (e) { /* no session or no network: the list stays as it was */ }
   }
 
   window.EbroPush = { refresh, toggle, test };

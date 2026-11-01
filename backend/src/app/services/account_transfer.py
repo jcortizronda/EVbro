@@ -130,7 +130,7 @@ async def export_account(session: AsyncSession, user_id: int, username: str) -> 
                    "missing_files": missing,
                    "note": "Sin secretos: ni credenciales de Ebro, ni tokens, ni canales de aviso. Los coches se importan como coches sin cuenta."}
         zf.writestr(EXPORT_FILE, json.dumps(payload, ensure_ascii=False, indent=1))
-    _LOGGER.info("Exportación de la cuenta %s: %d coches, %d ficheros perdidos", username, len(vehicles), len(missing))
+    _LOGGER.info("Export of account %s: %d cars, %d missing files", username, len(vehicles), len(missing))
     return buf.getvalue()
 
 

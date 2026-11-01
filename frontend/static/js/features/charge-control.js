@@ -1,8 +1,8 @@
-/* EVBro — control de carga (pestaña Energía): objetivo de batería, parar/iniciar y carga programada.
+/* EVBro — charge control (Energía tab): battery target, stop/start and scheduled charging.
  *
- * Ebro no deja arrancar ni parar la carga directamente: todo se hace con la PROGRAMACIÓN del coche, y el
- * servidor (`services/charge_manager.py`) se encarga de los detalles (ventana de pausa, renovarla, hora en UTC).
- * Aquí solo se muestra el estado real y se piden las acciones.
+ * Ebro does not let you start or stop charging directly: everything goes through the car's SCHEDULE, and the
+ * server (`services/charge_manager.py`) takes care of the details (pause window, renewing it, time in UTC).
+ * Here only the real state is shown and the actions are requested.
  */
 (function () {
   'use strict';
@@ -25,7 +25,7 @@
   const hhmmToMin = (v) => { const [h, m] = String(v || '').split(':').map(Number); return Number.isFinite(h) ? h * 60 + m : null; };
   const durationBetween = (a, b) => ((b - a) % 1440 + 1440) % 1440;
 
-  // ───────────────────────── descripción del estado ─────────────────────────
+  // ───────────────────────── state description ─────────────────────────
   function describe(p) {
     const target = p.target_pct;
     const limit = target < 100 ? ` ${t('Se pausará al llegar al {p0} %.', {p0: target})}` : '';
@@ -51,7 +51,7 @@
     }
   }
 
-  // ───────────────────────── pintado ─────────────────────────
+  // ───────────────────────── rendering ─────────────────────────
   function render() {
     if (!plan) return;
     const d = describe(plan);
@@ -78,7 +78,7 @@
     summarize();
   }
 
-  /** Estado de la programación, bien visible: ACTIVA / EN PAUSA / ACTIVA EN EL COCHE / SIN PROGRAMAR. */
+  /** Schedule state, clearly visible: ACTIVA / EN PAUSA / ACTIVA EN EL COCHE / SIN PROGRAMAR. */
   function renderSchedule() {
     const box = $('scheduleStatus');
     if (!box) return;
@@ -117,13 +117,13 @@
     $('scheduleMain').textContent = main;
     $('scheduleSub').textContent = sub;
 
-    // Con programación activa se ofrece cambiarla o quitarla; sin ella, solo crearla
+    // With an active schedule, offer to change or remove it; without one, only to create it
     const active = state === 'on' || state === 'external' || (state === 'paused' && sched && sched.enabled);
     const clear = $('btnScheduleClear');
     if (clear) clear.hidden = !active;
     const apply = $('btnScheduleApply');
     if (apply) apply.textContent = active ? 'Cambiar programación' : 'Programar';
-    // La primera vez, el formulario muestra la programación vigente (no la de ejemplo)
+    // The first time, the form shows the current schedule (not the sample one)
     const shown = (state === 'on' || state === 'paused') && sched && sched.enabled ? sched : (state === 'external' ? car : null);
     if (shown && !prefilled && !$('scheduleForm').contains(document.activeElement)) {
       prefilled = true;
@@ -149,9 +149,9 @@
       : t('Cargará de {p0} a {p1} ({p2}), todos los días.', {p0: f(start), p1: f(end), p2: fmtDuration(dur)});
   }
 
-  // ───────────────────────── confirmación de que el coche lo aplicó ─────────────────────────
-  // La nube acepta la orden antes de que el coche la ejecute: se vuelve a leer a los 12 y 30 s, y mientras haya
-  // diferencias («Aplicando…») cada 8 s (como mucho 6 veces).
+  // ───────────────────────── confirmation that the car applied it ─────────────────────────
+  // The cloud accepts the order before the car runs it: read again at 12 and 30 s and, while there are
+  // differences («Aplicando…»), every 8 s (6 times at most).
   function scheduleFollowUps() {
     followUps.forEach(clearTimeout);
     followUps = [12000, 30000].map((ms) => setTimeout(() => load(true), ms));
@@ -163,7 +163,7 @@
     pendingTimer = setTimeout(() => { pendingTimer = null; load(true); }, 8000);
   }
 
-  // ───────────────────────── objetivo: círculo deslizante sobre la barra ─────────────────────────
+  // ───────────────────────── target: sliding circle over the bar ─────────────────────────
   let dragging = false;
   const slider = () => $('energyTargetSlider');
 
@@ -215,12 +215,12 @@
       else if (ev.key === 'End') next = 100;
       if (next === null) return;
       ev.preventDefault(); value = next; setSlider(next);
-      clearTimeout(initSlider.t); initSlider.t = setTimeout(commit, 500);   // varias flechas seguidas = una sola orden
+      clearTimeout(initSlider.t); initSlider.t = setTimeout(commit, 500);   // several arrow presses in a row = a single order
     });
     setSlider(100);
   }
 
-  // ───────────────────────── red ─────────────────────────
+  // ───────────────────────── network ─────────────────────────
   async function api(method, path, body) {
     const res = await fetch(`/api/vehicles/${currentVin}/charge/${path}`, {
       method, headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined });
@@ -237,7 +237,7 @@
       lastLoad = Date.now();
       if (!plan.car_pending) pendingTries = 0;
       render();
-    } catch (e) { /* sin red: se queda lo último */ }
+    } catch (e) { /* no network: keep the last value */ }
   }
 
   function fail(data) {
@@ -246,8 +246,8 @@
     showToast(`${esc(detail)}${hint}`, 'error', 7000);
   }
 
-  // `localLabel`: texto para órdenes que EVBro solo guarda y vigila (el objetivo): no se dice «enviado al coche»
-  // salvo que la respuesta indique que sí se habló con el coche (la hora de la última acción cambió).
+  // `localLabel`: text for orders EVBro only stores and watches (the target): do not say «enviado al coche»
+  // unless the response shows the car was actually contacted (the last action time changed).
   async function act(label, method, path, body, localLabel) {
     if (busy) return;
     busy = true;
@@ -274,10 +274,10 @@
     }
   }
 
-  // ───────────────────────── acciones ─────────────────────────
+  // ───────────────────────── actions ─────────────────────────
   function setTarget(value) {
     const pct = Number(value);
-    // El coche no tiene «batería objetivo»: se guarda en EVBro, que pausa la carga al llegar a ella
+    // The car has no «battery target»: it is stored in EVBro, which pauses charging when it is reached
     act(t('Objetivo {p0} %', {p0: pct}), 'PUT', 'target', { target_pct: pct },
         pct >= 100 ? 'Objetivo 100 %: sin límite' : t('Objetivo {p0} % guardado en EVBro (pausará la carga al llegar)', {p0: pct}));
   }
@@ -312,7 +312,7 @@
     $('scheduleForm')?.addEventListener('input', summarize);
     document.querySelectorAll('input[name="schedMode"]').forEach((r) => r.addEventListener('change', onModeChange));
     onModeChange();
-    // Se refresca mientras se ve la pestaña Energía (la lectura «en vivo» consulta al coche: no más de cada 30 s)
+    // Refreshed while the Energía tab is visible (the «live» read queries the car: no more than every 30 s)
     setInterval(() => {
       const visible = $('tabCharges')?.classList.contains('active');
       if (visible && Date.now() - lastLoad > REFRESH_MS) load(true);

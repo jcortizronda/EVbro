@@ -1,22 +1,22 @@
-"""De dónde salen los certificados mutual-TLS del MQTT del coche y dónde acaban.
+"""Where the mutual-TLS certificates for the car's MQTT come from and where they end up.
 
-El broker EMQX del coche exige mutual-TLS: sin los tres certificados no hay conexión, y por
-eso el aprovisionamiento corre ANTES de conectar — si falla, `services/car_events.py` queda en
-el estado «sin certificados» y no intenta conectar.
+The car's EMQX broker requires mutual-TLS: without the three certificates there is no connection,
+which is why provisioning runs BEFORE connecting — if it fails, `services/car_events.py` stays in
+the "no certificates" state and does not try to connect.
 
-Tres fuentes, en orden:
+Three sources, in order:
 
-1. **ya están** en la carpeta por vehículo → no se toca nada;
-2. **carpeta indicada por el usuario** (`certs_src`), para quien los extrajo a mano de la app;
-3. **bundle empaquetado** por región (ver `cert_bundle.py`): los certificados de cliente EMQX
-   son constantes universales por región, no datos por cuenta.
+1. **already present** in the per-vehicle folder → nothing is touched;
+2. **folder given by the user** (`certs_src`), for whoever extracted them from the app by hand;
+3. **bundle** per region (see `cert_bundle.py`): the EMQX client certificates
+   are universal per-region constants, not per-account data.
 
-Vivía dentro del coordinator, que no tiene por qué saber de rutas, permisos ni formatos de
-certificado. Aquí, además, la operación es una función de sus argumentos: se puede probar
-sobre un `tmp_path` sin construir ningún servicio.
+It used to live inside the coordinator, which has no business knowing about paths, permissions
+or certificate formats. Here, besides, the operation is a function of its arguments: it can be
+tested on a `tmp_path` without building any service.
 
-Todo lo de este módulo es **bloqueante** (toca el sistema de archivos): el llamador lo ejecuta
-en un executor, nunca en el bucle de eventos.
+Everything in this module is **blocking** (it touches the file system): the caller runs it
+in an executor, never on the event loop.
 """
 from __future__ import annotations
 
@@ -29,21 +29,21 @@ from .constants import CERT_DIR_MODE, CERT_FILE_MODE, CERT_FILES
 
 _LOGGER = logging.getLogger(__name__)
 
-# Certificados mínimos para el mutual-TLS MQTT. El `.cer` del servidor está en `CERT_FILES`
-# porque se copia si el usuario lo trae, pero `tls_set` no lo necesita: por eso el listado de
-# lo IMPRESCINDIBLE es más corto que el de lo que se importa.
+# Minimum certificates for MQTT mutual-TLS. The server `.cer` is in `CERT_FILES`
+# because it is copied if the user provides it, but `tls_set` does not need it: that is why the
+# list of what is ESSENTIAL is shorter than the list of what gets imported.
 REQUIRED_CERTS = ("ca.pem", "client.pem", "client.key")
 
 
 @dataclass(frozen=True)
 class CertResult:
-    """Resultado del aprovisionamiento: si hay certificados utilizables y por qué."""
+    """Provisioning result: whether usable certificates exist and why."""
 
     ok: bool
     detail: str
 
     def __iter__(self):
-        """Desempaquetable como `(ok, detail)`, que es como lo consume el setup."""
+        """Unpackable as `(ok, detail)`, which is how the setup consumes it."""
         return iter((self.ok, self.detail))
 
 
@@ -52,20 +52,20 @@ def _has_required(certs_dir: str) -> bool:
 
 
 def _import_from_dir(certs_dir: str, source: str) -> list[str]:
-    """Copia a `certs_dir` los certificados que encuentre en `source`. Devuelve los copiados."""
+    """Copy into `certs_dir` the certificates found in `source`. Return the copied ones."""
     copied: list[str] = []
     for name in CERT_FILES:
         src = os.path.join(source, name)
         if os.path.isfile(src):
             dest = os.path.join(certs_dir, name)
             shutil.copy2(src, dest)
-            os.chmod(dest, CERT_FILE_MODE)   # son credenciales: solo su propietario
+            os.chmod(dest, CERT_FILE_MODE)   # they are credentials: owner only
             copied.append(name)
     return copied
 
 
 def _write_bundle(certs_dir: str, certs: dict[str, bytes]) -> str | None:
-    """Vuelca el bundle desofuscado. Devuelve el detalle del error, o `None` si fue bien."""
+    """Write out the deobfuscated bundle. Return the error detail, or `None` on success."""
     try:
         for name, data in certs.items():
             path = os.path.join(certs_dir, name)
@@ -78,23 +78,23 @@ def _write_bundle(certs_dir: str, certs: dict[str, bytes]) -> str | None:
 
 
 def provision(certs_dir: str, car_host: str, certs_src: str = "") -> CertResult:
-    """Garantiza los certificados mutual-TLS en `certs_dir`. Bloqueante: ejecutar en executor.
+    """Ensure the mutual-TLS certificates are in `certs_dir`. Blocking: run in an executor.
 
-    El aprovisionamiento desde cero no es automatizable: los certificados nacen del registro de
-    dispositivo de la app oficial, que no se puede reproducir aquí. De ahí las tres fuentes.
+    Provisioning from scratch cannot be automated: the certificates come from the official app's
+    device registration, which cannot be reproduced here. Hence the three sources.
     """
     os.makedirs(certs_dir, mode=CERT_DIR_MODE, exist_ok=True)
 
     if _has_required(certs_dir):
         return CertResult(True, "certificados presentes")
 
-    # 1) override manual: carpeta indicada por el usuario en `certs_src`
+    # 1) manual override: folder given by the user in `certs_src`
     if certs_src and os.path.isdir(certs_src):
         copied = _import_from_dir(certs_dir, certs_src)
         if _has_required(certs_dir):
             return CertResult(True, f"certificados importados de {certs_src}: {', '.join(copied)}")
 
-    # 2) bundle empaquetado por región
+    # 2) per-region bundle
     try:
         from .cert_bundle import decrypt_region
 
@@ -117,7 +117,7 @@ def provision(certs_dir: str, car_host: str, certs_src: str = "") -> CertResult:
 
 
 def tls_paths(certs_dir: str) -> dict[str, str]:
-    """Los tres ficheros que `paho.tls_set` necesita, ya resueltos a rutas absolutas."""
+    """The three files `paho.tls_set` needs, already resolved to absolute paths."""
     return {
         "ca_certs": os.path.join(certs_dir, "ca.pem"),
         "certfile": os.path.join(certs_dir, "client.pem"),

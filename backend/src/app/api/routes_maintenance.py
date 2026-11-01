@@ -1,4 +1,4 @@
-"""Rutas de gestión y seguimiento de mantenimiento vehicular."""
+"""Routes to manage and track vehicle maintenance."""
 from __future__ import annotations
 
 import datetime
@@ -24,7 +24,7 @@ MAX_FILE_SIZE = 15 * 1024 * 1024  # 15 MB
 
 class MaintenanceCreate(BaseModel):
     name: str
-    category: str = "General"  # Motor, Neumáticos, Frenos, Filtros, ITV...
+    category: str = "General"  # engine, tyres, brakes, filters, ITV...
     interval_km: Optional[float] = 15000.0
     interval_months: Optional[int] = 12
     last_service_odometer: Optional[float] = None
@@ -53,7 +53,7 @@ class CompleteServiceRequest(BaseModel):
 
 
 def calculate_item_health(item: MaintenanceItem, current_odo: float, now: datetime.datetime) -> Dict[str, Any]:
-    """Calcula el estado de salud, kilómetros/días restantes y porcentaje de desgaste."""
+    """Computes the health status, remaining km/days and wear percentage."""
     rem_km = None
     if item.next_due_odometer is not None:
         rem_km = round(item.next_due_odometer - current_odo, 1)
@@ -62,14 +62,14 @@ def calculate_item_health(item: MaintenanceItem, current_odo: float, now: dateti
     if item.next_due_date is not None:
         rem_days = (item.next_due_date.date() - now.date()).days
 
-    # Estado: 'due' (vencido), 'warning' (próximo), 'ok' (buen estado)
+    # status: 'due' (overdue), 'warning' (coming up), 'ok' (fine)
     status = "ok"
     if (rem_km is not None and rem_km <= 0) or (rem_days is not None and rem_days <= 0):
         status = "due"
     elif (rem_km is not None and rem_km <= 1500) or (rem_days is not None and rem_days <= 30):
         status = "warning"
 
-    # Progreso de 0% a 100% de uso del intervalo
+    # progress from 0% to 100% of the interval used
     progress_pct = 0.0
     if item.interval_km and item.last_service_odometer is not None:
         km_done = max(0.0, current_odo - item.last_service_odometer)
@@ -96,7 +96,7 @@ def calculate_item_health(item: MaintenanceItem, current_odo: float, now: dateti
 
 @router.get("/vehicles/{vin}/maintenance")
 async def list_vehicle_maintenance(vin: str, session: AsyncSession = Depends(get_db)):
-    """Lista las tareas PROPIAS (plan personalizado) con su estado. Ya no se crean tareas solas: ver `/maintenance/plan`."""
+    """Lists the user's OWN tasks (custom plan) with their status. Tasks are no longer created automatically: see `/maintenance/plan`."""
     v_stmt = select(Vehicle).where(Vehicle.vin == vin)
     vehicle = (await session.execute(v_stmt)).scalar_one_or_none()
     current_odo = vehicle.odometer if vehicle and vehicle.odometer else 0.0
@@ -116,7 +116,7 @@ async def list_vehicle_maintenance(vin: str, session: AsyncSession = Depends(get
 async def create_maintenance_item(
     vin: str, req: MaintenanceCreate, session: AsyncSession = Depends(get_db)
 ):
-    """Crea una nueva tarea o componente de mantenimiento."""
+    """Creates a new maintenance task or component."""
     v_stmt = select(Vehicle).where(Vehicle.vin == vin)
     vehicle = (await session.execute(v_stmt)).scalar_one_or_none()
     current_odo = vehicle.odometer if vehicle and vehicle.odometer else 0.0
@@ -150,7 +150,7 @@ async def create_maintenance_item(
 async def update_maintenance_item(
     item_id: int, req: MaintenanceUpdate, session: AsyncSession = Depends(get_db)
 ):
-    """Actualiza la configuración de un elemento de mantenimiento."""
+    """Updates the settings of a maintenance item."""
     item = await session.get(MaintenanceItem, item_id)
     if not item:
         raise HTTPException(status_code=404, detail="Elemento de mantenimiento no encontrado.")
@@ -159,7 +159,7 @@ async def update_maintenance_item(
     for field, val in data.items():
         setattr(item, field, val)
 
-    # Si cambia el intervalo, el próximo vencimiento se recalcula desde el último servicio (salvo que se envíe a mano)
+    # if the interval changes, the next due point is recomputed from the last service (unless it is sent by hand)
     if ("interval_km" in data or "interval_months" in data) and not {"next_due_odometer", "next_due_date"} & data.keys():
         item.next_due_odometer = (
             item.last_service_odometer + item.interval_km
@@ -184,7 +184,7 @@ async def update_maintenance_item(
 async def complete_maintenance_service(
     item_id: int, req: CompleteServiceRequest, session: AsyncSession = Depends(get_db)
 ):
-    """Registra una revisión o intervención realizada, actualizando el próximo vencimiento."""
+    """Records a service or intervention that was done, updating the next due point."""
     item = await session.get(MaintenanceItem, item_id)
     if not item:
         raise HTTPException(status_code=404, detail="Elemento de mantenimiento no encontrado.")
@@ -196,7 +196,7 @@ async def complete_maintenance_service(
     service_odo = req.odometer if req.odometer is not None else current_odo
     service_dt = req.service_date if req.service_date is not None else datetime.datetime.utcnow()
 
-    # 1. Registrar en el historial de revisiones (Log)
+    # 1. record it in the service history (log)
     log = MaintenanceLog(
         item_id=item.id,
         service_date=service_dt,
@@ -208,7 +208,7 @@ async def complete_maintenance_service(
     session.add(log)
     await record_parts(session, item.vin, log, req.parts, req.update_parts)
 
-    # 2. Resetear ciclo de mantenimiento
+    # 2. reset the maintenance cycle
     item.last_service_date = service_dt
     item.last_service_odometer = service_odo
 
@@ -227,7 +227,7 @@ async def complete_maintenance_service(
 
 @router.delete("/maintenance/{item_id}")
 async def delete_maintenance_item(item_id: int, session: AsyncSession = Depends(get_db)):
-    """Elimina un elemento de mantenimiento programado."""
+    """Deletes a scheduled maintenance item."""
     item = await session.get(MaintenanceItem, item_id)
     if not item:
         raise HTTPException(status_code=404, detail="Elemento no encontrado.")
@@ -244,7 +244,7 @@ async def delete_maintenance_item(item_id: int, session: AsyncSession = Depends(
 
 @router.get("/vehicles/{vin}/maintenance/logs")
 async def list_maintenance_logs(vin: str, session: AsyncSession = Depends(get_db)):
-    """Historial completo de revisiones e intervenciones registradas con facturas adjuntas."""
+    """Full history of recorded services and interventions with attached invoices."""
     stmt = (
         select(MaintenanceLog, MaintenanceItem.name, MaintenanceItem.category, MaintenanceItem.origin)
         .join(MaintenanceItem, MaintenanceLog.item_id == MaintenanceItem.id)
@@ -280,7 +280,7 @@ async def list_maintenance_logs(vin: str, session: AsyncSession = Depends(get_db
 
 
 # ============================================================================
-# GESTIÓN Y ADJUNCIÓN DE FACTURAS Y DOCUMENTOS DE MANTENIMIENTO
+# MAINTENANCE INVOICES AND DOCUMENTS: UPLOAD AND MANAGEMENT
 # ============================================================================
 
 async def _vin_of_log(session: AsyncSession, log: MaintenanceLog) -> Optional[str]:

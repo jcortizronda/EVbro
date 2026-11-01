@@ -1,1 +1,1 @@
-"""Tests del núcleo de protocolo (`custom_components/ebro/core/`)."""
+"""Tests for the protocol core (`custom_components/ebro/core/`)."""

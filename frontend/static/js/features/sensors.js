@@ -1,5 +1,5 @@
 /* EVBro — Modal «Todos los sensores y cables».
- * (Script clásico: comparte el ámbito global con los demás ficheros; ver el orden de carga en templates/index.html.)
+ * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
 function openAllSensorsModal() {
@@ -39,7 +39,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
   const seatsVent = data.seat_ventilation || {};
 
   const items = [
-    // 1. Cables y Carga
+    // 1. Cables and charging
     {
       category: 'charging',
       catName: 'Cables & Carga',
@@ -131,7 +131,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       details: 'Alerta del BMS cuando el nivel de tracción es crítico'
     },
 
-    // 2. Batería y Rangos PHEV
+    // 2. Battery and PHEV ranges
     {
       category: 'battery',
       catName: 'Batería & Rangos',
@@ -233,7 +233,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       details: 'Eficiencia eléctrica en los últimos 50 km'
     },
 
-    // 3. Neumáticos TPMS
+    // 3. TPMS tyres
     {
       category: 'tpms',
       catName: 'Neumáticos (TPMS)',
@@ -275,7 +275,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       details: t('Presión: {p0} kPa | Alerta: {p1}', {p0: tpmsKpa.rr || '--', p1: tpmsWarn.rr ? 'ALERTA TPMS' : 'Correcto'})
     },
 
-    // 4. Carrocería & Cierres
+    // 4. Body & locks
     {
       category: 'body',
       catName: 'Carrocería & Cierres',
@@ -417,7 +417,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       details: 'Persiana / parasol eléctrico del techo'
     },
 
-    // 5. Climatización & Confort
+    // 5. Climate & comfort
     {
       category: 'climate',
       catName: 'Climatización & Confort',
@@ -529,7 +529,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       details: 'Ventiladores de aire en tapicería'
     },
 
-    // 6. Motor Térmico & Diagnósticos
+    // 6. Combustion engine & diagnostics
     {
       category: 'engine',
       catName: 'Motor & Diagnóstico',
@@ -592,14 +592,14 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
     }
   ];
 
-  // Filtrado
+  // Filtering
   const filtered = items.filter(item => {
     if (filterCategory !== 'all' && item.category !== filterCategory) return false;
     if (filterQuery) {
       const matchName = item.name.toLowerCase().includes(filterQuery);
       const matchKey = item.key.toLowerCase().includes(filterQuery);
       const matchVal = String(item.value).toLowerCase().includes(filterQuery);
-      const matchEntity = false;   // antes buscaba por el nombre de la entidad de Home Assistant: ya no se muestra
+      const matchEntity = false;   // it used to search by the Home Assistant entity name: no longer shown
       const matchCat = item.catName.toLowerCase().includes(filterQuery);
       return matchName || matchKey || matchVal || matchEntity || matchCat;
     }
@@ -620,7 +620,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
     return;
   }
 
-  // Agrupado por categoría para presentación limpia
+  // Grouped by category for a clean layout
   const grouped = {};
   filtered.forEach(it => {
     if (!grouped[it.catName]) grouped[it.catName] = [];

@@ -1,5 +1,5 @@
-/* EVBro — Viajes: filtros, resumen, edición y ruta.
- * (Script clásico: comparte el ámbito global con los demás ficheros; ver el orden de carga en templates/index.html.)
+/* EVBro — Trips (Viajes): filters, summary, editing and route.
+ * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
 async function loadGeofencesForFilter() {
@@ -186,7 +186,7 @@ function renderIncompleteDrives(incomplete) {
   });
 }
 
-// Modal Editar Viaje
+// Edit trip modal
 function openEditDriveModal(driveId) {
   const d = cachedDrives[driveId];
   if (!d) return;
@@ -259,7 +259,7 @@ async function deleteDrive(driveId) {
   }
 }
 
-// Modal Ver Trazado del Viaje
+// Trip route modal
 async function openRouteModal(driveId) {
   const modal = document.getElementById('routeMapModal');
   modal.classList.add('open');
@@ -320,7 +320,7 @@ async function openRouteModal(driveId) {
     }
     setupRouteReplay(points);
   } catch (e) {
-    console.error("Error cargando ruta:", e);
+    console.error("Error loading the route:", e);
   }
 }
 
@@ -329,7 +329,7 @@ function closeRouteModal() {
   document.getElementById('routeMapModal').classList.remove('open');
 }
 
-// ───────────────────────── Reproducción del viaje ─────────────────────────
+// ───────────────────────── Trip replay ─────────────────────────
 let routeReplay = { points: [], index: 0, timer: null, marker: null };
 
 function setupRouteReplay(points) {
@@ -379,7 +379,7 @@ function stopRouteReplay() {
   if (btn) btn.textContent = 'Reproducir';
 }
 
-// ───────────────────────── Lugares frecuentes ─────────────────────────
+// ───────────────────────── Frequent places ─────────────────────────
 async function loadPlaces() {
   const card = document.getElementById('placesCard');
   if (!card || !currentVin) return;

@@ -55,7 +55,7 @@ async def test_migracion_cifra_los_datos_en_claro_de_una_instalacion_anterior(db
             "VALUES ('600', 'vieja-pass', '1111', :tok, '34', 1)"),
             {"tok": json.dumps({"access_token": "VIEJO"})})
 
-    # Antes de migrar, el ORM ya lee los datos heredados (texto plano)
+    # Before migrating, the ORM already reads the legacy (plain-text) data
     async with async_session_factory() as s:
         cuenta = (await s.execute(text("SELECT id FROM ebro_accounts"))).first()
         c = await s.get(EbroAccount, cuenta[0])
@@ -64,7 +64,7 @@ async def test_migracion_cifra_los_datos_en_claro_de_una_instalacion_anterior(db
     async with db.begin() as conn:
         assert await encrypt_legacy_secrets(conn) == 3
     async with db.begin() as conn:
-        assert await encrypt_legacy_secrets(conn) == 0        # idempotente
+        assert await encrypt_legacy_secrets(conn) == 0        # idempotent
 
     (fila,) = await _raw(db, "SELECT password, pin, token_data FROM ebro_accounts")
     assert all(crypto.is_encrypted(v) for v in fila.values())
@@ -83,7 +83,7 @@ async def test_con_la_clave_equivocada_no_se_rompe_la_consulta(db, data_dir) -> 
     async with async_session_factory() as s:
         cuenta = (await s.execute(text("SELECT id FROM ebro_accounts"))).first()
         c = await s.get(EbroAccount, cuenta[0])
-        assert c.pin is None and c.password is None            # sin valor, pero sin excepción
+        assert c.pin is None and c.password is None            # no value, but no exception either
 
 
 def test_todas_las_columnas_secretas_estan_registradas() -> None:

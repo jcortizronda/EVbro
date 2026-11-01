@@ -1,15 +1,15 @@
-"""Acceso a EVBro: sesiones por cookie, comprobación de origen y dependencias de FastAPI.
+"""Access to EVBro: cookie sessions, origin check and FastAPI dependencies.
 
-Modelo:
-  * Un usuario propio de EVBro (tabla `app_users`), distinto de la cuenta Ebro/Chery.
-  * Al entrar se crea una sesión en `auth_sessions` y el navegador recibe una cookie
-    `HttpOnly` con un token aleatorio. En la BD solo se guarda su SHA-256: un volcado de la BD
-    no sirve para suplantar sesiones.
-  * La sesión dura `SESSION_DAYS` y se renueva con el uso.
-  * Toda ruta de `/api` exige sesión salvo las de `/api/auth/*` (y el WebSocket, que se
-    autentica él mismo). `tests/test_api_auth.py` falla si aparece una ruta nueva sin proteger.
-  * Anti-CSRF: la cookie es `SameSite=Lax` y además las peticiones que modifican datos se
-    rechazan si su `Origin` no es el propio servidor.
+Model:
+  * An EVBro user of its own (table `app_users`), distinct from the Ebro/Chery account.
+  * Logging in creates a session in `auth_sessions` and the browser gets an `HttpOnly`
+    cookie with a random token. The DB only stores its SHA-256: a dump of the DB
+    cannot be used to impersonate sessions.
+  * A session lasts `SESSION_DAYS` and is renewed with use.
+  * Every `/api` route requires a session except `/api/auth/*` (and the WebSocket, which
+    authenticates itself). `tests/test_api_auth.py` fails if a new unprotected route appears.
+  * Anti-CSRF: the cookie is `SameSite=Lax` and, on top of that, requests that modify data are
+    rejected if their `Origin` is not this server.
 """
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ _LOGGER = logging.getLogger("app.security.auth")
 
 COOKIE_NAME = "evbro_session"                    # the app (managers and members)
 ADMIN_COOKIE_NAME = "evbro_admin_session"         # the admin console (a different port, a different cookie)
-# Cada cuánto se escribe `last_seen`/`expires_at` en la BD (no en cada petición).
+# How often `last_seen`/`expires_at` are written to the DB (not on every request).
 _REFRESH_EVERY = datetime.timedelta(minutes=5)
 _UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 
@@ -55,13 +55,13 @@ def client_ip(conn) -> str:
     return conn.client.host if conn.client else "desconocida"
 
 
-# ───────────────────────── código de primer arranque ─────────────────────────
+# ───────────────────────── first-start setup code ─────────────────────────
 def get_setup_code() -> str:
-    """Código que hay que escribir para crear el primer usuario.
+    """Code that has to be typed to create the first user.
 
-    Sin él, quien llegara primero a una instalación nueva expuesta a internet se quedaría con el
-    control del coche. Si no se define SETUP_CODE se genera uno aleatorio por arranque y solo se
-    imprime en el log del servidor."""
+    Without it, whoever reached a new internet-exposed install first would take control of the
+    car. If SETUP_CODE is not set, a random one is generated on every start and only printed in
+    the server log."""
     global _setup_code
     if _setup_code is None:
         _setup_code = (settings.SETUP_CODE or "").strip() or secrets.token_urlsafe(9)
@@ -88,18 +88,18 @@ async def announce_setup_if_needed() -> None:
             return
     where = f"la consola de administración (puerto {settings.ADMIN_PORT})" if settings.ADMIN_PORT else "la consola de administración (ADMIN_PORT está desactivado)"
     if (settings.SETUP_CODE or "").strip():
-        _LOGGER.warning("Aún no hay administrador. Abre %s y créalo con el SETUP_CODE configurado.", where)
+        _LOGGER.warning("No administrator yet. Open %s and create it with the configured SETUP_CODE.", where)
     else:
-        _LOGGER.warning("Aún no hay administrador. Abre %s y créalo con este código de configuración: %s", where, get_setup_code())
+        _LOGGER.warning("No administrator yet. Open %s and create it with this setup code (código de configuración): %s", where, get_setup_code())
 
 
-# ───────────────────────── origen (anti-CSRF) ─────────────────────────
+# ───────────────────────── origin (anti-CSRF) ─────────────────────────
 def origin_allowed(request) -> bool:
-    """¿Esta petición viene de nuestra propia web?
+    """Does this request come from our own web app?
 
-    Se compara el host del `Origin` con el de la petición (no el esquema: tras un proxy TLS el
-    esquema que ve el servidor puede ser http). Sin `Origin` (curl, apps nativas) se acepta salvo
-    que el navegador declare que es de otro sitio (`Sec-Fetch-Site`)."""
+    The host of `Origin` is compared with the request's (not the scheme: behind a TLS proxy the
+    scheme the server sees may be http). Without `Origin` (curl, native apps) it is accepted unless
+    the browser states that it comes from another site (`Sec-Fetch-Site`)."""
     origin = request.headers.get("origin")
     if origin is None:
         return request.headers.get("sec-fetch-site") in (None, "same-origin", "none")
@@ -144,11 +144,11 @@ def set_language_cookie(response: Response, request: Request, language: str) -> 
     response.set_cookie(i18n.COOKIE_NAME, i18n.normalize(language), max_age=i18n.COOKIE_MAX_AGE, samesite="lax", secure=secure, path="/")
 
 
-# ───────────────────────── sesiones ─────────────────────────
+# ───────────────────────── sessions ─────────────────────────
 async def create_session(db: AsyncSession, user: AppUser, request) -> str:
-    """Crea una sesión y devuelve el token (lo único que verá el navegador)."""
+    """Creates a session and returns the token (the only thing the browser will see)."""
     now = _utcnow()
-    await db.execute(delete(AuthSession).where(AuthSession.expires_at < now))   # limpieza oportunista
+    await db.execute(delete(AuthSession).where(AuthSession.expires_at < now))   # opportunistic cleanup
     token = secrets.token_urlsafe(32)
     db.add(AuthSession(
         user_id=user.id, token_hash=hash_token(token), created_at=now, last_seen=now,
@@ -172,7 +172,7 @@ async def account_usable(db: AsyncSession, user: AppUser, now: datetime.datetime
 
 
 async def get_session_user(db: AsyncSession, token: str | None, admin: bool = False) -> AppUser | None:
-    """Usuario de la sesión, o None si no existe/caducó. Renueva la sesión con el uso.
+    """User of the session, or None if it does not exist/has expired. Renews the session with use.
 
     `admin` says which door asks: the app only accepts non-admin accounts and the admin console only admin accounts, so a session
     from one door is worthless at the other."""
@@ -216,7 +216,7 @@ async def revoke_user_sessions(db: AsyncSession, user_id: int, keep_token: str |
     await db.commit()
 
 
-# ───────────────────────── dependencias ─────────────────────────
+# ───────────────────────── dependencies ─────────────────────────
 async def require_auth(request: Request, db: AsyncSession = Depends(get_db)) -> AppUser:
     user = await get_session_user(db, request.cookies.get(COOKIE_NAME))
     if user is None:
@@ -243,10 +243,10 @@ async def websocket_user(websocket: WebSocket) -> AppUser | None:
 
 
 async def authenticate_websocket(websocket: WebSocket) -> bool:
-    """Comprueba origen y sesión de un WebSocket ANTES de aceptarlo.
+    """Checks the origin and session of a WebSocket BEFORE accepting it.
 
-    Los navegadores adjuntan la cookie también a los WebSocket de otros sitios, así que sin la
-    comprobación de origen cualquier web abierta en el navegador podría escuchar la telemetría."""
+    Browsers also attach the cookie to WebSockets opened by other sites, so without the origin
+    check any page open in the browser could listen to the telemetry."""
     if not origin_allowed(websocket):
         return False
     async with async_session_factory() as db:

@@ -1,4 +1,4 @@
-"""Motor de cálculo de costes de recarga eléctrica (Tarifa Fija, 2.0TD Valle/Llano/Punta y PVPC en tiempo real)."""
+"""Charging cost engine (fixed tariff, 2.0TD off-peak/mid/peak and real-time PVPC)."""
 from __future__ import annotations
 
 import datetime
@@ -9,20 +9,20 @@ import aiohttp
 
 _LOGGER = logging.getLogger(__name__)
 
-# Caché en memoria para precios horarios del PVPC: {"YYYY-MM-DD_zone": {hour: price_eur_kwh}}
+# In-memory cache of PVPC hourly prices: {"YYYY-MM-DD_zone": {hour: price_eur_kwh}}
 _PVPC_CACHE: Dict[str, Dict[int, float]] = {}
 
 
 def get_time_of_use_period(dt: datetime.datetime) -> Tuple[str, str]:
     """
-    Determina el periodo tarifario según la regulación oficial 2.0TD de España:
-    - Fines de semana y festivos: 24h Valle (P3).
-    - Días laborables:
-        * Valle (P3): 00:00 a 08:00
-        * Llano (P2): 08:00 a 10:00, 14:00 a 18:00 y 22:00 a 24:00
-        * Punta (P1): 10:00 a 14:00 y 18:00 a 22:00
+    The tariff period under Spain's official 2.0TD regulation:
+    - Weekends and holidays: 24 h off-peak (Valle, P3).
+    - Working days:
+        * Valle (P3): 00:00 to 08:00
+        * Llano (P2): 08:00 to 10:00, 14:00 to 18:00 and 22:00 to 24:00
+        * Punta (P1): 10:00 to 14:00 and 18:00 to 22:00
     """
-    # 5: Sábado, 6: Domingo
+    # 5: Saturday, 6: Sunday
     if dt.weekday() >= 5:
         return "valle", "Valle (Fin de semana 24h)"
 
@@ -36,7 +36,7 @@ def get_time_of_use_period(dt: datetime.datetime) -> Tuple[str, str]:
 
 
 def get_time_of_use_price(geofence: Any, dt: datetime.datetime) -> Tuple[float, str]:
-    """Devuelve el precio aplicable y la etiqueta según la tarifa con discriminación horaria."""
+    """The price that applies and its label under the time-of-use tariff."""
     period, label = get_time_of_use_period(dt)
 
     if period == "valle":
@@ -56,8 +56,8 @@ async def get_pvpc_hourly_price(
     fallback: float = 0.15,
 ) -> Tuple[float, str]:
     """
-    Obtiene el precio del kWh del mercado regulado PVPC para una hora específica.
-    Consulta la API pública del operador del sistema y almacena en caché para las 24 horas del día.
+    The regulated-market (PVPC) price per kWh for one specific hour.
+    Queries the system operator's public API and caches the 24 hours of the day.
     """
     date_key = dt.strftime("%Y-%m-%d")
     cache_key = f"{date_key}_{zone}"
@@ -67,7 +67,7 @@ async def get_pvpc_hourly_price(
         total_price = round(base_price + margin, 4)
         return total_price, f"PVPC REE ({total_price:.4f} €/kWh)"
 
-    # Zona PCB: Península, CYM: Ceuta y Melilla, BALEARES, CANARIAS
+    # Zone PCB: mainland, CYM: Ceuta and Melilla, BALEARES, CANARIAS
     zone_code = "PCB"
     if "canaria" in zone.lower():
         zone_code = "CYM"
@@ -83,12 +83,12 @@ async def get_pvpc_hourly_price(
                     data = await resp.json()
                     day_dict = {}
                     for hour_str, item in data.items():
-                        # hour_str suele ser "00-01", "01-02", etc.
+                        # hour_str is usually "00-01", "01-02", etc.
                         try:
                             h = int(hour_str.split("-")[0])
-                            # El precio suele venir en €/MWh o en €/kWh según la API
+                            # the price comes in €/MWh or €/kWh depending on the API
                             raw_p = item.get("price", 0.0)
-                            # Si es mayor que 1.0 suele ser €/MWh (ej. 85.50 €/MWh -> 0.0855 €/kWh)
+                            # above 2.0 it is €/MWh (e.g. 85.50 €/MWh -> 0.0855 €/kWh)
                             p_kwh = (raw_p / 1000.0) if raw_p > 2.0 else raw_p
                             day_dict[h] = p_kwh
                         except Exception:
@@ -100,9 +100,9 @@ async def get_pvpc_hourly_price(
                             p = round(day_dict[dt.hour] + margin, 4)
                             return p, f"PVPC REE Oficial ({p:.4f} €/kWh)"
     except Exception as e:
-        _LOGGER.debug(f"Aviso consultando PVPC en tiempo real para {date_key}: {e}")
+        _LOGGER.debug(f"Real-time PVPC lookup failed for {date_key}: {e}")
 
-    # Si la API no responde (sin conexión exterior o error), usar fallback seguro
+    # the API did not answer (no outside connection or an error): use the safe fallback
     fb = round(fallback + margin, 4)
     return fb, f"PVPC Estimado / Respaldo ({fb:.4f} €/kWh)"
 
@@ -114,8 +114,8 @@ async def calculate_charging_session_cost(
     kwh_added: float,
 ) -> Dict[str, Any]:
     """
-    Calcula el coste total de una sesión de recarga según la configuración de la geocerca.
-    Soporta: Fija, Gratuita, Discriminación Horaria 2.0TD y PVPC dinámico.
+    The total cost of a charging session from the geofence's settings.
+    Supports: fixed, free, 2.0TD time-of-use and dynamic PVPC.
     """
     if not geofence or kwh_added <= 0.0:
         return {
@@ -127,7 +127,7 @@ async def calculate_charging_session_cost(
 
     mode = (getattr(geofence, "cost_mode", "fixed") or "fixed").lower()
 
-    # 1. Carga Gratuita
+    # 1. free charge
     if mode == "free":
         return {
             "total_cost": 0.0,
@@ -136,7 +136,7 @@ async def calculate_charging_session_cost(
             "details": "Recarga Gratuita",
         }
 
-    # 2. Coste Fijo
+    # 2. fixed cost
     if mode == "fixed":
         fixed_p = getattr(geofence, "cost_per_kwh", 0.15) or 0.15
         total = round(kwh_added * fixed_p, 2)
@@ -147,16 +147,16 @@ async def calculate_charging_session_cost(
             "details": f"Tarifa Fija ({fixed_p:.3f} €/kWh)",
         }
 
-    # 3. Discriminación horaria o PVPC (distribuido a lo largo del tiempo de la carga)
+    # 3. time-of-use or PVPC (spread over the duration of the charge)
     finish_time = end_time or datetime.datetime.utcnow()
     total_seconds = max(60, int((finish_time - start_time).total_seconds()))
 
-    # Desglosar la sesión hora a hora para precisión exacta
+    # split the session hour by hour for an exact figure
     curr = start_time
     total_cost_accum = 0.0
 
     while curr < finish_time:
-        # Fin de la hora actual
+        # end of the current hour
         next_hour = (curr.replace(minute=0, second=0, microsecond=0) + datetime.timedelta(hours=1))
         segment_end = min(finish_time, next_hour)
         segment_seconds = max(1, int((segment_end - curr).total_seconds()))

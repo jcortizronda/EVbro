@@ -1,8 +1,8 @@
-/* EVBro — Pintado de la telemetría (portada, estado del coche, neumáticos).
- * (Script clásico: comparte el ámbito global con los demás ficheros; ver el orden de carga en templates/index.html.)
+/* EVBro — Telemetry rendering (home tab, car status, tyres).
+ * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
-// Aplicar telemetría a la interfaz
+// Apply telemetry to the interface
 function applyTelemetry(data) {
   if (!data) return;
   latestTelemetryData = data;
@@ -11,7 +11,7 @@ function applyTelemetry(data) {
   }
   updateVehicleHeaderInfo();
 
-  // 1. Batería circular gauge
+  // 1. Circular battery gauge
   const pct = data.battery_level !== undefined && data.battery_level !== null ? Math.round(data.battery_level) : null;
   const pctElem = document.getElementById('batteryPct');
   const circle = document.getElementById('batteryCircleBar');
@@ -31,7 +31,7 @@ function applyTelemetry(data) {
     }
   }
 
-  // 2. Estado (badge)
+  // 2. Status (badge)
   const badge = document.getElementById('vehicleStatusBadge');
   const state = (data.state || 'parked').toLowerCase();
   badge.className = `status-badge ${state}`;
@@ -45,17 +45,17 @@ function applyTelemetry(data) {
   };
   badge.innerText = stateLabels[state] || state;
 
-  // Frescura honesta del estado
+  // Honest freshness of the status
   const freshElem = document.getElementById('freshnessText');
   if (freshElem) {
-    // El texto viene del servidor con un círculo de color delante (nivel); aquí se pinta como un punto CSS, sin emoji
+    // The text comes from the server with a coloured circle in front (level); here it is drawn as a CSS dot, no emoji
     const fresh = data.freshness_text;
     freshElem.textContent = fresh ? stripEmoji(fresh) : (data.online_status ? 'En vivo' : 'En reposo · Nube');
     const lvl = fresh ? statusLevel(fresh) : 'neutral';
     freshElem.dataset.level = lvl !== 'neutral' ? lvl : (data.online_status ? 'ok' : 'warn');
   }
 
-  // Barra de estado de cable y carga activa
+  // Cable and active charging status bar
   const chargeBar = document.getElementById('chargeActiveBar');
   const chargeKw = document.getElementById('chargePowerKw');
   const chargeCableStatus = document.getElementById('chargeCableStatus');
@@ -114,7 +114,7 @@ function applyTelemetry(data) {
     if (chargeBar) chargeBar.style.display = 'none';
   }
 
-  // 3. Rangos y Odómetros (PHEV Completo)
+  // 3. Ranges and odometers (full PHEV)
   if (data.electric_range_km !== null && data.electric_range_km !== undefined) {
     const el = document.getElementById('electricRange');
     if (el) el.innerText = `${Math.round(data.electric_range_km)}`;
@@ -144,8 +144,8 @@ function applyTelemetry(data) {
     if (el) el.innerText = `${Math.round(data.speed_kmh)} km/h`;
   }
 
-  // 4. Carrocería & Cierre
-  updateBodyItem('itemLock', data.is_locked, 'Bloqueado', 'Desbloqueado');   // null = sin datos
+  // 4. Body & locks
+  updateBodyItem('itemLock', data.is_locked, 'Bloqueado', 'Desbloqueado');   // null = no data
   updateBodyItem('itemEngine', !data.engine_state, 'Apagado', 'Encendido', data.engine_state);
   updateBodyItem('itemCable', data.cable_connected, 'Conectado', 'Desconectado');
   updateBodyItem('itemFastGun', data.fast_charging, 'CCS2 Rápida', 'Libre');
@@ -162,7 +162,7 @@ function applyTelemetry(data) {
   updateBodyItem('itemWindows', unknown(anyWindowOpen) ? null : !anyWindowOpen, 'Cerradas', 'Abierta', anyWindowOpen);
   updateBodyItem('itemSunroof', unknown(windows.sunroof) ? null : !windows.sunroof, 'Cerrado', 'Abierto', windows.sunroof);
 
-  // 5. TPMS (Presión y Temperatura de los 4 Neumáticos)
+  // 5. TPMS (pressure and temperature of the 4 tyres)
   const tpms = data.tyre_pressures || {};
   setTyre('tpmsFL', tpms.fl);
   setTyre('tpmsFR', tpms.fr);
@@ -175,12 +175,12 @@ function applyTelemetry(data) {
   setTyreTemp('tpmsTempRL', tpmsTemps.rl);
   setTyreTemp('tpmsTempRR', tpmsTemps.rr);
 
-  // 6. Mapa
+  // 6. Map
   if (data.latitude && data.longitude) {
     updateMapPosition(data.latitude, data.longitude, data.address);
   }
 
-  // 7. Sincronización UI Native Mobile App (Inicio, Energía, Clima)
+  // 7. Sync the native-style mobile UI (Inicio, Energía, Clima)
   const batteryPctPill = document.getElementById('batteryPctPill');
   const batteryTrackFill = document.getElementById('batteryTrackFill');
   const energyBatteryPct = document.getElementById('energyBatteryPct');
@@ -200,12 +200,12 @@ function applyTelemetry(data) {
     if (fuelTrackFill) fuelTrackFill.style.width = `${Math.min(100, Math.max(0, fPct))}%`;
   }
 
-  // Fichas de acceso de la portada (cierre, maletero, ventanillas, techo): home.js, con su icono según el estado
+  // Home tab access tiles (lock, boot, windows, sunroof): home.js, with their icon by state
   if (typeof renderHome === 'function') renderHome(data);
   if (typeof renderCarFigure === 'function') renderCarFigure(data);
 
-  // KPIs de Energía
-  // Tiempo restante hasta el 100 % (lo dice el coche): solo tiene sentido mientras carga
+  // Energía KPIs
+  // Time left to 100 % (reported by the car): only meaningful while charging
   const remainLine = document.getElementById('energyRemainLine');
   if (remainLine) {
     const min = Number(data.remaining_charge_time_min);
@@ -231,7 +231,7 @@ function applyTelemetry(data) {
   if (typeof renderComfort === 'function') renderComfort();
 }
 
-/** Texto de un estado abierto/cerrado; con `null`/`undefined` (el coche aún no ha informado) NO se adivina. */
+/** Text of an open/closed state; with `null`/`undefined` (the car has not reported yet) it does NOT guess. */
 /** «Consumo EV · 30 días» of the Energía tab: kWh/100 km of the last 30 days of drives (GET …/stats?period=30d, `totals.kwh_per_100km`:
  * drives of ≥ 3 km with measured energy). Fetched at most every 10 minutes per car; it is history, not live telemetry. */
 let _evKpi = { vin: null, at: 0 };
@@ -255,7 +255,7 @@ function openClosedText(value, openText, closedText) {
   return value === null || value === undefined ? 'Sin datos' : (value ? openText : closedText);
 }
 
-/** ¿Alguno abierto? `null` si ninguno de los valores es conocido. */
+/** Is any open? `null` if none of the values is known. */
 function anyOpen(values) {
   return values.every((v) => v === null || v === undefined) ? null : values.some(Boolean);
 }
@@ -295,13 +295,13 @@ function setTyreTemp(tempId, tempC) {
   }
 }
 
-// Ajuste de Climatizador y Controles Nativos
+// Climate control and native controls
 function adjustTargetTemp(delta) {
   currentTargetTemp = Math.min(30.0, Math.max(16.0, currentTargetTemp + delta));
   syncClimateUI();
 }
 
-// onClimateSliderChange, toggleClimatePower y los preajustes viven en features/comfort.js
+// onClimateSliderChange, toggleClimatePower and the presets live in features/comfort.js
 function syncClimateUI() {
   const display = document.getElementById('targetTempDisplay');
   if (display) display.innerText = `${currentTargetTemp.toFixed(1)}°C`;

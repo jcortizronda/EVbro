@@ -1,4 +1,4 @@
-"""Rutas de ejecución de comandos remotos y auditoría."""
+"""Routes to run remote commands and read the audit log."""
 from __future__ import annotations
 
 import asyncio
@@ -47,7 +47,7 @@ class CommandAuditOut(BaseModel):
 
 @router.get("/commands/catalog")
 async def get_commands_catalog(session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)):
-    """Devuelve el catálogo de todos los comandos soportados por Ebro; `requires_pin` sigue la política del gestor de la cuenta."""
+    """Returns the catalogue of every command Ebro supports; `requires_pin` follows the policy of the account's manager."""
     owner_id = space_owner_id(user)
     policy = (await session.execute(select(AppUser.pin_policy).where(AppUser.id == owner_id))).scalar_one_or_none() if owner_id else None
     policy = policy if policy in command_policy.POLICIES else command_policy.DEFAULT_POLICY
@@ -59,16 +59,16 @@ async def get_commands_catalog(session: AsyncSession = Depends(get_db), user: Ap
             "group": data.get("group"),
             "icon": data.get("icon"),
             "requires_pin": requires_pin(key, policy),
-            # Lo que se envía al coche (campos propios del comando; la API añade vin, taskId y firma)
+            # what is sent to the car (the command's own fields; the API adds vin, taskId and signature)
             "endpoint": data.get("endpoint") or data.get("path"),
             "body": data.get("body"),
         })
     return catalog
 
 
-# Estado HTTP según el `reason` estable del resultado. 401 queda reservado a «no has iniciado
-# sesión en EVBro» (la web reacciona a él enseñando el login), por eso la sesión caducada de la
-# cuenta Ebro usa 424.
+# HTTP status from the stable `reason` of the result. 401 is reserved for "you are not logged in
+# to EVBro" (the web app reacts to it by showing the login), which is why an expired Ebro account
+# session uses 424.
 _STATUS_BY_REASON = {
     "pin_required": 422,
     "params_invalid": 422,
@@ -87,10 +87,10 @@ async def execute_vehicle_command(
     request: Request,
     session: AsyncSession = Depends(get_db),
 ):
-    """Envía un comando remoto al vehículo (bloqueo, clima, luces, etc.).
+    """Sends a remote command to the vehicle (lock, climate, lights, etc.).
 
-    Los comandos que abren o desarman (`requires_pin` en el catálogo) exigen el PIN en la propia
-    petición. Ver `services/command_policy.py`."""
+    Commands that open or disarm (`requires_pin` in the catalogue) require the PIN in the request
+    itself. See `services/command_policy.py`."""
     if req.command not in CMD_MAP:
         raise HTTPException(
             status_code=400,
@@ -127,9 +127,9 @@ async def execute_vehicle_command(
 
 @router.get("/vehicles/{vin}/alarm")
 async def get_alarm_state(vin: str, session: AsyncSession = Depends(get_db)):
-    """Estado real de la alarma antirrobo (solo lectura: no ejecuta nada ni necesita PIN).
+    """Real state of the anti-theft alarm (read only: runs nothing and needs no PIN).
 
-    La alarma no viaja en la telemetría: hay que preguntársela al coche. `enabled` es `None` si no se pudo leer."""
+    The alarm is not part of the telemetry: the car has to be asked. `enabled` is `None` if it could not be read."""
     if (await session.execute(select(Vehicle.vin).where(Vehicle.vin == vin))).first() is None:
         raise HTTPException(status_code=404, detail="Vehículo no encontrado.")
     ctx = VehiclePoller.get_instance()._get_or_create_ctx(vin)
@@ -144,7 +144,7 @@ async def get_commands_history(
     limit: int = Query(50, ge=1, le=500),
     session: AsyncSession = Depends(get_db),
 ):
-    """Consulta el historial de auditoría de comandos ejecutados en el vehículo."""
+    """Reads the audit log of commands run on the vehicle."""
     stmt = (
         select(CommandAudit)
         .where(CommandAudit.vin == vin)

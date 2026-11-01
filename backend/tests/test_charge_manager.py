@@ -1,4 +1,4 @@
-"""Gestor de carga con un coche simulado: lo que se manda al coche y cómo evoluciona el estado."""
+"""Charge manager with a simulated car: what is sent to the car and how the state evolves."""
 from __future__ import annotations
 
 import datetime
@@ -17,36 +17,36 @@ from app.services.poller import VehiclePoller
 
 VIN = "LSJA0000000000001"
 UTC = datetime.timezone.utc
-T0 = datetime.datetime(2026, 1, 15, 21, 0, tzinfo=UTC)       # 22:00 en España (invierno)
+T0 = datetime.datetime(2026, 1, 15, 21, 0, tzinfo=UTC)       # 22:00 in Spain (winter)
 
 
-class Coche:
-    """Sustituye al envío real: anota las órdenes y responde lo que se le diga."""
+class FakeCar:
+    """Stands in for the real sender: records the commands and answers whatever it is told."""
     def __init__(self):
-        self.enviadas: list[tuple[str, dict, str]] = []
-        self.respuesta = {"success": True, "message": "ok", "reason": None}
-        self.car = {"enabled": False, "start": None, "end": None, "duration_min": None}   # lo que «lee» del coche
+        self.sent: list[tuple[str, dict, str]] = []
+        self.response = {"success": True, "message": "ok", "reason": None}
+        self.car = {"enabled": False, "start": None, "end": None, "duration_min": None}   # what it «reads» from the car
 
-    async def leer(self, vin):
+    async def read(self, vin):
         return self.car
 
     async def __call__(self, vin, key, params, origin):
-        self.enviadas.append((key, params, origin))
-        return dict(self.respuesta)
+        self.sent.append((key, params, origin))
+        return dict(self.response)
 
     @property
-    def planes(self):
-        return [p["chargeAppointPlans"][0] for _k, p, _o in self.enviadas]
+    def plans(self):
+        return [p["chargeAppointPlans"][0] for _k, p, _o in self.sent]
 
 
-class Reloj:
-    def __init__(self, ahora=T0): self.ahora = ahora
-    def __call__(self): return self.ahora
-    def avanzar(self, **kw): self.ahora += datetime.timedelta(**kw)
+class Clock:
+    def __init__(self, now=T0): self.now = now
+    def __call__(self): return self.now
+    def advance(self, **kw): self.now += datetime.timedelta(**kw)
 
 
 @pytest.fixture(autouse=True)
-def _entorno(monkeypatch):
+def _env(monkeypatch):
     monkeypatch.setattr(settings, "TIMEZONE", "Europe/Madrid")
     VehiclePoller._latest_snapshots = {}
     yield
@@ -54,255 +54,255 @@ def _entorno(monkeypatch):
 
 
 @pytest.fixture
-async def gestor(db, monkeypatch):
+async def manager(db, monkeypatch):
     async with async_session_factory() as s:
         s.add(Vehicle(owner_id=1, vin=VIN, name="Ebro"))
         await s.commit()
-    coche, reloj = Coche(), Reloj()
-    g = ChargeManager(sender=coche, clock=reloj, reader=coche.leer, verify_delay_s=None)
-    g.coche, g.reloj = coche, reloj
+    car, clock = FakeCar(), Clock()
+    g = ChargeManager(sender=car, clock=clock, reader=car.read, verify_delay_s=None)
+    g.fake_car, g.fake_clock = car, clock
     monkeypatch.setattr(ChargeManager, "_instance", g)
     return g
 
 
-async def fila() -> ChargePlan:
+async def plan_row() -> ChargePlan:
     async with async_session_factory() as s:
         return await s.get(ChargePlan, VIN)
 
 
-def lectura(soc, cargando=True, enchufado=True):
-    return {"battery_level": soc, "is_charging": cargando, "cable_connected": enchufado}
+def reading(soc, charging=True, plugged=True):
+    return {"battery_level": soc, "is_charging": charging, "cable_connected": plugged}
 
 
-# ───────────────────────── acciones del usuario ─────────────────────────
-async def test_parar_carga_manda_una_ventana_ya_terminada(gestor) -> None:
-    estado = await gestor.stop(VIN)
-    (key, params, origin), = gestor.coche.enviadas
+# ───────────────────────── user actions ─────────────────────────
+async def test_stop_charging_sends_an_already_finished_window(manager) -> None:
+    state = await manager.stop(VIN)
+    (key, params, origin), = manager.fake_car.sent
     plan = params["chargeAppointPlans"][0]
     assert key == "carga_prog_on" and params["mainSwitch"] == 1
     assert (plan["startTime"], plan["timeConsuming"]) == (19 * 60 + 30, 60)       # 21:00 UTC − 90 min
-    assert estado["mode"] == "hold" and estado["hold_reason"] == "user" and estado["status"] == "hold_user"
-    assert estado["schedule"]["enabled"] is False
+    assert state["mode"] == "hold" and state["hold_reason"] == "user" and state["status"] == "hold_user"
+    assert state["schedule"]["enabled"] is False
 
 
-async def test_iniciar_carga_quita_la_programacion(gestor) -> None:
-    await gestor.stop(VIN)
-    estado = await gestor.start(VIN)
-    key, params, _ = gestor.coche.enviadas[-1]
+async def test_start_charging_removes_the_schedule(manager) -> None:
+    await manager.stop(VIN)
+    state = await manager.start(VIN)
+    key, params, _ = manager.fake_car.sent[-1]
     assert key == "carga_prog_off" and params["mainSwitch"] == 0 and params["chargeAppointPlans"][0]["switchStatus"] == 0
-    assert estado["mode"] == "free" and estado["hold_reason"] is None and estado["status"] == "free"
+    assert state["mode"] == "free" and state["hold_reason"] is None and state["status"] == "free"
 
 
-async def test_programar_con_inicio_y_fin(gestor) -> None:
-    estado = await gestor.set_schedule(VIN, 22 * 60, 8 * 60)                       # 22:00 → 06:00
-    plan = gestor.coche.planes[-1]
+async def test_schedule_with_start_and_end(manager) -> None:
+    state = await manager.set_schedule(VIN, 22 * 60, 8 * 60)                       # 22:00 → 06:00
+    plan = manager.fake_car.plans[-1]
     assert plan["startTime"] == 21 * 60 and plan["timeConsuming"] == 480 and plan["switchStatus"] == 1   # 22:00 local = 21:00 UTC
-    assert estado["mode"] == "scheduled" and estado["schedule"] == {"enabled": True, "start": "22:00", "end": "06:00", "duration_min": 480}
+    assert state["mode"] == "scheduled" and state["schedule"] == {"enabled": True, "start": "22:00", "end": "06:00", "duration_min": 480}
 
 
-@pytest.mark.parametrize("duracion,razon", [(30, "duration_too_short"), (1440, "duration_too_long")])
-async def test_programar_valida_la_duracion(gestor, duracion, razon) -> None:
+@pytest.mark.parametrize("duration,reason", [(30, "duration_too_short"), (1440, "duration_too_long")])
+async def test_schedule_validates_the_duration(manager, duration, reason) -> None:
     with pytest.raises(ChargeError) as e:
-        await gestor.set_schedule(VIN, 0, duracion)
-    assert e.value.reason == razon and gestor.coche.enviadas == []
+        await manager.set_schedule(VIN, 0, duration)
+    assert e.value.reason == reason and manager.fake_car.sent == []
 
 
-async def test_quitar_la_programacion(gestor) -> None:
-    await gestor.set_schedule(VIN, 22 * 60, 480)
-    estado = await gestor.clear_schedule(VIN)
-    assert gestor.coche.enviadas[-1][0] == "carga_prog_off"
-    assert estado["mode"] == "free" and estado["schedule"]["enabled"] is False
-    assert estado["schedule"]["start"] == "22:00"                                  # se recuerda para la próxima vez
+async def test_clear_the_schedule(manager) -> None:
+    await manager.set_schedule(VIN, 22 * 60, 480)
+    state = await manager.clear_schedule(VIN)
+    assert manager.fake_car.sent[-1][0] == "carga_prog_off"
+    assert state["mode"] == "free" and state["schedule"]["enabled"] is False
+    assert state["schedule"]["start"] == "22:00"                                  # remembered for next time
 
 
-async def test_quitar_la_programacion_no_levanta_una_pausa(gestor) -> None:
-    await gestor.stop(VIN)
-    n = len(gestor.coche.enviadas)
-    estado = await gestor.clear_schedule(VIN)
-    assert estado["mode"] == "hold" and len(gestor.coche.enviadas) == n
+async def test_clearing_the_schedule_does_not_lift_a_hold(manager) -> None:
+    await manager.stop(VIN)
+    n = len(manager.fake_car.sent)
+    state = await manager.clear_schedule(VIN)
+    assert state["mode"] == "hold" and len(manager.fake_car.sent) == n
 
 
-async def test_parar_y_iniciar_devuelve_la_programacion_del_usuario(gestor) -> None:
-    await gestor.set_schedule(VIN, 22 * 60, 480)
-    estado = await gestor.stop(VIN)
-    assert estado["mode"] == "hold" and estado["schedule"]["enabled"] is True        # se guarda, no se pierde
-    estado = await gestor.start(VIN)
-    key, params, _ = gestor.coche.enviadas[-1]
+async def test_stop_and_start_restores_the_user_schedule(manager) -> None:
+    await manager.set_schedule(VIN, 22 * 60, 480)
+    state = await manager.stop(VIN)
+    assert state["mode"] == "hold" and state["schedule"]["enabled"] is True        # kept, not lost
+    state = await manager.start(VIN)
+    key, params, _ = manager.fake_car.sent[-1]
     plan = params["chargeAppointPlans"][0]
     assert key == "carga_prog_on" and (plan["startTime"], plan["timeConsuming"], plan["switchStatus"]) == (21 * 60, 480, 1)
-    assert estado["mode"] == "scheduled" and estado["schedule"]["start"] == "22:00"
+    assert state["mode"] == "scheduled" and state["schedule"]["start"] == "22:00"
 
 
-async def test_parar_guarda_la_programacion_que_tenia_el_coche_y_iniciar_la_devuelve(gestor) -> None:
-    gestor.coche.car = {"enabled": True, "start": "01:00", "end": "05:00", "duration_min": 240}   # puesta desde la app oficial
-    await gestor.stop(VIN)
-    estado = await gestor.start(VIN)
-    plan = gestor.coche.planes[-1]
+async def test_stop_keeps_the_schedule_the_car_had_and_start_restores_it(manager) -> None:
+    manager.fake_car.car = {"enabled": True, "start": "01:00", "end": "05:00", "duration_min": 240}   # set from the official app
+    await manager.stop(VIN)
+    state = await manager.start(VIN)
+    plan = manager.fake_car.plans[-1]
     assert (plan["startTime"], plan["timeConsuming"]) == (0, 240)                                   # 01:00 local = 00:00 UTC
-    assert estado["mode"] == "scheduled" and estado["schedule"] == {"enabled": True, "start": "01:00", "end": "05:00", "duration_min": 240}
+    assert state["mode"] == "scheduled" and state["schedule"] == {"enabled": True, "start": "01:00", "end": "05:00", "duration_min": 240}
 
 
-async def test_parar_y_iniciar_sin_programacion_previa_apaga_la_programacion(gestor) -> None:
-    await gestor.stop(VIN)
-    estado = await gestor.start(VIN)
-    assert gestor.coche.enviadas[-1][0] == "carga_prog_off" and estado["schedule"]["enabled"] is False
+async def test_stop_and_start_without_a_previous_schedule_turns_scheduling_off(manager) -> None:
+    await manager.stop(VIN)
+    state = await manager.start(VIN)
+    assert manager.fake_car.sent[-1][0] == "carga_prog_off" and state["schedule"]["enabled"] is False
 
 
-async def test_parar_dos_veces_no_confunde_la_ventana_de_pausa_con_una_programacion(gestor) -> None:
-    await gestor.stop(VIN)
-    gestor.coche.car = {"enabled": True, "start": "20:30", "end": "21:30", "duration_min": 60}   # la ventana de pausa
-    await gestor.stop(VIN)
-    estado = await gestor.start(VIN)
-    assert estado["mode"] == "free" and estado["schedule"]["enabled"] is False
+async def test_stopping_twice_does_not_mistake_the_hold_window_for_a_schedule(manager) -> None:
+    await manager.stop(VIN)
+    manager.fake_car.car = {"enabled": True, "start": "20:30", "end": "21:30", "duration_min": 60}   # the hold window
+    await manager.stop(VIN)
+    state = await manager.start(VIN)
+    assert state["mode"] == "free" and state["schedule"]["enabled"] is False
 
 
-async def test_quitar_una_programacion_creada_fuera_de_evbro(gestor) -> None:
-    estado = await gestor.clear_schedule(VIN)
-    assert gestor.coche.enviadas[-1][0] == "carga_prog_off" and estado["mode"] == "free"
+async def test_clear_a_schedule_created_outside_evbro(manager) -> None:
+    state = await manager.clear_schedule(VIN)
+    assert manager.fake_car.sent[-1][0] == "carga_prog_off" and state["mode"] == "free"
 
 
-# ───────────────────────── verificación de que el coche lo aplicó ─────────────────────────
-async def test_verificar_reenvia_una_vez_si_el_coche_no_aplico_el_quitar(gestor) -> None:
-    await gestor.stop(VIN)
-    await gestor.start(VIN)
-    n = len(gestor.coche.enviadas)
-    gestor.coche.car = {"enabled": True, "start": "20:30", "end": "21:30", "duration_min": 60}   # sigue con la ventana
-    assert await gestor.verify_applied(VIN) is False
-    assert len(gestor.coche.enviadas) == n + 1 and gestor.coche.enviadas[-1][0] == "carga_prog_off"
-    assert gestor.coche.enviadas[-1][2] == "automático (verificación)"
-    gestor.coche.car = {"enabled": False, "start": None, "end": None, "duration_min": None}
-    assert await gestor.verify_applied(VIN) is True and len(gestor.coche.enviadas) == n + 1
+# ───────────────────────── checking that the car applied it ─────────────────────────
+async def test_verify_resends_once_if_the_car_did_not_apply_the_clear(manager) -> None:
+    await manager.stop(VIN)
+    await manager.start(VIN)
+    n = len(manager.fake_car.sent)
+    manager.fake_car.car = {"enabled": True, "start": "20:30", "end": "21:30", "duration_min": 60}   # still has the window
+    assert await manager.verify_applied(VIN) is False
+    assert len(manager.fake_car.sent) == n + 1 and manager.fake_car.sent[-1][0] == "carga_prog_off"
+    assert manager.fake_car.sent[-1][2] == "automático (verificación)"
+    manager.fake_car.car = {"enabled": False, "start": None, "end": None, "duration_min": None}
+    assert await manager.verify_applied(VIN) is True and len(manager.fake_car.sent) == n + 1
 
 
-async def test_verificar_no_toca_nada_si_no_se_puede_leer_o_coincide(gestor) -> None:
-    await gestor.stop(VIN)
-    n = len(gestor.coche.enviadas)
-    gestor.coche.car = None
-    assert await gestor.verify_applied(VIN) is True
-    gestor.coche.car = {"enabled": True, "start": "20:30", "end": "21:30", "duration_min": 60}   # pausa aplicada: coincide
-    assert await gestor.verify_applied(VIN) is True and len(gestor.coche.enviadas) == n
+async def test_verify_touches_nothing_if_it_cannot_read_or_it_matches(manager) -> None:
+    await manager.stop(VIN)
+    n = len(manager.fake_car.sent)
+    manager.fake_car.car = None
+    assert await manager.verify_applied(VIN) is True
+    manager.fake_car.car = {"enabled": True, "start": "20:30", "end": "21:30", "duration_min": 60}   # hold applied: matches
+    assert await manager.verify_applied(VIN) is True and len(manager.fake_car.sent) == n
 
 
-async def test_estado_marca_aplicandose_mientras_el_coche_no_refleja_la_orden(gestor) -> None:
-    await gestor.stop(VIN)
-    await gestor.start(VIN)
-    gestor.coche.car = {"enabled": True, "start": "20:30", "end": "21:30", "duration_min": 60}
-    assert (await gestor.state(VIN, live=True))["car_pending"] is True
-    gestor.reloj.avanzar(minutes=5)
-    assert (await gestor.state(VIN, live=True))["car_pending"] is False        # pasado un rato ya no es «aplicándose»
+async def test_state_marks_applying_while_the_car_does_not_reflect_the_command(manager) -> None:
+    await manager.stop(VIN)
+    await manager.start(VIN)
+    manager.fake_car.car = {"enabled": True, "start": "20:30", "end": "21:30", "duration_min": 60}
+    assert (await manager.state(VIN, live=True))["car_pending"] is True
+    manager.fake_clock.advance(minutes=5)
+    assert (await manager.state(VIN, live=True))["car_pending"] is False        # after a while it is no longer «applying»
 
 
-# ───────────────────────── fallos ─────────────────────────
-async def test_si_el_coche_rechaza_el_estado_no_cambia_y_se_explica(gestor) -> None:
-    gestor.coche.respuesta = {"success": False, "message": "PIN no configurado", "reason": "pin"}
+# ───────────────────────── failures ─────────────────────────
+async def test_if_the_car_rejects_the_state_does_not_change_and_is_explained(manager) -> None:
+    manager.fake_car.response = {"success": False, "message": "PIN no configurado", "reason": "pin"}
     with pytest.raises(ChargeError) as e:
-        await gestor.stop(VIN)
+        await manager.stop(VIN)
     assert e.value.reason == "pin" and e.value.status == 422
-    row = await fila()
+    row = await plan_row()
     assert row.mode == "free" and "PIN" in row.last_error
-    assert (await gestor.state(VIN))["last_error"] == row.last_error
+    assert (await manager.state(VIN))["last_error"] == row.last_error
 
 
-async def test_sesion_ebro_caducada_es_424(gestor) -> None:
-    gestor.coche.respuesta = {"success": False, "message": "Sesión caducada", "reason": "reauth"}
+async def test_expired_ebro_session_is_424(manager) -> None:
+    manager.fake_car.response = {"success": False, "message": "Sesión caducada", "reason": "reauth"}
     with pytest.raises(ChargeError) as e:
-        await gestor.start(VIN)
+        await manager.start(VIN)
     assert e.value.status == 424 and e.value.reason == "reauth"
 
 
-# ───────────────────────── objetivo de batería ─────────────────────────
-async def test_el_objetivo_solo_admite_los_valores_del_desplegable(gestor) -> None:
+# ───────────────────────── battery target ─────────────────────────
+async def test_the_target_only_accepts_the_dropdown_values(manager) -> None:
     with pytest.raises(ChargeError) as e:
-        await gestor.set_target(VIN, 52)
+        await manager.set_target(VIN, 52)
     assert e.value.reason == "target_invalid"
-    assert (await gestor.set_target(VIN, 80))["target_pct"] == 80
+    assert (await manager.set_target(VIN, 80))["target_pct"] == 80
 
 
-async def test_sin_haber_tocado_nada_el_gestor_no_manda_nunca_nada(gestor) -> None:
-    await gestor.on_snapshot(VIN, lectura(100))
-    await gestor.tick()
-    assert gestor.coche.enviadas == [] and await fila() is None             # ni órdenes ni filas nuevas
+async def test_if_nothing_was_touched_the_manager_never_sends_anything(manager) -> None:
+    await manager.on_snapshot(VIN, reading(100))
+    await manager.tick()
+    assert manager.fake_car.sent == [] and await plan_row() is None             # no commands and no new rows
 
 
-async def test_poner_un_objetivo_solo_guarda_hasta_que_se_alcance(gestor) -> None:
-    await gestor.set_target(VIN, 80)
-    await gestor.on_snapshot(VIN, lectura(60))
-    assert gestor.coche.enviadas == []
+async def test_setting_a_target_only_stores_it_until_it_is_reached(manager) -> None:
+    await manager.set_target(VIN, 80)
+    await manager.on_snapshot(VIN, reading(60))
+    assert manager.fake_car.sent == []
 
 
-async def test_al_alcanzar_el_objetivo_cargando_se_pausa_y_se_pide_sondeo_fino(gestor) -> None:
-    await gestor.set_target(VIN, 80)
-    await gestor.on_snapshot(VIN, lectura(81))
-    assert len(gestor.coche.enviadas) == 1 and gestor.coche.enviadas[0][2] == "automático"
-    estado = await gestor.state(VIN)
-    assert estado["mode"] == "hold" and estado["hold_reason"] == "target" and estado["status"] == "hold_target"
-    assert gestor.wants_fast_poll(VIN) is True
+async def test_reaching_the_target_while_charging_holds_and_asks_for_fine_polling(manager) -> None:
+    await manager.set_target(VIN, 80)
+    await manager.on_snapshot(VIN, reading(81))
+    assert len(manager.fake_car.sent) == 1 and manager.fake_car.sent[0][2] == "automático"
+    state = await manager.state(VIN)
+    assert state["mode"] == "hold" and state["hold_reason"] == "target" and state["status"] == "hold_target"
+    assert manager.wants_fast_poll(VIN) is True
 
 
-async def test_se_libera_al_enchufar_con_hueco_y_vuelve_a_carga_libre(gestor) -> None:
-    await gestor.set_target(VIN, 80)
-    await gestor.on_snapshot(VIN, lectura(80))
-    gestor.reloj.avanzar(hours=14)
-    await gestor.on_snapshot(VIN, lectura(45, cargando=False, enchufado=True))
-    assert gestor.coche.enviadas[-1][0] == "carga_prog_off"                        # sin programación del usuario → carga ya
-    estado = await gestor.state(VIN)
-    assert estado["mode"] == "free" and gestor.wants_fast_poll(VIN) is False
+async def test_released_when_plugged_with_room_and_back_to_free_charging(manager) -> None:
+    await manager.set_target(VIN, 80)
+    await manager.on_snapshot(VIN, reading(80))
+    manager.fake_clock.advance(hours=14)
+    await manager.on_snapshot(VIN, reading(45, charging=False, plugged=True))
+    assert manager.fake_car.sent[-1][0] == "carga_prog_off"                        # no user schedule → charge now
+    state = await manager.state(VIN)
+    assert state["mode"] == "free" and manager.wants_fast_poll(VIN) is False
 
 
-async def test_se_libera_volviendo_a_la_programacion_del_usuario(gestor) -> None:
-    await gestor.set_schedule(VIN, 22 * 60, 480)
-    await gestor.set_target(VIN, 80)
-    await gestor.on_snapshot(VIN, lectura(80))
-    assert (await gestor.state(VIN))["mode"] == "hold"
-    gestor.reloj.avanzar(hours=14)
-    await gestor.on_snapshot(VIN, lectura(40, cargando=False))
-    key, params, _ = gestor.coche.enviadas[-1]
+async def test_released_back_to_the_user_schedule(manager) -> None:
+    await manager.set_schedule(VIN, 22 * 60, 480)
+    await manager.set_target(VIN, 80)
+    await manager.on_snapshot(VIN, reading(80))
+    assert (await manager.state(VIN))["mode"] == "hold"
+    manager.fake_clock.advance(hours=14)
+    await manager.on_snapshot(VIN, reading(40, charging=False))
+    key, params, _ = manager.fake_car.sent[-1]
     assert key == "carga_prog_on" and params["chargeAppointPlans"][0]["timeConsuming"] == 480
-    assert (await gestor.state(VIN))["mode"] == "scheduled"
+    assert (await manager.state(VIN))["mode"] == "scheduled"
 
 
-async def test_subir_el_objetivo_a_100_libera_la_pausa(gestor) -> None:
-    await gestor.set_target(VIN, 80)
-    await gestor.on_snapshot(VIN, lectura(82))
-    estado = await gestor.set_target(VIN, 100)
-    assert estado["mode"] == "free" and gestor.coche.enviadas[-1][0] == "carga_prog_off"
+async def test_raising_the_target_to_100_releases_the_hold(manager) -> None:
+    await manager.set_target(VIN, 80)
+    await manager.on_snapshot(VIN, reading(82))
+    state = await manager.set_target(VIN, 100)
+    assert state["mode"] == "free" and manager.fake_car.sent[-1][0] == "carga_prog_off"
 
 
-async def test_las_acciones_automaticas_se_espacian_tambien_tras_un_fallo(gestor) -> None:
-    await gestor.set_target(VIN, 80)
-    gestor.coche.respuesta = {"success": False, "message": "sin red", "reason": None}
-    await gestor.on_snapshot(VIN, lectura(85))                                    # intenta pausar y falla (no lanza)
-    await gestor.on_snapshot(VIN, lectura(85))                                    # 0 min después: no reintenta
-    assert len(gestor.coche.enviadas) == 1
-    gestor.reloj.avanzar(minutes=cm.MIN_AUTO_GAP_MIN + 1)
-    await gestor.on_snapshot(VIN, lectura(85))
-    assert len(gestor.coche.enviadas) == 2
+async def test_automatic_actions_are_spaced_out_after_a_failure_too(manager) -> None:
+    await manager.set_target(VIN, 80)
+    manager.fake_car.response = {"success": False, "message": "sin red", "reason": None}
+    await manager.on_snapshot(VIN, reading(85))                                    # tries to hold and fails (does not raise)
+    await manager.on_snapshot(VIN, reading(85))                                    # 0 min later: no retry
+    assert len(manager.fake_car.sent) == 1
+    manager.fake_clock.advance(minutes=cm.MIN_AUTO_GAP_MIN + 1)
+    await manager.on_snapshot(VIN, reading(85))
+    assert len(manager.fake_car.sent) == 2
 
 
-# ───────────────────────── renovar la pausa ─────────────────────────
-async def test_la_pausa_se_renueva_sola_antes_de_que_se_reabra(gestor, monkeypatch) -> None:
+# ───────────────────────── renewing the hold ─────────────────────────
+async def test_the_hold_renews_itself_before_it_reopens(manager, monkeypatch) -> None:
     monkeypatch.setattr(cm, "TICK_EVERY_S", 0)
-    await gestor.stop(VIN)
-    primero = gestor.coche.planes[-1]["startTime"]
-    gestor.reloj.avanzar(hours=10)
-    await gestor.tick()
-    assert len(gestor.coche.enviadas) == 1                                        # a 12 h de abrirse: no hace falta
-    gestor.reloj.avanzar(hours=9)                                                 # quedan 3 h 30
-    await gestor.tick()
-    assert len(gestor.coche.enviadas) == 2
-    segundo = gestor.coche.planes[-1]["startTime"]
-    assert segundo != primero
-    row = await fila()
-    assert row.mode == "hold" and row.hold_reason == "user" and row.hold_start_utc == segundo
+    await manager.stop(VIN)
+    first = manager.fake_car.plans[-1]["startTime"]
+    manager.fake_clock.advance(hours=10)
+    await manager.tick()
+    assert len(manager.fake_car.sent) == 1                                        # 12 h before it opens: not needed
+    manager.fake_clock.advance(hours=9)                                                 # 3 h 30 left
+    await manager.tick()
+    assert len(manager.fake_car.sent) == 2
+    second = manager.fake_car.plans[-1]["startTime"]
+    assert second != first
+    row = await plan_row()
+    assert row.mode == "hold" and row.hold_reason == "user" and row.hold_start_utc == second
 
 
-async def test_renovar_conserva_el_motivo_de_la_pausa(gestor, monkeypatch) -> None:
+async def test_renewing_keeps_the_hold_reason(manager, monkeypatch) -> None:
     monkeypatch.setattr(cm, "TICK_EVERY_S", 0)
-    await gestor.set_target(VIN, 80)
-    await gestor.on_snapshot(VIN, lectura(80))
-    gestor.reloj.avanzar(hours=19)
-    await gestor.tick()
-    assert (await fila()).hold_reason == "target"
+    await manager.set_target(VIN, 80)
+    await manager.on_snapshot(VIN, reading(80))
+    manager.fake_clock.advance(hours=19)
+    await manager.tick()
+    assert (await plan_row()).hold_reason == "target"
 
 
 # ───────────────────────── API ─────────────────────────
@@ -311,7 +311,7 @@ class _Req:
     headers = {"user-agent": "t"}
 
 
-async def _web(gestor):
+async def _web(manager):
     async with async_session_factory() as s:
         user = AppUser(id=1, role="manager", username="juan", password_hash=passwords.hash_password("una-contraseña-larga-1"))
         s.add(user)
@@ -322,8 +322,8 @@ async def _web(gestor):
     return c
 
 
-async def test_api_objetivo_parar_iniciar(gestor) -> None:
-    async with await _web(gestor) as c:
+async def test_api_target_stop_start(manager) -> None:
+    async with await _web(manager) as c:
         r = await c.put(f"/api/vehicles/{VIN}/charge/target", json={"target_pct": 80})
         assert r.status_code == 200 and r.json()["target_pct"] == 80 and r.json()["target_choices"] == list(range(50, 101, 5))
         bad = await c.put(f"/api/vehicles/{VIN}/charge/target", json={"target_pct": 52})
@@ -335,8 +335,8 @@ async def test_api_objetivo_parar_iniciar(gestor) -> None:
         assert (await c.get(f"/api/vehicles/{VIN}/charge/plan")).json()["target_pct"] == 80
 
 
-async def test_api_programar_con_fin_o_con_duracion(gestor) -> None:
-    async with await _web(gestor) as c:
+async def test_api_schedule_with_end_or_duration(manager) -> None:
+    async with await _web(manager) as c:
         url = f"/api/vehicles/{VIN}/charge/schedule"
         r = await c.put(url, json={"start": "23:30", "end": "07:30"})
         assert r.status_code == 200 and r.json()["schedule"] == {"enabled": True, "start": "23:30", "end": "07:30", "duration_min": 480}
@@ -346,22 +346,22 @@ async def test_api_programar_con_fin_o_con_duracion(gestor) -> None:
         assert r.status_code == 200 and r.json()["schedule"]["enabled"] is False
 
 
-@pytest.mark.parametrize("cuerpo,razon", [
+@pytest.mark.parametrize("body,reason", [
     ({"start": "25:00", "end": "06:00"}, "time_invalid"),
     ({"start": "22:00"}, "schedule_invalid"),
     ({"start": "22:00", "end": "06:00", "duration_min": 120}, "schedule_invalid"),
     ({"start": "22:00", "end": "22:00"}, "schedule_invalid"),
     ({"start": "22:00", "duration_min": 30}, "duration_too_short"),
 ])
-async def test_api_rechaza_programaciones_invalidas_sin_tocar_el_coche(gestor, cuerpo, razon) -> None:
-    async with await _web(gestor) as c:
-        r = await c.put(f"/api/vehicles/{VIN}/charge/schedule", json=cuerpo)
-    assert r.status_code == 422 and r.json()["reason"] == razon and gestor.coche.enviadas == []
+async def test_api_rejects_invalid_schedules_without_touching_the_car(manager, body, reason) -> None:
+    async with await _web(manager) as c:
+        r = await c.put(f"/api/vehicles/{VIN}/charge/schedule", json=body)
+    assert r.status_code == 422 and r.json()["reason"] == reason and manager.fake_car.sent == []
 
 
-async def test_api_error_del_coche_y_vehiculo_desconocido(gestor) -> None:
-    gestor.coche.respuesta = {"success": False, "message": "Sesión caducada", "reason": "reauth"}
-    async with await _web(gestor) as c:
+async def test_api_car_error_and_unknown_vehicle(manager) -> None:
+    manager.fake_car.response = {"success": False, "message": "Sesión caducada", "reason": "reauth"}
+    async with await _web(manager) as c:
         r = await c.post(f"/api/vehicles/{VIN}/charge/stop")
         assert r.status_code == 424 and r.json()["reason"] == "reauth" and r.json()["success"] is False
         assert (await c.post("/api/vehicles/LSJA9999999999999/charge/stop")).status_code == 404

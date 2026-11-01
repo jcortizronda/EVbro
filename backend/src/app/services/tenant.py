@@ -80,5 +80,5 @@ async def delete_manager_space(session: AsyncSession, manager_id: int) -> Dict[s
     await session.execute(delete(EbroAccount).where(EbroAccount.user_id == manager_id))
     await delete_member(session, manager_id)
     removed = {"vehicles": len(vins), "members": len(member_ids)}
-    _LOGGER.warning("Espacio del gestor #%s borrado: %s", manager_id, removed)
+    _LOGGER.warning("Space of manager #%s deleted: %s", manager_id, removed)
     return removed

@@ -1,4 +1,4 @@
-"""Modelos de base de datos SQLAlchemy para EVBro."""
+"""SQLAlchemy database models for EVBro."""
 from __future__ import annotations
 
 import datetime
@@ -22,8 +22,8 @@ from sqlalchemy.orm import DeclarativeBase, relationship
 
 from app.db.types import EncryptedJSON, EncryptedText
 
-# BIGINT en PostgreSQL; en SQLite (solo los tests) una clave BIGINT no se autoincrementa, así que
-# allí se usa INTEGER. No cambia nada en producción.
+# BIGINT on PostgreSQL; on SQLite (tests only) a BIGINT key does not autoincrement, so INTEGER
+# is used there. Nothing changes in production.
 BigIntPK = BigInteger().with_variant(Integer, "sqlite")
 
 
@@ -44,41 +44,41 @@ class Vehicle(Base):
     license_plate = Column(String(20), nullable=True)
     chassis_number = Column(String(32), nullable=True)        # manual cars only, informative: their `vin` is an internal id and never changes
 
-    # Configuración del vehículo (Ajustes → Cuenta → Vehículo)
-    registration_date = Column(DateTime, nullable=True)       # fecha de matriculación: de ella cuenta la ITV
-    delivery_date = Column(DateTime, nullable=True)           # fecha de entrega: de ella cuentan los plazos en meses del plan oficial
-    battery_capacity_kwh = Column(Float, default=19.27, nullable=False, server_default="19.27")   # útil; estima kWh a partir del % de batería
-    fuel_tank_liters = Column(Float, default=50.0, nullable=False, server_default="50")   # con él se estiman los litros de un repostaje (% de depósito × capacidad)
+    # vehicle settings (Ajustes → Cuenta → Vehículo)
+    registration_date = Column(DateTime, nullable=True)       # registration date: the ITV counts from it
+    delivery_date = Column(DateTime, nullable=True)           # delivery date: the official plan's month intervals count from it
+    battery_capacity_kwh = Column(Float, default=19.27, nullable=False, server_default="19.27")   # usable; estimates kWh from the battery %
+    fuel_tank_liters = Column(Float, default=50.0, nullable=False, server_default="50")   # used to estimate a refuel's litres (tank % × capacity)
     # gasoline | diesel | phev | ev: what the interface shows (Energía and the battery only for phev/ev; Repostajes and the tank not for ev)
     fuel_type = Column(String(10), nullable=False, default="phev", server_default="phev")
 
-    # Ficha del vehículo (Ajustes → Vehículo)
+    # vehicle profile (Ajustes → Vehículo)
     model_year = Column(Integer, nullable=True)
-    purchase_price = Column(Float, nullable=True)             # € pagados por el coche
-    purchase_odometer = Column(Float, default=0.0, nullable=False, server_default="0")    # km al comprarlo (0 si es nuevo): base del coste por km
+    purchase_price = Column(Float, nullable=True)             # € paid for the car
+    purchase_odometer = Column(Float, default=0.0, nullable=False, server_default="0")    # km when bought (0 if new): base of the cost per km
     insurance_company = Column(String(100), nullable=True)
     insurance_policy = Column(String(60), nullable=True)
-    insurance_coverage = Column(String(40), nullable=True)           # terceros, terceros ampliado, todo riesgo…
-    insurance_renewal_date = Column(DateTime, nullable=True)         # próxima renovación: EVBro avisa antes
+    insurance_coverage = Column(String(40), nullable=True)           # third party, extended third party, comprehensive…
+    insurance_renewal_date = Column(DateTime, nullable=True)         # next renewal: EVBro sends a notice before it
     insurance_assistance_phone = Column(String(30), nullable=True)
-    trim = Column(String(60), nullable=True)                         # versión / acabado
+    trim = Column(String(60), nullable=True)                         # version / trim level
     color = Column(String(40), nullable=True)
-    env_label = Column(String(10), nullable=True)                    # etiqueta ambiental de la DGT (0, ECO, C, B)
+    env_label = Column(String(10), nullable=True)                    # DGT environmental label (0, ECO, C, B)
     tyre_front_size = Column(String(30), nullable=True)       # p. ej. 235/55 R19
     tyre_rear_size = Column(String(30), nullable=True)
-    tyre_front_pressure_bar = Column(Float, nullable=True)    # presión de referencia (en frío)
+    tyre_front_pressure_bar = Column(Float, nullable=True)    # reference pressure (cold)
     tyre_rear_pressure_bar = Column(Float, nullable=True)
-    tyre_pressure_tolerance_pct = Column(Float, default=10.0, nullable=False, server_default="10")   # aviso si se aleja más de este % de la de referencia
+    tyre_pressure_tolerance_pct = Column(Float, default=10.0, nullable=False, server_default="10")   # notice if it strays more than this % from the reference
     fuel_low_threshold = Column(Integer, default=15, nullable=False, server_default="15")      # car setting: warn at or below this fuel %
     low_battery_threshold = Column(Integer, default=20, nullable=False, server_default="20")    # car setting: warn at or below this battery %
-    photo_filename = Column(String(120), nullable=True)       # en DATA_DIR/vehicle_photos
+    photo_filename = Column(String(120), nullable=True)       # in DATA_DIR/vehicle_photos
     photo_size = Column(Integer, nullable=True)               # plaintext bytes of the photo (storage quota of the owner)
 
-    # Estado operativo actual (asleep, parked, driving, charging, offline)
+    # current operating state (asleep, parked, driving, charging, offline)
     state = Column(String(30), default="parked")
     last_seen = Column(DateTime, nullable=True)
 
-    # Caché del último estado conocido
+    # cache of the last known state
     odometer = Column(Float, default=0.0)
     battery_level = Column(Float, default=0.0)
     electric_range_km = Column(Float, default=0.0)
@@ -87,7 +87,7 @@ class Vehicle(Base):
     longitude = Column(Float, nullable=True)
     address = Column(String(255), nullable=True)
 
-    # Credenciales de API específicas del vehículo (tokens en caché)
+    # vehicle-specific API credentials (cached tokens)
     car_token = Column(String(255), nullable=True)
     tuserid = Column(String(100), nullable=True)
 
@@ -96,10 +96,10 @@ class Vehicle(Base):
 
     @property
     def photo_url(self) -> str | None:
-        """URL de la foto del vehículo (el nombre del fichero va en `v` para que el navegador la recargue al cambiarla)."""
+        """URL of the vehicle photo (the file name goes in `v` so the browser reloads it when it changes)."""
         return f"/api/vehicles/{self.vin}/photo?v={self.photo_filename}" if self.photo_filename else None
 
-    # Relaciones
+    # relationships
     snapshots = relationship("TelemetrySnapshot", back_populates="vehicle", cascade="all, delete-orphan")
     drives = relationship("Drive", back_populates="vehicle", cascade="all, delete-orphan")
     charging_sessions = relationship("ChargingSession", back_populates="vehicle", cascade="all, delete-orphan")
@@ -108,7 +108,7 @@ class Vehicle(Base):
 
 
 class TelemetrySnapshot(Base):
-    """Instantáneas de telemetría periódicas."""
+    """Periodic telemetry snapshots."""
     __tablename__ = "telemetry_snapshots"
 
     id = Column(BigIntPK, primary_key=True, autoincrement=True)
@@ -118,27 +118,27 @@ class TelemetrySnapshot(Base):
     online_status = Column(Boolean, default=False)
     state = Column(String(30), default="parked")
 
-    # Niveles y rangos
+    # levels and range
     battery_level = Column(Float, nullable=True)      # % SOC
     electric_range_km = Column(Float, nullable=True)  # km
     total_range_km = Column(Float, nullable=True)     # km
-    fuel_level = Column(Float, nullable=True)         # Litros o %
-    odometer_km = Column(Float, nullable=True)        # km totales
+    fuel_level = Column(Float, nullable=True)         # litres or %
+    odometer_km = Column(Float, nullable=True)        # total km
     speed_kmh = Column(Float, default=0.0)            # km/h
 
-    # Posición GPS
+    # GPS position
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
     altitude = Column(Float, nullable=True)
     heading = Column(Float, nullable=True)
 
-    # Temperaturas y Clima
+    # temperatures and climate
     outside_temp = Column(Float, nullable=True)
     inside_temp = Column(Float, nullable=True)
     climate_on = Column(Boolean, default=False)
     target_temp = Column(Float, nullable=True)
 
-    # Carga y Sistema Eléctrico
+    # charging and electrical system
     battery_voltage = Column(Float, nullable=True)
     battery_current = Column(Float, nullable=True)
     charge_power_kw = Column(Float, nullable=True)
@@ -147,20 +147,20 @@ class TelemetrySnapshot(Base):
     fast_charging = Column(Boolean, default=False)
     remaining_charge_time_min = Column(Integer, nullable=True)
 
-    # Elementos de carrocería y bloqueos
+    # body parts and locks
     is_locked = Column(Boolean, default=True)
     doors = Column(JSON, nullable=True)               # {'fl': 0, 'fr': 0, 'rl': 0, 'rr': 0, 'trunk': 0, 'hood': 0}
     windows = Column(JSON, nullable=True)             # {'fl': 0, 'fr': 0, 'rl': 0, 'rr': 0, 'sunroof': 0}
-    tyre_pressures = Column(JSON, nullable=True)      # {'fl': 290, 'fr': 288, 'rl': 285, 'rr': 290} en kPa
-    tyre_temps = Column(JSON, nullable=True)          # {'fl': 34, 'fr': 35, 'rl': 33, 'rr': 34} en °C
+    tyre_pressures = Column(JSON, nullable=True)      # {'fl': 290, 'fr': 288, 'rl': 285, 'rr': 290} in kPa
+    tyre_temps = Column(JSON, nullable=True)          # {'fl': 34, 'fr': 35, 'rl': 33, 'rr': 34} in °C
 
-    raw_data = Column(JSON, nullable=True)            # Payload crudo del backend/MQTT
+    raw_data = Column(JSON, nullable=True)            # raw payload from the backend/MQTT
 
     vehicle = relationship("Vehicle", back_populates="snapshots")
 
 
 class Drive(Base):
-    """Trayecto o viaje completado."""
+    """Completed drive."""
     __tablename__ = "drives"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -202,8 +202,8 @@ class Drive(Base):
 
     start_odometer = Column(Float, nullable=True)
     end_odometer = Column(Float, nullable=True)
-    # El viaje se detectó con el coche ya en marcha: la hora, la posición, el odómetro y la batería de inicio son los de la
-    # última lectura en parado (ver services/trip_detector.py)
+    # the drive was detected with the car already moving: the start time, position, odometer and battery are those of the
+    # last reading while parked (see services/trip_detector.py)
     start_estimated = Column(Boolean, default=False, nullable=False, server_default="false")
 
     positions = relationship("DrivePosition", back_populates="drive", cascade="all, delete-orphan", order_by="DrivePosition.timestamp")
@@ -211,7 +211,7 @@ class Drive(Base):
 
 
 class DrivePosition(Base):
-    """Puntos GPS y telemetría a lo largo de un viaje para dibujar la ruta."""
+    """GPS points and telemetry along a drive, to draw the route."""
     __tablename__ = "drive_positions"
 
     id = Column(BigIntPK, primary_key=True, autoincrement=True)
@@ -230,7 +230,7 @@ class DrivePosition(Base):
 
 
 class ChargingSession(Base):
-    """Sesión de carga completada."""
+    """Completed charging session."""
     __tablename__ = "charging_sessions"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -264,7 +264,7 @@ class ChargingSession(Base):
 
 
 class Expense(Base):
-    """Gasto del coche que no es una intervención de mantenimiento ni un repostaje ni una carga: seguro, impuestos, garaje…"""
+    """Car expense that is neither a maintenance intervention nor a refuel nor a charge: insurance, taxes, garage…"""
     __tablename__ = "expenses"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -274,7 +274,7 @@ class Expense(Base):
     title = Column(String(150), nullable=False)
     amount = Column(Float, nullable=False)
     notes = Column(Text, nullable=True)
-    next_due_date = Column(DateTime, nullable=True)       # cuándo toca pagarlo otra vez: EVBro avisa antes
+    next_due_date = Column(DateTime, nullable=True)       # when it is due again: EVBro sends a notice before it
 
 
 class Journey(Base):
@@ -313,7 +313,7 @@ class VehiclePart(Base):
 
 
 class Refuel(Base):
-    """Repostaje de combustible: detectado por la subida del nivel del depósito, o añadido a mano."""
+    """Fuel refuel: detected by the tank level going up, or added by hand."""
     __tablename__ = "refuels"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -322,15 +322,15 @@ class Refuel(Base):
     odometer = Column(Float, nullable=True)
     fuel_before_pct = Column(Float, nullable=True)
     fuel_after_pct = Column(Float, nullable=True)
-    liters = Column(Float, nullable=True)                 # estimados por el % de depósito × capacidad, o los reales si los indicas
+    liters = Column(Float, nullable=True)                 # estimated from tank % × capacity, or the real ones if you enter them
     price_per_liter = Column(Float, nullable=True)
-    total_cost = Column(Float, nullable=True)             # None = aún sin precio
+    total_cost = Column(Float, nullable=True)             # None = no price yet
     station = Column(String(150), nullable=True)
     address = Column(String(255), nullable=True)
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
     notes = Column(Text, nullable=True)
-    detected = Column(Boolean, default=True, nullable=False, server_default="true")    # False = añadido a mano
+    detected = Column(Boolean, default=True, nullable=False, server_default="true")    # False = added by hand
     full_tank = Column(Boolean, nullable=True)            # tank filled up? NULL = not stated (a detected one counts as full at >= 95 %)
 
 
@@ -393,7 +393,7 @@ class CatalogKey(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     key_hash = Column(String(64), unique=True, index=True, nullable=False)
-    note = Column(String(120), nullable=True)                 # who it is for, e.g. "Luis, servidor de casa"
+    note = Column(String(120), nullable=True)                 # who it is for, e.g. "Luis, home server"
     created_by = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
     expires_at = Column(DateTime, nullable=True)              # None = does not expire (a paid key would carry a date)
@@ -526,7 +526,7 @@ class ClimateSchedule(Base):
 
 
 class ChargePoint(Base):
-    """Puntos de la curva de recarga (voltaje, corriente, potencia vs tiempo)."""
+    """Points of the charging curve (voltage, current, power over time)."""
     __tablename__ = "charge_points"
 
     id = Column(BigIntPK, primary_key=True, autoincrement=True)
@@ -543,7 +543,7 @@ class ChargePoint(Base):
 
 
 class Geofence(Base):
-    """Geocerca para identificar ubicaciones comunes (Casa, Trabajo, Cargador habitual)."""
+    """Geofence to identify common places (home, work, usual charger)."""
     __tablename__ = "geofences"
     owner_id = Column(Integer, nullable=True, index=True)      # manager space the geofence belongs to
 
@@ -553,32 +553,32 @@ class Geofence(Base):
     longitude = Column(Float, nullable=False)
     radius_meters = Column(Float, default=100.0)
 
-    # Propósito de la geocerca y notificaciones
+    # purpose of the geofence and notifications
     notify_enter = Column(Boolean, default=True)
     notify_exit = Column(Boolean, default=True)
     is_charging_spot = Column(Boolean, default=True)
 
-    # Modelo de Tarifa: 'fixed', 'free', 'time_of_use', 'pvpc'
+    # tariff model: 'fixed', 'free', 'time_of_use', 'pvpc'
     cost_mode = Column(String(30), default="fixed")
 
-    # Tarifa Fija (€/kWh)
+    # fixed tariff (€/kWh)
     cost_per_kwh = Column(Float, default=0.15)
 
-    # Discriminación Horaria (Valle / Llano / Punta - Tarifa 2.0TD España)
+    # time-of-use periods (off-peak / mid-peak / peak - Spanish 2.0TD tariff)
     cost_valle = Column(Float, default=0.08)
     cost_llano = Column(Float, default=0.14)
     cost_punta = Column(Float, default=0.22)
 
-    # Tarifa Dinámica PVPC (Red Eléctrica de España / ESIOS)
+    # dynamic PVPC tariff (Red Eléctrica de España / ESIOS)
     pvpc_zone = Column(String(30), default="Peninsula")  # Peninsula, Canarias, Baleares, Ceuta, Melilla
-    cost_margin = Column(Float, default=0.0)             # Margen / peajes extra en €/kWh
-    cost_fallback = Column(Float, default=0.15)          # Precio de respaldo si la API externa no responde
+    cost_margin = Column(Float, default=0.0)             # extra margin / tolls in €/kWh
+    cost_fallback = Column(Float, default=0.15)          # fallback price if the external API does not answer
 
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 
 class CommandAudit(Base):
-    """Auditoría de comandos ejecutados en el vehículo."""
+    """Audit log of commands run on the vehicle."""
     __tablename__ = "command_audit"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -596,25 +596,25 @@ class CommandAudit(Base):
 
 
 class MaintenanceItem(Base):
-    """Componente o servicio de mantenimiento periódico."""
+    """Periodic maintenance component or service."""
     __tablename__ = "maintenance_items"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     vin = Column(String(32), ForeignKey("vehicles.vin", ondelete="CASCADE"), index=True, nullable=False)
     name = Column(String(100), nullable=False)
-    category = Column(String(50), default="General")  # Motor, Neumáticos, Frenos, Filtros, ITV...
+    category = Column(String(50), default="General")  # engine, tyres, brakes, filters, ITV...
 
     last_service_date = Column(DateTime, nullable=True)
     last_service_odometer = Column(Float, nullable=True)
 
     interval_km = Column(Float, nullable=True)        # Ej. 15000 km
-    interval_months = Column(Integer, nullable=True)   # Ej. 12 meses
+    interval_months = Column(Integer, nullable=True)   # e.g. 12 months
 
     next_due_odometer = Column(Float, nullable=True)
     next_due_date = Column(DateTime, nullable=True)
 
     notes = Column(Text, nullable=True)
-    # custom = tarea propia del usuario; official = «contenedor» de los registros de la revisión oficial (no se lista como tarea)
+    # custom = the user's own task; official = 'container' for the official service records (not listed as a task)
     origin = Column(String(12), default="custom", nullable=False, server_default="custom")
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
@@ -623,7 +623,7 @@ class MaintenanceItem(Base):
 
 
 class AppSetting(Base):
-    """Ajustes de la aplicación como pares clave/valor (p. ej. cuántos días se guarda el historial)."""
+    """Application settings as key/value pairs (e.g. how many days the history is kept)."""
     __tablename__ = "app_settings"
 
     key = Column(String(64), primary_key=True)
@@ -632,19 +632,19 @@ class AppSetting(Base):
 
 
 class MaintenancePlan(Base):
-    """Plan de mantenimiento de un coche: oficial de EBRO o personalizado (ver services/maintenance_official.py)."""
+    """Maintenance plan of a car: EBRO's official one or a custom one (see services/maintenance_official.py)."""
     __tablename__ = "maintenance_plans"
 
     vin = Column(String(32), ForeignKey("vehicles.vin", ondelete="CASCADE"), primary_key=True)
     mode = Column(String(12), default="official", nullable=False)          # official | custom
-    # Punto de partida del plan oficial (los escalones son 15.000 km / 12 meses desde la entrega)
-    baseline_date = Column(DateTime, nullable=True)                         # fecha de entrega / matriculación
+    # starting point of the official plan (steps are 15,000 km / 12 months from delivery)
+    baseline_date = Column(DateTime, nullable=True)                         # delivery / registration date
     baseline_odometer = Column(Float, default=0.0, nullable=False)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
 
 class MaintenanceLog(Base):
-    """Historial de revisiones e intervenciones realizadas."""
+    """History of services and interventions done."""
     __tablename__ = "maintenance_logs"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -654,14 +654,14 @@ class MaintenanceLog(Base):
     cost = Column(Float, default=0.0)
     workshop = Column(String(150), nullable=True)
     notes = Column(Text, nullable=True)
-    # Escalón del plan oficial al que corresponde (15000, 30000…); None = intervención de una tarea propia
+    # official plan step it belongs to (15000, 30000…); None = intervention of an own task
     revision_km = Column(Integer, nullable=True)
-    # Qué se hizo, en las intervenciones puntuales («Pastillas de freno»); en las demás sale el nombre de la tarea
+    # what was done, for one-off interventions («Pastillas de freno»); the others show the task name
     title = Column(String(150), nullable=True)
-    category = Column(String(50), nullable=True)           # categoría de la intervención puntual (Frenos, Neumáticos…)
+    category = Column(String(50), nullable=True)           # category of the one-off intervention (brakes, tyres…)
     parts_used = Column(JSON, nullable=True)               # parts fitted in this intervention (services.parts.PartIn dumps)
 
-    # Factura o justificante adjunto (PDF, JPG, PNG, WEBP)
+    # attached invoice or receipt (PDF, JPG, PNG, WEBP)
     invoice_filename = Column(String(255), nullable=True)
     invoice_original_name = Column(String(255), nullable=True)
     invoice_content_type = Column(String(100), nullable=True)
@@ -671,13 +671,13 @@ class MaintenanceLog(Base):
 
 
 class EbroAccount(Base):
-    """Cuenta oficial de Ebro/Chery conectada a la plataforma desde la interfaz web."""
+    """Official Ebro/Chery account connected to the platform from the web interface."""
     __tablename__ = "ebro_accounts"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     phone = Column(String(64), unique=True, index=True, nullable=False)
     user_id = Column(Integer, nullable=True, index=True)       # the manager that connected it (owner of the cars it discovers)
-    # Secretos: cifrados en la BD (ver db/types.py y security/crypto.py)
+    # secrets: encrypted in the DB (see db/types.py and security/crypto.py)
     password = Column(EncryptedText("ebro_accounts.password"), nullable=False)
     pin = Column(EncryptedText("ebro_accounts.pin"), nullable=True)
     area_code = Column(String(8), default="34")
@@ -688,7 +688,7 @@ class EbroAccount(Base):
 
 
 class AppUser(Base):
-    """Usuario que puede entrar en EVBro (no confundir con la cuenta Ebro/Chery)."""
+    """User who can log in to EVBro (not to be confused with the Ebro/Chery account)."""
     __tablename__ = "app_users"
     # The same person may have an administrator account and a manager account, even with the same username: they are different
     # accounts that live behind different doors (the admin console and the app), so the name only has to be unique per kind.
@@ -751,7 +751,7 @@ class DeviceAccess(Base):
 
 
 class AuthSession(Base):
-    """Sesión iniciada en un navegador. En la BD solo se guarda el hash del token de la cookie."""
+    """Session opened in a browser. The DB only stores the hash of the cookie token."""
     __tablename__ = "auth_sessions"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -765,16 +765,16 @@ class AuthSession(Base):
 
 
 class ChargePlan(Base):
-    """Control de carga de un vehículo (todo se hace con la programación del coche; ver services/charge_manager.py)."""
+    """Charge control of a vehicle (everything is done through the car's charge schedule; see services/charge_manager.py)."""
     __tablename__ = "charge_plans"
 
     vin = Column(String(32), ForeignKey("vehicles.vin", ondelete="CASCADE"), primary_key=True)
-    target_pct = Column(Integer, default=100, nullable=False)        # 100 = sin límite
+    target_pct = Column(Integer, default=100, nullable=False)        # 100 = no limit
     mode = Column(String(12), default="free", nullable=False)        # free | scheduled | hold
     hold_reason = Column(String(12), nullable=True)                  # user | target
-    hold_start_utc = Column(Integer, nullable=True)                  # minutos UTC del día en que abriría la ventana de pausa
+    hold_start_utc = Column(Integer, nullable=True)                  # UTC minute of the day when the pause window would open
     sched_enabled = Column(Boolean, default=False, nullable=False)
-    sched_start_min = Column(Integer, nullable=True)                 # reloj de pared local
+    sched_start_min = Column(Integer, nullable=True)                 # local wall clock
     sched_duration_min = Column(Integer, nullable=True)
     last_action = Column(String(30), nullable=True)
     last_action_at = Column(DateTime, nullable=True)
@@ -783,12 +783,12 @@ class ChargePlan(Base):
 
 
 class NotificationConfig(Base):
-    """Configuración de canales y alertas de notificación (Android, iOS, Web)."""
+    """Notification channels and alerts settings (Android, iOS, Web)."""
     __tablename__ = "notification_configs"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, nullable=True, unique=True, index=True)       # one configuration per account: what *this* account wants to receive
-    # Canales
+    # channels
     telegram_enabled = Column(Boolean, default=False)
     telegram_bot_token = Column(EncryptedText("notification_configs.telegram_bot_token"), nullable=True)
     telegram_chat_id = Column(String(100), nullable=True)
@@ -798,9 +798,9 @@ class NotificationConfig(Base):
     pushover_api_token = Column(EncryptedText("notification_configs.pushover_api_token"), nullable=True)
 
     webhook_enabled = Column(Boolean, default=False)
-    webhook_url = Column(EncryptedText("notification_configs.webhook_url"), nullable=True)  # suele llevar un token en la URL
+    webhook_url = Column(EncryptedText("notification_configs.webhook_url"), nullable=True)  # usually carries a token in the URL
 
-    # Disparadores de eventos
+    # event triggers
     notify_geofence_enter = Column(Boolean, default=True)
     notify_geofence_exit = Column(Boolean, default=True)
     notify_fuel_low = Column(Boolean, default=True)
@@ -811,7 +811,7 @@ class NotificationConfig(Base):
     notify_charge_completed = Column(Boolean, default=True)
     notify_charge_interrupted = Column(Boolean, default=True)
     notify_tyre_pressure = Column(Boolean, default=True)
-    notify_renewals = Column(Boolean, default=True)       # vencimientos: renovación del seguro y gastos con fecha
+    notify_renewals = Column(Boolean, default=True)       # due dates: insurance renewal and dated expenses
     notify_security_alerts = Column(Boolean, default=True)
     notify_low_battery = Column(Boolean, default=True)
 
@@ -819,10 +819,10 @@ class NotificationConfig(Base):
 
 
 class PushSubscription(Base):
-    """Dispositivo (navegador o PWA) suscrito a Web Push. En Android Chrome lo entrega Google FCM.
+    """Device (browser or PWA) subscribed to Web Push. On Android, Chrome delivers through Google FCM.
 
-    La suscripción (endpoint + claves) permite cifrar y enviar avisos a ese dispositivo, así que se
-    guarda cifrada; `endpoint_hash` solo sirve para localizarla y evitar duplicados.
+    The subscription (endpoint + keys) allows encrypting and sending notices to that device, so it is
+    stored encrypted; `endpoint_hash` only serves to find it and avoid duplicates.
     """
     __tablename__ = "push_subscriptions"
 
@@ -830,14 +830,14 @@ class PushSubscription(Base):
     endpoint_hash = Column(String(64), unique=True, index=True, nullable=False)
     user_id = Column(Integer, nullable=True, index=True)
     subscription = Column(EncryptedJSON("push_subscriptions.subscription"), nullable=False)
-    label = Column(String(120), nullable=True)           # «Chrome en Android», para reconocerlo en la lista
+    label = Column(String(120), nullable=True)           # «Chrome en Android», to recognise it in the list
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     last_success = Column(DateTime, nullable=True)
     last_error = Column(Text, nullable=True)
 
 
 class NotificationLog(Base):
-    """Historial de notificaciones enviadas a Android, iOS y Web."""
+    """History of notifications sent to Android, iOS and Web."""
     __tablename__ = "notification_logs"
 
     id = Column(Integer, primary_key=True, autoincrement=True)

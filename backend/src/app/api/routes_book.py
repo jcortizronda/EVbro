@@ -1,4 +1,4 @@
-"""El libro del coche: a PDF with the sections the user picks (Coches → ficha → «Libro del coche»)."""
+"""The car book: a PDF with the sections the user picks (Coches → ficha → «Libro del coche»)."""
 from __future__ import annotations
 
 import datetime

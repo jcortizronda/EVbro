@@ -26,7 +26,6 @@ Your Ebro on your phone: live data, remote control, trips, charges, maintenance 
 - [Installation](#installation)
 - [Documentation](#documentation)
 - [Languages](#languages)
-- [What is not tested yet](#what-is-not-tested-yet)
 - [Support the project](#support-the-project)
 - [Licence](#licence)
 
@@ -84,10 +83,6 @@ The operator and developer documentation is in Spanish for now.
 ## Languages
 
 The app, the alerts, the car book and the console are in **Spanish, English and Portuguese**; every account picks its own in Settings → System.
-
-## What is not tested yet
-
-It has been built against a single real car and some parts have **not been validated** with the car or the real services: charge control through scheduling in every situation, commands arriving from Home Assistant over MQTT, the alarm and the actual delivery of push notifications. If something does not add up, open an issue with what you expected and what happened.
 
 ## Support the project
 

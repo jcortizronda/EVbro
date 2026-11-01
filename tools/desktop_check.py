@@ -41,7 +41,7 @@ def main() -> int:
     base = os.environ.get("EVBRO_URL", "http://127.0.0.1:8080").rstrip("/")
     user, password = os.environ.get("EVBRO_USER", ""), os.environ.get("EVBRO_PASSWORD", "")
     if not (user and password):
-        print("Define EVBRO_USER y EVBRO_PASSWORD", file=sys.stderr)
+        print("Set EVBRO_USER and EVBRO_PASSWORD", file=sys.stderr)
         return 2
     if args.shots:
         os.makedirs(args.shots, exist_ok=True)
@@ -55,7 +55,7 @@ def main() -> int:
             login = ctx.request.post(f"{base}/api/auth/login", headers={"Origin": base},
                                      data={"username": user, "password": password})
             if not login.ok:
-                print(f"Login fallido ({login.status})", file=sys.stderr)
+                print(f"Login failed ({login.status})", file=sys.stderr)
                 return 2
             page = ctx.new_page()
             page.add_init_script(f"try {{ localStorage.setItem('evbro_theme', '{args.theme}'); }} catch (e) {{}}")
@@ -63,9 +63,9 @@ def main() -> int:
             page.wait_for_load_state("networkidle")
             page.wait_for_timeout(1200)
             if not page.evaluate(VISIBLE, ".desktop-sidebar"):
-                failures.append(f"{width}px: la barra lateral no se ve")
+                failures.append(f"{width}px: the sidebar is not visible")
             if page.evaluate(VISIBLE, ".native-bottom-dock"):
-                failures.append(f"{width}px: el dock inferior se ve con ratón")
+                failures.append(f"{width}px: the bottom dock is visible with a mouse")
             views = [(t, None) for t in TABS if t != "settings"] + [("settings", s) for s in SETTINGS]
             for tab, sub in views:
                 page.evaluate(f"switchTab('{tab}')")
@@ -76,7 +76,7 @@ def main() -> int:
                 page_wide = page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
                 bad = page.evaluate(FIND_OVERFLOW, width)
                 if page_wide > 0 or bad:
-                    failures.append(f"{width}px · {name}: página +{page_wide}px · {bad}")
+                    failures.append(f"{width}px · {name}: page +{page_wide}px · {bad}")
                 if args.shots:
                     page.screenshot(path=f"{args.shots}/{width}-{args.theme}-{name}.png", full_page=True)
             ctx.close()
@@ -84,7 +84,7 @@ def main() -> int:
 
     for f in failures:
         print("✘", f)
-    print(f"{len(failures)} problema(s)" if failures else "✔ escritorio correcto en 1024, 1366 y 1920 px")
+    print(f"{len(failures)} problem(s)" if failures else "✔ desktop correct at 1024, 1366 and 1920 px")
     return 1 if failures else 0
 
 

@@ -1,7 +1,7 @@
-/* EVBro — Objetivo de batería: círculo deslizante.
-   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+/* EVBro — Battery target: sliding circle.
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
-/* Objetivo de batería: círculo deslizante sobre la barra de carga */
+/* Battery target: sliding circle over the charge bar */
 .energy-target-text { font-size: 0.85rem; font-weight: 700; color: var(--text-primary); }
 .energy-slider {
   position: relative; height: 40px; margin: 2px 0 0; cursor: pointer;

@@ -1,16 +1,16 @@
-"""Programación de carga del coche: construir planes, horas locales↔UTC y leer lo que tiene el coche.
+"""Car charge scheduling: build plans, local↔UTC times and read what the car has.
 
-Procede de `vehicle/charging.py` de la integración de Home Assistant, sin el `ChargeLimiter` (la decisión de cuándo
-parar la toma `services/charge_manager.py`) y con `zoneinfo` en lugar de las utilidades de Home Assistant.
-Todo es puro: la zona horaria y el instante se pasan como argumentos, así que se prueba sin reloj ni red.
+Comes from `vehicle/charging.py` in the Home Assistant integration, without the `ChargeLimiter` (the decision of when
+to stop is taken by `services/charge_manager.py`) and with `zoneinfo` instead of the Home Assistant utilities.
+Everything is pure: the time zone and the instant are passed as arguments, so it is tested without a clock or network.
 
-**Lo que hay que saber del coche**
-  * `chargeStartStopControl` responde `A00084`: no hay arranque/parada directos. Solo existe la programación.
-  * `startTime` se interpreta en **UTC** (verificado en campo: con UTC+2 una carga puesta a las 03:00
-    arrancaba a las 05:00). `timeConsuming` es una duración y no se convierte.
-  * El coche exige una duración mínima de 1 h; menos da code 89.
-  * Parar = imponer una programación cuya ventana ya terminó. Esa ventana vuelve a «abrirse» al día siguiente
-    a la misma hora, de ahí `hold_needs_refresh`: hay que moverla antes de que llegue.
+**What you need to know about the car**
+  * `chargeStartStopControl` answers `A00084`: there is no direct start/stop. Only the schedule exists.
+  * `startTime` is interpreted in **UTC** (verified in the field: at UTC+2 a charge set for 03:00
+    started at 05:00). `timeConsuming` is a duration and is not converted.
+  * The car requires a minimum duration of 1 h; less gives code 89.
+  * Stopping = imposing a schedule whose window is already over. That window "opens" again the next day
+    at the same time, hence `hold_needs_refresh`: it must be moved before then.
 """
 from __future__ import annotations
 
@@ -25,11 +25,11 @@ from .constants import (
     MINUTES_PER_DAY,
 )
 
-# Todos los días de la semana: el plan se aplica siempre y el interruptor general decide si está activo.
+# Every day of the week: the plan always applies and the main switch decides whether it is active.
 ALL_WEEKDAYS = [1, 2, 3, 4, 5, 6, 7]
 
-# Cuántos minutos antes de que la ventana de pausa vuelva a abrirse se desplaza. Con la ventana en
-# [ahora−90, ahora−30] la próxima apertura está a 22 h 30; se renueva cuando faltan menos de 4 h.
+# How many minutes before the pause window reopens it gets moved. With the window at
+# [now−90, now−30] the next opening is 22 h 30 away; it is renewed when less than 4 h remain.
 HOLD_REFRESH_MARGIN_MIN = 240
 
 
@@ -38,9 +38,9 @@ def _utcnow() -> datetime.datetime:
 
 
 def local_minutes_to_utc(local_mins: int, tz: ZoneInfo, now: datetime.datetime | None = None) -> int:
-    """Minutos desde medianoche en hora LOCAL → minutos desde medianoche en UTC.
+    """Minutes since midnight in LOCAL time → minutes since midnight in UTC.
 
-    Se usa la fecha de HOY para que el desfase siga el horario de verano/invierno vigente."""
+    TODAY's date is used so the offset follows the current summer/winter time."""
     local_mins = int(local_mins) % MINUTES_PER_DAY
     hh, mm = divmod(local_mins, 60)
     now = (now or _utcnow()).astimezone(tz)
@@ -50,7 +50,7 @@ def local_minutes_to_utc(local_mins: int, tz: ZoneInfo, now: datetime.datetime |
 
 
 def utc_minutes_to_local(utc_mins: int, tz: ZoneInfo, now: datetime.datetime | None = None) -> int:
-    """La inversa: lo que guarda el coche → reloj de pared (para ENSEÑAR su programación)."""
+    """The inverse: what the car stores → wall clock (to SHOW its schedule)."""
     utc_mins = int(utc_mins) % MINUTES_PER_DAY
     hh, mm = divmod(utc_mins, 60)
     utc_dt = (now or _utcnow()).astimezone(datetime.timezone.utc).replace(hour=hh, minute=mm, second=0, microsecond=0)
@@ -60,10 +60,10 @@ def utc_minutes_to_local(utc_mins: int, tz: ZoneInfo, now: datetime.datetime | N
 
 @dataclass(frozen=True)
 class ChargeSchedule:
-    """La programación de carga TAL COMO LA TIENE EL COCHE (puede haberla cambiado la app oficial)."""
+    """The charge schedule AS THE CAR HAS IT (the official app may have changed it)."""
 
     enabled: bool
-    start_minutes: int | None      # reloj de pared local
+    start_minutes: int | None      # local wall clock
     duration_minutes: int | None
     days: tuple[int, ...] = ()
 
@@ -82,10 +82,10 @@ def _as_int(value) -> int | None:
 
 
 def parse_schedule(payload: dict | None, tz: ZoneInfo, now: datetime.datetime | None = None) -> ChargeSchedule | None:
-    """Respuesta de `chargeAppointQuery` → `ChargeSchedule`, o `None` si no es interpretable.
+    """`chargeAppointQuery` response → `ChargeSchedule`, or `None` if it cannot be interpreted.
 
-    `mainSwitch` (general) y `switchStatus` (del plan) son cosas distintas y AMBOS deben estar activos para que
-    el coche cargue por horario. El coche devuelve una lista de planes; se toma el primero."""
+    `mainSwitch` (main) and `switchStatus` (of the plan) are different things and BOTH must be on for
+    the car to charge on schedule. The car returns a list of plans; the first one is taken."""
     if not isinstance(payload, dict):
         return None
     planes = payload.get("chargeAppointPlans")
@@ -102,7 +102,7 @@ def parse_schedule(payload: dict | None, tz: ZoneInfo, now: datetime.datetime | 
 
 def build_plan(start_minutes: int, duration_minutes: int, switch_status: int, tz: ZoneInfo,
                now: datetime.datetime | None = None) -> dict:
-    """Un plan de `chargeAppointPlans`. `startTime` en UTC; la duración se fuerza al mínimo del coche."""
+    """A `chargeAppointPlans` plan. `startTime` in UTC; the duration is clamped to the car's minimum."""
     return {
         "cycleData": ALL_WEEKDAYS,
         "startTime": local_minutes_to_utc(int(start_minutes), tz, now),
@@ -112,10 +112,10 @@ def build_plan(start_minutes: int, duration_minutes: int, switch_status: int, tz
 
 
 def build_stop_plan(now: datetime.datetime | None = None) -> dict:
-    """Un plan cuya ventana YA terminó: ahora − 90 min con 60 min de duración → [ahora−90, ahora−30].
+    """A plan whose window is ALREADY over: now − 90 min with a 60 min duration → [now−90, now−30].
 
-    «Ahora» queda fuera de la ventana y el coche deja de cargar. No se acorta la duración (el coche
-    rechaza menos de 1 h): se desplaza el INICIO. `startTime` se calcula ya en UTC."""
+    "Now" falls outside the window and the car stops charging. The duration is not shortened (the car
+    rejects less than 1 h): the START is moved instead. `startTime` is computed directly in UTC."""
     now_utc = (now or _utcnow()).astimezone(datetime.timezone.utc)
     start = (now_utc.hour * 60 + now_utc.minute - CHARGE_STOP_START_BACK_MIN) % MINUTES_PER_DAY
     return {"cycleData": ALL_WEEKDAYS, "startTime": int(start), "switchStatus": 1,
@@ -123,21 +123,21 @@ def build_stop_plan(now: datetime.datetime | None = None) -> dict:
 
 
 def minutes_until_start(start_utc: int, now: datetime.datetime | None = None) -> int:
-    """Minutos hasta la próxima apertura de una ventana que empieza a `start_utc` (minutos UTC del día)."""
+    """Minutes until the next opening of a window starting at `start_utc` (UTC minutes of the day)."""
     now_utc = (now or _utcnow()).astimezone(datetime.timezone.utc)
     return (int(start_utc) - (now_utc.hour * 60 + now_utc.minute)) % MINUTES_PER_DAY
 
 
 def hold_needs_refresh(hold_start_utc: int | None, now: datetime.datetime | None = None,
                        margin: int = HOLD_REFRESH_MARGIN_MIN) -> bool:
-    """¿La ventana de pausa está a punto de volver a abrirse (y el coche empezaría a cargar solo)?
+    """Is the pause window about to reopen (and would the car start charging on its own)?
 
-    Sin dato del inicio, se renueva por prudencia."""
+    Without a start value, it is renewed to be safe."""
     if hold_start_utc is None:
         return True
     return minutes_until_start(hold_start_utc, now) < margin
 
 
 def duration_between(start_minutes: int, end_minutes: int) -> int:
-    """Duración entre una hora de inicio y una de fin (locales). Pasa de medianoche si hace falta; 0 = inválido."""
+    """Duration between a start and an end time (local). Wraps past midnight if needed; 0 = invalid."""
     return (int(end_minutes) - int(start_minutes)) % MINUTES_PER_DAY

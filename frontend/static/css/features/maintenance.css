@@ -1,5 +1,5 @@
-/* EVBro — Mantenimiento.
-   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+/* EVBro — Maintenance.
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
 /* ========================================================
    MANTENIMIENTO (MAINTENANCE) MODULE
@@ -198,7 +198,7 @@
   margin: 1rem 0;
 }
 
-/* Reproducción del viaje bajo el mapa del trazado */
+/* Trip replay under the route map */
 .route-replay { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
 .route-replay[hidden] { display: none; }
 .route-replay input[type="range"] { flex: 1 1 auto; min-width: 0; accent-color: var(--accent-bright); }

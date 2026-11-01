@@ -1,24 +1,24 @@
-"""Cada cuánto sondear el canal realtime, según el ESTADO del coche.
+"""How often to poll the realtime channel, depending on the car's STATE.
 
-El canal MQTT (puertas, cierre, cable, motor…) llega solo y gratis. El canal realtime
-(batería, autonomía, alta tensión, progreso de carga…) hay que pedirlo.
+The MQTT channel (doors, lock, cable, engine…) arrives on its own and for free. The realtime
+channel (battery, range, high voltage, charge progress…) has to be requested.
 
-**Y pedirlo NO despierta el coche.** La sonda interroga a la nube, no al vehículo: con el coche
-dormido responde igual, con `onlineStatus=0` y una instantánea de hace minutos u horas. Durante
-mucho tiempo aquí ponía que sondear «consume la batería de 12 V del coche», y es falso —eso lo
-hacen los comandos, que sí lo despiertan—. Lo que sí cuesta es tráfico contra la nube y la
-sesión, que Chery concede **una por cuenta**: si el componente habla mucho, compite con la app
-oficial del usuario.
+**And requesting it does NOT wake the car.** The probe queries the cloud, not the vehicle: with
+the car asleep it answers all the same, with `onlineStatus=0` and a snapshot from minutes or hours
+ago. For a long time this said that polling "drains the car's 12 V battery", and that is false
+—commands do that, since they do wake it—. What polling does cost is traffic against the cloud
+and the session, which Chery grants **one per account**: if the component talks a lot, it
+competes with the user's official app.
 
-Aun así el ritmo sigue dependiendo del estado, por dos razones que no son la batería: con el
-coche dormido la nube devuelve la misma foto una y otra vez, y con el coche en marcha los datos
-cambian rápido y merece la pena preguntar más.
+Even so the pace still depends on the state, for two reasons other than the battery: with the
+car asleep the cloud returns the same snapshot over and over, and with the car driving the data
+changes fast and it is worth asking more often.
 
-De ahí que el ritmo no sea fijo sino función del estado. Esta decisión vivía repartida entre
-`_poll_state`, `_active_interval_s`, `_burst_active` y `_note_mqtt_burst` del coordinator,
-leyendo `self` en cada paso: para probar «¿enchufado + alta tensión se clasifica como carga y
-no como marcha?» había que construir un coordinator entero. Aquí es una función de sus
-argumentos.
+Hence the pace is not fixed but a function of the state. This decision used to be spread across
+the coordinator's `_poll_state`, `_active_interval_s`, `_burst_active` and `_note_mqtt_burst`,
+reading `self` at every step: to test "is plugged + high voltage classified as charging and
+not as driving?" a whole coordinator had to be built. Here it is a function of its
+arguments.
 """
 from __future__ import annotations
 
@@ -31,18 +31,18 @@ from .constants import MOVE_BURST_COUNT, MOVE_BURST_WINDOW_S
 
 
 class PollState(StrEnum):
-    """Estado del coche a efectos de sondeo, de mayor a menor prioridad."""
+    """Car state for polling purposes, from highest to lowest priority."""
 
     CHARGING = "cargando"
-    PLUGGED = "enchufado"           # cable conectado pero sin cargar aún (AT apagada)
-    MOVING = "en marcha"            # alta tensión + ráfaga de MQTT = circulando
-    MOVING_IDLE = "en marcha detenido"  # alta tensión sin ráfaga (semáforo, parada breve)
+    PLUGGED = "enchufado"           # cable connected but not charging yet (HV off)
+    MOVING = "en marcha"            # high voltage + MQTT burst = driving
+    MOVING_IDLE = "en marcha detenido"  # high voltage without a burst (traffic light, short stop)
     PARKED = "parado"
 
 
 @dataclass(frozen=True)
 class PollIntervals:
-    """Los cinco intervalos configurables, en MINUTOS. 0 = desactivado en ese estado."""
+    """The five configurable intervals, in MINUTES. 0 = disabled in that state."""
 
     parked: int
     plugged: int
@@ -62,43 +62,43 @@ class PollIntervals:
 
 @dataclass(frozen=True)
 class CarConditions:
-    """Lo que se sabe del coche en el instante de decidir.
+    """What is known about the car at the moment of deciding.
 
-    Se pasa como dato y no se lee de `self` a propósito: es lo que hace la decisión
-    reproducible en un test sin `hass` ni MQTT.
+    It is passed as data and deliberately not read from `self`: that is what makes the decision
+    reproducible in a test without `hass` or MQTT.
     """
 
     plugged: bool
     charging: bool
     hv_on: bool
     burst_active: bool
-    #: el cable lleva conectado más del tope sin llegar a cargar nunca
+    #: the cable has been connected longer than the cap without ever charging
     plugged_timed_out: bool = False
 
 
 def classify(conditions: CarConditions) -> PollState:
-    """Condiciones del coche → estado de sondeo. Prioridad: cargando > enchufado > en marcha >
-    en marcha detenido > parado.
+    """Car conditions → polling state. Priority: charging > plugged > moving >
+    moving idle > parked.
 
-    Claves: (1) cargar también enciende la alta tensión → enchufado + AT = CARGANDO (no
-    marcha). (2) La MARCHA se detecta por la RÁFAGA de MQTT (el coche late «Último contacto»
-    al circular) + AT encendida y cable desconectado. (3) Con AT encendida pero SIN ráfaga
-    (semáforo, o te has bajado con el coche en marcha) → «en marcha detenido», más relajado.
-    (4) AT apagada → parado.
+    Key points: (1) charging also turns on the high voltage → plugged + HV = CHARGING (not
+    driving). (2) DRIVING is detected by the MQTT BURST (the car beats "Último contacto"
+    while driving) + HV on and cable disconnected. (3) With HV on but NO burst
+    (traffic light, or you got out with the car running) → "moving idle", more relaxed.
+    (4) HV off → parked.
 
-    **Cargar EXIGE el cable.** `chargeState=1` sin cable conectado no es una recarga: es un
-    híbrido recuperando energía en marcha —freno regenerativo o motor térmico— y pasa
-    continuamente mientras se conduce. Registrado en campo el 2026-08-20/25 decenas de veces,
-    siempre con `plugged=false` y alternando con «en marcha» cada pocos minutos:
+    **Charging REQUIRES the cable.** `chargeState=1` without a cable connected is not a recharge:
+    it is a hybrid recovering energy while driving —regenerative braking or the combustion
+    engine— and it happens continuously while driving. Recorded in the field on 2026-08-20/25
+    dozens of times, always with `plugged=false` and alternating with "en marcha" every few minutes:
 
-        13:06:19  cargando   cada 900 s     ← conduciendo
+        13:06:19  cargando   cada 900 s     ← driving
         13:09:27  en marcha  cada 180 s
-        13:13:12  cargando   cada 900 s     ← conduciendo
+        13:13:12  cargando   cada 900 s     ← driving
         13:14:13  en marcha  cada 180 s
 
-    El efecto es que el sondeo se relajaba de 3 a 15 minutos JUSTO al circular, que es cuando
-    más rápido cambia todo. Sin cable, la recarga es un detalle del tren motriz, no un estado
-    de sondeo."""
+    The effect was that polling relaxed from 3 to 15 minutes RIGHT while driving, which is when
+    everything changes fastest. Without a cable, recharging is a drivetrain detail, not a polling
+    state."""
     if conditions.plugged and (conditions.charging or conditions.hv_on):
         return PollState.CHARGING
     if conditions.plugged and not conditions.plugged_timed_out:
@@ -109,22 +109,22 @@ def classify(conditions: CarConditions) -> PollState:
 
 
 def interval_seconds(minutes: int) -> int | None:
-    """Minutos configurados → segundos, o `None` si ese estado tiene el sondeo desactivado.
+    """Configured minutes → seconds, or `None` if polling is disabled in that state.
 
-    `None` NO es un error: es «no preguntes nada hasta el próximo evento MQTT gratis», que es el
-    valor por defecto con el coche parado."""
+    `None` is NOT an error: it means "ask nothing until the next free MQTT event", which is the
+    default with the car parked."""
     return minutes * 60 if minutes and minutes > 0 else None
 
 
 class BurstTracker:
-    """Detector de MARCHA por ráfaga de mensajes MQTT.
+    """DRIVING detector based on bursts of MQTT messages.
 
-    Al circular, el coche emite «Último contacto» seguido; parado no manda nada. ≥
-    `MOVE_BURST_COUNT` mensajes en los últimos `MOVE_BURST_WINDOW_S` segundos = en movimiento.
+    While driving, the car emits "Último contacto" continuously; parked it sends nothing. ≥
+    `MOVE_BURST_COUNT` messages in the last `MOVE_BURST_WINDOW_S` seconds = moving.
 
-    Thread-safe por diseño de uso: lo consultan el bucle de eventos de HA y el hilo de paho,
-    pero quien lo posee (el coordinator) lo protege con su propio lock. La poda de marcas
-    viejas ocurre en cada consulta, así que no hace falta ningún timer que lo limpie.
+    Thread-safe by usage design: both HA's event loop and the paho thread query it, but its
+    owner (the coordinator) protects it with its own lock. Old timestamps are pruned on every
+    query, so no timer is needed to clean it up.
     """
 
     def __init__(self, count: int = MOVE_BURST_COUNT, window_s: int = MOVE_BURST_WINDOW_S) -> None:
@@ -138,14 +138,14 @@ class BurstTracker:
             self._timestamps.popleft()
 
     def record(self, now: float | None = None) -> bool:
-        """Registra la marca de tiempo de un mensaje y devuelve si AHORA hay ráfaga."""
+        """Record a message's timestamp and return whether there is a burst NOW."""
         now = time.time() if now is None else now
         self._timestamps.append(now)
         self._prune(now)
         return len(self._timestamps) >= self._count
 
     def is_active(self, now: float | None = None) -> bool:
-        """¿Hay ráfaga en este momento? Poda las marcas viejas."""
+        """Is there a burst right now? Prunes old timestamps."""
         now = time.time() if now is None else now
         self._prune(now)
         return len(self._timestamps) >= self._count

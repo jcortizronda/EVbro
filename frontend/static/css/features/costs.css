@@ -1,5 +1,5 @@
-/* EVBro — Costes (Más → Costes).
-   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+/* EVBro — Costs (Más → Costes).
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
 .costs-period { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 5px; margin: 14px 0; background: var(--surface-secondary); border: 1px solid var(--border-color); border-radius: 16px; }
 .costs-period-btn { min-height: 44px; font: inherit; font-weight: 600; font-size: 0.88rem; color: var(--text-secondary); background: transparent; border: 0; border-radius: 12px; cursor: pointer; }
@@ -45,7 +45,7 @@
 .costs-row-amount.is-pending { font-size: 0.78rem; font-weight: 700; color: var(--accent-amber, #ff9f0a); }
 .costs-empty { padding: 18px 8px; text-align: center; color: var(--text-muted); font-size: 0.85rem; }
 
-/* Ajustes → Sistema → Historial guardado */
+/* Ajustes → Sistema → saved history */
 .retention-grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin: 10px 0 12px; }
 .retention-item { display: flex; flex-direction: column; gap: 4px; }
 .retention-item label { font-size: 0.85rem; font-weight: 600; }

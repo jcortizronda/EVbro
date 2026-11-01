@@ -1,4 +1,4 @@
-"""Servicio centralizado de notificaciones push móviles para Android e iOS (Web Push, Telegram, Pushover, Webhook)."""
+"""Central mobile push notification service for Android and iOS (Web Push, Telegram, Pushover, webhook)."""
 from __future__ import annotations
 
 import asyncio
@@ -56,7 +56,7 @@ def webhook_url_problem(url: Optional[str]) -> Optional[str]:
 
 
 class NotificationService:
-    """Gestor de envíos de alertas a dispositivos móviles y canales externos."""
+    """Sends alerts to mobile devices and external channels."""
 
     @classmethod
     async def get_or_create_config(cls, session: AsyncSession, user_id: int) -> NotificationConfig:
@@ -80,18 +80,18 @@ class NotificationService:
         return [u for u in users if await account_usable(session, u)]
 
     # ------------------------------------------------------------------------
-    # Envíos por canal individual
+    # Sending through a single channel
     # ------------------------------------------------------------------------
 
     @classmethod
     async def _send_telegram(
         cls, bot_token: str, chat_id: str, title: str, message: str
     ) -> Tuple[bool, Optional[str]]:
-        """Envía notificación mediante Telegram Bot API."""
+        """Sends a notification through the Telegram Bot API."""
         if not bot_token or not chat_id:
             return False, "Faltan credenciales de Telegram (Bot Token o Chat ID)."
 
-        # Formato HTML enriquecido (car and geofence names are user text: escaped, or Telegram rejects the message)
+        # Rich HTML format (car and geofence names are user text: escaped, or Telegram rejects the message)
         html_text = f"<b>{html.escape(title)}</b>\n\n{html.escape(message)}"
         url = f"https://api.telegram.org/bot{bot_token.strip()}/sendMessage"
         payload = {
@@ -117,7 +117,7 @@ class NotificationService:
 
     @classmethod
     def _webpush_blocking(cls, subscription: Dict[str, Any], payload: Dict[str, Any]) -> Tuple[bool, Optional[str], bool]:
-        """Envío bloqueante (pywebpush usa `requests`). Devuelve (ok, error, caducada)."""
+        """Blocking send (pywebpush uses `requests`). Returns (ok, error, expired)."""
         from pywebpush import WebPushException, webpush
 
         from app.security import vapid
@@ -134,9 +134,9 @@ class NotificationService:
             return True, None, False
         except WebPushException as e:
             status = getattr(getattr(e, "response", None), "status_code", None)
-            # 404/410: el dispositivo se dio de baja o el navegador revocó la suscripción
+            # 404/410: the device unsubscribed or the browser revoked the subscription
             return False, f"HTTP {status}: {e}" if status else str(e), status in (404, 410)
-        except Exception as e:  # noqa: BLE001 - red, claves, etc.: se registra y no rompe el despacho
+        except Exception as e:  # noqa: BLE001 - network, keys, etc.: recorded, and it does not break the dispatch
             return False, str(e), False
 
     @classmethod
@@ -152,7 +152,7 @@ class NotificationService:
         loop = asyncio.get_running_loop()
         results = []
         for sub in subs:
-            if not sub.subscription:     # no se pudo descifrar (clave cambiada): inservible
+            if not sub.subscription:     # could not be decrypted (key changed): useless
                 await session.delete(sub)
                 continue
             ok, err, expired = await loop.run_in_executor(None, cls._webpush_blocking, sub.subscription, payload)
@@ -169,7 +169,7 @@ class NotificationService:
     async def _send_pushover(
         cls, user_key: str, api_token: str, title: str, message: str
     ) -> Tuple[bool, Optional[str]]:
-        """Envía notificación push mediante Pushover."""
+        """Sends a push notification through Pushover."""
         if not user_key or not api_token:
             return False, "Faltan User Key o API Token de Pushover."
 
@@ -193,7 +193,7 @@ class NotificationService:
 
     @classmethod
     async def _send_webhook(cls, webhook_url: str, payload: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
-        """Envía evento a un Webhook genérico (Home Assistant, Discord, etc.)."""
+        """Sends the event to a generic webhook (Home Assistant, Discord, etc.)."""
         if not webhook_url:
             return False, "Falta URL del webhook."
         problem = webhook_url_problem(webhook_url)
@@ -212,7 +212,7 @@ class NotificationService:
             return False, str(e)
 
     # ------------------------------------------------------------------------
-    # Despacho centralizado y filtrado según preferencias
+    # Central dispatch, filtered by preferences
     # ------------------------------------------------------------------------
 
     @classmethod
@@ -237,7 +237,7 @@ class NotificationService:
             elif vin is not None:
                 targets = [u.id for u in await cls.recipients(session, vin)]
             else:
-                _LOGGER.warning("Notificación «%s» sin coche ni destinatario: no se envía.", category)
+                _LOGGER.warning("Notification «%s» with no car and no recipient: not sent.", category)
                 return []
             for uid in targets:
                 results.extend(await cls._dispatch_to_user(session, uid, category, title, message))
@@ -257,7 +257,7 @@ class NotificationService:
         # 1. Does this account want this kind of notification?
         flag = CATEGORY_FLAG.get(category)
         if flag and not getattr(config, flag, True):
-            _LOGGER.debug("Cuenta %s: «%s» desactivada en su configuración.", uid, category)
+            _LOGGER.debug("Account %s: «%s» switched off in its settings.", uid, category)
             return []
 
         def log(channel: str, success: bool, error: Optional[str]) -> None:
@@ -304,7 +304,7 @@ class NotificationService:
         odometer: Optional[float] = None,
         vin: Optional[str] = None,
     ):
-        """Notifica cuando el vehículo entra en una geocerca (ej. Casa, Trabajo, Concesionario)."""
+        """Notifies when the vehicle enters a geofence (e.g. home, work, dealer)."""
         details = []
         if battery_pct is not None:
             details.append(M("Batería: {p0}%", p0=round(battery_pct)))
@@ -329,7 +329,7 @@ class NotificationService:
         odometer: Optional[float] = None,
         vin: Optional[str] = None,
     ):
-        """Notifica cuando el vehículo sale de una geocerca."""
+        """Notifies when the vehicle leaves a geofence."""
         details = []
         if battery_pct is not None:
             details.append(M("Batería: {p0}%", p0=round(battery_pct)))
@@ -347,7 +347,7 @@ class NotificationService:
 
     @classmethod
     async def notify_renewal(cls, vehicle_name: str, label: str, remaining_days: int, vin: Optional[str] = None):
-        """Vencimiento próximo o pasado: renovación del seguro, impuesto de circulación u otro gasto con fecha."""
+        """Upcoming or past due date: insurance renewal, road tax or another dated expense."""
         capitalised = f"{label[:1].upper()}{label[1:]}"
         if remaining_days < 0:
             title = M("Vencido: {p0}", p0=label)
@@ -365,7 +365,7 @@ class NotificationService:
 
     @classmethod
     async def notify_tyre_pressure(cls, vehicle_name: str, problems: List[str], vin: Optional[str] = None):
-        """Neumáticos con la presión fuera del rango configurado en el vehículo."""
+        """Tyres whose pressure is outside the range set on the vehicle."""
         await cls.dispatch(
             vin=vin,
             category="tyre_pressure",
@@ -387,23 +387,23 @@ class NotificationService:
         remaining_days: Optional[int] = None,
         vin: Optional[str] = None,
     ):
-        """Notifica avisos preventivos y vencimientos de mantenimiento (revisión oficial EBRO o tarea propia)."""
-        def plazo(vencido: bool) -> Message:
-            """Vencido: lo que ya se pasó (km y/o días). Próximo: lo que falta, lo que antes llegue."""
-            partes = []
-            if vencido:
+        """Notifies upcoming and overdue maintenance (official EBRO service or a custom task)."""
+        def due_span(overdue: bool) -> Message:
+            """Overdue: how far past it is (km and/or days). Upcoming: what is left, whichever comes first."""
+            parts = []
+            if overdue:
                 if remaining_km is not None and remaining_km <= 0:
-                    partes.append(M("{p0} km", p0=abs(round(remaining_km))))
+                    parts.append(M("{p0} km", p0=abs(round(remaining_km))))
                 if remaining_days is not None and remaining_days <= 0:
-                    partes.append(M("{p0} días", p0=abs(remaining_days)))
+                    parts.append(M("{p0} días", p0=abs(remaining_days)))
             else:
                 if remaining_km is not None:
-                    partes.append(M("{p0} km", p0=round(remaining_km)))
+                    parts.append(M("{p0} km", p0=round(remaining_km)))
                 if remaining_days is not None:
-                    partes.append(M("{p0} días", p0=remaining_days))
-            if len(partes) == 2:
-                return M("{p0} y {p1}" if vencido else "{p0} o {p1}", p0=partes[0], p1=partes[1])
-            return partes[0] if partes else M("")
+                    parts.append(M("{p0} días", p0=remaining_days))
+            if len(parts) == 2:
+                return M("{p0} y {p1}" if overdue else "{p0} o {p1}", p0=parts[0], p1=parts[1])
+            return parts[0] if parts else M("")
 
         extra = []
         if labor_hours:
@@ -413,13 +413,13 @@ class NotificationService:
         capitalised = f"{revision_label[:1].upper()}{revision_label[1:]}"
         if is_overdue:
             title = M("Mantenimiento vencido: {p0}", p0=vehicle_name)
-            msg = Message.join("\n", [M("{p0} está vencida desde hace {p1}.", p0=capitalised, p1=plazo(True)), *extra])
+            msg = Message.join("\n", [M("{p0} está vencida desde hace {p1}.", p0=capitalised, p1=due_span(True)), *extra])
             prio = "high"
             tags = ["warning", "wrench"]
         else:
             title = M("Próximo mantenimiento: {p0}", p0=vehicle_name)
-            cual = M(" (lo que antes llegue)") if remaining_km is not None and remaining_days is not None else ""
-            msg = Message.join("\n", [M("Faltan {p0}{p1} para {p2}.", p0=plazo(False), p1=cual, p2=revision_label), *extra])
+            whichever_first = M(" (lo que antes llegue)") if remaining_km is not None and remaining_days is not None else ""
+            msg = Message.join("\n", [M("Faltan {p0}{p1} para {p2}.", p0=due_span(False), p1=whichever_first, p2=revision_label), *extra])
             prio = "default"
             tags = ["wrench"]
 
@@ -441,7 +441,7 @@ class NotificationService:
         location: Optional[str] = None,
         vin: Optional[str] = None,
     ):
-        """Notifica cuando comienza una sesión de carga."""
+        """Notifies when a charging session starts."""
         msg = Message.join("\n", [
             M("El vehículo ha comenzado a cargar al {p0}% de batería.", p0=round(battery_pct)),
             M("Autonomía actual: {p0} km.", p0=round(range_km)) if range_km is not None else None,
@@ -466,7 +466,7 @@ class NotificationService:
         energy_kwh: Optional[float] = None,
         vin: Optional[str] = None,
     ):
-        """Notifica cuando la batería se ha cargado por completo."""
+        """Notifies when the battery has finished charging."""
         first = Message.join(" ", [M("Carga completada al {p0}%.", p0=round(battery_pct)),
                                    M("Autonomía eléctrica: {p0} km.", p0=round(range_km)) if range_km is not None else None])
         second = Message.join(" | ", [M("Duración: {p0} min.", p0=round(duration_min)) if duration_min else None,
@@ -482,7 +482,7 @@ class NotificationService:
 
     @classmethod
     async def notify_security_alert(cls, vehicle_name: str, issues: List[str], vin: Optional[str] = None):
-        """Notifica si el coche ha quedado aparcado con puertas abiertas o alarma."""
+        """Notifies when the car was left parked with doors open or unlocked."""
         await cls.dispatch(
             vin=vin,
             category="security",
@@ -494,7 +494,7 @@ class NotificationService:
 
     @classmethod
     async def notify_fuel_low(cls, vehicle_name: str, fuel_pct: float, range_km: Optional[float] = None, vin: Optional[str] = None):
-        """Notifica cuando el combustible entra en reserva o cae bruscamente."""
+        """Notifies when the fuel drops into the reserve."""
         first = Message.join(" ", [M("Nivel de gasolina al {p0}%.", p0=round(fuel_pct)),
                                    M("Autonomía térmica estimada: {p0} km.", p0=round(range_km)) if range_km is not None else None])
         await cls.dispatch(
@@ -508,7 +508,7 @@ class NotificationService:
 
     @classmethod
     async def notify_vehicle_fault(cls, vehicle_name: str, fault_description: str, vin: Optional[str] = None):
-        """Notifica averías mecánicas, códigos de fallo (DTCs) o anomalías del vehículo."""
+        """Notifies mechanical faults, fault codes (DTCs) or vehicle anomalies."""
         await cls.dispatch(
             vin=vin,
             category="vehicle_fault",
@@ -521,7 +521,7 @@ class NotificationService:
 
     @classmethod
     async def notify_windows_open_alert(cls, vehicle_name: str, issues: List[str], vin: Optional[str] = None):
-        """Notifica cuando las ventanillas o el techo solar se han quedado abiertos al alejarse o aparcar."""
+        """Notifies when the windows or the sunroof were left open after parking."""
         await cls.dispatch(
             vin=vin,
             category="windows_open",
@@ -534,7 +534,7 @@ class NotificationService:
 
     @classmethod
     async def notify_charge_interrupted(cls, vehicle_name: str, battery_pct: float, reason: Optional[str] = None, vin: Optional[str] = None):
-        """Notifica cuando una recarga en curso se detiene inesperadamente."""
+        """Notifies when a charge in progress stops unexpectedly."""
         await cls.dispatch(
             vin=vin,
             category="charge_interrupted",

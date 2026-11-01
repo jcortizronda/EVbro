@@ -1,5 +1,5 @@
-/* EVBro — Notificaciones: canales, eventos, historial y avisos en la app.
- * (Script clásico: comparte el ámbito global con los demás ficheros; ver el orden de carga en templates/index.html.)
+/* EVBro — Notifications: channels, events, history and in-app alerts.
+ * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
 async function loadNotificationConfig() {
@@ -15,7 +15,7 @@ async function loadNotificationConfig() {
     const tgChatId = document.getElementById('notifTelegramChatId');
     if (tgChatId) tgChatId.value = cfg.telegram_chat_id || '';
 
-    // Toggles de eventos
+    // Event toggles
     const setCheck = (id, val) => {
       const el = document.getElementById(id);
       if (el) el.checked = val !== false;
@@ -47,7 +47,7 @@ async function loadNotificationConfig() {
     if (lowBatThresholdEl) { lowBatThresholdEl.value = veh?.low_battery_threshold ?? 20; lowBatThresholdEl.disabled = !isOwner; }
 
   } catch (err) {
-    console.warn("Error cargando configuración de notificaciones:", err);
+    console.warn("Error loading the notification settings:", err);
   }
 }
 
@@ -218,7 +218,7 @@ async function clearNotificationLogs() {
 }
 
 function showAppNotificationBanner(title, message, category) {
-  // 1. Notificación de sistema si está autorizada
+  // 1. System notification if allowed
   if ("Notification" in window && Notification.permission === "granted") {
     try {
       new Notification(title, {

@@ -202,7 +202,7 @@ class TraccarHub:
             self._stops[key] = asyncio.Event()
             self._tasks[key] = asyncio.create_task(self._run(key, devices))
         if rows:
-            _LOGGER.info("Traccar: %d servidor(es), %d coche(s).", len(self._routes), len(rows))
+            _LOGGER.info("Traccar: %d server(s), %d car(s).", len(self._routes), len(rows))
 
     def _set_status(self, vins, connected: bool, error: Optional[str]) -> None:
         for vin in vins:
@@ -225,7 +225,7 @@ class TraccarHub:
             except Exception as ex:                                 # noqa: BLE001 — logged, retried
                 message = str(ex) or ex.__class__.__name__
                 self._set_status(devices.values(), False, message)
-                _LOGGER.warning("Traccar %s: %s (reintento en %ss)", base, message, RECONNECT_DELAYS[min(attempt, len(RECONNECT_DELAYS) - 1)])
+                _LOGGER.warning("Traccar %s: %s (retrying in %ss)", base, message, RECONNECT_DELAYS[min(attempt, len(RECONNECT_DELAYS) - 1)])
             if stop.is_set():
                 break
             await asyncio.sleep(RECONNECT_DELAYS[min(attempt, len(RECONNECT_DELAYS) - 1)])
@@ -242,5 +242,5 @@ class TraccarHub:
                     try:
                         await gps_positions.handle_fix(session, vin, fix)
                     except Exception as ex:                         # noqa: BLE001 — one bad fix must not kill the feed
-                        _LOGGER.warning("Traccar: posición de %s descartada: %s", vin[-6:], ex)
+                        _LOGGER.warning("Traccar: position of %s discarded: %s", vin[-6:], ex)
                         await session.rollback()

@@ -1,4 +1,4 @@
-"""Avisos de mantenimiento según el modo del plan (oficial o personalizado). Solo lee la BD; no envía nada."""
+"""Maintenance alerts by plan mode (official or custom). Only reads the DB; sends nothing."""
 from __future__ import annotations
 
 import datetime
@@ -13,7 +13,7 @@ from app.services import maintenance_official as official
 
 
 async def collect_alerts(session: AsyncSession, vin: str, odometer: float, now: Optional[datetime.datetime] = None) -> List[Dict[str, Any]]:
-    """Qué hay próximo o vencido ahora mismo. Cada aviso lleva una `key` estable para no repetirlo a diario."""
+    """What is upcoming or overdue right now. Each alert carries a stable `key` so it is not repeated every day."""
     now = now or datetime.datetime.utcnow()
     vehicle = (await session.execute(select(Vehicle).where(Vehicle.vin == vin))).scalar_one_or_none()
     plan = await session.get(MaintenancePlan, vin)
@@ -21,9 +21,9 @@ async def collect_alerts(session: AsyncSession, vin: str, odometer: float, now: 
     if vehicle is None or not official.is_ebro(vehicle.brand):
         mode = "custom"                                    # the official plan is EBRO's: other brands use their own tasks
     alerts: List[Dict[str, Any]] = []
-    from app.api.routes_maintenance_plan import _itv, _official_logs  # (evita un import circular al arrancar)
+    from app.api.routes_maintenance_plan import _itv, _official_logs  # (avoids a circular import at startup)
 
-    # La ITV vale para los dos modos: cuenta desde la fecha de matriculación
+    # The ITV applies to both modes: it counts from the registration date
     if vehicle is not None:
         itv = await _itv(session, vehicle, now.date())
         if itv["status"] in ("warning", "due"):

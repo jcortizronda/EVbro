@@ -1,17 +1,17 @@
-/* EVBro — WebSocket de telemetría en directo.
- * (Script clásico: comparte el ámbito global con los demás ficheros; ver el orden de carga en templates/index.html.)
+/* EVBro — Live telemetry WebSocket.
+ * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
-// Conexión WebSocket para telemetría en vivo
+// WebSocket connection for live telemetry
 function initWebSocket() {
-  if (window.EbroAuth && EbroAuth.locked) return;     // sin sesión no hay telemetría: no insistir
+  if (window.EbroAuth && EbroAuth.locked) return;     // no session means no telemetry: do not insist
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsUrl = `${protocol}//${window.location.host}/api/ws`;
 
   ws = new WebSocket(wsUrl);
 
   ws.onopen = () => {
-    console.log("WebSocket conectado.");
+    console.log("WebSocket connected.");
   };
 
   ws.onmessage = (event) => {
@@ -32,10 +32,10 @@ function initWebSocket() {
   };
 
   ws.onclose = async () => {
-    console.log("WebSocket cerrado.");
-    // Si lo ha cerrado el servidor por falta de sesión, no se reconecta: se muestra el acceso.
+    console.log("WebSocket closed.");
+    // If the server closed it for lack of a session, do not reconnect: show the sign-in screen.
     if (window.EbroAuth && !(await EbroAuth.verify())) return;
-    console.log("Reconectando en 5s...");
+    console.log("Reconnecting in 5s...");
     setTimeout(initWebSocket, 5000);
   };
 }

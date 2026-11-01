@@ -1,13 +1,13 @@
-"""Cliente MQTT mutual-TLS del coche (paho, en su propio hilo).
+"""The car's mutual-TLS MQTT client (paho, on its own thread).
 
-El coordinator no tiene por qué saber que debajo hay paho, ni cómo se deriva la contraseña del
-broker, ni qué topic hay que suscribir. Aquí queda todo eso y solo eso: conectar, suscribir,
-entregar los mensajes en crudo y desconectar limpiamente.
+The coordinator has no business knowing that paho is underneath, how the broker password is
+derived, or which topic must be subscribed. All of that, and only that, lives here: connect,
+subscribe, deliver raw messages and disconnect cleanly.
 
-**El hilo importa.** paho corre su propio bucle en un hilo aparte, así que los callbacks NO
-están en el bucle de eventos de asyncio: quien los reciba debe saltar al loop antes de tocar
-nada del servidor. Este módulo no lo hace por su cuenta — se limita a entregar, y quien lo usa
-(`services/car_events.py`) decide.
+**The thread matters.** paho runs its own loop on a separate thread, so the callbacks are NOT
+on the asyncio event loop: whoever receives them must hop onto the loop before touching
+anything in the server. This module does not do it on its own — it only delivers, and its user
+(`services/car_events.py`) decides.
 """
 from __future__ import annotations
 
@@ -30,46 +30,46 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class MqttConnectError(Exception):
-    """El connect inicial al broker ha fallado (DNS, certificado, red)."""
+    """The initial connect to the broker failed (DNS, certificate, network)."""
 
 
 @dataclass(frozen=True)
 class MqttConfig:
-    """Lo que hace falta para hablar con el broker de ESTE vehículo."""
+    """What is needed to talk to THIS vehicle's broker."""
 
     host: str
     port: int
     tuserid: str
     channel_id: str
     certs_dir: str
-    #: Suscribirse a TODO el espacio de topics de esta cuenta en vez de solo al conocido.
-    #: Sirve para descubrir por dónde llega lo que no llega por `topic`. Ver `discovery_topic`.
+    #: Subscribe to the WHOLE topic space of this account instead of only the known one.
+    #: Used to discover where whatever does not arrive on `topic` comes from. See `discovery_topic`.
     discovery: bool = False
 
     @property
     def client_id(self) -> str:
-        """`app_<canal>_<tuserid>`. **NO es el mismo que usa la app oficial.**
+        """`app_<channel>_<tuserid>`. **It is NOT the same one the official app uses.**
 
-        Aquí ponía que este era «el formato EXACTO que espera la ACL del broker». Es falso, y
-        conviene que quede escrito: el volcado de memoria de la app (Chery Vehicle SDK sobre
-        paho) muestra que la suya añade un sufijo derivado de la URL del broker —
+        This used to say it was "the EXACT format the broker ACL expects". That is false, and it
+        is worth writing down: the app's memory dump (Chery Vehicle SDK on top of paho) shows
+        that its own adds a suffix derived from the broker URL —
 
             app_4_<tuserid>-ssltspemqx-app-euebroautocom8083
 
-        es decir `ssl://<host>:<puerto>` sin los caracteres no alfanuméricos. El broker acepta
-        igualmente el nuestro, así que el sufijo no lo exige ninguna ACL.
+        i.e. `ssl://<host>:<port>` without the non-alphanumeric characters. The broker accepts
+        ours all the same, so no ACL requires the suffix.
 
-        Y la diferencia es DESEABLE: MQTT obliga a que el clientId sea único, y dos clientes con
-        el mismo se echan mutuamente.
+        And the difference is DESIRABLE: MQTT requires the clientId to be unique, and two clients
+        with the same one kick each other out.
 
-        **PROBADO Y DESCARTADO (2026-10-01).** Se uso el formato exacto de la app —
-        `app_<canal>_<tuserid>-ssl<host y puerto sin signos>` — por ser la ultima diferencia
-        conocida entre su cliente y el nuestro, con una cuenta delegada que se suscribe bien y
-        no recibe nada. Resultado medido en vivo: **9 conexiones y 9 desconexiones con 0 segundos
-        de vida**, sin llegar siquiera a suscribirse. El broker SI mira el clientId, y el formato
-        de la app no nos vale — con el nuestro la conexion es estable.
+        **TRIED AND DISCARDED (2026-10-01).** The app's exact format was used —
+        `app_<channel>_<tuserid>-ssl<host and port without symbols>` — as the last known
+        difference between its client and ours, with a delegated account that subscribes fine
+        and receives nothing. Result measured live: **9 connections and 9 disconnections with 0
+        seconds of life**, without even getting to subscribe. The broker DOES look at the
+        clientId, and the app's format does not work for us — with ours the connection is stable.
 
-        Queda escrito para que nadie lo vuelva a intentar creyendo que es inofensivo."""
+        Written down so nobody tries it again thinking it is harmless."""
         return f"app_{self.channel_id}_{self.tuserid}"
 
     @property
@@ -78,36 +78,36 @@ class MqttConfig:
 
     @property
     def discovery_topic(self) -> str:
-        """Comodín sobre el espacio de topics de ESTA cuenta.
+        """Wildcard over THIS account's topic space.
 
-        El topic conocido se dedujo del APK y es el único que la integración escucha. Con una
-        cuenta secundaria por ahí no llega nada, pero la app oficial —con esa misma cuenta— sí
-        refleja las aperturas al instante: hay algo publicándose en otro sitio.
+        The known topic was deduced from the APK and is the only one the integration listens
+        to. With a secondary account nothing arrives there, yet the official app —with that same
+        account— does reflect unlocks instantly: something is being published elsewhere.
 
-        `#` cuelga del prefijo de la propia cuenta, no de la raíz del broker: no se pide ver
-        nada ajeno, solo lo que ya es de este usuario. Si aun así la ACL lo deniega, el SUBACK
-        lo dirá y se vuelve al topic exacto."""
+        `#` hangs off the account's own prefix, not the broker root: nothing foreign is asked
+        for, only what already belongs to this user. If the ACL still denies it, the SUBACK
+        will say so and we fall back to the exact topic."""
         return f"app/{self.channel_id}/{self.tuserid}/#"
 
     @property
     def password(self) -> str:
-        """Contraseña del broker: md5(tuserid + semilla de la app).
+        """Broker password: md5(tuserid + app seed).
 
-        La semilla es una constante compartida de la app (no un secreto del usuario); se puede
-        sobrescribir por entorno solo para diagnóstico."""
+        The seed is a shared app constant (not a user secret); it can be overridden through
+        the environment for diagnostics only."""
         seed = os.environ.get("CAR_SEED", CAR_SEED)
         return hashlib.md5((self.tuserid + seed).encode()).hexdigest()
 
 
 class EbroMqttClient:
-    """Ciclo de vida del cliente paho. Todos sus métodos son BLOQUEANTES: ejecutar en executor.
+    """Lifecycle of the paho client. All its methods are BLOCKING: run in an executor.
 
-    Los cuatro callbacks se invocan **desde el hilo de paho**:
+    The four callbacks are invoked **from the paho thread**:
 
-    * `on_message(payload: bytes, topic: str)` — un mensaje, sin interpretar;
-    * `on_connected(ok: bool, rc)` — resultado de un intento de conexión;
-    * `on_subscribed(ok: bool, detail, topic)` — resultado del SUBSCRIBE, con el topic pedido;
-    * `on_disconnected(rc)` — la sesión se ha caído.
+    * `on_message(payload: bytes, topic: str)` — one message, uninterpreted;
+    * `on_connected(ok: bool, rc)` — result of a connection attempt;
+    * `on_subscribed(ok: bool, detail, topic)` — result of the SUBSCRIBE, with the requested topic;
+    * `on_disconnected(rc)` — the session dropped.
     """
 
     def __init__(
@@ -125,7 +125,7 @@ class EbroMqttClient:
         self._on_disconnected = on_disconnected
         self._on_subscribed = on_subscribed
         self._client = None
-        #: qué topic se pidió en el último SUBSCRIBE, para saber a qué responde el SUBACK
+        #: which topic the last SUBSCRIBE asked for, to know what the SUBACK answers
         self._requested: str | None = None
 
     @property
@@ -133,11 +133,11 @@ class EbroMqttClient:
         return self._client is not None
 
     def connect(self) -> None:
-        """Conecta y arranca el bucle de paho. Bloqueante: ejecutar en executor.
+        """Connect and start the paho loop. Blocking: run in an executor.
 
-        Un fallo del connect inicial (DNS/certificado/red) se traduce a `MqttConnectError`
-        para que el llamador reintente, en vez de dejar el cliente colgado."""
-        # import aquí (executor): a nivel de módulo causa un blocking-call warning en el loop.
+        A failure of the initial connect (DNS/certificate/network) becomes `MqttConnectError`
+        so the caller retries, instead of leaving the client hanging."""
+        # import here (executor): at module level it causes a blocking-call warning on the loop.
         import paho.mqtt.client as mqtt
 
         cfg = self._config
@@ -145,9 +145,9 @@ class EbroMqttClient:
             callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
             client_id=cfg.client_id, protocol=mqtt.MQTTv311, clean_session=False)
         client.username_pw_set(cfg.tuserid, cfg.password)
-        # Verificación completa: CA del bundle + nombre del broker. El certificado del broker
-        # tiene un CN raro (`CN=CA`), pero su SAN es el host, que es lo que comprueba `ssl`.
-        # Nunca `tls_insecure_set(True)`: aceptaría cualquier certificado firmado por esa CA.
+        # Full verification: bundle CA + broker name. The broker certificate has an odd CN
+        # (`CN=CA`), but its SAN is the host, which is what `ssl` checks.
+        # Never `tls_insecure_set(True)`: it would accept any certificate signed by that CA.
         client.tls_set(**certificates.tls_paths(cfg.certs_dir),
                        cert_reqs=ssl.CERT_REQUIRED, tls_version=ssl.PROTOCOL_TLS_CLIENT)
 
@@ -162,19 +162,19 @@ class EbroMqttClient:
 
         def _on_disconnect(_cl, _userdata, *args):
             _LOGGER.info("[auto] MQTT desconectado")
-            # La firma varía entre versiones de paho: el rc puede ser el primer o el segundo
-            # posicional. Se normaliza aquí para que el llamador no tenga que saberlo.
+            # The signature varies between paho versions: rc may be the first or the second
+            # positional. It is normalised here so the caller does not need to know.
             rc = args[1] if len(args) > 1 else (args[0] if args else None)
             self._on_disconnected(rc)
 
         def _on_subscribe(_cl, _userdata, _mid, reason_codes, _props=None):
-            """Resultado del SUBSCRIBE. Un broker puede ACEPTAR la conexión y DENEGAR el topic.
+            """Result of the SUBSCRIBE. A broker can ACCEPT the connection and DENY the topic.
 
-            Sin esto, ese caso es indistinguible de «el coche no ha dicho nada»: la integración
-            se queda conectada y muda para siempre, y el informe de diagnóstico enseña un
-            `car_connected: true` tranquilizador que no significa lo que parece."""
-            # MQTT 3.1.1: 0/1/2 = QoS concedido, 0x80 = rechazado. paho VERSION2 los envuelve
-            # en ReasonCode, que compara y se imprime como su valor.
+            Without this, that case is indistinguishable from "the car has said nothing": the
+            integration stays connected and silent forever, and the diagnostics report shows a
+            reassuring `car_connected: true` that does not mean what it seems."""
+            # MQTT 3.1.1: 0/1/2 = granted QoS, 0x80 = rejected. paho VERSION2 wraps them
+            # in ReasonCode, which compares and prints as its value.
             granted = [str(rc) for rc in (reason_codes or [])]
             ok = bool(reason_codes) and all(
                 getattr(rc, "value", rc) != 0x80 for rc in reason_codes
@@ -184,17 +184,17 @@ class EbroMqttClient:
             if ok:
                 _LOGGER.info("[auto] MQTT suscrito a %s (QoS %s)", pedido, detail)
             elif pedido == cfg.discovery_topic:
-                # La ACL no deja escuchar toda la cuenta: no es un fallo, es que el
-                # descubrimiento no está permitido. Se cae al topic conocido para no quedarse
-                # SIN suscripción por haber pedido de más.
+                # The ACL does not allow listening to the whole account: not a failure, discovery
+                # is just not allowed. Fall back to the known topic so we are not left WITHOUT a
+                # subscription for having asked for too much.
                 _LOGGER.warning(
                     "[auto] MQTT: descubrimiento denegado en %s (%s) → vuelvo al topic conocido",
                     pedido, detail)
-                # AVISAR ANTES de reintentar. Volver aquí en silencio dejaba el rechazo solo en
-                # el log: en el archivo de diagnóstico se veía un único
-                # «Granted QoS 1» y parecía que el comodín había funcionado. Costó una lectura
-                # equivocada de una captura de campo — se concluyó «escucho toda la cuenta y no
-                # llega nada» cuando lo cierto era «no me dejan escuchar toda la cuenta».
+                # REPORT BEFORE retrying. Falling back here silently left the rejection only in
+                # the log: the diagnostics file showed a single
+                # "Granted QoS 1" and it looked like the wildcard had worked. It cost a wrong
+                # reading of a field capture — the conclusion was "I listen to the whole account
+                # and nothing arrives" when the truth was "I am not allowed to listen to it".
                 self._on_subscribed(False, detail, pedido)
                 self._requested = cfg.topic
                 _cl.subscribe(cfg.topic, qos=1)
@@ -203,8 +203,8 @@ class EbroMqttClient:
                 _LOGGER.error(
                     "[auto] MQTT SUSCRIPCIÓN RECHAZADA a %s (%s): la conexión está viva pero el "
                     "coche no podrá entregar telemetría", pedido, detail)
-            # el topic va en el aviso: sin él, un «Granted QoS 1» no dice si se concedió el
-            # comodín o el topic exacto de respaldo — y son conclusiones opuestas.
+            # the topic goes in the report: without it, a "Granted QoS 1" does not say whether the
+            # wildcard or the exact fallback topic was granted — and those are opposite conclusions.
             self._on_subscribed(ok, detail, pedido or "")
 
         def _on_message(_cl, _userdata, msg):
@@ -214,8 +214,8 @@ class EbroMqttClient:
         client.on_disconnect = _on_disconnect
         client.on_subscribe = _on_subscribe
         client.on_message = _on_message
-        # [H4] backoff de reconexión: el de paho por defecto es 1 s fijo, o sea un intento por
-        # segundo indefinidamente con la red caída — justo el patrón que los gateways sancionan.
+        # [H4] reconnect backoff: paho's default is a fixed 1 s, i.e. one attempt per second
+        # forever while the network is down — exactly the pattern that gateways penalise.
         client.reconnect_delay_set(min_delay=MQTT_RECONNECT_MIN_S, max_delay=MQTT_RECONNECT_MAX_S)
         try:
             client.connect(cfg.host, cfg.port, keepalive=MQTT_KEEPALIVE_S)
@@ -227,10 +227,10 @@ class EbroMqttClient:
         self._client = client
 
     def disconnect(self) -> None:
-        """Apagado limpio. Bloqueante (`loop_stop` hace join del hilo) → ejecutar en executor.
+        """Clean shutdown. Blocking (`loop_stop` joins the thread) → run in an executor.
 
-        `disconnect()` ANTES de `loop_stop()`: así el bucle procesa el DISCONNECT y el hilo sale
-        sin quedarse esperando al keepalive."""
+        `disconnect()` BEFORE `loop_stop()`: that way the loop processes the DISCONNECT and the
+        thread exits without waiting for the keepalive."""
         client, self._client = self._client, None
         if client is None:
             return

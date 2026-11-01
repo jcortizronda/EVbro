@@ -1,7 +1,7 @@
-/* EVBro — Ajustes en móvil: relleno y submenú.
-   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+/* EVBro — Ajustes on a phone: padding and submenu.
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
-/* Ajustes en móvil: menos relleno anidado para que el texto no se quede en una columna estrecha */
+/* Ajustes on a phone: less nested padding so the text is not squeezed into a narrow column */
 @media (max-width: 600px) {
   #tabSettings .details-card { padding: 16px 14px; }
   .notif-trigger-card { padding: 12px; gap: 10px; }
@@ -11,7 +11,7 @@
   .notif-trigger-desc { font-size: 0.76rem; }
 }
 
-/* Submenú de Ajustes: las 5 secciones caben en el ancho del móvil (icono sobre texto) */
+/* Ajustes submenu: the 5 sections fit the phone width (icon above text) */
 @media (max-width: 600px) {
   .settings-sub-nav { gap: 2px; overflow-x: visible; }
   .settings-sub-nav .sub-nav-btn {
@@ -22,7 +22,7 @@
 }
 #carChannelDetail { font-size: 0.78rem; font-weight: 600; line-height: 1.35; }
 
-/* Posición desde el móvil (Ajustes → Sistema) */
+/* Position from the phone (Ajustes → Sistema) */
 .pt-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--border-color); }
 .pt-main { display: flex; flex-direction: column; min-width: 0; }
 .pt-main strong { font-size: 0.92rem; }
@@ -37,7 +37,7 @@
 .pt-url button { flex: none; min-height: 40px; }
 @media (max-width: 480px) { .pt-add { grid-template-columns: 1fr; } }
 
-/* Tus datos (exportar / importar) */
+/* Tus datos (export / import) */
 .ad-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 8px 0; }
 .ad-report { margin: 10px 0 0; padding: 10px 12px; border-radius: 10px; background: var(--surface-secondary); border: 1px solid var(--border-color); font: inherit; font-size: 0.82rem; white-space: pre-wrap; overflow-wrap: anywhere; }
 .ad-report[hidden] { display: none; }

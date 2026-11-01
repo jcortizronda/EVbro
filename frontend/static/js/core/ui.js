@@ -1,9 +1,9 @@
-/* EVBro — ayudas de interfaz para móvil.
+/* EVBro — interface helpers for phones.
  *
- * 1. Tablas como tarjetas: en pantallas estrechas el CSS (`.data-table`) muestra cada fila como una
- *    tarjeta y antepone a cada celda el nombre de su columna. Ese nombre sale del <thead>: aquí se
- *    copia a `data-label` en cada celda, sea cual sea el código que haya pintado la tabla.
- * 2. Las barras de subpestañas se desplazan en horizontal: la activa se centra al pulsarla.
+ * 1. Tables as cards: on narrow screens the CSS (`.data-table`) shows each row as a card and puts
+ *    the column name before each cell. That name comes from the <thead>: here it is copied to
+ *    `data-label` on every cell, whatever code rendered the table.
+ * 2. Sub-tab bars scroll horizontally: the active one is centred when tapped.
  */
 (function () {
   'use strict';
@@ -15,7 +15,7 @@
       table.querySelectorAll('tbody tr').forEach((row) => {
         let col = 0;
         Array.from(row.children).forEach((cell) => {
-          if (cell.colSpan > 1) { col += cell.colSpan; return; }   // «Cargando…», «Sin datos»
+          if (cell.colSpan > 1) { col += cell.colSpan; return; }   // «Cargando…», «Sin datos» (placeholder rows)
           const label = heads[col];
           if (label && cell.dataset.label !== label) cell.dataset.label = label;
           col += 1;
@@ -24,7 +24,7 @@
     });
   }
 
-  // Una pasada por fotograma como máximo, aunque la tabla cambie muchas veces seguidas.
+  // At most one pass per frame, even if the table changes many times in a row.
   let queued = false;
   function schedule() {
     if (queued) return;
@@ -34,7 +34,7 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     schedule();
-    // Solo se observan altas/bajas de nodos: poner `data-label` es un atributo y no re-dispara esto.
+    // Only node additions/removals are observed: setting `data-label` is an attribute and does not re-trigger this.
     new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
   });
 

@@ -1,4 +1,4 @@
-"""Punto de entrada principal de la aplicación EVBro."""
+"""Main entry point of the EVBro application."""
 from __future__ import annotations
 
 import hashlib
@@ -24,10 +24,10 @@ from app.security.auth import announce_setup_if_needed
 from app.services.poller import VehiclePoller
 from app.services.traccar import TraccarHub
 
-# Todo archivo que cree la app (tokens, facturas, clave de cifrado) es privado del usuario que la ejecuta.
+# Every file the app creates (tokens, invoices, encryption key) is private to the user running it.
 os.umask(0o077)
 
-# Configuración de logs
+# Logging setup
 logging.basicConfig(
     level=logging.DEBUG if settings.DEBUG else logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -37,36 +37,36 @@ _LOGGER = logging.getLogger("app")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Ciclo de vida de la aplicación: arranque y parada."""
+    """Application lifecycle: startup and shutdown."""
     _LOGGER.info("Arrancando EVBro Server...")
 
-    # 1. Inicializar esquema de base de datos
+    # 1. initialise the database schema
     try:
         await init_db()
     except Exception as e:
         # Fatal on purpose: running on an old schema looks alive but breaks every new feature quietly (2026-10-30, a rolled-back
         # migration left the app up for minutes). Docker restarts the container and the health check shows it red.
-        _LOGGER.error(f"Error al inicializar base de datos: {e}")
+        _LOGGER.error(f"Error initialising the database: {e}")
         raise RuntimeError(f"La base de datos no se pudo migrar: {e}") from e
 
-    # 1b. Si aún no hay usuario, avisar en el log de cómo crearlo
+    # 1b. if there is no user yet, explain in the log how to create one
     try:
         await announce_setup_if_needed()
     except Exception as e:
-        _LOGGER.error(f"No se pudo comprobar el usuario inicial: {e}")
+        _LOGGER.error(f"Could not check the initial user: {e}")
 
-    # 2. Iniciar motor de sondeo y estado
+    # 2. start the polling and state engine
     poller = VehiclePoller.get_instance()
     await poller.start()
     await TraccarHub.get_instance().start()             # live GPS from Traccar servers (cars that have one)
 
-    # 3. Consola de administración (otro puerto, otra interfaz)
+    # 3. admin console (another port, another interface)
     console = AdminConsole()
     await console.start()
 
     yield
 
-    # 4. Detener tareas en segundo plano
+    # 4. stop background tasks
     _LOGGER.info("Deteniendo EVBro...")
     await console.stop()
     await TraccarHub.get_instance().stop()
@@ -78,7 +78,7 @@ app = FastAPI(
     description="Servidor autoalojado de telemetría, gestión y seguimiento para vehículos Ebro",
     version=__version__,
     lifespan=lifespan,
-    # La documentación interactiva describe toda la API: solo en modo DEBUG.
+    # The interactive docs describe the whole API: DEBUG mode only.
     docs_url="/docs" if settings.DEBUG else None,
     redoc_url=None,
     openapi_url="/openapi.json" if settings.DEBUG else None,
@@ -117,7 +117,7 @@ def page_csp(request: Request) -> str:
 
 @app.middleware("http")
 async def security_headers(request: Request, call_next):
-    """Cabeceras de seguridad básicas; las respuestas de la API no se guardan en caché. También fija el idioma de la petición."""
+    """Basic security headers; API responses are not cached. Also sets the language of the request."""
     i18n.set_language(i18n.pick(request.cookies, request.headers.get("accept-language")))
     if request.url.path.startswith("/api/") and request.method in ("POST", "PUT", "PATCH"):
         length = request.headers.get("content-length", "")
@@ -132,9 +132,9 @@ async def security_headers(request: Request, call_next):
         response.headers.setdefault("Content-Security-Policy", "frame-ancestors 'self'" if content_type.startswith("application/pdf") else _API_CSP)
     elif content_type.startswith("text/html"):
         response.headers.setdefault("Content-Security-Policy", page_csp(request))
-    # NO poner `same-origin` ni `no-referrer`: OpenStreetMap exige un Referer válido y, sin él, responde con una
-    # tesela «Access blocked» (HTTP 200, así que ni siquiera salta `tileerror`). Con esta política los sitios
-    # externos reciben solo el origen, nunca la ruta.
+    # do NOT use `same-origin` or `no-referrer`: OpenStreetMap requires a valid Referer and, without it, answers with an
+    # "Access blocked" tile (HTTP 200, so `tileerror` does not even fire). With this policy external sites
+    # only get the origin, never the path.
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
     if request.url.path.startswith("/api/") and "no-store" not in response.headers.get("Cache-Control", ""):
@@ -143,7 +143,7 @@ async def security_headers(request: Request, call_next):
         response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
     return response
 
-# Rutas estáticas y plantillas HTML
+# Static routes and HTML templates
 FRONTEND_DIR = frontend_dir()
 STATIC_DIR = os.path.join(FRONTEND_DIR, "static")
 TEMPLATES_DIR = os.path.join(FRONTEND_DIR, "templates")
@@ -155,8 +155,8 @@ templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 
 def _asset_version() -> str:
-    """Hash del contenido de los JS/CSS/HTML: va en `?v=` para que los navegadores (el móvil sobre todo) recarguen solo
-    cuando el frontend cambia, sin subir números a mano."""
+    """Hash of the JS/CSS/HTML content: it goes in `?v=` so browsers (phones above all) reload only
+    when the frontend changes, without bumping numbers by hand."""
     digest = hashlib.sha1()
     root = Path(FRONTEND_DIR)
     for path in sorted([*root.joinpath("static", "js").rglob("*.js"), *root.joinpath("static", "css").rglob("*.css"),
@@ -168,13 +168,13 @@ def _asset_version() -> str:
 
 templates.env.globals["asset_version"] = _asset_version()
 
-# Montar API REST y WebSockets
+# Mount the REST API and WebSockets
 app.include_router(api_router)
 
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_dashboard(request: Request):
-    """Sirve el panel de control web principal sin caché persistente para reflejar cambios inmediatamente.
+    """Serves the main web dashboard without persistent caching so changes show up immediately.
     The page goes out in the language of the request (cookie of the account or the browser's) with its web dictionary inlined."""
     lang = i18n.get_language()
     return templates.TemplateResponse(
@@ -187,14 +187,14 @@ async def serve_dashboard(request: Request):
 
 @app.get("/manifest.json")
 async def get_manifest():
-    """Sirve el manifiesto de la aplicación PWA."""
+    """Serves the PWA manifest."""
     manifest_path = os.path.join(STATIC_DIR, "manifest.json")
     return FileResponse(manifest_path, media_type="application/manifest+json")
 
 
 @app.get("/sw.js")
 async def get_service_worker():
-    """Sirve el Service Worker para capacidades offline e instalación PWA."""
+    """Serves the Service Worker for offline support and PWA install."""
     sw_path = os.path.join(STATIC_DIR, "sw.js")
     return FileResponse(
         sw_path,
@@ -205,14 +205,14 @@ async def get_service_worker():
 
 @app.get("/favicon.ico")
 async def get_favicon():
-    """Favicon para navegadores web."""
+    """Favicon for web browsers."""
     icon_path = os.path.join(STATIC_DIR, "icons", "favicon.png")
     return FileResponse(icon_path, media_type="image/png")
 
 
 @app.get("/health")
 async def health_check():
-    """Endpoint de salud para Docker / Kubernetes."""
+    """Health endpoint for Docker / Kubernetes."""
     return {"status": "healthy", "service": "EVBro"}
 
 
@@ -244,6 +244,6 @@ async def android_assetlinks():
 
 @app.get("/legal", response_class=HTMLResponse)
 async def legal_page(request: Request):
-    """Aviso legal y privacidad: qué guarda este servidor, para qué, quién lo ve y cómo pedir o borrar tus datos. Pública."""
+    """Legal notice and privacy: what this server stores, what for, who sees it and how to request or delete your data. Public."""
     return templates.TemplateResponse(request, "legal.html", {"operator": settings.LEGAL_OPERATOR.strip(), "contact": settings.LEGAL_CONTACT.strip(),
                                                               "host": request.headers.get("x-forwarded-host", request.headers.get("host", ""))})

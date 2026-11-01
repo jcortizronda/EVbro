@@ -31,6 +31,6 @@ tools/e2e/demo_server.sh stop
 ```
 La demo crea un gestor (`juan`, dueño del coche de demo) y, por la consola, un administrador (`admin` / `contraseña-del-admin-1`, puerto 8098).
 Variables: `EVBRO_ADMIN_URL`, `EVBRO_URL`, `EVBRO_USER`, `EVBRO_PASSWORD` (por defecto, el servidor de demo). Cada script termina con
-`FALLOS: ninguno` o la lista de comprobaciones que fallan (código de salida ≠ 0).
+`FAILURES: none` o la lista de comprobaciones que fallan (código de salida ≠ 0).
 
 Las pruebas que simulan la API con `page.route` crean el contexto con `service_workers="block"`: desde el modo sin conexión el Service Worker atiende las lecturas de `/api/vehicles…` y Playwright no intercepta lo que pide un Service Worker.

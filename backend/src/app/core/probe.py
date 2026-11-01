@@ -1,72 +1,72 @@
 #!/usr/bin/env python3
 """
-probe.py — "Sonda de posición" de Ebro Auto.
+probe.py — Ebro Auto "position probe".
 
-Pregunta que responde: cuando el coche está REALMENTE despierto (está publicando
-5A02 en MQTT), ¿el canal tspconsole-eu devuelve posición GPS / datos realtime, o
-todavía `A07900`?
+Question it answers: when the car is REALLY awake (it is publishing
+5A02 on MQTT), does the tspconsole-eu channel return GPS position / realtime data, or
+still `A07900`?
 
-Descubrimiento (verificado sobre el código de AMBAS apps, EU + rusa):
-  - NO existe un endpoint BFF para los comandos. El BFF "legend" solo tiene
-    auth/cpm(PIN)/env/map/vac/vmc. Los comandos/posición pasan TODOS por el SDK
-    de Chery → tspconsole-eu `/asc/vehicleControl/*` y `/asr/manager/realtime`,
-    es decir EXACTAMENTE los path que ya usamos. Ningún canal oculto.
-  - Así que la única variable que queda es el ESTADO DESPIERTO del coche. La app
-    lo consigue porque manda con el coche recién usado; nosotros caemos en A07900
-    (duerme) y no podemos despertarlo (smsAwaken en A07312, cuota por cuenta).
+Finding (verified against the code of BOTH apps, EU + Russian):
+  - There is NO BFF endpoint for commands. The "legend" BFF only has
+    auth/cpm(PIN)/env/map/vac/vmc. Commands/position ALL go through Chery's
+    SDK → tspconsole-eu `/asc/vehicleControl/*` and `/asr/manager/realtime`,
+    i.e. EXACTLY the paths we already use. No hidden channel.
+  - So the only variable left is the car's AWAKE STATE. The app
+    gets it because it sends right after the car was used; we hit A07900
+    (asleep) and cannot wake it (smsAwaken at A07312, per-account quota).
 
-Esta sonda es de SOLO LECTURA: llama a `/asr/manager/realtime {vin}` y
-`/asc/vehicleControl/queryVehicleLocation {vin}` (los mismos del sondeo de
-wake.py). NO envía smsAwaken, NO manda comandos, NO toca el PIN. Es benigna:
-es lo que hace la app cuando abres la página de "posición".
+This probe is READ ONLY: it calls `/asr/manager/realtime {vin}` and
+`/asc/vehicleControl/queryVehicleLocation {vin}` (the same as wake.py's
+polling). It does NOT send smsAwaken, does NOT send commands, does NOT touch the PIN. It is benign:
+it is what the app does when you open the "position" page.
 
-Se invoca en el flanco de subida dormido→despierto, con un cooldown para no
-repetir en cada 5A02.
+It is invoked on the asleep→awake rising edge, with a cooldown so it does not
+repeat on every 5A02.
 
-Uso estrictamente personal (coche/cuenta del usuario). NO publicar token/certificados.
+Strictly personal use (the user's own car/account). Do NOT publish token/certificates.
 """
 import json
 import logging
 import os
 import time
 
-# Reutiliza la infraestructura ya verificada de wake.py: login BFF + POST firmado tspconsole.
-# imports relativos de paquete.
+# Reuses wake.py's already verified infrastructure: BFF login + signed tspconsole POST.
+# package-relative imports.
 from . import codes, wake as W
 
 _LOGGER = logging.getLogger(__name__)
 
-# campos "ricos" del CVRealtimeResBean que más nos interesan (si es que llegan)
+# "rich" fields of CVRealtimeResBean we care most about (if they arrive at all)
 RICH_KEYS = ("lat", "lon", "altitude", "direction", "gpsSpeed", "vehicleSpeed",
              "odometer", "dumpEnergy", "electricRange", "pureElectricRange",
              "chargeState", "inCarTemperature", "onlineStatus")
 
-# Subconjunto GEOGRÁFICO de RICH_KEYS: la POSICIÓN. Excluido del mensaje legible —
-# no de la telemetría. El mensaje `probe_status` acaba en el estado de un sensor (y por
-# tanto en la base de datos), en los archivos de diagnóstico y en el log de
-# EVBro; escribir ahí «lat=…, lon=…» hacía salir en claro dónde está el coche en los
-# tres sitios (encontrado en campo el 2026-07-20). La posición sigue llegando a la
-# telemetría por su camino (`on_data` recibe los datos EN CRUDO, no este resumen), así
-# que no se pierde nada: solo desaparece del TEXTO. Odómetro/energía/autonomía/temperatura
-# se quedan, para que el mensaje siga siendo útil para el diagnóstico.
+# GEOGRAPHIC subset of RICH_KEYS: the POSITION. Excluded from the readable message —
+# not from telemetry. The `probe_status` message ends up in a sensor's state (and
+# therefore in the database), in the diagnostic files and in
+# EVBro's log; writing «lat=…, lon=…» there leaked where the car is in plain text in all
+# three places (found in the field on 2026-07-20). The position still reaches
+# telemetry by its own path (`on_data` receives the RAW data, not this summary), so
+# nothing is lost: it only disappears from the TEXT. Odometer/energy/range/temperature
+# stay, so the message is still useful for diagnostics.
 _GEO_KEYS = ("lat", "lon", "altitude", "direction")
 _MSG_KEYS = tuple(k for k in RICH_KEYS if k not in _GEO_KEYS)
 
-# Marcas de tiempo que el coche pone en el payload realtime, de la más a la menos fiable.
+# Timestamps the car puts in the realtime payload, from most to least reliable.
 _CLOCK_KEYS = ("time", "resultTime")
 
 
 def freshness(data: dict, now: float | None = None) -> str:
-    """Describe DE CUÁNDO son los datos que acaba de devolver la sonda.
+    """Describe HOW OLD the data the probe just returned is.
 
-    El endpoint realtime responde igual de bien con el coche despierto que dormido, pero no
-    significan lo mismo: despierto contesta el coche, dormido devuelve la última instantánea
-    que la nube guardó, que puede tener media hora. Anunciar las dos cosas como «datos en
-    tiempo real con el coche despierto» —que es lo que hacía— manda al usuario a buscar el
-    fallo donde no está: pulsa «Actualizar», el sensor le dice que todo ha ido bien, y el
-    maletero que acaba de abrir sigue sin aparecer.
+    The realtime endpoint answers equally well with the car awake or asleep, but they do not
+    mean the same: awake, the car answers; asleep, it returns the last snapshot
+    the cloud stored, which may be half an hour old. Announcing both as «realtime
+    data with the car awake» —which is what it did— sends the user looking for the
+    fault where it is not: they press «Update», the sensor says all went well, and the
+    boot they just opened still does not show up.
 
-    `onlineStatus` es de la propia respuesta, no una deducción nuestra.
+    `onlineStatus` comes from the response itself, not from our own deduction.
     """
     online = str(data.get("onlineStatus", "")).strip() in ("1", "1.0")
     if online:
@@ -78,7 +78,7 @@ def freshness(data: dict, now: float | None = None) -> str:
 
 
 def _age_min(data: dict, now: float) -> int | None:
-    """Minutos transcurridos desde la marca de tiempo del payload. `None` si no trae ninguna."""
+    """Minutes elapsed since the payload's timestamp. `None` if it carries none."""
     for key in _CLOCK_KEYS:
         try:
             ms = float(data.get(key))
@@ -103,34 +103,34 @@ def _log(path: str, rec: dict):
 
 
 def _rich(data: dict) -> dict:
-    """Extrae los campos interesantes para el resumen legible — SIN la posición.
+    """Extract the interesting fields for the readable summary — WITHOUT the position.
 
-    Ver `_GEO_KEYS`: las coordenadas no entran en el mensaje (que se publica como estado de
-    un sensor, por tanto persistido y potencialmente compartido). Quedan todos los demás
-    campos ricos. La posición viaja igualmente intacta hacia la telemetría mediante
-    `on_data`, que recibe el diccionario en crudo, no este."""
+    See `_GEO_KEYS`: the coordinates do not go into the message (which is published as a
+    sensor's state, hence persisted and potentially shared). All the other rich
+    fields stay. The position still travels intact to telemetry via
+    `on_data`, which receives the raw dictionary, not this one."""
     if not isinstance(data, dict):
         return {}
     return {k: data[k] for k in _MSG_KEYS if k in data}
 
 
 def probe_once(ctx, publish, force=False, on_data=None):
-    """Ejecuta UNA sonda de solo lectura y reporta el resultado vía `publish(text)`.
+    """Run ONE read-only probe and report the result via `publish(text)`.
 
-    `ctx` = CoreCtx del vehículo: VIN, host, token y cooldown de la sonda. Antes eran
-    globales de módulo, así que con dos coches configurados la sonda de uno consumía el
-    cooldown del otro — y leía igualmente el VIN de la última entrada arrancada.
+    `ctx` = the vehicle's CoreCtx: VIN, host, token and probe cooldown. They used to be
+    module globals, so with two cars configured one car's probe consumed the other's
+    cooldown — and read the VIN of the last entry started anyway.
 
-    Devuelve un dict {ok, online, got_data, codes, rich} más el DESGLOSE por endpoint
-    (`got_realtime` / `got_location` / `got_travel`, sus tres códigos con nombre,
-    `has_position` y `duration_ms`). El desglose existe para el monitor de diagnóstico: el
-    resumen agregado no distingue «no contestó nadie» de «contestó la telemetría pero la
-    ubicación devolvió A07900», que es justo la diferencia que costó cuatro días ver en campo.
-    `has_position` es un booleano a propósito — las coordenadas NO entran en el diagnóstico.
-    Nunca lanza.
-    `force=True` ignora el cooldown (para la prueba manual).
-    `on_data(data)` (opcional): callback invocada con el dict `data` en crudo SOLO cuando
-    se reciben datos en vivo (coche despierto) — se usa para guardar GPS/batería.
+    Returns a dict {ok, online, got_data, codes, rich} plus the per-endpoint BREAKDOWN
+    (`got_realtime` / `got_location` / `got_travel`, their three named codes,
+    `has_position` and `duration_ms`). The breakdown exists for the diagnostic monitor: the
+    aggregated summary cannot tell «nobody answered» from «telemetry answered but the
+    location returned A07900», which is exactly the difference that took four days to see in the field.
+    `has_position` is a boolean on purpose — coordinates do NOT go into diagnostics.
+    Never raises.
+    `force=True` ignores the cooldown (for the manual test).
+    `on_data(data)` (optional): callback invoked with the raw `data` dict ONLY when
+    live data is received (car awake) — used to store GPS/battery.
     """
     if not ctx.state.probe_lock.acquire(blocking=False):
         return {"ok": False, "reason": "busy"}
@@ -138,18 +138,18 @@ def probe_once(ctx, publish, force=False, on_data=None):
         now = time.time()
         last_probe = ctx.state.last_probe_ts
         if not force and last_probe and (now - last_probe) < ctx.probe_cooldown_s:
-            # DECIRLO. Volver en silencio dejaba al usuario mirando un botón que no producía
-            # ni un mensaje ni un cambio: indistinguible de una integración rota.
+            # SAY SO. Returning silently left the user staring at a button that produced
+            # neither a message nor a change: indistinguishable from a broken integration.
             wait_s = int(ctx.probe_cooldown_s - (now - last_probe))
             publish(f"⏳ Lectura reciente · espero {wait_s} s")
             return {"ok": False, "reason": "cooldown", "wait_s": wait_s}
         ctx.state.last_probe_ts = now
 
-        # NO afirmar aquí que el coche está despierto: todavía no se ha preguntado nada. El
-        # mensaje es de cuando la sonda solo se lanzaba en el flanco dormido→despierto; ahora la
-        # dispara también el botón y el bucle, con el coche en cualquier estado. Quien lo sabe es
-        # `freshness()`, DESPUÉS de la respuesta y mirando su `onlineStatus` — y quedaba el
-        # absurdo de anunciar «el coche está despierto» y concluir dos líneas después que dormía.
+        # Do NOT claim here that the car is awake: nothing has been asked yet. The
+        # message dates from when the probe only ran on the asleep→awake edge; now it is
+        # also triggered by the button and the loop, with the car in any state. The one who knows is
+        # `freshness()`, AFTER the response and looking at its `onlineStatus` — and it left
+        # the absurdity of announcing «the car is awake» and concluding two lines later that it was asleep.
         publish("🛰️ Consultando…")
         ut, _tu = W._bff_login(ctx)
         if not ut:
@@ -160,25 +160,25 @@ def probe_once(ctx, publish, force=False, on_data=None):
         _sc1, j1 = W._signed_post(ctx, ut, "/asr/manager/realtime", {"vin": ctx.vin})
         _sc2, j2 = W._signed_post(ctx, ut, "/asc/vehicleControl/queryVehicleLocation",
                                  {"vin": ctx.vin})
-        # travelQuery: buscamos km/odómetro (campo aún no visto; se revelará en el 1er wake real)
+        # travelQuery: we look for km/odometer (field not seen yet; will show up on the 1st real wake)
         _sc3, j3 = W._signed_post(ctx, ut, "/asd/travelManage/travelQuery", {"vin": ctx.vin})
         c1, c2, c3 = W._code_of(j1), W._code_of(j2), W._code_of(j3)
         got1, got2, got3 = W._has_live_data(j1), W._has_live_data(j2), W._has_live_data(j3)
 
-        # data combinado: realtime va el ÚLTIMO y por tanto manda donde coincidan. El payload
-        # está bajo "data" o "body" según el endpoint (realtime → "body"): W._payload maneja
-        # ambos, si no los 84 campos realtime se perdían.
+        # merged data: realtime goes LAST and therefore wins where they overlap. The payload
+        # is under "data" or "body" depending on the endpoint (realtime → "body"): W._payload handles
+        # both, otherwise the 84 realtime fields were lost.
         #
-        # **La POSICIÓN sale de `queryVehicleLocation` y de ningún otro sitio.** La respuesta de
-        # `/asr/manager/realtime` NO trae `lat`/`lon` — verificado sobre una captura real de la
-        # app oficial: 80 campos y ninguna coordenada. Así que aquí no hay competencia entre
-        # fuentes que resolver, y el orden de la fusión no afecta a la posición.
+        # **The POSITION comes from `queryVehicleLocation` and nowhere else.** The response of
+        # `/asr/manager/realtime` does NOT carry `lat`/`lon` — verified on a real capture of the
+        # official app: 80 fields and not one coordinate. So there is no competition between
+        # sources to resolve here, and the merge order does not affect the position.
         #
-        # Y `queryVehicleLocation` es una CONSULTA, no una orden: devuelve la última posición
-        # conocida por la nube, sin pedirle nada al coche. Quien fuerza un fix nuevo es el
-        # comando `vehicleLocation` («Localizar coche (GPS)»), que va con taskId y hace que el
-        # coche reporte. Los nombres lo dicen: `query…` lee, el otro actúa. Es deliberado — la
-        # sonda existe justamente para no tocar el coche.
+        # And `queryVehicleLocation` is a QUERY, not an order: it returns the last position
+        # known to the cloud, without asking the car for anything. What forces a new fix is the
+        # `vehicleLocation` command («Localizar coche (GPS)»), which goes with a taskId and makes the
+        # car report. The names say it: `query…` reads, the other one acts. It is deliberate — the
+        # probe exists precisely so as not to touch the car.
         data = {}
         for src, got in ((j2, got2), (j3, got3), (j1, got1)):
             payload = W._payload(src)
@@ -191,15 +191,15 @@ def probe_once(ctx, publish, force=False, on_data=None):
               "rich": rich, "data": data or None,
               "travel_data": j3.get("data") if got3 else None})
 
-        # El mismo desglose, pero DEVUELTO: `_log` solo escribe si `EBRO_PROBE_LOG` está en el
-        # entorno, cosa que en una instalación normal no ocurre nunca. Quien
-        # lo necesita es el monitor de diagnóstico, y para eso tiene que volver al llamador.
+        # The same breakdown, but RETURNED: `_log` only writes if `EBRO_PROBE_LOG` is in the
+        # environment, which never happens in a normal install. The one who
+        # needs it is the diagnostic monitor, and for that it has to go back to the caller.
         desglose = {"realtime_code": c1, "location_code": c2, "travel_code": c3,
                     "got_realtime": got1, "got_location": got2, "got_travel": got3,
                     "has_position": "lat" in data and "lon" in data,
                     "duration_ms": int((time.time() - now) * 1000)}
 
-        got1 = got1 or got3   # si travelQuery trae datos con el coche despierto, cuenta como "live"
+        got1 = got1 or got3   # if travelQuery brings data with the car awake, it counts as "live"
         if (got1 or got2) and on_data and data:
             try:
                 on_data(data)
@@ -207,27 +207,27 @@ def probe_once(ctx, publish, force=False, on_data=None):
                 publish(f"⚠️ Error al publicar datos · {type(e).__name__}")
 
         if got1 or got2:
-            # SIN volcar aquí los campos (velocidad, odómetro, batería…): el usuario ya los
-            # tiene en sus propios sensores, y repetirlos hacía un estado larguísimo que en una
-            # card no se lee. Siguen yendo al informe de diagnóstico y al log de la sonda, que
-            # es donde sirven de algo.
+            # WITHOUT dumping the fields here (speed, odometer, battery…): the user already
+            # has them in their own sensors, and repeating them made a very long state that cannot
+            # be read on a card. They still go to the diagnostic report and the probe log, which
+            # is where they are of any use.
             #
-            # Pero la POSICIÓN sí se reporta aparte, porque este sensor se llama «Resultado
-            # sonda de UBICACIÓN» y hasta ahora mentía por omisión: si `realtime` contestaba y
-            # `queryVehicleLocation` no, decía «🟢 En vivo» tan tranquilo y el mapa se quedaba
-            # clavado. Cuatro días costó verlo en campo, y solo mirando el historial. El motivo
-            # lo da el código del endpoint de ubicación, que ya teníamos y se tiraba.
+            # But the POSITION is reported separately, because this sensor is called «Resultado
+            # sonda de UBICACIÓN» and until now it lied by omission: if `realtime` answered and
+            # `queryVehicleLocation` did not, it calmly said «🟢 En vivo» and the map stayed
+            # stuck. It took four days to see in the field, and only by looking at the history. The reason
+            # is given by the location endpoint's code, which we already had and threw away.
             if desglose["has_position"]:
                 publish(freshness(data, now))
             else:
-                # Decir solo «Sin posición» daría a entender que la consulta entera fracasó, y
-                # no es verdad: la telemetría (batería, autonomía, odómetro…) SÍ ha llegado y
-                # sus sensores se han actualizado. Lo que falta es la ubicación.
+                # Saying just «Sin posición» would suggest the whole query failed, and
+                # that is not true: telemetry (battery, range, odometer…) DID arrive and
+                # its sensors were updated. What is missing is the location.
                 #
-                # SIN el motivo: el único que sale en la práctica es A07900, «coche en reposo»,
-                # y puesto al lado de «coche dormido» —que es lo que dicen los otros estados—
-                # parecen dos cosas distintas cuando son la misma. El código sigue yendo al log
-                # y al resultado de la sonda, que es donde hace falta para diagnosticar.
+                # WITHOUT the reason: the only one that shows up in practice is A07900, «coche en reposo»,
+                # and placed next to «coche dormido» —which is what the other states say—
+                # they look like two different things when they are the same. The code still goes to the log
+                # and to the probe result, which is where it is needed for diagnosis.
                 publish("🟠 Con datos, sin posición")
             return {"ok": True, "online": True, "got_data": True,
                     "codes": [c1, c2, c3], "rich": rich, **desglose}

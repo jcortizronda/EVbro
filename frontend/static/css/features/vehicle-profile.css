@@ -1,5 +1,5 @@
-/* EVBro — Ficha del vehículo (Ajustes → Coche).
-   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+/* EVBro — Vehicle sheet (Ajustes → Coche).
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
 .vp-photo-card { padding: 14px; margin-bottom: 12px; }
 .vp-photo { aspect-ratio: 16 / 7; border-radius: 14px; overflow: hidden; background: var(--bg-glass-inset); display: flex; align-items: center; justify-content: center; }
@@ -36,13 +36,13 @@
   .vp-wide { grid-column: 1 / -1; }
 }
 
-/* Teléfono de asistencia con botón de llamada al lado (tel:) */
+/* Roadside assistance phone with a call button next to it (tel:) */
 .vp-phone-row { display: flex; align-items: center; gap: 0.4rem; }
 .vp-phone-row .form-control { flex: 1; min-width: 0; }
 .vp-call { flex-shrink: 0; width: var(--tap, 44px); height: var(--tap, 44px); display: inline-flex; align-items: center; justify-content: center; border-radius: 12px; color: var(--accent-green); }
 .vp-call[hidden] { display: none; }
 
-/* Posición por GPS (Traccar) */
+/* GPS position (Traccar) */
 .vp-status { margin: 0 0 10px; padding: 8px 12px; border-radius: 10px; font-size: 0.84rem; background: var(--surface-secondary); border: 1px solid var(--border-color); color: var(--text-secondary); }
 .vp-status[data-tone="ok"] { color: var(--accent-green, #30d158); border-color: currentColor; }
 .vp-status[data-tone="bad"] { color: var(--accent-red, #ff453a); border-color: currentColor; }
@@ -51,7 +51,7 @@
 .vp-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
 #trDevice { min-width: 0; flex: 1 1 auto; }
 
-/* Libro del coche */
+/* Car book */
 .vp-book-btn { margin-right: auto; font-weight: 700; }
 .book-sections { display: grid; gap: 6px; margin: 10px 0; }
 .book-sections label { display: flex; align-items: flex-start; gap: 10px; min-height: 36px; font-size: 0.9rem; line-height: 1.35; }

@@ -1,4 +1,4 @@
-"""Rutas de configuración y prueba de notificaciones móviles (Android, iOS y Web)."""
+"""Routes to configure and test mobile notifications (Android, iOS and Web)."""
 from __future__ import annotations
 
 import datetime
@@ -21,7 +21,7 @@ MASK = "••••••••"
 
 
 def mask_secret(val: Optional[str]) -> str:
-    """Oculta un secreto para mostrarlo en la interfaz. Nunca devuelve el valor completo."""
+    """Hides a secret to show it in the interface. Never returns the full value."""
     if not val:
         return ""
     if len(val) < 12:
@@ -34,7 +34,7 @@ def is_masked(val: Optional[str]) -> bool:
 
 
 def real_value(sent: Optional[str], stored: Optional[str]) -> Optional[str]:
-    """Valor a usar en una prueba: el enviado, salvo que esté vacío o enmascarado (entonces el guardado)."""
+    """Value to use in a test: the one sent, unless it is empty or masked (then the stored one)."""
     sent = (sent or "").strip()
     return stored if (not sent or is_masked(sent)) else sent
 
@@ -87,14 +87,14 @@ class PushEndpointRequest(BaseModel):
 
 @router.get("/push/public-key")
 async def push_public_key():
-    """Clave VAPID pública para `pushManager.subscribe` (se genera sola la primera vez)."""
+    """Public VAPID key for `pushManager.subscribe` (generated automatically the first time)."""
     from app.security import vapid
     return {"public_key": vapid.public_key_b64()}
 
 
 @router.post("/push/subscribe")
 async def push_subscribe(req: PushSubscribeRequest, session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)):
-    """Registra (o actualiza) este dispositivo como destino de avisos Web Push."""
+    """Registers (or updates) this device as a Web Push target."""
     if not req.endpoint.startswith("https://") or not req.keys.get("p256dh") or not req.keys.get("auth"):
         raise HTTPException(status_code=422, detail="Suscripción de Web Push no válida.")
     h = NotificationService.endpoint_hash(req.endpoint)
@@ -114,7 +114,7 @@ async def push_subscribe(req: PushSubscribeRequest, session: AsyncSession = Depe
 
 @router.post("/push/status")
 async def push_status(req: PushEndpointRequest, session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)):
-    """¿Está este dispositivo (identificado por su endpoint) suscrito?"""
+    """Is this device (identified by its endpoint) subscribed?"""
     h = NotificationService.endpoint_hash(req.endpoint)
     sub = (await session.execute(select(PushSubscription).where(PushSubscription.endpoint_hash == h, PushSubscription.user_id == user.id))).scalar_one_or_none()
     return {"subscribed": sub is not None}
@@ -130,7 +130,7 @@ async def push_unsubscribe(req: PushEndpointRequest, session: AsyncSession = Dep
 
 @router.get("/push/devices")
 async def push_devices(session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)):
-    """Dispositivos suscritos de esta cuenta (sin su endpoint ni claves)."""
+    """Subscribed devices of this account (without their endpoint or keys)."""
     subs = (await session.execute(select(PushSubscription).where(PushSubscription.user_id == user.id).order_by(PushSubscription.id))).scalars().all()
     return [
         {
@@ -153,11 +153,11 @@ async def push_device_delete(device_id: int, session: AsyncSession = Depends(get
 
 @router.get("/config")
 async def get_notification_config(session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)):
-    """La configuración de notificaciones de ESTA cuenta (qué recibe y por qué canales)."""
+    """Notification settings of THIS account (what it receives and through which channels)."""
     config = await NotificationService.get_or_create_config(session, user.id)
 
-    # Los secretos NO salen de la API: el navegador recibe solo una versión enmascarada. Si se
-    # reenvía tal cual al guardar, se ignora (ver update_notification_config).
+    # secrets do NOT leave the API: the browser only gets a masked version. If it is sent
+    # back unchanged on save, it is ignored (see update_notification_config).
     mask = mask_secret
 
     return {
@@ -196,7 +196,7 @@ async def get_notification_config(session: AsyncSession = Depends(get_db), user:
 async def update_notification_config(
     req: NotificationConfigUpdate, session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)
 ):
-    """Actualiza los canales y eventos de ESTA cuenta."""
+    """Updates the channels and events of THIS account."""
     config = await NotificationService.get_or_create_config(session, user.id)
     data = req.model_dump(exclude_unset=True) if hasattr(req, "model_dump") else req.dict(exclude_unset=True)
     if data.get("webhook_url") and not is_masked(str(data["webhook_url"])):
@@ -206,7 +206,7 @@ async def update_notification_config(
 
     for k, v in data.items():
         if v is not None:
-            # Si es un secreto enmascarado recibido de vuelta, no sobrescribir el real
+            # a masked secret sent back must not overwrite the real one
             if is_masked(str(v)):
                 continue
             setattr(config, k, v)
@@ -221,7 +221,7 @@ async def update_notification_config(
 async def test_notification(
     req: TestNotificationRequest, session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)
 ):
-    """Prueba el envío inmediato de una notificación de prueba al canal solicitado (a esta cuenta)."""
+    """Sends a test notification right away to the requested channel (to this account)."""
     config = await NotificationService.get_or_create_config(session, user.id)
     title = _("Prueba de Notificación EVBro")
     msg = _("¡Conexión establecida con éxito! Tu dispositivo (Android / iOS) recibirá aquí las alertas de geocercas, mantenimiento de fábrica y estado de tu vehículo Ebro.")
@@ -271,7 +271,7 @@ async def test_notification(
     else:
         raise HTTPException(status_code=400, detail=_("Canal desconocido: {p0}", p0=channel))
 
-    # Registrar en historial
+    # record it in the history
     session.add(NotificationLog(
         user_id=user.id,
         category="test",
@@ -293,7 +293,7 @@ async def test_notification(
 async def list_notification_logs(
     limit: int = Query(50, ge=1, le=500), session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)
 ):
-    """Historial reciente de las notificaciones enviadas a ESTA cuenta."""
+    """Recent history of the notifications sent to THIS account."""
     stmt = select(NotificationLog).where(NotificationLog.user_id == user.id).order_by(desc(NotificationLog.timestamp)).limit(limit)
     logs = (await session.execute(stmt)).scalars().all()
 
@@ -314,7 +314,7 @@ async def list_notification_logs(
 
 @router.delete("/logs")
 async def clear_notification_logs(session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)):
-    """Limpia el historial de notificaciones de esta cuenta."""
+    """Clears this account's notification history."""
     await session.execute(delete(NotificationLog).where(NotificationLog.user_id == user.id))
     await session.commit()
     return {"status": "ok", "message": "Historial de notificaciones borrado."}

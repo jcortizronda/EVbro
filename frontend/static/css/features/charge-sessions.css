@@ -1,5 +1,5 @@
-/* EVBro — Detalle de sesiones de carga (histórico y gráficas).
-   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+/* EVBro — Charging session details (history and charts).
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
 /* ========================================================
    CHARGE DETAILS DASHBOARD 
@@ -86,7 +86,7 @@
   box-shadow: 0 0 0 2px var(--primary-glow);
 }
 
-/* Layout 2 Columnas Principal */
+/* Main 2-column layout */
 .charge-main-grid {
   display: grid;
   grid-template-columns: 1.55fr 1.25fr;
@@ -164,7 +164,7 @@
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
 }
 
-/* Leyenda */
+/* Legend */
 .charge-legend-bar {
   display: flex;
   align-items: center;
@@ -209,7 +209,7 @@
   font-weight: 600;
 }
 
-/* Panel Derecho: KPI Grid + Mapa */
+/* Right panel: KPI grid + map */
 .charge-kpis-panel {
   display: flex;
   flex-direction: column;
@@ -301,7 +301,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Mini Mapa Leaflet */
+/* Leaflet mini map */
 .charge-minimap-container {
   height: 155px;
   border-radius: var(--radius-md);
@@ -315,7 +315,7 @@
   height: 100%;
 }
 
-/* Curva Inferior: Potencia vs Batería % */
+/* Lower curve: power vs battery % */
 .charge-curve-panel {
   margin-top: 1.25rem;
   background: var(--bg-glass-inset);
@@ -352,7 +352,7 @@
   display: block;
 }
 
-/* Colores de Resalte */
+/* Highlight colours */
 .text-green { color: #10b981 !important; }
 .text-yellow { color: #f59e0b !important; }
 .text-cyan { color: #06b6d4 !important; }
@@ -418,7 +418,7 @@
   }
 }
 
-/* Coste y energía de la carga: edición manual y nota sobre qué es estimado */
+/* Charge cost and energy: manual editing and a note on what is estimated */
 .kpi-edit-btn { margin-top: 8px; min-height: 36px; padding: 0 12px; font: inherit; font-size: 0.78rem; font-weight: 700; color: var(--accent-bright); background: transparent; border: 1px solid currentColor; border-radius: 999px; cursor: pointer; }
 .kpi-edit-btn[hidden] { display: none; }
 .kpi-note { margin: 10px 0 0; font-size: 0.74rem; line-height: 1.4; color: var(--text-muted); }

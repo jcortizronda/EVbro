@@ -1,4 +1,4 @@
-"""Consumibles y referencias: ficha del coche, buscador y piezas de las intervenciones. Ver tools/e2e/README.md."""
+"""Consumables and part numbers: car sheet, search and the parts of interventions. See tools/e2e/README.md."""
 import os
 import sys
 import tempfile
@@ -27,53 +27,53 @@ with sync_playwright() as p:
         pg = ctx.new_page()
         errs = []
         pg.on("pageerror", lambda e: errs.append(str(e)))
-        pg.on("dialog", lambda d: (errs.append("diálogo del navegador: " + d.message), d.dismiss()))
+        pg.on("dialog", lambda d: (errs.append("browser dialog: " + d.message), d.dismiss()))
         pg.goto(BASE)
         pg.wait_for_load_state("networkidle")
         pg.wait_for_timeout(1200)
         tag = theme
         txt = lambda s: pg.text_content(s).strip()
 
-        # ficha: pestaña Consumibles
+        # car sheet: Consumibles tab
         pg.evaluate("openVehicleSettings()")
         pg.wait_for_timeout(500)
-        ok(pg.is_visible("#vpPaneData") and pg.is_hidden("#vpPaneParts"), f"{tag}: la ficha arranca en Datos")
+        ok(pg.is_visible("#vpPaneData") and pg.is_hidden("#vpPaneParts"), f"{tag}: the sheet starts on Datos")
         pg.click("button[data-pane='parts']")
         pg.wait_for_timeout(700)
-        ok(pg.is_visible("#vpPaneParts") and pg.is_hidden("#vpPaneData"), f"{tag}: el interruptor muestra Consumibles")
-        ok(pg.locator("#partsSuggest .maint-chip").count() >= 10, f"{tag}: se sugieren categorías por anotar ({pg.locator('#partsSuggest .maint-chip').count()})")
+        ok(pg.is_visible("#vpPaneParts") and pg.is_hidden("#vpPaneData"), f"{tag}: the switch shows Consumibles")
+        ok(pg.locator("#partsSuggest .maint-chip").count() >= 10, f"{tag}: categories still to record are suggested ({pg.locator('#partsSuggest .maint-chip').count()})")
 
-        # añadir una pieza desde una sugerencia
+        # add a part from a suggestion
         pg.click("#partsSuggest .maint-chip:has-text('Aceite de motor')")
         pg.wait_for_timeout(400)
-        ok(pg.is_visible("#partModal") and pg.input_value("#partModalFields [data-f=category]") == "engine_oil", f"{tag}: la sugerencia abre el formulario con su categoría")
+        ok(pg.is_visible("#partModal") and pg.input_value("#partModalFields [data-f=category]") == "engine_oil", f"{tag}: the suggestion opens the form with its category")
         pg.fill("#partModalFields [data-f=brand]", "Castrol")
         pg.fill("#partModalFields [data-f=reference]", "15B7A2")
         pg.fill("#partModalFields [data-f=spec]", "0W-20")
         pg.fill("#partModalFields [data-f=quantity]", "4.2")
         pg.click("#partModal >> text=Guardar")
         pg.wait_for_timeout(900)
-        ok("Castrol" in txt("#partsGroups") and "15B7A2" in txt("#partsGroups"), f"{tag}: la pieza aparece agrupada con su referencia")
-        ok("Aceite de motor" not in txt("#partsSuggest"), f"{tag}: la categoría ya no se sugiere")
+        ok("Castrol" in txt("#partsGroups") and "15B7A2" in txt("#partsGroups"), f"{tag}: the part shows up grouped with its part number")
+        ok("Aceite de motor" not in txt("#partsSuggest"), f"{tag}: the category is no longer suggested")
 
-        # buscador
+        # search
         pg.fill("#partsSearch", "15b7")
         pg.wait_for_timeout(200)
-        ok(pg.locator(".part-item").count() == 1, f"{tag}: el buscador encuentra por referencia")
+        ok(pg.locator(".part-item").count() == 1, f"{tag}: the search finds by part number")
         pg.fill("#partsSearch", "zzzz")
         pg.wait_for_timeout(200)
-        ok("No hay nada" in txt("#partsGroups"), f"{tag}: sin coincidencias lo dice")
+        ok("No hay nada" in txt("#partsGroups"), f"{tag}: with no matches it says so")
         pg.fill("#partsSearch", "")
 
-        # intervención con neumáticos: se anotan en el historial y actualizan la ficha
+        # intervention with tyres: they are logged in the history and update the sheet
         pg.evaluate("switchTab('maintenance')")
         pg.wait_for_timeout(800)
         pg.evaluate("showMaintEventModal()")
         pg.wait_for_timeout(500)
         pg.click("#evChips .maint-chip:has-text('Neumáticos nuevos')")
         pg.wait_for_timeout(300)
-        ok(pg.locator("#evPartsBox [data-part-row]").count() == 1 and pg.input_value("#evPartsBox [data-f=category]") == "tyres", f"{tag}: la intervención sugerida abre una fila de neumáticos")
-        ok(pg.is_visible("#evPartsBox [data-f=dot]"), f"{tag}: los neumáticos piden la fecha de fabricación (DOT)")
+        ok(pg.locator("#evPartsBox [data-part-row]").count() == 1 and pg.input_value("#evPartsBox [data-f=category]") == "tyres", f"{tag}: the suggested intervention opens a tyre row")
+        ok(pg.is_visible("#evPartsBox [data-f=dot]"), f"{tag}: the tyres ask for the manufacturing date (DOT)")
         pg.select_option("#evPartsBox [data-f=position]", "front")
         pg.fill("#evPartsBox [data-f=brand]", "Michelin")
         pg.fill("#evPartsBox [data-f=spec]", "235/55 R19")
@@ -84,11 +84,11 @@ with sync_playwright() as p:
         pg.click("#maintEventModal >> text=Guardar")
         pg.wait_for_timeout(1000)
         hist = pg.eval_on_selector_all("#maintLogsTableBody tr", "e=>e.map(r=>r.innerText)")
-        ok(any("Michelin" in r and "DOT 1224" in r for r in hist), f"{tag}: el historial muestra las piezas montadas")
+        ok(any("Michelin" in r and "DOT 1224" in r for r in hist), f"{tag}: the history shows the fitted parts")
         parts = pg.evaluate("fetch('/api/vehicles/'+currentVin+'/parts').then(r=>r.json())")
-        ok(any(x["category"] == "tyres" and x["attrs"].get("dot") == "1224" and x["position"] == "front" for x in parts), f"{tag}: la ficha se actualiza con los neumáticos")
+        ok(any(x["category"] == "tyres" and x["attrs"].get("dot") == "1224" and x["position"] == "front" for x in parts), f"{tag}: the sheet is updated with the tyres")
 
-        # una DOT inválida no se envía
+        # an invalid DOT is not sent
         pg.evaluate("showMaintEventModal()")
         pg.wait_for_timeout(400)
         pg.fill("#evTitle", "Prueba")
@@ -98,20 +98,20 @@ with sync_playwright() as p:
         pg.fill("#evPartsBox [data-f=dot]", "ab")
         pg.click("#maintEventModal >> text=Guardar")
         pg.wait_for_timeout(700)
-        ok(pg.is_visible("#maintEventModal"), f"{tag}: con una DOT inválida el formulario no se cierra")
+        ok(pg.is_visible("#maintEventModal"), f"{tag}: with an invalid DOT the form does not close")
         pg.click("#maintEventModal >> text=Cancelar")
 
-        # vista de la ficha con piezas
+        # view of the sheet with parts
         pg.evaluate("openVehicleSettings(); setVehiclePane('parts')")
         pg.wait_for_timeout(800)
         pg.screenshot(path=f"{OUT}/parts-sheet-{theme}.png", full_page=True)
         over = pg.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
-        ok(over <= 0, f"{tag}: sin desbordamiento horizontal ({over} px)")
-        ok(not errs, f"{tag}: sin errores JS {errs[:2]}")
+        ok(over <= 0, f"{tag}: no horizontal overflow ({over} px)")
+        ok(not errs, f"{tag}: no JS errors {errs[:2]}")
         ctx.close()
         if theme == "dark":
             import subprocess
             subprocess.run([os.path.join(os.path.dirname(__file__), "demo_server.sh"), "start"], check=True, capture_output=True)
     b.close()
-print("FALLOS:", fails if fails else "ninguno")
+print("FAILURES:", fails if fails else "none")
 sys.exit(1 if fails else 0)

@@ -1,4 +1,4 @@
-/* EVBro — Cronología (Más → Cronología): every dated event of the car in one list (drives, charges, refuels, workshop, expenses,
+/* EVBro — Timeline (Más → Cronología): every dated event of the car in one list (drives, charges, refuels, workshop, expenses,
  * documents, geofence entries and exits), newest first, with month separators and «Ver más»; and the global search box, which looks
  * through parts, interventions, expenses, documents, refuels and drives of every car the account can see.
  * Tapping a row jumps to the tab that shows the item in full.

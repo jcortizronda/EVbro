@@ -1,14 +1,14 @@
-"""Política de comandos: cuáles exigen el PIN, qué parámetros se aceptan y cómo se comprueba el PIN.
+"""Command policy: which commands need the PIN, which parameters are accepted and how the PIN is checked.
 
-**Por qué existe.** Con una sesión iniciada, la API puede abrir el coche. Estar «dentro» de
-EVBro no debe bastar para desbloquearlo: los comandos que abren o desarman exigen teclear el
-PIN en CADA envío, y el PIN no se guarda en el navegador.
+**Why it exists.** With a signed-in session, the API can open the car. Being «inside»
+EVBro must not be enough to unlock it: the commands that open or disarm require typing the
+PIN on EVERY send, and the PIN is not stored in the browser.
 
-**Cómo se comprueba.**
-  * Si hay un PIN guardado en la cuenta, el tecleado se compara en local (tiempo constante) ANTES
-    de contactar con Chery: un despiste no gasta un intento del anti-bloqueo de la cuenta Ebro.
-    Los fallos locales tienen su propio límite (`pin_throttle`).
-  * Si no hay PIN guardado, el tecleado se usa para pedir el `taskId` y lo verifica Chery.
+**How it is checked.**
+  * If a PIN is stored on the account, the typed one is compared locally (constant time) BEFORE
+    contacting Chery: a slip does not use up an attempt of the Ebro account's lock-out guard.
+    Local failures have their own limit (`pin_throttle`).
+  * If no PIN is stored, the typed one is used to request the `taskId` and Chery checks it.
 """
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ import hmac
 from app.core.catalog import CMD_MAP
 from app.security.throttle import LoginThrottle
 
-# Comandos que ABREN, DESBLOQUEAN o DESARMAN. Cerrar/bloquear/activar no lo necesitan.
+# Commands that OPEN, UNLOCK or DISARM. Closing/locking/arming do not need it.
 PIN_REQUIRED = frozenset({
     "desbloquear",
     "maletero_abrir",
@@ -27,15 +27,15 @@ PIN_REQUIRED = frozenset({
     "alarma_off",
 })
 
-# Parámetros que la API acepta por comando. Todo lo demás se rechaza: `params` se mezcla con el
-# cuerpo del catálogo, así que sin esta lista `bloquear` + `{"lockType": "1"}` DESBLOQUEARÍA sin PIN.
+# Parameters the API accepts per command. Everything else is rejected: `params` is merged into the
+# catalogue body, so without this list `bloquear` + `{"lockType": "1"}` would UNLOCK without a PIN.
 _TEMPERATURE_RANGE = (16.0, 32.0)
 _MINUTES_RANGE = (1, 60)
 ALLOWED_PARAMS = {
     "clima_on": {"temperature", "times"},
 }
 
-# Reintentos de PIN incorrecto (contra el PIN guardado): 5 en 10 minutos, contados POR COCHE: the PIN belongs to the car's
+# Wrong-PIN retries (against the stored PIN): 5 in 10 minutes, counted PER CAR: the PIN belongs to the car's
 # Ebro account, so one manager's mistakes must never lock the commands of another manager's car.
 pin_throttle = LoginThrottle(max_failures=5, window_s=600)
 
@@ -48,7 +48,7 @@ PIN_INVALID_MSG = "PIN incorrecto."
 
 
 class CommandRejected(Exception):
-    """El comando se rechaza ANTES de enviarlo al coche. `reason` es un valor estable para la UI."""
+    """The command is rejected BEFORE it is sent to the car. `reason` is a stable value for the UI."""
 
     def __init__(self, reason: str, message: str, retry_after: int = 0) -> None:
         super().__init__(message)
@@ -72,7 +72,7 @@ def requires_pin(command_key: str, policy: str = DEFAULT_POLICY) -> bool:
 
 
 def sanitize_params(command_key: str, params: dict | None) -> dict | None:
-    """Devuelve los parámetros validados y normalizados, o lanza CommandRejected."""
+    """Returns the validated, normalised parameters, or raises CommandRejected."""
     if not params:
         return None
     allowed = ALLOWED_PARAMS.get(command_key, set())
@@ -103,11 +103,11 @@ def sanitize_params(command_key: str, params: dict | None) -> dict | None:
 
 
 def authorize(command_key: str, supplied_pin: str, stored_pin: str, vin: str = "", policy: str = DEFAULT_POLICY) -> str:
-    """Decide con qué PIN se envía el comando. Lanza CommandRejected si no procede.
+    """Decides which PIN the command is sent with. Raises CommandRejected when it must not go.
 
-    `supplied_pin`: el tecleado en esta petición. `stored_pin`: el guardado en la cuenta ('' si no hay). `vin`: the car, which
-    scopes the retry limit. `policy`: the owner's choice (`POLICIES`). Devuelve el PIN a usar, SOLO para este envío (nunca se guarda
-    por el camino)."""
+    `supplied_pin`: the one typed in this request. `stored_pin`: the one stored on the account ('' if none). `vin`: the car, which
+    scopes the retry limit. `policy`: the owner's choice (`POLICIES`). Returns the PIN to use, for THIS send only (it is never stored
+    along the way)."""
     supplied = (supplied_pin or "").strip()
     stored = (stored_pin or "").strip()
     key = pin_throttle_key(vin)
@@ -132,5 +132,5 @@ def authorize(command_key: str, supplied_pin: str, stored_pin: str, vin: str = "
 
 
 def check_catalog_consistency() -> list[str]:
-    """Claves de PIN_REQUIRED/ALLOWED_PARAMS que no existen en el catálogo (para los tests)."""
+    """Keys of PIN_REQUIRED/ALLOWED_PARAMS that do not exist in the catalogue (for the tests)."""
     return sorted((PIN_REQUIRED | set(ALLOWED_PARAMS)) - set(CMD_MAP))

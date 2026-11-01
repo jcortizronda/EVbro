@@ -1,4 +1,4 @@
-"""Coste de carga manual y precio por defecto, eficiencia sin inventar, retención del historial y alarmas de puertas con confirmación."""
+"""Manual charge cost and default price, efficiency without made-up figures, history retention and door alarms with confirmation."""
 from __future__ import annotations
 
 import datetime
@@ -50,7 +50,7 @@ async def web(db):
     await c.aclose()
 
 
-async def carga(kwh=10.0, **extra) -> int:
+async def add_charge(kwh=10.0, **extra) -> int:
     async with async_session_factory() as s:
         c = ChargingSession(vin=VIN, start_time=D(2026, 10, 1, 20), end_time=D(2026, 10, 2, 2), start_battery_pct=20.0, end_battery_pct=70.0,
                             kwh_added=kwh, duration_seconds=21600, **extra)
@@ -59,61 +59,61 @@ async def carga(kwh=10.0, **extra) -> int:
         return c.id
 
 
-# ───────────────────────── coste de carga ─────────────────────────
-async def test_precio_por_kwh_calcula_el_coste_sobre_la_energia_anadida(web) -> None:
-    cid = await carga(10.0)
+# ───────────────────────── charge cost ─────────────────────────
+async def test_price_per_kwh_computes_the_cost_on_the_added_energy(web) -> None:
+    cid = await add_charge(10.0)
     r = await web.put(f"/api/charges/{cid}/cost", json={"price_per_kwh": 0.2})
     c = r.json()
     assert r.status_code == 200 and c["charge_cost"] == 2.0 and c["effective_cost_per_kwh"] == 0.2 and c["cost_mode"] == "manual"
     assert c["cost_source"] == "Introducida por ti" and c["has_cost"] is True
 
 
-async def test_coste_total_deriva_el_precio_efectivo(web) -> None:
-    cid = await carga(10.0)
+async def test_total_cost_derives_the_effective_price(web) -> None:
+    cid = await add_charge(10.0)
     c = (await web.put(f"/api/charges/{cid}/cost", json={"total_cost": 3.0})).json()
     assert c["charge_cost"] == 3.0 and c["effective_cost_per_kwh"] == 0.3
 
 
-async def test_kwh_del_contador_dan_la_eficiencia_real_y_el_coste_usa_la_energia_de_la_red(web) -> None:
-    cid = await carga(10.0)
-    sin = (await web.get(f"/api/charges/{cid}")).json()["charge"]
-    assert sin["kwh_used"] is None and sin["efficiency_pct"] is None            # sin contador: desconocida, NO 95 %
+async def test_meter_kwh_give_the_real_efficiency_and_the_cost_uses_grid_energy(web) -> None:
+    cid = await add_charge(10.0)
+    without = (await web.get(f"/api/charges/{cid}")).json()["charge"]
+    assert without["kwh_used"] is None and without["efficiency_pct"] is None            # no meter: unknown, NOT 95 %
     c = (await web.put(f"/api/charges/{cid}/cost", json={"price_per_kwh": 0.2, "kwh_meter": 12.5})).json()
-    assert c["kwh_used"] == 12.5 and c["efficiency_pct"] == 80.0 and c["charge_cost"] == 2.5     # 12,5 kWh pagados × 0,20
-    c = (await web.put(f"/api/charges/{cid}/cost", json={"kwh_meter": 12.0})).json()               # solo cambian los kWh: se recalcula
+    assert c["kwh_used"] == 12.5 and c["efficiency_pct"] == 80.0 and c["charge_cost"] == 2.5     # 12.5 kWh paid × 0.20
+    c = (await web.put(f"/api/charges/{cid}/cost", json={"kwh_meter": 12.0})).json()               # only the kWh change: recomputed
     assert c["charge_cost"] == 2.4 and c["efficiency_pct"] == 83.3
 
 
-async def test_validaciones_del_coste(web) -> None:
-    cid = await carga()
+async def test_cost_validations(web) -> None:
+    cid = await add_charge()
     assert (await web.put(f"/api/charges/{cid}/cost", json={})).status_code == 422
     assert (await web.put(f"/api/charges/{cid}/cost", json={"price_per_kwh": 0.2, "total_cost": 3})).status_code == 422
     assert (await web.put(f"/api/charges/{cid}/cost", json={"price_per_kwh": -1})).status_code == 422
     assert (await web.put("/api/charges/9999/cost", json={"price_per_kwh": 0.2})).status_code == 404
 
 
-async def test_la_carga_sin_tarifa_se_muestra_sin_coste(web) -> None:
-    cid = await carga()
+async def test_a_charge_without_tariff_is_shown_without_cost(web) -> None:
+    cid = await add_charge()
     c = (await web.get(f"/api/charges/{cid}")).json()["charge"]
     assert c["has_cost"] is False and c["cost_source"] == "Sin tarifa" and c["charge_cost"] == 0.0
 
 
-async def test_el_detector_pone_0_euros_por_kwh_fuera_de_geocercas(db, monkeypatch) -> None:
+async def test_the_detector_sets_0_euros_per_kwh_outside_geofences(db, monkeypatch) -> None:
     async with async_session_factory() as s:
         s.add(Vehicle(owner_id=1, vin=VIN, name="Ebro", battery_capacity_kwh=20.0))
         await s.commit()
     cd._ACTIVE_CHARGES.clear()
 
-    async def sin_geocerca(*a, **k):
+    async def no_geofence(*a, **k):
         return None
 
-    async def direccion(lat, lon):
+    async def address(lat, lon):
         return "Mi garaje"
 
-    monkeypatch.setattr(cd, "find_geofence", sin_geocerca)
-    monkeypatch.setattr(cd, "reverse_geocode", direccion)
+    monkeypatch.setattr(cd, "find_geofence", no_geofence)
+    monkeypatch.setattr(cd, "reverse_geocode", address)
 
-    async def lectura(at, soc, charging, plug=True, kw=7.0):
+    async def reading(at, soc, charging, plug=True, kw=7.0):
         with freeze_time(at):
             async with async_session_factory() as s:
                 v = (await s.execute(select(Vehicle).where(Vehicle.vin == VIN))).scalar_one()
@@ -122,63 +122,63 @@ async def test_el_detector_pone_0_euros_por_kwh_fuera_de_geocercas(db, monkeypat
                 await s.commit()
                 return res
 
-    await lectura(D(2026, 10, 1, 22), 30.0, True)
-    fin = await lectura(D(2026, 10, 2, 1), 80.0, False, kw=0.0)
-    assert fin.kwh_added == 10.0                       # 50 % de 20 kWh (capacidad del vehículo, no 19,27 fijo)
-    assert fin.kwh_used is None                        # la energía de la red ya no se inventa
-    assert fin.cost_mode == "default" and fin.effective_cost_per_kwh == 0.0 and fin.charge_cost == 0.0       # 0 €/kWh por defecto
+    await reading(D(2026, 10, 1, 22), 30.0, True)
+    end = await reading(D(2026, 10, 2, 1), 80.0, False, kw=0.0)
+    assert end.kwh_added == 10.0                       # 50 % of 20 kWh (the vehicle's capacity, not a fixed 19.27)
+    assert end.kwh_used is None                        # grid energy is no longer made up
+    assert end.cost_mode == "default" and end.effective_cost_per_kwh == 0.0 and end.charge_cost == 0.0       # 0 €/kWh by default
 
 
-# ───────────────────────── retención ─────────────────────────
-async def _datos():
-    ahora = D(2026, 10, 28)
+# ───────────────────────── retention ─────────────────────────
+async def _seed_data():
+    now = D(2026, 10, 28)
     async with async_session_factory() as s:
         if (await s.execute(select(Vehicle).where(Vehicle.vin == VIN))).scalar_one_or_none() is None:
             s.add(Vehicle(owner_id=1, vin=VIN, name="Ebro"))
         await s.flush()
-        for dias, cerrado in ((400, True), (100, True), (400, False)):
-            d = Drive(vin=VIN, start_time=ahora - datetime.timedelta(days=dias), end_time=(ahora - datetime.timedelta(days=dias, minutes=-10)) if cerrado else None)
+        for days, closed in ((400, True), (100, True), (400, False)):
+            d = Drive(vin=VIN, start_time=now - datetime.timedelta(days=days), end_time=(now - datetime.timedelta(days=days, minutes=-10)) if closed else None)
             s.add(d)
             await s.flush()
             s.add(DrivePosition(drive_id=d.id, timestamp=d.start_time, latitude=1.0, longitude=1.0))
-        for dias in (400, 100):
-            c = ChargingSession(vin=VIN, start_time=ahora - datetime.timedelta(days=dias), end_time=ahora - datetime.timedelta(days=dias, minutes=-60), kwh_added=5)
+        for days in (400, 100):
+            c = ChargingSession(vin=VIN, start_time=now - datetime.timedelta(days=days), end_time=now - datetime.timedelta(days=days, minutes=-60), kwh_added=5)
             s.add(c)
             await s.flush()
             s.add(ChargePoint(charging_session_id=c.id, timestamp=c.start_time, battery_pct=50.0))
-        for dias in (500, 200, 1):
-            s.add(TelemetrySnapshot(vin=VIN, timestamp=ahora - datetime.timedelta(days=dias), state="parked"))
+        for days in (500, 200, 1):
+            s.add(TelemetrySnapshot(vin=VIN, timestamp=now - datetime.timedelta(days=days), state="parked"))
         await s.commit()
-    return ahora
+    return now
 
 
-async def contar(modelo) -> int:
+async def count_rows(model) -> int:
     async with async_session_factory() as s:
-        return (await s.execute(select(func.count()).select_from(modelo))).scalar_one()
+        return (await s.execute(select(func.count()).select_from(model))).scalar_one()
 
 
-async def test_por_defecto_viajes_y_cargas_se_guardan_para_siempre_y_la_telemetria_bruta_un_ano(db) -> None:
-    ahora = await _datos()
+async def test_by_default_trips_and_charges_are_kept_forever_and_raw_telemetry_one_year(db) -> None:
+    now = await _seed_data()
     async with async_session_factory() as s:
         assert await retention.get_config(s) == {"trips_days": 0, "charges_days": 0, "snapshots_days": 365}
-        borrado = await retention.apply(s, ahora)
-    assert borrado == {"trips": 0, "charges": 0, "snapshots": 1}                     # solo la lectura de hace 500 días
-    assert await contar(Drive) == 3 and await contar(ChargingSession) == 2
+        deleted = await retention.apply(s, now)
+    assert deleted == {"trips": 0, "charges": 0, "snapshots": 1}                     # only the reading from 500 days ago
+    assert await count_rows(Drive) == 3 and await count_rows(ChargingSession) == 2
 
 
-async def test_la_retencion_borra_solo_lo_cerrado_y_viejo_con_sus_puntos(db) -> None:
-    ahora = await _datos()
+async def test_retention_deletes_only_what_is_closed_and_old_with_its_points(db) -> None:
+    now = await _seed_data()
     async with async_session_factory() as s:
         await retention.set_config(s, {"trips_days": 365, "charges_days": 365, "snapshots_days": 0})
-        borrado = await retention.apply(s, ahora)
-    assert borrado == {"trips": 1, "charges": 1, "snapshots": 0}
-    assert await contar(Drive) == 2                      # queda el de 100 días y el ABIERTO de 400 (no se toca lo que no ha cerrado)
-    assert await contar(DrivePosition) == 2 and await contar(ChargePoint) == 1               # sin puntos huérfanos
-    assert await contar(TelemetrySnapshot) == 3                                               # 0 = para siempre
+        deleted = await retention.apply(s, now)
+    assert deleted == {"trips": 1, "charges": 1, "snapshots": 0}
+    assert await count_rows(Drive) == 2                      # the 100-day one and the OPEN 400-day one remain (what has not closed is left alone)
+    assert await count_rows(DrivePosition) == 2 and await count_rows(ChargePoint) == 1               # no orphan points
+    assert await count_rows(TelemetrySnapshot) == 3                                               # 0 = forever
 
 
 @pytest.fixture
-async def consola(db):
+async def console(db):
     """Retention is a server setting: it lives in the admin console, behind the administrator's own session."""
     from app.admin_app import admin_app
     async with async_session_factory() as s:
@@ -192,25 +192,25 @@ async def consola(db):
     await c.aclose()
 
 
-async def test_api_de_retencion(consola) -> None:
-    await _datos()
-    r = await consola.get("/api/settings/retention")
+async def test_retention_api(console) -> None:
+    await _seed_data()
+    r = await console.get("/api/settings/retention")
     d = r.json()
     assert d["config"] == {"trips_days": 0, "charges_days": 0, "snapshots_days": 365} and d["stored"]["trips"]["count"] == 3
-    d = (await consola.put("/api/settings/retention", json={"trips_days": 90})).json()
-    assert d["config"]["trips_days"] == 90 and d["config"]["snapshots_days"] == 365          # lo no enviado se conserva
-    assert (await consola.put("/api/settings/retention", json={"trips_days": -1})).status_code == 422
-    assert (await consola.put("/api/settings/retention", json={"charges_days": 99999})).status_code == 422
+    d = (await console.put("/api/settings/retention", json={"trips_days": 90})).json()
+    assert d["config"]["trips_days"] == 90 and d["config"]["snapshots_days"] == 365          # what is not sent is kept
+    assert (await console.put("/api/settings/retention", json={"trips_days": -1})).status_code == 422
+    assert (await console.put("/api/settings/retention", json={"charges_days": 99999})).status_code == 422
 
 
-async def test_aplicar_ahora_devuelve_lo_borrado(consola) -> None:
-    await _datos()
-    await consola.put("/api/settings/retention", json={"charges_days": 30})
-    d = (await consola.post("/api/settings/retention/run")).json()
+async def test_apply_now_returns_what_was_deleted(console) -> None:
+    await _seed_data()
+    await console.put("/api/settings/retention", json={"charges_days": 30})
+    d = (await console.post("/api/settings/retention/run")).json()
     assert d["deleted"]["charges"] == 2 and d["stored"]["charges"]["count"] == 0
 
 
-async def test_retencion_exige_sesion_de_administrador_y_no_esta_en_la_app(db) -> None:
+async def test_retention_requires_an_admin_session_and_is_not_in_the_app(db) -> None:
     from app.admin_app import admin_app
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=admin_app), base_url="http://testserver") as c:
         assert (await c.get("/api/settings/retention")).status_code == 401
@@ -219,7 +219,7 @@ async def test_retencion_exige_sesion_de_administrador_y_no_esta_en_la_app(db) -
         assert (await c.get("/api/settings/retention")).status_code in (401, 404)
 
 
-# ───────────────────────── alarmas: el coche debe estar apagado y la situación mantenerse ─────────────────────────
+# ───────────────────────── alarms: the car must be off and the situation must persist ─────────────────────────
 @pytest.fixture
 async def poller(db, monkeypatch):
     async with async_session_factory() as s:
@@ -229,23 +229,23 @@ async def poller(db, monkeypatch):
     p._pending_since.clear()
     p._last_security_alert_time.clear()
     p.__dict__.pop("_last_windows_alert_time", None)
-    avisos = []
+    alerts = []
 
-    async def seguridad(cls, nombre, problemas, **kwargs):
-        avisos.append(("seguridad", problemas))
+    async def security(cls, name, problems, **kwargs):
+        alerts.append(("security", problems))
 
-    async def ventanas(cls, nombre, ventanas, **kwargs):
-        avisos.append(("ventanas", ventanas))
+    async def windows(cls, name, windows, **kwargs):
+        alerts.append(("windows", windows))
 
-    monkeypatch.setattr(poller_mod.NotificationService, "notify_security_alert", classmethod(seguridad))
-    monkeypatch.setattr(poller_mod.NotificationService, "notify_windows_open_alert", classmethod(ventanas))
+    monkeypatch.setattr(poller_mod.NotificationService, "notify_security_alert", classmethod(security))
+    monkeypatch.setattr(poller_mod.NotificationService, "notify_windows_open_alert", classmethod(windows))
     monkeypatch.setattr(VehiclePoller, "request_poll", lambda self, vin, force=False: None)
-    p.avisos = avisos
+    p.alerts_sent = alerts
     yield p
     p._pending_since.clear()
 
 
-async def comprobar(p, at, **tel):
+async def check(p, at, **tel):
     base = {"state": "parked", "high_voltage_on": False, "is_locked": True, "doors": {"fl": 1}, "windows": {}, "odometer_km": None}
     with freeze_time(at):
         async with async_session_factory() as s:
@@ -254,78 +254,78 @@ async def comprobar(p, at, **tel):
             await s.commit()
 
 
-async def test_una_puerta_abierta_al_llegar_no_da_alarma_hasta_que_se_mantiene_cinco_minutos(poller) -> None:
+async def test_a_door_opened_on_arrival_does_not_alarm_until_it_stays_five_minutes(poller) -> None:
     t = D(2026, 10, 28, 12, 0)
-    await comprobar(poller, t)                                              # abres la puerta al llegar
-    await comprobar(poller, t + datetime.timedelta(minutes=2))
-    assert poller.avisos == []                                              # antes avisaba en la primera lectura
-    await comprobar(poller, t + datetime.timedelta(minutes=5, seconds=1))
-    assert poller.avisos == [("seguridad", ["Puertas abiertas: fl"])]
+    await check(poller, t)                                              # you open the door on arrival
+    await check(poller, t + datetime.timedelta(minutes=2))
+    assert poller.alerts_sent == []                                              # it used to alert on the first reading
+    await check(poller, t + datetime.timedelta(minutes=5, seconds=1))
+    assert poller.alerts_sent == [("security", ["Puertas abiertas: fl"])]
 
 
-async def test_si_cierras_la_puerta_antes_no_hay_aviso_y_la_cuenta_se_reinicia(poller) -> None:
+async def test_closing_the_door_earlier_gives_no_alert_and_the_count_restarts(poller) -> None:
     t = D(2026, 10, 28, 12, 0)
-    await comprobar(poller, t)
-    await comprobar(poller, t + datetime.timedelta(minutes=3), doors={"fl": 0})        # ya cerrada
-    await comprobar(poller, t + datetime.timedelta(minutes=4))                         # se vuelve a abrir: la cuenta empieza de cero
-    await comprobar(poller, t + datetime.timedelta(minutes=6))
-    assert poller.avisos == []
+    await check(poller, t)
+    await check(poller, t + datetime.timedelta(minutes=3), doors={"fl": 0})        # already closed
+    await check(poller, t + datetime.timedelta(minutes=4))                         # opened again: the count starts from zero
+    await check(poller, t + datetime.timedelta(minutes=6))
+    assert poller.alerts_sent == []
 
 
-async def test_con_el_coche_encendido_no_se_avisa_nunca(poller) -> None:
+async def test_with_the_car_on_it_never_alerts(poller) -> None:
     t = D(2026, 10, 28, 12, 0)
-    for minutos in (0, 3, 6, 20):
-        await comprobar(poller, t + datetime.timedelta(minutes=minutos), high_voltage_on=True)   # sales del coche con el coche en marcha
-    assert poller.avisos == []
+    for minutes in (0, 3, 6, 20):
+        await check(poller, t + datetime.timedelta(minutes=minutes), high_voltage_on=True)   # you get out with the car running
+    assert poller.alerts_sent == []
 
 
-async def test_sin_dato_de_alta_tension_basta_con_aparcado_y_la_espera(poller) -> None:
+async def test_without_high_voltage_data_parked_and_the_wait_are_enough(poller) -> None:
     t = D(2026, 10, 28, 12, 0)
-    await comprobar(poller, t, high_voltage_on=None)
-    await comprobar(poller, t + datetime.timedelta(minutes=6), high_voltage_on=None)
-    assert len(poller.avisos) == 1
+    await check(poller, t, high_voltage_on=None)
+    await check(poller, t + datetime.timedelta(minutes=6), high_voltage_on=None)
+    assert len(poller.alerts_sent) == 1
 
 
-async def test_coche_sin_cerrar_tambien_espera(poller) -> None:
+async def test_an_unlocked_car_also_waits(poller) -> None:
     t = D(2026, 10, 28, 12, 0)
-    await comprobar(poller, t, is_locked=False, doors={})
-    assert poller.avisos == []
-    await comprobar(poller, t + datetime.timedelta(minutes=6), is_locked=False, doors={})
-    assert poller.avisos == [("seguridad", ["Vehículo sin cerrar con llave."])]
+    await check(poller, t, is_locked=False, doors={})
+    assert poller.alerts_sent == []
+    await check(poller, t + datetime.timedelta(minutes=6), is_locked=False, doors={})
+    assert poller.alerts_sent == [("security", ["Vehículo sin cerrar con llave."])]
 
 
-async def test_ventana_abierta_con_el_coche_cerrado_avisa_tras_la_espera(poller) -> None:
+async def test_an_open_window_with_the_car_locked_alerts_after_the_wait(poller) -> None:
     t = D(2026, 10, 28, 12, 0)
-    await comprobar(poller, t, doors={}, windows={"fl": 1})
-    assert poller.avisos == []
-    await comprobar(poller, t + datetime.timedelta(minutes=6), doors={}, windows={"fl": 1})
-    assert poller.avisos == [("ventanas", ["Delantera Izquierda"])]
+    await check(poller, t, doors={}, windows={"fl": 1})
+    assert poller.alerts_sent == []
+    await check(poller, t + datetime.timedelta(minutes=6), doors={}, windows={"fl": 1})
+    assert poller.alerts_sent == [("windows", ["Delantera Izquierda"])]
 
 
 # ───────────────────────── parser ─────────────────────────
-def test_high_voltage_on_sale_de_hvoltagestate() -> None:
+def test_high_voltage_on_comes_from_hvoltagestate() -> None:
     assert parse_telemetry_data({"hVoltageState": "1"})["high_voltage_on"] is True
     assert parse_telemetry_data({"hVoltageState": "0"})["high_voltage_on"] is False
     assert parse_telemetry_data({"hVoltageState": 1.0})["high_voltage_on"] is True
     assert parse_telemetry_data({})["high_voltage_on"] is None
 
 
-# ───────────────────────── AC o DC ─────────────────────────
-async def test_una_carga_es_ac_salvo_que_el_coche_diga_dc_y_se_puede_corregir(web, monkeypatch) -> None:
+# ───────────────────────── AC or DC ─────────────────────────
+async def test_a_charge_is_ac_unless_the_car_says_dc_and_it_can_be_corrected(web, monkeypatch) -> None:
     from freezegun import freeze_time
 
     from app.services import charge_detector as cd
 
-    async def sin_geocerca(*a, **k):
+    async def no_geofence(*a, **k):
         return None
 
-    async def direccion(lat, lon):
+    async def address(lat, lon):
         return "Área de servicio"
 
-    monkeypatch.setattr(cd, "find_geofence", sin_geocerca)
-    monkeypatch.setattr(cd, "reverse_geocode", direccion)
+    monkeypatch.setattr(cd, "find_geofence", no_geofence)
+    monkeypatch.setattr(cd, "reverse_geocode", address)
 
-    async def lectura(at, soc, charging, plug=True, kw=7.0, fast=False):
+    async def reading(at, soc, charging, plug=True, kw=7.0, fast=False):
         with freeze_time(at):
             async with async_session_factory() as s:
                 v = (await s.execute(select(Vehicle).where(Vehicle.vin == VIN))).scalar_one()
@@ -335,17 +335,17 @@ async def test_una_carga_es_ac_salvo_que_el_coche_diga_dc_y_se_puede_corregir(we
                 return res
 
     # 1. a plain 7 kW charge: AC
-    await lectura(D(2026, 10, 1, 22), 30.0, True)
-    ac = await lectura(D(2026, 10, 2, 1), 80.0, False, kw=0.0)
+    await reading(D(2026, 10, 1, 22), 30.0, True)
+    ac = await reading(D(2026, 10, 2, 1), 80.0, False, kw=0.0)
     assert ac.charge_type == "ac"
     # 2. the fast gun shows up mid-session: DC
-    await lectura(D(2026, 10, 3, 10), 20.0, True)
-    await lectura(D(2026, 10, 3, 10, 5), 30.0, True, kw=8.0, fast=True)
-    dc = await lectura(D(2026, 10, 3, 10, 40), 80.0, False, kw=0.0)
+    await reading(D(2026, 10, 3, 10), 20.0, True)
+    await reading(D(2026, 10, 3, 10, 5), 30.0, True, kw=8.0, fast=True)
+    dc = await reading(D(2026, 10, 3, 10, 40), 80.0, False, kw=0.0)
     assert dc.charge_type == "dc"
     # 3. a power beyond AC levels is DC even without the flag
-    await lectura(D(2026, 10, 4, 10), 20.0, True, kw=45.0)
-    fast = await lectura(D(2026, 10, 4, 10, 30), 70.0, False, kw=0.0)
+    await reading(D(2026, 10, 4, 10), 20.0, True, kw=45.0)
+    fast = await reading(D(2026, 10, 4, 10, 30), 70.0, False, kw=0.0)
     assert fast.charge_type == "dc"
     # the API shows it, the summary counts it, and it can be corrected by hand
     rows = (await web.get(f"/api/vehicles/{VIN}/charges")).json()
@@ -357,5 +357,5 @@ async def test_una_carga_es_ac_salvo_que_el_coche_diga_dc_y_se_puede_corregir(we
     assert (await web.put(f"/api/charges/{fast.id}/type", json={"charge_type": "fast"}, headers={"Origin": "http://testserver"})).status_code == 422
     assert (await web.get(f"/api/vehicles/{VIN}/charges/summary")).json()["dc_count"] == 1
     # an old charge without the column is shown as AC
-    old = await carga()
+    old = await add_charge()
     assert (await web.get(f"/api/charges/{old}")).json()["charge"]["charge_type"] == "ac"

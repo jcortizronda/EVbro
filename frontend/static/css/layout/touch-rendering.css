@@ -1,20 +1,20 @@
-/* EVBro — Pintado en dispositivos táctiles: sin `backdrop-filter`.
-   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies (va la ÚLTIMA).
+/* EVBro — Rendering on touch devices: no `backdrop-filter`.
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it (it goes LAST).
 
-   Por qué: Chrome para Android compone mal las capas con `backdrop-filter` cuando hay varias a la vez (cabecera, dock,
-   fondos de modales y hojas de acciones, más la animación de opacidad): el fondo desaparece o el diálogo sale con un
-   «cuadrado sin formar». El desenfoque es solo un adorno, así que en táctil se sustituye por fondos más opacos. */
+   Why: Chrome for Android composites `backdrop-filter` layers badly when several are present at once (header, dock,
+   modal and action sheet backdrops, plus the opacity animation): the background disappears or the dialog shows up as an
+   «unformed square». The blur is only decoration, so on touch it is replaced by more opaque backgrounds. */
 @media (hover: none) and (pointer: coarse) {
   *, *::before, *::after {
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
   }
 
-  /* Fondos de modales y hojas de acciones: sin desenfoque, más oscuros para que el contenido de detrás no distraiga */
+  /* Modal and action sheet backdrops: no blur, darker so the content behind does not distract */
   .modal-overlay,
   .action-sheet-overlay { background: rgba(0, 0, 0, 0.78); }
 
-  /* Cabecera y dock: opacos (antes translúcidos con desenfoque) */
+  /* Header and dock: opaque (formerly translucent with blur) */
   .app-header { background: var(--bg); }
   .native-bottom-dock { background: #0b0c10; }
   [data-theme="light"] .native-bottom-dock { background: #ffffff; }

@@ -1,10 +1,10 @@
-/* EVBro — Mapa en vivo de la portada: ampliable, «Centrar» y «Ir a».
-   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+/* EVBro — Live map on the home tab: expandable, «Centrar» and «Ir a».
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
 .live-map-wrap { position: relative; height: 180px; }
 .live-map-wrap > #liveMap { height: 100%; width: 100%; cursor: zoom-in; }
 
-/* Botones flotantes sobre el mapa (esquina inferior derecha; el zoom de Leaflet va arriba a la derecha) */
+/* Floating buttons over the map (bottom-right corner; Leaflet's zoom sits top right) */
 .map-fabs {
   position: absolute; right: 10px; bottom: 10px; z-index: 900;
   display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
@@ -23,14 +23,14 @@
 @keyframes map-fab-pulse { 50% { box-shadow: 0 0 0 6px rgba(var(--accent-rgb), 0.22), 0 4px 14px rgba(0, 0, 0, 0.35); } }
 @media (prefers-reduced-motion: reduce) { .map-fab.is-off-center { animation: none; } }
 
-/* Botón de cerrar (solo con el mapa ampliado) */
+/* Close button (only with the map expanded) */
 .map-close-btn {
   position: absolute; top: max(10px, env(safe-area-inset-top)); left: 10px; z-index: 900;
   width: 44px; padding: 0; border-radius: 50%;
 }
 .map-close-btn[hidden] { display: none; }
 
-/* Mapa AMPLIADO: pantalla completa por encima del dock y la cabecera, por debajo de los modales */
+/* EXPANDED map: full screen above the dock and the header, below the modals */
 .map-card.map-expanded {
   position: fixed; inset: 0; z-index: 1500; margin: 0 !important;
   width: 100%; height: 100%; max-height: none; border-radius: 0 !important; border: 0;

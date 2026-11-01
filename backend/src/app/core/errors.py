@@ -1,34 +1,34 @@
 #!/usr/bin/env python3
-"""El error de un comando rechazado.
+"""The error of a rejected command.
 
-Vive en su propio módulo porque lo comparten los dos lados del camino: `taskid`, que falla
-cuando el PIN no vale, y `commands`, que falla cuando el coche rechaza el envío. Tenerlo en uno
-de los dos creaba un import circular — y, más de fondo, habría sugerido que el error pertenece a
-una de las dos etapas cuando describe el resultado de la operación entera.
+It lives in its own module because both sides of the path share it: `taskid`, which fails
+when the PIN is wrong, and `commands`, which fails when the car rejects the send. Keeping it in one
+of the two created a circular import — and, more fundamentally, would have suggested the error belongs to
+one of the two stages when it describes the outcome of the whole operation.
 """
 from . import routing
 
-# Reintentar tiene sentido solo con los códigos que la tabla marca como transitorios (coche
-# ocupado). Derivado de `routing`, no una lista paralela.
+# Retrying only makes sense for the codes the table marks as transient (car
+# busy). Derived from `routing`, not a parallel list.
 RETRYABLE_CODES = routing.RETRYABLE_CODES
 
 
 class CommandError(Exception):
-    """Comando rechazado por el backend/coche (NO ejecutado). `code` = código tspconsole,
-    `retryable` = True si reintentar tiene sentido (ej. coche ocupado). Se deja propagar hasta
-    la API de comandos, que devuelve a la interfaz el error real (y su `reason`) en vez de un
-    falso éxito.
+    """Command rejected by the backend/car (NOT executed). `code` = tspconsole code,
+    `retryable` = True if retrying makes sense (e.g. car busy). It is let through up to
+    the commands API, which returns the real error (and its `reason`) to the interface instead of a
+    false success.
 
-    `reason` enruta el REMEDIO en la interfaz (routing por causa, no solo por código):
-      - "pin"    = PIN de comandos erróneo / anti-bloqueo / PIN ausente → reconfigurar el PIN
-                   (ajustes de la cuenta Ebro). NO es un problema de sesión: el token es
-                   válido y la telemetría sigue llegando.
-      - "reauth" = sesión/token caducados (login fallido, code A00000) → volver a iniciar sesión
-                   con la cuenta Ebro. Eso NO cambia el PIN: los dos canales son distintos.
-      - "config" = rechazo NO imputable al PIN ni a la sesión (permisos del vehículo, petición
-                   malformada, generación de taskId desactivada): ningún remedio automático,
-                   solo aviso. No pide cambiar el PIN y no cuenta para el anti-bloqueo.
-      - None     = otro rechazo del coche (ocupado, no permitido, en reposo): solo aviso."""
+    `reason` routes the REMEDY in the interface (routing by cause, not only by code):
+      - "pin"    = wrong command PIN / lockout / missing PIN → reconfigure the PIN
+                   (Ebro account settings). It is NOT a session problem: the token is
+                   valid and telemetry keeps arriving.
+      - "reauth" = session/token expired (failed login, code A00000) → log in again
+                   with the Ebro account. That does NOT change the PIN: the two channels are distinct.
+      - "config" = rejection NOT attributable to the PIN or the session (vehicle permissions, malformed
+                   request, taskId minting disabled): no automatic remedy,
+                   just a notice. Does not ask to change the PIN and does not count towards the lockout.
+      - None     = another rejection by the car (busy, not allowed, asleep): just a notice."""
 
     def __init__(self, message: str, code: str | None = None, reason: str | None = None) -> None:
         super().__init__(message)

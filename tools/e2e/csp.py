@@ -1,8 +1,8 @@
-"""Prueba de navegador (Playwright) contra un servidor de demostración: ver tools/e2e/README.md.
+"""Browser test (Playwright) against a demo server: see tools/e2e/README.md.
 
-Recorre todas las pestañas (móvil y escritorio) y falla si el navegador registra alguna violación de la `Content-Security-Policy`
-de la app (un recurso externo sin autorizar, un `eval`, etc.). Los demás scripts abren el navegador con `bypass_csp=True` porque
-`wait_for_function` evalúa texto en la página; este es el único que comprueba la política de verdad.
+Walks through every tab (phone and desktop) and fails if the browser reports any violation of the app's `Content-Security-Policy`
+(an unauthorised external resource, an `eval`, etc.). The other scripts open the browser with `bypass_csp=True` because
+`wait_for_function` evaluates text in the page; this is the only one that really checks the policy.
 """
 import os
 import sys
@@ -33,9 +33,9 @@ with sync_playwright() as p:
         pg.on("pageerror", lambda e: errors.append(str(e)))
         resp = pg.goto(BASE)
         csp = resp.headers.get("content-security-policy", "")
-        ok("frame-ancestors 'none'" in csp and "default-src 'self'" in csp, f"{name}: la página llega con su Content-Security-Policy")
+        ok("frame-ancestors 'none'" in csp and "default-src 'self'" in csp, f"{name}: the page arrives with its Content-Security-Policy")
         style_src = next((d for d in csp.split(";") if d.strip().startswith("style-src")), "")
-        ok("unsafe-inline" not in style_src and "unsafe-inline" not in csp, f"{name}: la política no admite estilos ni scripts en línea")
+        ok("unsafe-inline" not in style_src and "unsafe-inline" not in csp, f"{name}: the policy allows no inline styles or scripts")
         pg.wait_for_load_state("networkidle")
         pg.wait_for_timeout(800)
         for t in TABS:
@@ -57,9 +57,9 @@ with sync_playwright() as p:
         pg.evaluate("typeof openNewGeofenceModal === 'function' && openNewGeofenceModal()"); pg.wait_for_timeout(700)
         pg.keyboard.press("Escape")
         pg.wait_for_timeout(500)
-        ok(not violations, f"{name}: sin violaciones de CSP {[v[:160] for v in violations[:3]]}")
-        ok(not errors, f"{name}: sin errores de JavaScript {errors[:3]}")
+        ok(not violations, f"{name}: no CSP violations {[v[:160] for v in violations[:3]]}")
+        ok(not errors, f"{name}: no JavaScript errors {errors[:3]}")
         ctx.close()
     b.close()
-print("FALLOS:", fails or "ninguno")
+print("FAILURES:", fails or "none")
 sys.exit(1 if fails else 0)

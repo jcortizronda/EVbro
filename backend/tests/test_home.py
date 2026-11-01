@@ -1,4 +1,4 @@
-"""Portada: no afirmar lo que no se sabe (cierre, puertas, ventanas) y estado real de alarma y carga programada."""
+"""Home page: do not claim what is unknown (lock, doors, windows) and the real state of the alarm and scheduled charging."""
 from __future__ import annotations
 
 import httpx
@@ -15,8 +15,8 @@ from app.services.poller import VehiclePoller
 VIN = "LSJA0000000000001"
 
 
-# ───────────────────────── el parser no inventa «cerrado» ─────────────────────────
-def test_sin_datos_el_coche_no_se_da_por_cerrado() -> None:
+# ───────────────────────── the parser does not make up «closed» ─────────────────────────
+def test_without_data_the_car_is_not_assumed_locked() -> None:
     t = parse_telemetry_data({})
     assert t["is_locked"] is None
     assert all(v is None for v in t["doors"].values())
@@ -24,34 +24,34 @@ def test_sin_datos_el_coche_no_se_da_por_cerrado() -> None:
     assert t["appointment_charge_on"] is None
 
 
-def test_con_datos_se_interpreta_igual_que_antes() -> None:
-    cerrado = parse_telemetry_data({"doorLock": "0", "trunkDoor": "0", "frontLeftWindowState": "0"})
-    assert cerrado["is_locked"] is True and cerrado["doors"]["trunk"] == 0 and cerrado["windows"]["fl"] == 0
-    abierto = parse_telemetry_data({"doorLock": "1", "trunkDoor": "1", "sunroofState": "1"})
-    assert abierto["is_locked"] is False and abierto["doors"]["trunk"] == 1 and abierto["windows"]["sunroof"] == 1
-    # lo que no ha llegado sigue sin saberse aunque otros campos sí hayan llegado
-    assert abierto["doors"]["fl"] is None and abierto["windows"]["fl"] is None
+def test_with_data_it_is_read_as_before() -> None:
+    closed = parse_telemetry_data({"doorLock": "0", "trunkDoor": "0", "frontLeftWindowState": "0"})
+    assert closed["is_locked"] is True and closed["doors"]["trunk"] == 0 and closed["windows"]["fl"] == 0
+    opened = parse_telemetry_data({"doorLock": "1", "trunkDoor": "1", "sunroofState": "1"})
+    assert opened["is_locked"] is False and opened["doors"]["trunk"] == 1 and opened["windows"]["sunroof"] == 1
+    # what has not arrived stays unknown even if other fields did arrive
+    assert opened["doors"]["fl"] is None and opened["windows"]["fl"] is None
 
 
-@pytest.mark.parametrize("raw,esperado", [("0", False), ("1", True), ("2", True), (None, None), ("", None)])
-def test_carga_programada_activa(raw, esperado) -> None:
-    datos = {} if raw is None else {"appointmentChargeState": raw}
-    assert parse_telemetry_data(datos)["appointment_charge_on"] is esperado
+@pytest.mark.parametrize("raw,expected", [("0", False), ("1", True), ("2", True), (None, None), ("", None)])
+def test_scheduled_charging_on(raw, expected) -> None:
+    data = {} if raw is None else {"appointmentChargeState": raw}
+    assert parse_telemetry_data(data)["appointment_charge_on"] is expected
 
 
-def test_la_alarma_o_el_cierre_desconocidos_no_disparan_avisos_de_seguridad() -> None:
-    """El poller avisa de «sin cerrar» solo si is_locked es False; None (sin dato) no debe contar."""
+def test_unknown_alarm_or_lock_does_not_trigger_security_alerts() -> None:
+    """The poller alerts «sin cerrar» only if is_locked is False; None (no data) must not count."""
     t = parse_telemetry_data({"engineState": "0"})
     assert t["is_locked"] is None and (t.get("is_locked") is False) is False
 
 
-# ───────────────────────── estado de la alarma ─────────────────────────
+# ───────────────────────── alarm state ─────────────────────────
 class _Req:
     client = type("C", (), {"host": "127.0.0.1"})()
     headers = {"user-agent": "t"}
 
 
-async def _cliente(db):
+async def _client(db):
     async with async_session_factory() as s:
         s.add(Vehicle(owner_id=1, vin=VIN, name="Ebro"))
         user = AppUser(id=1, role="manager", username="juan", password_hash=passwords.hash_password("una-contraseña-larga-1"))
@@ -63,17 +63,17 @@ async def _cliente(db):
     return c
 
 
-@pytest.mark.parametrize("devuelve,esperado", [(1, True), (0, False), (None, None)])
-async def test_estado_de_la_alarma(db, monkeypatch, devuelve, esperado) -> None:
-    monkeypatch.setattr(commands, "query_theft_switch", lambda ctx: devuelve)
+@pytest.mark.parametrize("returned,expected", [(1, True), (0, False), (None, None)])
+async def test_alarm_state(db, monkeypatch, returned, expected) -> None:
+    monkeypatch.setattr(commands, "query_theft_switch", lambda ctx: returned)
     VehiclePoller._contexts = {}
-    async with await _cliente(db) as c:
+    async with await _client(db) as c:
         r = await c.get(f"/api/vehicles/{VIN}/alarm")
-    assert r.status_code == 200 and r.json() == {"enabled": esperado}
+    assert r.status_code == 200 and r.json() == {"enabled": expected}
 
 
-async def test_la_alarma_de_un_vehiculo_desconocido_da_404_y_exige_sesion(db) -> None:
-    async with await _cliente(db) as c:
+async def test_alarm_of_an_unknown_vehicle_gives_404_and_requires_a_session(db) -> None:
+    async with await _client(db) as c:
         assert (await c.get("/api/vehicles/LSJA9999999999999/alarm")).status_code == 404
         c.cookies.clear()
         assert (await c.get(f"/api/vehicles/{VIN}/alarm")).status_code == 401

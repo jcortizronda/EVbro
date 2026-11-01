@@ -1,6 +1,6 @@
-/* EVBro — Documentos del coche (Ajustes → Coche): factura de compra, póliza del seguro y otros (permiso de circulación, ficha técnica).
- * Se suben en el momento (no dependen de «Guardar cambios»). El servidor decide el tipo por el contenido y solo deja subir y borrar al dueño.
- * (Script clásico: comparte el ámbito global con los demás ficheros; ver el orden de carga en templates/index.html.)
+/* EVBro — Car documents (Ajustes → Coche): purchase invoice, insurance policy and others (registration certificate, technical sheet).
+ * They upload immediately (they do not depend on «Guardar cambios»). The server decides the type from the content and only lets the owner upload and delete.
+ * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
 const VDOC_KIND_LABELS = {
@@ -164,7 +164,7 @@ async function uploadVehicleDocument(input) {
     const res = await fetch(`/api/vehicles/${encodeURIComponent(vin)}/documents`, { method: 'POST', body: form });
     if (!res.ok) {
       let detail = 'No se ha podido subir el documento.';
-      try { detail = (await res.json()).detail || detail; } catch (e) { /* respuesta sin JSON */ }
+      try { detail = (await res.json()).detail || detail; } catch (e) { /* response without JSON */ }
       showToast(stripEmoji(String(detail)), 'error');
       return;
     }

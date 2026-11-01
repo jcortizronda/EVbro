@@ -1,5 +1,5 @@
-/* EVBro — Selector de geocercas sobre el mapa.
-   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+/* EVBro — Geofence picker over the map.
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
 /* ========================================================
    MAP-BASED GEOFENCE SELECTOR & SEARCH
@@ -75,5 +75,5 @@
   transform: scale(1.15);
 }
 
-/* Pin de cada geocerca en el mapa: el color va por data-css (applyDataStyles) */
+/* Pin of each geofence on the map: the colour comes through data-css (applyDataStyles) */
 .gf-pin-dot { width: 24px; height: 24px; border-radius: 50%; border: 2px solid #fff; display: flex; align-items: center; justify-content: center; color: #fff; }

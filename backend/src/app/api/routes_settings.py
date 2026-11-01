@@ -1,4 +1,4 @@
-"""Ajustes de la aplicación (no de un vehículo): retención del historial."""
+"""Application settings (not of a vehicle): history retention."""
 from __future__ import annotations
 
 from typing import Optional
@@ -14,7 +14,7 @@ router = APIRouter(prefix="/settings", tags=["Settings"])
 
 
 class RetentionUpdate(BaseModel):
-    """Días que se guarda cada tipo de historial; 0 = para siempre. Lo no enviado no se toca."""
+    """Days each type of history is kept; 0 = forever. Fields not sent are left alone."""
     trips_days: Optional[int] = Field(default=None, ge=0, le=retention.MAX_DAYS)
     charges_days: Optional[int] = Field(default=None, ge=0, le=retention.MAX_DAYS)
     snapshots_days: Optional[int] = Field(default=None, ge=0, le=retention.MAX_DAYS)
@@ -26,7 +26,7 @@ async def _state(session: AsyncSession):
 
 @router.get("/retention")
 async def get_retention(session: AsyncSession = Depends(get_db)):
-    """Plazos actuales y cuánto hay guardado de cada tipo."""
+    """Current retention periods and how much of each type is stored."""
     return await _state(session)
 
 
@@ -38,6 +38,6 @@ async def put_retention(req: RetentionUpdate, session: AsyncSession = Depends(ge
 
 @router.post("/retention/run")
 async def run_retention(session: AsyncSession = Depends(get_db)):
-    """Aplica los plazos ahora y dice cuántos registros se borraron."""
+    """Applies the retention periods now and says how many records were deleted."""
     deleted = await retention.apply(session)
     return {"deleted": deleted, **await _state(session)}

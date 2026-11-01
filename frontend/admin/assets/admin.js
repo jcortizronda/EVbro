@@ -1,6 +1,6 @@
-/* EVBro — consola de administración. Sin dependencias del resto de la web: es otra aplicación, en otro puerto.
- * El administrador gestiona cuentas, invitaciones, límites y ajustes del servidor; de los gestores solo ve recuentos y estado, nunca sus coches.
- * Todo el texto que llega del servidor se pinta con textContent (nunca innerHTML) y no hay manejadores en línea (CSP). */
+/* EVBro — admin console. No dependencies on the rest of the web app: it is another application, on another port.
+ * The admin manages accounts, invitations, limits and server settings; of the managers it only sees counts and status, never their cars.
+ * All text coming from the server is rendered with textContent (never innerHTML) and there are no inline handlers (CSP). */
 'use strict';
 
 const $ = (id) => document.getElementById(id);
@@ -43,7 +43,7 @@ const storageLimit = (mb) => (mb < 0 ? 'sin límite' : `${Number(mb).toLocaleStr
 /** Empty field = null (the server default); otherwise an integer, or NaN when it is not a number. */
 const optionalInt = (id) => { const raw = $(id).value.trim(); return raw === '' ? null : parseInt(raw, 10); };
 
-// ───────────────────────── diálogo propio (nada de alert / confirm / prompt del navegador) ─────────────────────────
+// ───────────────────────── own dialog (no browser alert / confirm / prompt) ─────────────────────────
 let askResolve = null;
 /** Opens the console's dialog. Without `input` it resolves true/false; with it, the text or null when cancelled. */
 function ask(message, { title = 'Confirmar', okText = 'Aceptar', danger = false, input = null } = {}) {
@@ -71,7 +71,7 @@ $('formAsk').addEventListener('submit', (ev) => { ev.preventDefault(); if (askRe
 $('askCancel').addEventListener('click', () => { if (askResolve) askResolve($('askField').hidden ? false : null); });
 $('dlgAsk').addEventListener('cancel', (ev) => { ev.preventDefault(); if (askResolve) askResolve($('askField').hidden ? false : null); });
 
-// ───────────────────────── acceso ─────────────────────────
+// ───────────────────────── sign-in ─────────────────────────
 function showAuth() {
   $('viewApp').hidden = true;
   $('who').hidden = true;
@@ -119,7 +119,7 @@ $('authForm').addEventListener('submit', async (ev) => {
   } catch (e) { fail(e.message); }
 });
 
-$('btnLogout').addEventListener('click', async () => { try { await api('/api/auth/logout', 'POST'); } catch (e) { /* da igual */ } init(); });
+$('btnLogout').addEventListener('click', async () => { try { await api('/api/auth/logout', 'POST'); } catch (e) { /* does not matter */ } init(); });
 $('btnPassword').addEventListener('click', async () => {
   const current = await promptAsk('Escribe tu contraseña actual.', { title: 'Cambiar contraseña', okText: 'Siguiente', input: { label: 'Contraseña actual', type: 'password', autocomplete: 'current-password' } });
   if (!current) return;
@@ -128,7 +128,7 @@ $('btnPassword').addEventListener('click', async () => {
   try { await api('/api/auth/password', 'POST', { current_password: current, new_password: next }); toast('Contraseña cambiada.'); } catch (e) { toast(e.message, true, 7000); }
 });
 
-// ───────────────────────── pestañas ─────────────────────────
+// ───────────────────────── tabs ─────────────────────────
 document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click', () => {
   if (tab.dataset.tab === 'stats') loadStats();
   document.querySelectorAll('.tab').forEach((t) => { const on = t === tab; t.classList.toggle('is-active', on); t.setAttribute('aria-selected', String(on)); });
@@ -138,7 +138,7 @@ document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click',
 
 async function loadAll() { await Promise.all([loadManagers(), loadStats(), loadInvites(), loadServer(), loadCatalog(), loadCatalogSource(), loadCatalogKeys(), loadAudit()]); }
 
-// ───────────────────────── gestores ─────────────────────────
+// ───────────────────────── managers ─────────────────────────
 async function loadManagers() {
   try { managers = await api('/api/admin/users'); } catch (e) { return; }
   const body = $('tblManagers').querySelector('tbody');
@@ -223,7 +223,7 @@ async function deleteSpace(u) {
     .catch((e) => toast(e.message, true, 7000));
 }
 
-// ───────────────────────── estadísticas ─────────────────────────
+// ───────────────────────── statistics ─────────────────────────
 const num = (n) => (n === null || n === undefined ? '—' : Number(n).toLocaleString(I18n.locale));
 const bytes = (n) => {
   if (n === null || n === undefined) return '—';
@@ -288,7 +288,7 @@ function drawGrowth(weeks) {
   });
 }
 
-// ───────────────────────── invitaciones ─────────────────────────
+// ───────────────────────── invitations ─────────────────────────
 async function loadInvites() {
   let list;
   try { list = await api('/api/admin/invites'); } catch (e) { return; }
@@ -329,7 +329,7 @@ async function revokeInvite(id) {
   api(`/api/admin/invites/${id}`, 'DELETE').then(loadInvites).catch((e) => toast(e.message, true));
 }
 
-// ───────────────────────── servidor ─────────────────────────
+// ───────────────────────── server ─────────────────────────
 const info = (x) => (x.count ? `${x.count.toLocaleString(I18n.locale)} guardados${x.oldest ? `, el más antiguo del ${fmtDate(x.oldest)}` : ''}` : 'Nada guardado');
 
 async function loadServer() {
@@ -340,7 +340,7 @@ async function loadServer() {
     const p = await api('/api/server/polling');
     $('polParked').value = p.poll_interval_parked_min; $('polPlugged').value = p.poll_interval_plugged_min; $('polCharging').value = p.poll_interval_charging_min;
     $('polDriving').value = p.poll_interval_driving_min; $('polIdle').value = p.poll_interval_driving_idle_min;
-  } catch (e) { /* sin sesión: ya se muestra el acceso */ }
+  } catch (e) { /* no session: the sign-in screen is already shown */ }
 }
 
 $('formRetention').addEventListener('submit', async (ev) => {
@@ -369,7 +369,7 @@ $('formPolling').addEventListener('submit', async (ev) => {
 init();
 
 
-// ───────────────────────── Catálogo compartido ─────────────────────────
+// ───────────────────────── Shared catalogue ─────────────────────────
 const CAT_STATES = { pending: 'Pendiente', approved: 'Aprobada', rejected: 'Rechazada' };
 let catalogRows = [];
 const qty = (n) => (n === null || n === undefined ? null : Number(n).toLocaleString(I18n.locale));
@@ -439,7 +439,7 @@ $('formCatalog').addEventListener('submit', async (ev) => {
 $('catStatus').addEventListener('change', loadCatalog);
 
 
-// ───────────────────────── Catálogo en línea: origen de este servidor y claves para otros ─────────────────────────
+// ───────────────────────── Online catalogue: this server's source and keys for others ─────────────────────────
 const KEY_STATES = { active: 'Activa', expired: 'Caducada', revoked: 'Anulada' };
 async function loadCatalogSource() {
   let c;
@@ -519,7 +519,7 @@ $('formCatalogKey').addEventListener('submit', async (ev) => {
 });
 
 
-// ───────────────────────── Registro de acciones ─────────────────────────
+// ───────────────────────── Action log ─────────────────────────
 const AUDIT_LABELS = { login: 'Entrada en la consola', 'manager.create': 'Gestor creado', 'manager.delete': 'Espacio de gestor borrado', 'user.update': 'Cuenta modificada',
   'invite.create': 'Invitación creada', 'invite.revoke': 'Invitación anulada', 'catalog.approve': 'Catálogo: aprobada', 'catalog.reject': 'Catálogo: rechazada', 'catalog.edit': 'Catálogo: editada',
   'catalog.key.create': 'Catálogo: clave creada', 'catalog.key.revoke': 'Catálogo: clave anulada', 'catalog.public_url': 'Catálogo: URL pública', 'catalog.source': 'Catálogo: origen cambiado', 'catalog.sync': 'Catálogo: sincronizado' };

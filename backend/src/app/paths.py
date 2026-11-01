@@ -7,11 +7,11 @@ from app.config import settings
 
 
 def frontend_dir() -> str:
-    """Carpeta `frontend/` (plantillas + estáticos + consola de administración). `FRONTEND_DIR` manda; si no, se busca subiendo desde este
-    fichero (en el repo está en la raíz; en la imagen Docker, en /app/frontend)."""
+    """The `frontend/` folder (templates + static files + admin console). `FRONTEND_DIR` wins; otherwise it is looked up going up from this
+    file (in the repo it is at the root; in the Docker image, at /app/frontend)."""
     if settings.FRONTEND_DIR:
         return settings.FRONTEND_DIR
     for parent in Path(__file__).resolve().parents:
         if (parent / "frontend" / "templates" / "index.html").is_file():
             return str(parent / "frontend")
-    raise RuntimeError("No se encuentra la carpeta frontend/ (define FRONTEND_DIR).")
+    raise RuntimeError("Cannot find the frontend/ folder (set FRONTEND_DIR).")

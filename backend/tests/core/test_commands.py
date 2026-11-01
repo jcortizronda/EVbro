@@ -1,12 +1,12 @@
-"""Tests de `core/commands.py` — catálogo, taskId y envío de comandos.
+"""Tests for `core/commands.py` — catalogue, taskId and command sending.
 
-Dos detalles del módulo condicionan cómo se mockea:
+Two details of the module shape how it is mocked:
 
-* `send()` usa **urllib**, mientras que `_checkpassword` importa **requests dentro de la
-  función**. Por eso `patch("app.core.commands.requests")` NO funciona:
-  el módulo no tiene ese atributo. Hay que parchear `requests.post` global.
-* `send()` mete `int(time.time()*1000)` en `seq` y en la firma → todo test que mire el
-  envelope necesita el reloj congelado.
+* `send()` uses **urllib**, while `_checkpassword` imports **requests inside the
+  function**. That is why `patch("app.core.commands.requests")` does NOT work:
+  the module has no such attribute. The global `requests.post` must be patched.
+* `send()` puts `int(time.time()*1000)` into `seq` and into the signature → every test that looks at the
+  envelope needs a frozen clock.
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ def ctx(tmp_path) -> CoreCtx:
 
 
 def _urlopen(payload: dict, status: int = 200) -> MagicMock:
-    """Fabrica el context manager que devuelve `urllib.request.urlopen`."""
+    """Build the context manager returned by `urllib.request.urlopen`."""
     resp = MagicMock()
     resp.read.return_value = json.dumps(payload).encode()
     resp.status = status
@@ -44,35 +44,35 @@ def _urlopen(payload: dict, status: int = 200) -> MagicMock:
     return cm
 
 
-# ───────────────────────── catálogo (puro) ─────────────────────────
+# ───────────────────────── catalogue (pure) ─────────────────────────
 
 
-def test_catalogo_sin_claves_duplicadas() -> None:
-    """`CMD_MAP = dict(COMMANDS)`: una clave repetida se tragaría un comando en silencio."""
+def test_catalogue_has_no_duplicate_keys() -> None:
+    """`CMD_MAP = dict(COMMANDS)`: a repeated key would silently swallow a command."""
     claves = [k for k, _ in catalog.COMMANDS]
     assert len(claves) == len(set(claves))
     assert len(catalog.CMD_MAP) == len(catalog.COMMANDS)
 
 
-def test_cada_comando_tiene_destino_y_nombre() -> None:
+def test_every_command_has_target_and_name() -> None:
     for key, spec in catalog.COMMANDS:
         assert spec.get("path") or spec.get("endpoint"), key
         assert spec.get("name"), key
         assert isinstance(spec.get("body"), dict), key
 
 
-def test_command_error_marca_lo_reintentable() -> None:
+def test_command_error_flags_retryable() -> None:
     assert commands.CommandError("x", code="A00082").retryable is True
     assert commands.CommandError("x", code="A00084").retryable is False
     assert commands.CommandError("x").retryable is False
 
 
-# ───────────────────────── mensajes (puros) ─────────────────────────
+# ───────────────────────── messages (pure) ─────────────────────────
 
 
 def test_mensajes_de_checkpassword(snapshot: SnapshotAssertion) -> None:
-    """El texto está separado de la decisión a propósito: se puede reescribir o traducir sin
-    tocar el enrutado. El snapshot fija los tres mensajes de golpe."""
+    """The text is kept apart from the decision on purpose: it can be rewritten or translated without
+    touching the routing. The snapshot pins all three messages at once."""
     detail = "code=A00285 'wrong password'"
     assert {
         reason: taskid._checkpassword_message(
@@ -85,16 +85,16 @@ def test_mensajes_de_checkpassword(snapshot: SnapshotAssertion) -> None:
 # ───────────────────────── get_taskid ─────────────────────────
 
 
-def test_get_taskid_desde_archivo(ctx: CoreCtx) -> None:
-    """Orden de las fuentes: archivo → caché → checkPassword."""
+def test_get_taskid_from_file(ctx: CoreCtx) -> None:
+    """Source order: file → cache → checkPassword."""
     with open(ctx.taskid_file, "w", encoding="utf-8") as fh:
         fh.write("  task-de-archivo  \n")
 
     assert taskid.get_taskid(ctx, "tu") == ("task-de-archivo", "file")
 
 
-def test_get_taskid_desde_cache(ctx: CoreCtx, freezer) -> None:
-    """Regenerarlo cuesta toda la vuelta de checkPassword, que es la parte lenta del comando."""
+def test_get_taskid_from_cache(ctx: CoreCtx, freezer) -> None:
+    """Re-minting it costs the whole checkPassword round trip, which is the slow part of the command."""
     freezer.move_to(FROZEN)
     ctx.state.taskid = "task-en-cache"
     ctx.state.taskid_ts = __import__("time").time()
@@ -102,7 +102,7 @@ def test_get_taskid_desde_cache(ctx: CoreCtx, freezer) -> None:
     assert taskid.get_taskid(ctx, "tu") == ("task-en-cache", "cache")
 
 
-def test_get_taskid_cache_caducada_regenera(ctx: CoreCtx, freezer) -> None:
+def test_get_taskid_expired_cache_remints(ctx: CoreCtx, freezer) -> None:
     freezer.move_to(FROZEN)
     ctx.state.taskid = "task-viejo"
     ctx.state.taskid_ts = __import__("time").time()
@@ -115,8 +115,8 @@ def test_get_taskid_cache_caducada_regenera(ctx: CoreCtx, freezer) -> None:
     assert ctx.state.taskid == "task-nuevo"
 
 
-def test_get_taskid_force_mint_salta_archivo_y_cache(ctx: CoreCtx) -> None:
-    """En el reintento tras un rechazo, reusar la misma fuente daría el mismo error."""
+def test_get_taskid_force_mint_skips_file_and_cache(ctx: CoreCtx) -> None:
+    """On the retry after a rejection, reusing the same source would give the same error."""
     with open(ctx.taskid_file, "w", encoding="utf-8") as fh:
         fh.write("task-de-archivo")
 
@@ -127,13 +127,13 @@ def test_get_taskid_force_mint_salta_archivo_y_cache(ctx: CoreCtx) -> None:
     mint.assert_called_once()
 
 
-def test_get_taskid_con_generacion_desactivada(ctx: CoreCtx) -> None:
+def test_get_taskid_with_minting_disabled(ctx: CoreCtx) -> None:
     ctx.mint_taskid = False
     assert taskid.get_taskid(ctx, "tu") == (None, "none")
 
 
-def test_get_taskid_propaga_el_command_error_con_su_reason(ctx: CoreCtx) -> None:
-    """`send()` necesita el `reason` intacto para enrutar el remedio correcto."""
+def test_get_taskid_propagates_command_error_with_its_reason(ctx: CoreCtx) -> None:
+    """`send()` needs the `reason` intact to route the right remedy."""
     err = commands.CommandError("PIN rechazado", reason="pin")
 
     with (
@@ -145,7 +145,7 @@ def test_get_taskid_propaga_el_command_error_con_su_reason(ctx: CoreCtx) -> None
     assert capt.value.reason == "pin"
 
 
-def test_get_taskid_error_imprevisto_se_envuelve_como_pin(ctx: CoreCtx) -> None:
+def test_get_taskid_unexpected_error_is_wrapped_as_pin(ctx: CoreCtx) -> None:
     with (
         patch.object(taskid, "_mint_taskid", side_effect=ValueError("raro")),
         pytest.raises(commands.CommandError) as capt,
@@ -158,8 +158,8 @@ def test_get_taskid_error_imprevisto_se_envuelve_como_pin(ctx: CoreCtx) -> None:
 # ───────────────────────── _mint_taskid_impl ─────────────────────────
 
 
-def test_pin_vacio_falla_antes_del_antibloqueo(ctx: CoreCtx) -> None:
-    """Un PIN no configurado no es un intento erróneo: no debe consumir el umbral ni tocar el
+def test_empty_pin_fails_before_the_lockout(ctx: CoreCtx) -> None:
+    """An unconfigured PIN is not a wrong attempt: it must not use up the threshold or touch the
     backend."""
     ctx.pin = "   "
 
@@ -170,7 +170,7 @@ def test_pin_vacio_falla_antes_del_antibloqueo(ctx: CoreCtx) -> None:
     assert ctx.lockout.failed_attempts == 0
 
 
-def test_antibloqueo_convierte_el_bloqueo_en_command_error(ctx: CoreCtx) -> None:
+def test_lockout_turns_the_lock_into_command_error(ctx: CoreCtx) -> None:
     ctx.lockout.max_failures = 1
     with ctx.lockout.attempt() as attempt:
         attempt.record_failure()
@@ -185,12 +185,12 @@ def test_antibloqueo_convierte_el_bloqueo_en_command_error(ctx: CoreCtx) -> None
 # ───────────────────────── send() ─────────────────────────
 
 
-def test_send_comando_desconocido(ctx: CoreCtx) -> None:
+def test_send_unknown_command(ctx: CoreCtx) -> None:
     with pytest.raises(commands.CommandError, match="Comando desconocido"):
         commands.send(ctx, "no-existe-este-comando")
 
 
-def test_send_sin_token_pide_reauth(ctx: CoreCtx) -> None:
+def test_send_without_token_asks_for_reauth(ctx: CoreCtx) -> None:
     with (
         patch.object(commands.wake, "_bff_login", return_value=(None, None)),
         pytest.raises(commands.CommandError) as capt,
@@ -202,8 +202,8 @@ def test_send_sin_token_pide_reauth(ctx: CoreCtx) -> None:
 
 @pytest.mark.freeze_time(FROZEN)
 def test_send_ok_y_envelope_firmado(ctx: CoreCtx, snapshot: SnapshotAssertion) -> None:
-    """Con el reloj congelado, `seq` y la firma son reproducibles → el envelope entero cabe en
-    un snapshot. Es la mejor red de seguridad contra un cambio accidental del formato."""
+    """With the clock frozen, `seq` and the signature are reproducible → the whole envelope fits in
+    a snapshot. It is the best safety net against an accidental format change."""
     ctx.state.taskid = "task-en-cache"
     ctx.state.taskid_ts = __import__("time").time()
 
@@ -226,9 +226,9 @@ def test_send_ok_y_envelope_firmado(ctx: CoreCtx, snapshot: SnapshotAssertion) -
 
 
 @pytest.mark.freeze_time(FROZEN)
-def test_send_aplica_los_params_antes_de_los_campos_de_sistema(ctx: CoreCtx) -> None:
-    """Los `params` sobrescriben el body del catálogo, pero clientType/seq/taskId/vin los pone
-    siempre `send()`: un `params` no puede falsificarlos."""
+def test_send_applies_params_before_system_fields(ctx: CoreCtx) -> None:
+    """`params` override the catalogue body, but clientType/seq/taskId/vin are always set
+    by `send()`: a `params` cannot forge them."""
     ctx.state.taskid = "T"
     ctx.state.taskid_ts = __import__("time").time()
 
@@ -244,9 +244,9 @@ def test_send_aplica_los_params_antes_de_los_campos_de_sistema(ctx: CoreCtx) -> 
 
 
 @pytest.mark.freeze_time(FROZEN)
-def test_send_codigo_de_fallo_lanza_command_error(ctx: CoreCtx) -> None:
-    """Un fallo conocido = comando NO ejecutado → las entidades optimistas anulan el estado en
-    vez de mostrar un falso éxito."""
+def test_send_failure_code_raises_command_error(ctx: CoreCtx) -> None:
+    """A known failure = command NOT executed → optimistic entities roll back their state instead
+    of showing a false success."""
     ctx.state.taskid = "T"
     ctx.state.taskid_ts = __import__("time").time()
 
@@ -262,8 +262,8 @@ def test_send_codigo_de_fallo_lanza_command_error(ctx: CoreCtx) -> None:
 
 
 @pytest.mark.freeze_time(FROZEN)
-def test_send_codigo_desconocido_no_bloquea(ctx: CoreCtx) -> None:
-    """Prudencia deliberada: no se inventa un fallo que el backend no ha declarado."""
+def test_send_unknown_code_does_not_block(ctx: CoreCtx) -> None:
+    """Deliberate caution: we do not invent a failure the backend has not declared."""
     ctx.state.taskid = "T"
     ctx.state.taskid_ts = __import__("time").time()
 
@@ -277,8 +277,8 @@ def test_send_codigo_desconocido_no_bloquea(ctx: CoreCtx) -> None:
 
 
 @pytest.mark.freeze_time(FROZEN)
-def test_send_regenera_el_taskid_y_reintenta_una_sola_vez(ctx: CoreCtx) -> None:
-    """Sin este reintento el usuario vería un error por un taskId simplemente caducado."""
+def test_send_remints_the_taskid_and_retries_once(ctx: CoreCtx) -> None:
+    """Without this retry the user would see an error for a merely expired taskId."""
     ctx.state.taskid = "task-caducado"
     ctx.state.taskid_ts = __import__("time").time()
     respuestas = [_urlopen({"code": "A00089"}), _urlopen({"code": "000000"})]
@@ -293,13 +293,13 @@ def test_send_regenera_el_taskid_y_reintenta_una_sola_vez(ctx: CoreCtx) -> None:
     assert "000000" in out
     assert urlopen.call_count == 2
     mint.assert_called_once()
-    # el segundo envío lleva ya el taskId regenerado
+    # the second send already carries the re-minted taskId
     assert json.loads(urlopen.call_args[0][0].data.decode())["taskId"] == "task-nuevo"
 
 
 @pytest.mark.freeze_time(FROZEN)
-def test_send_no_reintenta_indefinidamente(ctx: CoreCtx) -> None:
-    """Dos rechazos seguidos → se rinde con CommandError, no un bucle."""
+def test_send_does_not_retry_forever(ctx: CoreCtx) -> None:
+    """Two rejections in a row → gives up with CommandError, not a loop."""
     ctx.state.taskid = "T"
     ctx.state.taskid_ts = __import__("time").time()
 
@@ -315,8 +315,8 @@ def test_send_no_reintenta_indefinidamente(ctx: CoreCtx) -> None:
 
 
 @pytest.mark.freeze_time(FROZEN)
-def test_send_lee_el_cuerpo_de_un_http_error(ctx: CoreCtx) -> None:
-    """El backend manda el `code` real también en las respuestas 4xx."""
+def test_send_reads_the_body_of_an_http_error(ctx: CoreCtx) -> None:
+    """The backend sends the real `code` in 4xx responses too."""
     import urllib.error
 
     ctx.state.taskid = "T"
@@ -335,7 +335,7 @@ def test_send_lee_el_cuerpo_de_un_http_error(ctx: CoreCtx) -> None:
 
 
 @pytest.mark.freeze_time(FROZEN)
-def test_send_error_de_red(ctx: CoreCtx) -> None:
+def test_send_network_error(ctx: CoreCtx) -> None:
     ctx.state.taskid = "T"
     ctx.state.taskid_ts = __import__("time").time()
 
@@ -369,13 +369,13 @@ def test_query_theft_switch(ctx: CoreCtx, respuesta, esperado) -> None:
         assert commands.query_theft_switch(ctx) == esperado
 
 
-def test_query_theft_switch_sin_token(ctx: CoreCtx) -> None:
+def test_query_theft_switch_without_token(ctx: CoreCtx) -> None:
     with patch.object(commands.wake, "_bff_login", return_value=(None, None)):
         assert commands.query_theft_switch(ctx) is None
 
 
-def test_query_theft_switch_no_lanza(ctx: CoreCtx) -> None:
-    """Lo llama `async_added_to_hass` del switch de la alarma: no puede tumbar el setup."""
+def test_query_theft_switch_does_not_raise(ctx: CoreCtx) -> None:
+    """Called by the alarm switch's `async_added_to_hass`: it cannot bring the setup down."""
     with (
         patch.object(commands.wake, "_bff_login", return_value=("UT", "tu")),
         patch.object(commands.wake, "_signed_post", side_effect=OSError("red")),

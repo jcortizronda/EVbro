@@ -1,8 +1,8 @@
-"""Tests de `core/probe.py` — la sonda de solo lectura del canal realtime.
+"""Tests for `core/probe.py` — the read-only probe of the realtime channel.
 
-Se mockean `probe.W._bff_login` y `probe.W._signed_post` (`W` es el alias de `wake` dentro
-del módulo): es la frontera que el propio autotest del módulo ya trata como costura.
-El log en crudo de la sonda queda vacío por defecto en el `CoreCtx`, así que no se escribe ningún archivo.
+`probe.W._bff_login` and `probe.W._signed_post` are mocked (`W` is the alias of `wake` inside
+the module): it is the boundary the module's own self-test already treats as a seam.
+The probe's raw log is empty by default in `CoreCtx`, so no file is written.
 """
 
 from __future__ import annotations
@@ -20,9 +20,9 @@ from app.core.context import CoreCtx
 REALTIME_OK = {
     "code": "000000",
     "body": {
-        # SIN lat/lon a propósito: la captura real de la app muestra que `/asr/manager/realtime`
-        # devuelve 80 campos y ninguna coordenada. Ponerlas aquí fabricaba un backend que no
-        # existe, y sobre esa ficción se construyó una explicación equivocada de un fallo real.
+        # NO lat/lon on purpose: the app's real capture shows `/asr/manager/realtime`
+        # returns 80 fields and not one coordinate. Putting them here faked a backend that does not
+        # exist, and a wrong explanation of a real fault was built on that fiction.
         "dumpEnergy": "64.5",
         "vehicleSpeed": "0",
         "odometer": "12345",
@@ -45,7 +45,7 @@ def ctx() -> CoreCtx:
 
 
 def _post(por_path: dict):
-    """Fabrica un `_signed_post` que responde según el path pedido."""
+    """Build a `_signed_post` that answers according to the requested path."""
 
     def _fake(_ctx, _ut, path, _params):
         for fragmento, respuesta in por_path.items():
@@ -56,13 +56,13 @@ def _post(por_path: dict):
     return _fake
 
 
-# ───────────────────────── _rich (puro) ─────────────────────────
+# ───────────────────────── _rich (pure) ─────────────────────────
 
 
 def test_rich_excluye_la_posicion(snapshot: SnapshotAssertion) -> None:
-    """`probe_status` acaba en el estado de un sensor (y por tanto en la base de datos de HA),
-    en «Descargar diagnóstico» y en el log. Escribir ahí lat/lon dejaba en claro dónde está el
-    coche en los tres sitios — encontrado en campo el 2026-07-20.
+    """`probe_status` ends up in a sensor's state (and therefore in HA's database),
+    in «Descargar diagnóstico» and in the log. Writing lat/lon there leaked in plain text where the
+    car is in all three places — found in the field on 2026-07-20.
     """
     rich = probe._rich(REALTIME_OK["body"])
 
@@ -70,7 +70,7 @@ def test_rich_excluye_la_posicion(snapshot: SnapshotAssertion) -> None:
     assert rich == snapshot
 
 
-def test_rich_conserva_lo_util_para_diagnostico() -> None:
+def test_rich_keeps_what_is_useful_for_diagnostics() -> None:
     rich = probe._rich(REALTIME_OK["body"])
     assert rich["odometer"] == "12345"
     assert rich["dumpEnergy"] == "64.5"
@@ -78,11 +78,11 @@ def test_rich_conserva_lo_util_para_diagnostico() -> None:
 
 
 @pytest.mark.parametrize("data", [{}, {"campo": "sin interés"}, None, "texto"])
-def test_rich_tolera_entradas_raras(data) -> None:
+def test_rich_tolerates_odd_input(data) -> None:
     assert probe._rich(data) == {}
 
 
-def test_geo_keys_son_subconjunto_de_rich_keys() -> None:
+def test_geo_keys_are_a_subset_of_rich_keys() -> None:
     assert set(probe._GEO_KEYS) <= set(probe.RICH_KEYS)
     assert set(probe._MSG_KEYS) == set(probe.RICH_KEYS) - set(probe._GEO_KEYS)
 
@@ -90,7 +90,7 @@ def test_geo_keys_son_subconjunto_de_rich_keys() -> None:
 # ───────────────────────── probe_once ─────────────────────────
 
 
-def test_probe_once_con_datos_en_vivo(ctx: CoreCtx) -> None:
+def test_probe_once_with_live_data(ctx: CoreCtx) -> None:
     publicados: list[str] = []
     on_data = Mock()
 
@@ -105,17 +105,17 @@ def test_probe_once_con_datos_en_vivo(ctx: CoreCtx) -> None:
     assert res["online"] is True
     assert res["got_data"] is True
 
-    # `on_data` recibe el dict EN CRUDO: la posición viaja intacta al device_tracker aunque
-    # esté excluida del mensaje legible.
+    # `on_data` receives the RAW dict: the position travels intact to the device_tracker even though
+    # it is excluded from the readable message.
     on_data.assert_called_once()
     crudo = on_data.call_args[0][0]
     assert crudo["lat"] == "41.385064"
 
-    # ...y NO aparece en ningún texto publicado
+    # ...and does NOT appear in any published text
     assert not any("41.385064" in p for p in publicados)
 
 
-def test_probe_once_coche_dormido(ctx: CoreCtx) -> None:
+def test_probe_once_car_asleep(ctx: CoreCtx) -> None:
     publicados: list[str] = []
     on_data = Mock()
 
@@ -132,11 +132,11 @@ def test_probe_once_coche_dormido(ctx: CoreCtx) -> None:
     on_data.assert_not_called()
 
 
-def test_probe_once_devuelve_el_desglose_por_endpoint(ctx: CoreCtx) -> None:
-    """El resumen agregado (`got_data`) no distingue «no contestó nadie» de «contestó la
-    telemetría pero la ubicación no». El monitor de diagnóstico necesita esa diferencia, así que
-    la sonda tiene que DEVOLVERLA: el log JSONL de `_log` depende de una variable de entorno que
-    en una instalación normal de Home Assistant nadie tiene puesta."""
+def test_probe_once_returns_the_per_endpoint_breakdown(ctx: CoreCtx) -> None:
+    """The aggregated summary (`got_data`) cannot tell «nobody answered» from «telemetry
+    answered but location did not». The diagnostic monitor needs that difference, so
+    the probe has to RETURN it: `_log`'s JSONL log depends on an environment variable that
+    nobody sets on a normal Home Assistant install."""
     with (
         patch.object(probe.W, "_bff_login", return_value=("UT", "TU")),
         patch.object(probe.W, "_signed_post", _post({"realtime": REALTIME_OK})),
@@ -144,16 +144,16 @@ def test_probe_once_devuelve_el_desglose_por_endpoint(ctx: CoreCtx) -> None:
         res = probe.probe_once(ctx, lambda _m: None, force=True)
 
     assert res["got_realtime"] is True
-    assert res["got_location"] is False          # la ubicación no contestó...
-    assert res["got_data"] is True               # ...pero la telemetría sí
+    assert res["got_location"] is False          # location did not answer...
+    assert res["got_data"] is True               # ...but telemetry did
     assert res["has_position"] is False
     assert res["location_code"] == "A07900"
     assert isinstance(res["duration_ms"], int)
 
 
-def test_el_desglose_no_lleva_coordenadas(ctx: CoreCtx) -> None:
-    """`has_position` es un booleano a propósito: este dict acaba en el archivo de diagnóstico,
-    que se comparte con terceros. La posición viaja al device_tracker por `on_data`."""
+def test_breakdown_carries_no_coordinates(ctx: CoreCtx) -> None:
+    """`has_position` is a boolean on purpose: this dict ends up in the diagnostics file,
+    which is shared with third parties. The position travels to the device_tracker via `on_data`."""
     with (
         patch.object(probe.W, "_bff_login", return_value=("UT", "TU")),
         patch.object(probe.W, "_signed_post",
@@ -166,7 +166,7 @@ def test_el_desglose_no_lleva_coordenadas(ctx: CoreCtx) -> None:
     assert "41.385064" not in json.dumps(res, default=str)
 
 
-def test_probe_once_sesion_caducada(ctx: CoreCtx) -> None:
+def test_probe_once_expired_session(ctx: CoreCtx) -> None:
     publicados: list[str] = []
 
     with patch.object(probe.W, "_bff_login", return_value=(None, None)):
@@ -176,9 +176,9 @@ def test_probe_once_sesion_caducada(ctx: CoreCtx) -> None:
     assert any("sesión caducada" in p.lower() for p in publicados)
 
 
-def test_probe_once_respeta_el_cooldown(ctx: CoreCtx) -> None:
-    """El cooldown es POR VEHÍCULO (vive en el contexto): con dos coches, la sonda de uno ya
-    no consume el del otro."""
+def test_probe_once_honours_the_cooldown(ctx: CoreCtx) -> None:
+    """The cooldown is PER VEHICLE (it lives in the context): with two cars, one car's probe no
+    longer consumes the other's."""
     ctx.state.last_probe_ts = time.time()
 
     with patch.object(probe.W, "_bff_login") as login:
@@ -189,9 +189,9 @@ def test_probe_once_respeta_el_cooldown(ctx: CoreCtx) -> None:
     login.assert_not_called()
 
 
-def test_el_cooldown_se_anuncia_en_vez_de_volver_en_silencio(ctx: CoreCtx) -> None:
-    """Un retorno mudo era indistinguible de una integración rota: quien pulsaba «Actualizar
-    ubicación» no veía ni un mensaje ni un cambio de estado."""
+def test_cooldown_is_announced_instead_of_returning_silently(ctx: CoreCtx) -> None:
+    """A silent return was indistinguishable from a broken integration: whoever pressed «Actualizar
+    ubicación» saw neither a message nor a state change."""
     ctx.state.last_probe_ts = time.time()
     publicados: list[str] = []
 
@@ -201,7 +201,7 @@ def test_el_cooldown_se_anuncia_en_vez_de_volver_en_silencio(ctx: CoreCtx) -> No
     assert any("espero" in m and "s" in m for m in publicados)
 
 
-def test_probe_once_force_ignora_el_cooldown(ctx: CoreCtx) -> None:
+def test_probe_once_force_ignores_the_cooldown(ctx: CoreCtx) -> None:
     ctx.state.last_probe_ts = time.time()
 
     with (
@@ -213,7 +213,7 @@ def test_probe_once_force_ignora_el_cooldown(ctx: CoreCtx) -> None:
     login.assert_called_once()
 
 
-def test_probe_once_uno_cada_vez(ctx: CoreCtx) -> None:
+def test_probe_once_one_at_a_time(ctx: CoreCtx) -> None:
     ctx.state.probe_lock.acquire()
     try:
         res = probe.probe_once(ctx, lambda _m: None, force=True)
@@ -223,7 +223,7 @@ def test_probe_once_uno_cada_vez(ctx: CoreCtx) -> None:
     assert res == {"ok": False, "reason": "busy"}
 
 
-def test_probe_once_nunca_lanza(ctx: CoreCtx) -> None:
+def test_probe_once_never_raises(ctx: CoreCtx) -> None:
     publicados: list[str] = []
 
     with patch.object(probe.W, "_bff_login", side_effect=RuntimeError("boom")):
@@ -232,12 +232,12 @@ def test_probe_once_nunca_lanza(ctx: CoreCtx) -> None:
     assert res["ok"] is False
     assert res["reason"] == "exception"
     assert any("Error de sonda" in p for p in publicados)
-    # y el lock queda liberado
+    # and the lock is released
     assert ctx.state.probe_lock.acquire(blocking=False) is True
     ctx.state.probe_lock.release()
 
 
-def test_probe_once_un_on_data_roto_no_tumba_la_sonda(ctx: CoreCtx) -> None:
+def test_probe_once_broken_on_data_does_not_break_the_probe(ctx: CoreCtx) -> None:
     publicados: list[str] = []
 
     with (
@@ -252,8 +252,8 @@ def test_probe_once_un_on_data_roto_no_tumba_la_sonda(ctx: CoreCtx) -> None:
     assert any("error al publicar datos" in p.lower() for p in publicados)
 
 
-def test_probe_once_combina_los_tres_endpoints(ctx: CoreCtx) -> None:
-    """Realtime tiene prioridad; location y travel añaden campos extra."""
+def test_probe_once_merges_the_three_endpoints(ctx: CoreCtx) -> None:
+    """Realtime has priority; location and travel add extra fields."""
     with (
         patch.object(probe.W, "_bff_login", return_value=("UT", "TU")),
         patch.object(
@@ -272,23 +272,23 @@ def test_probe_once_combina_los_tres_endpoints(ctx: CoreCtx) -> None:
         probe.probe_once(ctx, lambda _m: None, force=True, on_data=on_data)
 
     crudo = on_data.call_args[0][0]
-    assert crudo["gpsTime"] == "123"  # de location
-    assert crudo["totalKm"] == "999"  # de travel
-    assert crudo["dumpEnergy"] == "64.5"  # de realtime (prioritario)
+    assert crudo["gpsTime"] == "123"  # from location
+    assert crudo["totalKm"] == "999"  # from travel
+    assert crudo["dumpEnergy"] == "64.5"  # from realtime (takes priority)
 
 
-# ───────────────────── de cuándo son los datos de la sonda ─────────────────────
+# ───────────────────── how old the probe data is ─────────────────────
 
 
-def test_freshness_con_el_coche_despierto() -> None:
-    """`onlineStatus=1`: ha contestado el coche, el dato es de ahora mismo."""
+def test_freshness_with_the_car_awake() -> None:
+    """`onlineStatus=1`: the car answered, the data is from right now."""
     assert "En vivo" in probe.freshness({"onlineStatus": "1", "time": "1000"}, now=99999)
 
 
-def test_freshness_con_el_coche_dormido_dice_la_edad() -> None:
-    """El caso que engañaba: el endpoint responde igual de bien, pero devuelve la última
-    instantánea que guardó la nube. Anunciarla como «tiempo real con el coche despierto»
-    mandaba a buscar el fallo donde no estaba."""
+def test_freshness_with_the_car_asleep_states_the_age() -> None:
+    """The misleading case: the endpoint answers just as well, but returns the last
+    snapshot the cloud stored. Announcing it as «realtime with the car awake»
+    sent people looking for the fault where it was not."""
     ahora = 1_787_092_000.0
     hace_26_min = str(int((ahora - 26 * 60) * 1000))
 
@@ -299,26 +299,26 @@ def test_freshness_con_el_coche_dormido_dice_la_edad() -> None:
     assert "En vivo" not in mensaje
 
 
-def test_freshness_sin_marca_de_tiempo_no_se_inventa_una() -> None:
+def test_freshness_without_timestamp_does_not_invent_one() -> None:
     mensaje = probe.freshness({"onlineStatus": "0"}, now=1_787_092_000.0)
 
     assert "dormido" in mensaje
     assert "min" not in mensaje
 
 
-def test_freshness_cae_a_result_time_si_no_hay_time() -> None:
-    """`time` es la marca buena, pero no siempre viene."""
+def test_freshness_falls_back_to_result_time_without_time() -> None:
+    """`time` is the good timestamp, but it does not always come."""
     ahora = 1_787_092_000.0
     hace_5_min = str(int((ahora - 5 * 60) * 1000))
 
     assert "5 min" in probe.freshness({"onlineStatus": "0", "resultTime": hace_5_min}, now=ahora)
 
 
-# ───────────────── de dónde sale la POSICIÓN ─────────────────
-# `queryVehicleLocation` es la única fuente: la respuesta de `/asr/manager/realtime` NO trae
-# coordenadas —verificado sobre una captura real de la app oficial, 80 campos y ninguna—. Y es
-# una CONSULTA: devuelve la última posición conocida por la nube sin pedirle nada al coche.
-# Quien fuerza un fix nuevo es el comando `vehicleLocation`, que va con taskId.
+# ───────────────── where the POSITION comes from ─────────────────
+# `queryVehicleLocation` is the only source: the `/asr/manager/realtime` response carries NO
+# coordinates —verified on a real capture of the official app, 80 fields and none of them—. And it is
+# a QUERY: it returns the last position known to the cloud without asking the car anything.
+# What forces a new fix is the `vehicleLocation` command, which goes with a taskId.
 
 def _sonda(ctx: CoreCtx, respuestas: dict) -> dict:
     recibido: dict = {}
@@ -330,37 +330,37 @@ def _sonda(ctx: CoreCtx, respuestas: dict) -> dict:
     return recibido
 
 
-def test_la_posicion_viene_del_endpoint_de_ubicacion(ctx: CoreCtx) -> None:
-    """Y solo de ahí: el realtime de esta captura no lleva coordenadas."""
+def test_position_comes_from_the_location_endpoint(ctx: CoreCtx) -> None:
+    """And only from there: this capture's realtime carries no coordinates."""
     datos = _sonda(ctx, {"queryVehicleLocation": LOCATION_FRESCA, "realtime": REALTIME_OK})
 
     assert datos["lat"] == "41.385064"
     assert datos["lon"] == "2.173404"
 
 
-def test_la_telemetria_la_manda_realtime(ctx: CoreCtx) -> None:
-    """Donde las dos respuestas coinciden gana realtime, que va la última en la fusión."""
+def test_realtime_wins_for_telemetry(ctx: CoreCtx) -> None:
+    """Where both responses overlap realtime wins, as it goes last in the merge."""
     datos = _sonda(ctx, {"queryVehicleLocation": LOCATION_FRESCA, "realtime": REALTIME_OK})
 
     assert datos["dumpEnergy"] == "64.5"
     assert datos["odometer"] == "12345"
 
 
-def test_sin_respuesta_de_ubicacion_no_hay_posicion(ctx: CoreCtx) -> None:
-    """Si el endpoint de ubicación no contesta, la sonda se queda sin coordenadas que dar —
-    no hay una segunda fuente de la que sacarlas."""
+def test_no_location_response_means_no_position(ctx: CoreCtx) -> None:
+    """If the location endpoint does not answer, the probe has no coordinates to give —
+    there is no second source to get them from."""
     datos = _sonda(ctx, {"queryVehicleLocation": DORMIDO, "realtime": REALTIME_OK})
 
     assert "lat" not in datos
     assert datos["dumpEnergy"] == "64.5"
 
 
-def test_la_sonda_no_afirma_que_el_coche_esta_despierto_antes_de_preguntar(
+def test_probe_does_not_claim_the_car_is_awake_before_asking(
     ctx: CoreCtx,
 ) -> None:
-    """El mensaje de apertura decía «el coche está despierto» ANTES de la primera petición, y
-    dos líneas después la respuesta concluía que dormía. Quien lo sabe es `freshness()`, con el
-    `onlineStatus` de la respuesta delante."""
+    """The opening message said «the car is awake» BEFORE the first request, and
+    two lines later the response concluded it was asleep. The one who knows is `freshness()`, with the
+    response's `onlineStatus` in front of it."""
     dormido = {"code": "000000", "body": {**REALTIME_OK["body"], "onlineStatus": "0"}}
     publicados: list[str] = []
 
@@ -375,10 +375,10 @@ def test_la_sonda_no_afirma_que_el_coche_esta_despierto_antes_de_preguntar(
     assert any("dormido" in m for m in publicados)
 
 
-def test_el_resultado_no_repite_los_sensores(ctx: CoreCtx) -> None:
-    """El estado se publica en un sensor y se lee en una card. Volcar ahí velocidad, odómetro y
-    batería lo hacía larguísimo para repetir lo que el usuario ya tiene en sus entidades; esos
-    campos siguen yendo al informe de diagnóstico y al log de la sonda, que es donde sirven."""
+def test_result_does_not_repeat_the_sensors(ctx: CoreCtx) -> None:
+    """The state is published on a sensor and read on a card. Dumping speed, odometer and
+    battery there made it very long just to repeat what the user already has in their entities; those
+    fields still go to the diagnostic report and the probe log, which is where they are useful."""
     publicados: list[str] = []
 
     with (
@@ -389,16 +389,16 @@ def test_el_resultado_no_repite_los_sensores(ctx: CoreCtx) -> None:
         res = probe.probe_once(ctx, publicados.append, force=True)
 
     assert not any("odometer" in m or "dumpEnergy" in m for m in publicados)
-    assert max(len(m) for m in publicados) < 70      # cabe en una card sin recortarse
-    assert res["rich"]["odometer"] == "12345"        # pero el diagnóstico los conserva
+    assert max(len(m) for m in publicados) < 70      # fits on a card without being cut
+    assert res["rich"]["odometer"] == "12345"        # but diagnostics keep them
 
 
-def test_la_sonda_avisa_cuando_no_trae_posicion(ctx: CoreCtx) -> None:
-    """El fallo que costó cuatro días de mapa clavado sin que nada lo dijera: si `realtime`
-    contesta y el endpoint de ubicación no, la sonda publicaba «🟢 En vivo» tan tranquila.
+def test_probe_warns_when_there_is_no_position(ctx: CoreCtx) -> None:
+    """The fault that cost four days of a stuck map with nothing saying so: if `realtime`
+    answers and the location endpoint does not, the probe calmly published «🟢 En vivo».
 
-    Este sensor se llama «Resultado sonda de UBICACIÓN»: cuando no hay posición, eso es lo que
-    tiene que contar, y con el motivo — que ya teníamos en el código del endpoint y se tiraba."""
+    This sensor is called «Resultado sonda de UBICACIÓN»: when there is no position, that is what
+    it has to report, and with the reason — which we already had in the endpoint code and threw away."""
     publicados: list[str] = []
 
     with (
@@ -408,14 +408,14 @@ def test_la_sonda_avisa_cuando_no_trae_posicion(ctx: CoreCtx) -> None:
     ):
         probe.probe_once(ctx, publicados.append, force=True)
 
-    # «Con datos» porque la telemetría SÍ llegó: decir solo «sin posición» daría a entender
-    # que fracasó la consulta entera. Y sin el motivo: el único que sale en la práctica es
-    # «coche en reposo», que al lado de «coche dormido» parecen dos cosas y son la misma.
+    # «Con datos» because telemetry DID arrive: saying just «sin posición» would suggest
+    # the whole query failed. And without the reason: the only one that shows up in practice is
+    # «coche en reposo», which next to «coche dormido» looks like two things when they are the same.
     assert "🟠 Con datos, sin posición" in publicados
     assert not any("En vivo" in m for m in publicados)
 
 
-def test_con_posicion_el_mensaje_es_el_de_frescura(ctx: CoreCtx) -> None:
+def test_with_position_the_message_is_the_freshness_one(ctx: CoreCtx) -> None:
     publicados: list[str] = []
 
     with (
@@ -429,14 +429,14 @@ def test_con_posicion_el_mensaje_es_el_de_frescura(ctx: CoreCtx) -> None:
     assert not any("sin posición" in m for m in publicados)
 
 
-def test_los_colores_del_estado_distinguen_gravedad(ctx: CoreCtx) -> None:
-    """La tarjeta colorea el botón de actualizar por el emoji del estado, así que el emoji ES
-    la señal: 🔴 no hay nada, 🟠 hay datos pero falta la posición. Antes ambos eran 🟡 y en la
-    card se veían igual de graves."""
+def test_state_colours_distinguish_severity(ctx: CoreCtx) -> None:
+    """The card colours the refresh button by the state's emoji, so the emoji IS
+    the signal: 🔴 nothing at all, 🟠 data but no position. Both used to be 🟡 and on the
+    card they looked equally serious."""
     sin_nada: list[str] = []
     with (
         patch.object(probe.W, "_bff_login", return_value=("UT", "TU")),
-        patch.object(probe.W, "_signed_post", _post({})),      # todo responde DORMIDO
+        patch.object(probe.W, "_signed_post", _post({})),      # everything answers DORMIDO
     ):
         probe.probe_once(ctx, sin_nada.append, force=True)
 

@@ -1,8 +1,8 @@
-/* EVBro — Submenús de sección (Energía y Ajustes).
-   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+/* EVBro — Section submenus (Energía and Ajustes).
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
 /* ==========================================================
-   SUBMENÚS DE SECCIÓN (CARGAS & AJUSTES)
+   SECTION SUBMENUS (CHARGES & SETTINGS)
    ========================================================== */
 .sub-nav-bar {
   display: flex;
@@ -131,7 +131,7 @@
   }
 }
 
-/* Badge de VIN en la Tarjeta Principal */
+/* VIN badge on the main card */
 .vehicle-vin-badge {
   font-family: 'JetBrains Mono', monospace, Consolas;
   font-size: 0.8rem;

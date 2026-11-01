@@ -1,5 +1,5 @@
-/* EVBro — Tema antes del primer pintado: evita el destello claro/oscuro. Era un <script> en línea en index.html; la
- * Content-Security-Policy ya no permite código en línea, así que vive aquí y se carga de forma síncrona en el <head>. */
+/* EVBro — Theme before the first paint: avoids the light/dark flash. It used to be an inline <script> in index.html; the
+ * Content-Security-Policy no longer allows inline code, so it lives here and loads synchronously in the <head>. */
 (function () {
   try {
     var savedTheme = localStorage.getItem('evbro_theme') || 'dark';
@@ -14,5 +14,5 @@
     if (metaTheme) {
       metaTheme.setAttribute('content', activeTheme === 'light' ? '#f5f5f7' : '#000000');
     }
-  } catch (e) { /* sin almacenamiento (navegación privada): tema por defecto */ }
+  } catch (e) { /* no storage (private browsing): default theme */ }
 })();

@@ -1,7 +1,7 @@
-"""Tests de `cert_bundle.py` — desofuscación de los certificados mutual-TLS empaquetados.
+"""Tests for `cert_bundle.py` — deobfuscation of the bundled mutual-TLS certificates.
 
-Ambas funciones se tragan **todas** las excepciones y devuelven un valor falsy, así que los
-tests de error afirman sobre el valor devuelto y nunca con `pytest.raises`.
+Both functions swallow **all** exceptions and return a falsy value, so the error tests
+assert on the returned value and never with `pytest.raises`.
 """
 
 from __future__ import annotations
@@ -14,37 +14,37 @@ import pytest
 from app.vehicle import cert_bundle
 
 
-def test_available_regions_lee_el_store_empaquetado() -> None:
+def test_available_regions_reads_the_bundled_store() -> None:
     regiones = cert_bundle.available_regions()
     assert regiones
     assert regiones == sorted(regiones)
     assert all(isinstance(r, str) for r in regiones)
 
 
-def test_decrypt_region_devuelve_los_tres_certificados() -> None:
-    """Camino feliz contra el `certs/store.json` real que se distribuye con la integración."""
+def test_decrypt_region_returns_the_three_certificates() -> None:
+    """Happy path against the real `certs/store.json` shipped with the integration."""
     host = cert_bundle.available_regions()[0]
     out = cert_bundle.decrypt_region(host)
 
     assert out is not None
     assert set(out) == set(cert_bundle._REQUIRED)
     assert all(isinstance(v, bytes) and v for v in out.values())
-    # los certificados desofuscados deben ser PEM legible: si el XOR fuera erróneo, paho
-    # fallaría al cargarlos en el momento de conectar, ya en producción.
+    # the deobfuscated certificates must be readable PEM: if the XOR were wrong, paho
+    # would fail to load them at connect time, already in production.
     assert out["ca.pem"].startswith(b"-----BEGIN ")
     assert out["client.pem"].startswith(b"-----BEGIN ")
     assert out["client.key"].startswith(b"-----BEGIN ")
 
 
-def test_decrypt_region_host_desconocido() -> None:
+def test_decrypt_region_unknown_host() -> None:
     assert cert_bundle.decrypt_region("broker.que.no.existe") is None
 
 
-def test_decrypt_region_falta_un_miembro_requerido(
+def test_decrypt_region_missing_required_member(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Si al store le falta uno de los tres certificados se devuelve None entero, no un dict
-    a medias: conectar con un juego incompleto fallaría más tarde y peor."""
+    """If the store lacks one of the three certificates, None is returned outright, not a
+    partial dict: connecting with an incomplete set would fail later and worse."""
     store = {
         "ks": base64.b64encode(b"\x00" * 64).decode(),
         "regions": {"host": {"ca.pem": base64.b64encode(b"x").decode()}},
@@ -54,10 +54,10 @@ def test_decrypt_region_falta_un_miembro_requerido(
     assert cert_bundle.decrypt_region("host") is None
 
 
-def test_decrypt_region_ciphertext_mas_largo_que_el_keystream(
+def test_decrypt_region_ciphertext_longer_than_keystream(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """El keystream es de longitud fija: un blob más largo indicaría un store corrupto."""
+    """The keystream has a fixed length: a longer blob would indicate a corrupt store."""
     store = {
         "ks": base64.b64encode(b"\x00" * 4).decode(),
         "regions": {
@@ -72,8 +72,8 @@ def test_decrypt_region_ciphertext_mas_largo_que_el_keystream(
     assert cert_bundle.decrypt_region("host") is None
 
 
-def test_xor_con_keystream_conocido(monkeypatch: pytest.MonkeyPatch) -> None:
-    """El algoritmo es un XOR que conserva la longitud, igual que hace `libapp.so`."""
+def test_xor_with_known_keystream(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The algorithm is a length-preserving XOR, just like `libapp.so` does."""
     ks = bytes(range(16))
     claro = b"HOLA"
     cifrado = bytes(c ^ ks[i] for i, c in enumerate(claro))
@@ -92,9 +92,9 @@ def test_xor_con_keystream_conocido(monkeypatch: pytest.MonkeyPatch) -> None:
     assert out == dict.fromkeys(cert_bundle._REQUIRED, claro)
 
 
-def test_store_ilegible_no_lanza(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Un store ausente o corrupto degrada a lista vacía / None, nunca a una excepción que
-    rompiera el setup del entry."""
+def test_unreadable_store_does_not_raise(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A missing or corrupt store degrades to an empty list / None, never to an exception that
+    would break the entry setup."""
 
     def _boom() -> dict:
         raise OSError("store ilegible")
@@ -105,9 +105,9 @@ def test_store_ilegible_no_lanza(monkeypatch: pytest.MonkeyPatch) -> None:
     assert cert_bundle.decrypt_region("cualquiera") is None
 
 
-def test_el_store_empaquetado_es_json_valido() -> None:
-    """Guarda contra un `store.json` truncado por un merge: sin él, el fallo aparecería solo
-    al conectar el MQTT, ya en casa del usuario."""
+def test_the_bundled_store_is_valid_json() -> None:
+    """Guard against a `store.json` truncated by a merge: without it, the failure would only
+    show up when connecting MQTT, already at the user's home."""
     with open(cert_bundle._STORE, encoding="utf-8") as fh:
         store = json.load(fh)
 

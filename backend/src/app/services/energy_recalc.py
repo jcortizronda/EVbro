@@ -38,5 +38,5 @@ async def recalculate_for_capacity(session: AsyncSession, vehicle: Vehicle) -> D
         if not c.kwh_used and c.effective_cost_per_kwh is not None:
             c.charge_cost = round(c.effective_cost_per_kwh * c.kwh_added, 2)
     await session.flush()
-    _LOGGER.info("Energía reestimada con %.2f kWh de capacidad para %s: %d viajes y %d cargas", capacity, vehicle.vin, len(drives), len(charges))
+    _LOGGER.info("Energy re-estimated with %.2f kWh capacity for %s: %d drives and %d charges", capacity, vehicle.vin, len(drives), len(charges))
     return {"drives": len(drives), "charges": len(charges)}

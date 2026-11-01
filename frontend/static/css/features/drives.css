@@ -1,5 +1,5 @@
-/* EVBro — Viajes: filtros y resumen del periodo.
-   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+/* EVBro — Trips: filters and period summary.
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
 /* ========================================================
    DRIVES FILTERS & PERIOD SUMMARY CARDS
@@ -182,7 +182,7 @@
 }
 
 
-/* Lugares frecuentes (Viajes) */
+/* Frequent places (Viajes) */
 .places-card { padding: 14px 16px; margin-bottom: 12px; }
 .places-card[hidden] { display: none; }
 .place-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--border-color); }

@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""Las dos formas de hablar con el backend, y sus timeouts.
+"""The two ways of talking to the backend, and their timeouts.
 
-Hay exactamente dos canales, y confundirlos no funciona:
+There are exactly two channels, and mixing them up does not work:
 
-* **BFF** (`legend.ebroauto.com`) — login, PIN y lista de vehículos. Autenticación por
-  `Bearer <access_token>` y cabeceras firmadas de gateway (`ebro_auth.headers_post`).
-* **TSP** (`tspconsole-*.ebroauto.com`) — telemetría y comandos. Autenticación por `userToken`
-  y **cuerpo firmado** (`tsp_sign.sign_body`), que es otra firma distinta.
+* **BFF** (`legend.ebroauto.com`) — login, PIN and vehicle list. Authenticated with
+  `Bearer <access_token>` and signed gateway headers (`ebro_auth.headers_post`).
+* **TSP** (`tspconsole-*.ebroauto.com`) — telemetry and commands. Authenticated with `userToken`
+  and a **signed body** (`tsp_sign.sign_body`), which is a different signature.
 
-Estaban escritos a mano en `wake`, `commands`, `probe` y hasta en el alta de la cuenta, cada uno con
-su propio timeout (20 s aquí, 25 s allá, sin criterio) y su propio manejo del caso «la
-respuesta no es JSON» — que ocurre de verdad: el BFF devuelve a veces un cuerpo cuyo nivel
-superior es una cadena, y ahí un `.get()` a secas revienta.
+They were hand-written in `wake`, `commands`, `probe` and even in the account setup, each with
+its own timeout (20 s here, 25 s there, with no rationale) and its own handling of the «the
+response is not JSON» case — which really happens: the BFF sometimes returns a body whose
+top level is a string, and a bare `.get()` blows up there.
 """
 from __future__ import annotations
 
@@ -22,18 +22,18 @@ import requests
 
 from . import ebro_auth as A, tsp_sign as S
 
-# Timeouts (segundos). El de escritura es más generoso porque `checkPassword` encadena tres
-# llamadas del lado del backend antes de responder.
+# Timeouts (seconds). The write one is more generous because `checkPassword` chains three
+# backend-side calls before answering.
 READ_TIMEOUT_S = 20
 WRITE_TIMEOUT_S = 25
 
 
 def _as_dict(response: requests.Response) -> dict:
-    """La respuesta como dict. Nunca lanza.
+    """The response as a dict. Never raises.
 
-    El BFF puede devolver un nivel superior que NO es un objeto (una cadena suelta cuando el
-    token ha caducado). Devolver `{}` deja que el llamador lo trate como sesión no válida, que
-    es lo correcto, en vez de propagar un AttributeError desde dentro de un executor."""
+    The BFF can return a top level that is NOT an object (a bare string when the
+    token has expired). Returning `{}` lets the caller treat it as an invalid session, which
+    is right, instead of propagating an AttributeError from inside an executor."""
     try:
         parsed = response.json()
     except Exception:
@@ -43,10 +43,10 @@ def _as_dict(response: requests.Response) -> dict:
 
 def bff_post(ctx, path: str, body: dict, *, headers: dict | None = None,
              timeout: int = WRITE_TIMEOUT_S) -> dict:
-    """POST al BFF (login/PIN/vehículos). Devuelve el JSON como dict.
+    """POST to the BFF (login/PIN/vehicles). Returns the JSON as a dict.
 
-    Si no se pasan cabeceras se construyen las firmadas del gateway, que es lo que espera
-    cualquier ruta del BFF."""
+    If no headers are passed, the signed gateway ones are built, which is what any
+    BFF route expects."""
     if headers is None:
         headers = A.headers_post(path, ctx=ctx)
     response = requests.post(ctx.bff + path, data=json.dumps(body), headers=headers,
@@ -56,11 +56,11 @@ def bff_post(ctx, path: str, body: dict, *, headers: dict | None = None,
 
 def signed_post(ctx, user_token: str, path: str, params: dict,
                 *, timeout: int = WRITE_TIMEOUT_S) -> tuple[int, dict]:
-    """POST al TSP con el CUERPO firmado. Devuelve (código HTTP, JSON).
+    """POST to the TSP with a signed BODY. Returns (HTTP status, JSON).
 
-    El código HTTP se devuelve aparte porque el backend responde siempre 200 y pone el
-    resultado real en el `code` del cuerpo: quien llama necesita ambos para distinguir «el
-    servidor no contestó» de «el servidor dijo que no»."""
+    The HTTP status is returned separately because the backend always answers 200 and puts the
+    real result in the body's `code`: the caller needs both to tell «the
+    server did not answer» from «the server said no»."""
     ts = int(time.time() * 1000)
     body = S.sign_body(dict(params), ts, half=ctx.sign_key)
     headers = S.auth_headers(user_token, ts)

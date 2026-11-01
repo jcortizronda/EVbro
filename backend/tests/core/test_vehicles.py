@@ -1,14 +1,14 @@
-"""Tests de `core/vehicles.py` — «¿qué coches tiene esta cuenta?».
+"""Tests for `core/vehicles.py` — «which cars does this account have?».
 
-Este módulo existe porque el parseo era peligroso: el backend devuelve la lista de vehículos
-bajo `data` a secas, o bajo una de cuatro claves dentro de `data`, o como el propio coche suelto
-si la cuenta solo tiene uno. Ese desenredo estaba escrito tres veces —config flow, coordinator y
-`taskid`— y cada copia conocía un subconjunto distinto de las formas. Se unificó para tener una
-sola forma de equivocarse... y era el único módulo del componente sin un solo test.
+This module exists because the parsing was dangerous: the backend returns the vehicle list
+under plain `data`, or under one of four keys inside `data`, or as the bare car itself
+if the account has only one. That untangling was written three times —config flow, coordinator and
+`taskid`— and each copy knew a different subset of the shapes. It was unified to have a
+single way of getting it wrong... and it was the only module in the component without a single test.
 
-Lo que se prueba es el PARSEO, que es donde está el riesgo: si la nube cambia de forma, el alta
-de la integración deja de encontrar el coche. De `query_list` basta comprobar que pega en el
-path correcto, porque el HTTP ya está probado en `core/test_http`.
+What is tested is the PARSING, which is where the risk is: if the cloud changes shape, the
+integration setup stops finding the car. For `query_list` it is enough to check it hits the
+right path, because the HTTP is already tested in `core/test_http`.
 """
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ COCHE = {"vin": "LSJA0000000000001", "nickname": "Mi Ebro", "modelName": "S900"}
 OTRO = {"vin": "LSJA0000000000002", "nickname": "El otro", "modelName": "S800"}
 
 
-# ───────────────────── iter_vehicles: las seis formas vistas en vivo ─────────────────────
+# ───────────────────── iter_vehicles: the six shapes seen live ─────────────────────
 
 
 @pytest.mark.parametrize(
@@ -37,13 +37,13 @@ OTRO = {"vin": "LSJA0000000000002", "nickname": "El otro", "modelName": "S800"}
         ("data como el coche suelto", {"data": COCHE}),
     ],
 )
-def test_iter_vehicles_entiende_todas_las_formas(forma: str, respuesta: dict) -> None:
+def test_iter_vehicles_understands_every_shape(forma: str, respuesta: dict) -> None:
     assert vehicles.iter_vehicles(respuesta) == [COCHE], forma
 
 
-def test_un_coche_propio_y_otro_delegado_llegan_los_dos() -> None:
-    """El caso que motivó unificar el módulo: viven en listas DISTINTAS, así que hay que
-    acumularlas todas en vez de quedarse con la primera que aparezca."""
+def test_an_owned_and_a_delegated_car_both_arrive() -> None:
+    """The case that led to unifying the module: they live in DIFFERENT lists, so they must all
+    be accumulated instead of keeping the first one that shows up."""
     respuesta = {"data": {"controlCarList": [COCHE], "authorizedControlCarList": [OTRO]}}
 
     assert vehicles.iter_vehicles(respuesta) == [COCHE, OTRO]
@@ -52,25 +52,25 @@ def test_un_coche_propio_y_otro_delegado_llegan_los_dos() -> None:
 @pytest.mark.parametrize(
     "basura",
     [
-        {},                                   # sin `data`
+        {},                                   # no `data`
         {"data": None},
-        {"data": "ups"},                      # `data` no es ni lista ni dict
-        {"data": {}},                         # dict vacío, sin `vin`
-        {"data": {"controlCarList": "ups"}},  # la clave existe pero no es una lista
-        {"data": [None, 42, "x"]},            # entradas que no son dicts
-        None,                                 # ni siquiera es un dict
+        {"data": "ups"},                      # `data` is neither a list nor a dict
+        {"data": {}},                         # empty dict, no `vin`
+        {"data": {"controlCarList": "ups"}},  # the key exists but is not a list
+        {"data": [None, 42, "x"]},            # entries that are not dicts
+        None,                                 # not even a dict
         "respuesta de texto",
     ],
 )
-def test_iter_vehicles_no_revienta_con_basura(basura) -> None:
-    """Es la respuesta de un backend ajeno: una forma inesperada tiene que dar lista vacía, no
-    una excepción que tumbe el alta de la integración."""
+def test_iter_vehicles_survives_garbage(basura) -> None:
+    """It is a third-party backend's response: an unexpected shape must give an empty list, not
+    an exception that brings the integration setup down."""
     assert vehicles.iter_vehicles(basura) == []
 
 
-def test_data_suelto_solo_cuenta_como_coche_si_trae_vin() -> None:
-    """El respaldo «`data` es el propio coche» se apoya en el `vin`: sin él, un dict de
-    metadatos cualquiera se colaría como si fuera un vehículo."""
+def test_bare_data_only_counts_as_a_car_with_a_vin() -> None:
+    """The «`data` is the car itself» fallback relies on the `vin`: without it, any
+    metadata dict would slip in as if it were a vehicle."""
     assert vehicles.iter_vehicles({"data": {"total": 0, "page": 1}}) == []
     assert vehicles.iter_vehicles({"data": {"vin": "X", "total": 0}}) == [{"vin": "X", "total": 0}]
 
@@ -78,47 +78,47 @@ def test_data_suelto_solo_cuenta_como_coche_si_trae_vin() -> None:
 # ───────────────────────────────── vins ─────────────────────────────────
 
 
-def test_vins_conserva_el_orden_del_backend() -> None:
+def test_vins_keeps_the_backend_order() -> None:
     assert vehicles.vins({"data": [COCHE, OTRO]}) == [COCHE["vin"], OTRO["vin"]]
 
 
-def test_vins_descarta_las_entradas_sin_vin() -> None:
+def test_vins_drops_entries_without_vin() -> None:
     assert vehicles.vins({"data": [{"nickname": "sin vin"}, COCHE]}) == [COCHE["vin"]]
 
 
 # ────────────────────────────── find_vehicle ──────────────────────────────
 
 
-def test_find_vehicle_encuentra_el_bastidor_exacto() -> None:
+def test_find_vehicle_finds_the_exact_vin() -> None:
     assert vehicles.find_vehicle({"data": [COCHE, OTRO]}, OTRO["vin"]) is OTRO
 
 
-def test_find_vehicle_cae_al_primero_si_el_bastidor_no_aparece() -> None:
-    """Regla deliberada y documentada: con un solo coche, el backend a veces devuelve el VIN con
-    otro formato, y quedarse sin identidad por eso sería peor que usar el único que hay.
+def test_find_vehicle_falls_back_to_the_first_if_vin_is_absent() -> None:
+    """Deliberate, documented rule: with a single car, the backend sometimes returns the VIN in
+    another format, and losing the identity because of that would be worse than using the only one there is.
 
-    OJO: tal como está escrita, la regla se aplica también con VARIOS coches, y entonces
-    devuelve uno equivocado en silencio. Queda fijada aquí para que el día que se cambie sea una
-    decisión y no un accidente."""
+    CAREFUL: as written, the rule also applies with SEVERAL cars, and then it
+    silently returns the wrong one. It is pinned here so that the day it changes it is a
+    decision and not an accident."""
     assert vehicles.find_vehicle({"data": [COCHE]}, "BASTIDOR-QUE-NO-ESTA") is COCHE
     assert vehicles.find_vehicle({"data": [COCHE, OTRO]}, "BASTIDOR-QUE-NO-ESTA") is COCHE
 
 
-def test_find_vehicle_sin_coches_devuelve_none() -> None:
+def test_find_vehicle_without_cars_returns_none() -> None:
     assert vehicles.find_vehicle({"data": []}, COCHE["vin"]) is None
 
 
 # ──────────────────────────────── identity ────────────────────────────────
 
 
-def test_identity_prefiere_el_apodo_del_usuario() -> None:
+def test_identity_prefers_the_user_nickname() -> None:
     info = vehicles.identity({"data": [COCHE]}, COCHE["vin"])
 
     assert info is not None
     assert info["name"] == "Mi Ebro"
 
 
-def test_identity_usa_el_modelo_cuando_no_hay_apodo() -> None:
+def test_identity_uses_the_model_without_nickname() -> None:
     sin_apodo = {"vin": "X", "modelName": "s900"}
 
     info = vehicles.identity({"data": [sin_apodo]}, "X")
@@ -126,23 +126,23 @@ def test_identity_usa_el_modelo_cuando_no_hay_apodo() -> None:
     assert info == {"name": "S900", "model": "S900"}
 
 
-def test_identity_saca_el_modelo_de_lo_que_manda_el_backend() -> None:
-    """El modelo del dispositivo salía VACÍO en una instalación real (`model: null` en el
-    registro de dispositivos) porque se buscaba en `fullName`, una clave que esta nube no manda:
-    lo que devuelve es `modelName`."""
+def test_identity_takes_the_model_from_what_the_backend_sends() -> None:
+    """The device model came out EMPTY on a real install (`model: null` in the
+    device registry) because it was looked up in `fullName`, a key this cloud does not send:
+    what it returns is `modelName`."""
     info = vehicles.identity({"data": [COCHE]}, COCHE["vin"])
 
     assert info is not None
     assert info["model"] == "S900"
 
 
-def test_identity_sin_nombre_ni_modelo_devuelve_none() -> None:
-    """`None` y no un dict con cadenas vacías: el coordinator lo usa para conservar su nombre por
-    defecto en vez de dejar el dispositivo sin nombre."""
+def test_identity_without_name_or_model_returns_none() -> None:
+    """`None` and not a dict with empty strings: the coordinator uses it to keep its default
+    name instead of leaving the device nameless."""
     assert vehicles.identity({"data": [{"vin": "X"}]}, "X") is None
 
 
-def test_identity_sin_coches_devuelve_none() -> None:
+def test_identity_without_cars_returns_none() -> None:
     assert vehicles.identity({"data": []}, "X") is None
 
 
@@ -153,27 +153,27 @@ def test_identity_sin_coches_devuelve_none() -> None:
     "clave",
     ["controlCarList", "authorizedControlCarList", "carList", "vehicles"],
 )
-def test_source_list_dice_de_que_lista_salio_el_coche(clave: str) -> None:
-    """Dato de diagnóstico puro: la sospecha es que una cuenta secundaria llega por
-    `authorizedControlCarList` y no recibe los avisos que el coche manda solo. Sin apuntarlo, esa
-    información se lee y se tira en cada consulta."""
+def test_source_list_says_which_list_the_car_came_from(clave: str) -> None:
+    """Pure diagnostic data: the suspicion is that a secondary account arrives via
+    `authorizedControlCarList` and does not receive the alerts the car sends on its own. Without recording it, that
+    information is read and thrown away on every query."""
     respuesta = {"data": {clave: [COCHE]}}
 
     assert vehicles.source_list(respuesta, COCHE["vin"]) == {"list": clave}
 
 
-def test_source_list_distingue_el_coche_propio_del_delegado() -> None:
-    """El caso que da sentido a todo esto: con las dos listas a la vez, cada coche tiene que
-    quedar atribuido a la suya."""
+def test_source_list_tells_owned_from_delegated_car() -> None:
+    """The case that gives all this its meaning: with both lists at once, each car must
+    be attributed to its own."""
     respuesta = {"data": {"controlCarList": [COCHE], "authorizedControlCarList": [OTRO]}}
 
     assert vehicles.source_list(respuesta, COCHE["vin"]) == {"list": "controlCarList"}
     assert vehicles.source_list(respuesta, OTRO["vin"]) == {"list": "authorizedControlCarList"}
 
 
-def test_source_list_recoge_el_tipo_de_autorizacion_si_viene() -> None:
-    """`authorizeType` solo aparece en las entradas delegadas. Es justo el campo que podría
-    decir QUÉ clase de permiso tiene la cuenta, así que viaja con el resto."""
+def test_source_list_picks_up_the_authorisation_type_if_present() -> None:
+    """`authorizeType` only appears in delegated entries. It is exactly the field that could
+    say WHAT kind of permission the account has, so it travels with the rest."""
     delegado = {**COCHE, "authorizeType": 0}
 
     info = vehicles.source_list({"data": {"authorizedControlCarList": [delegado]}}, COCHE["vin"])
@@ -181,9 +181,9 @@ def test_source_list_recoge_el_tipo_de_autorizacion_si_viene() -> None:
     assert info == {"list": "authorizedControlCarList", "authorize_type": 0}
 
 
-def test_source_list_devuelve_none_si_el_coche_no_aparece() -> None:
-    """Sin respaldo al primero, al contrario que `find_vehicle`: aquí una atribución equivocada
-    sería peor que no tener el dato, porque es exactamente lo que se quiere medir."""
+def test_source_list_returns_none_if_the_car_is_absent() -> None:
+    """No fallback to the first one, unlike `find_vehicle`: here a wrong attribution
+    would be worse than not having the data, because it is exactly what we want to measure."""
     assert vehicles.source_list({"data": [COCHE]}, "BASTIDOR-QUE-NO-ESTA") is None
     assert vehicles.source_list({}, COCHE["vin"]) is None
 
@@ -191,28 +191,28 @@ def test_source_list_devuelve_none_si_el_coche_no_aparece() -> None:
 # ────────────────────────────── entry_fields ──────────────────────────────
 
 
-def test_entry_fields_devuelve_los_nombres_ordenados() -> None:
-    """Solo los NOMBRES: los valores llevan el VIN y el `carToken`, y esto acaba en un informe
-    de diagnóstico que se comparte con terceros."""
+def test_entry_fields_returns_sorted_names() -> None:
+    """Only the NAMES: the values carry the VIN and the `carToken`, and this ends up in a diagnostic
+    report shared with third parties."""
     campos = vehicles.entry_fields({"data": [COCHE]}, COCHE["vin"])
 
     assert campos == ["modelName", "nickname", "vin"]
 
 
-def test_entry_fields_no_filtra_ningun_valor() -> None:
-    """La red de seguridad del instrumento: si alguna vez devolviera la ficha entera en vez de
-    sus claves, estaríamos exportando el bastidor sin darnos cuenta."""
+def test_entry_fields_leaks_no_value() -> None:
+    """The instrument's safety net: if it ever returned the whole record instead of
+    its keys, we would be exporting the VIN without noticing."""
     con_secretos = {**COCHE, "carToken": "token-secreto", "authorizeType": 1}
 
     campos = vehicles.entry_fields({"data": [con_secretos]}, COCHE["vin"])
 
     assert campos is not None
-    assert "carToken" in campos                      # el nombre sí
-    assert not any("token-secreto" in c for c in campos)   # el valor no
+    assert "carToken" in campos                      # the name yes
+    assert not any("token-secreto" in c for c in campos)   # the value no
     assert not any(COCHE["vin"] in c for c in campos)
 
 
-def test_entry_fields_sin_el_coche_devuelve_none() -> None:
+def test_entry_fields_without_the_car_returns_none() -> None:
     assert vehicles.entry_fields({"data": [COCHE]}, "BASTIDOR-QUE-NO-ESTA") is None
     assert vehicles.entry_fields({}, COCHE["vin"]) is None
 
@@ -220,16 +220,16 @@ def test_entry_fields_sin_el_coche_devuelve_none() -> None:
 # ────────────────────────────── entry_flags ──────────────────────────────
 
 
-def test_entry_flags_recoge_las_banderas_de_la_lista_blanca() -> None:
+def test_entry_flags_picks_up_allowlisted_flags() -> None:
     ficha = {**COCHE, "passwordType": 1, "authorizeType": 0, "defCar": 1}
 
     assert vehicles.entry_flags({"data": [ficha]}, COCHE["vin"]) == {
         "passwordType": 1, "authorizeType": 0, "defCar": 1}
 
 
-def test_entry_flags_no_saca_nada_fuera_de_la_lista_blanca() -> None:
-    """La lista es blanca a propósito: un volcado de la ficha entera exportaría el bastidor y el
-    `carToken` en el primer informe que alguien comparta."""
+def test_entry_flags_exports_nothing_outside_the_allowlist() -> None:
+    """The list is an allowlist on purpose: a dump of the whole record would export the VIN and the
+    `carToken` in the first report someone shares."""
     ficha = {**COCHE, "passwordType": 1, "carToken": "token-secreto", "iccid": "8934…"}
 
     banderas = vehicles.entry_flags({"data": [ficha]}, COCHE["vin"])
@@ -241,8 +241,8 @@ def test_entry_flags_no_saca_nada_fuera_de_la_lista_blanca() -> None:
     assert "8934" not in volcado
 
 
-def test_entry_flags_omite_las_que_no_vienen() -> None:
-    """Sin inventar valores por defecto: que falte una bandera es en sí un dato."""
+def test_entry_flags_omits_missing_ones() -> None:
+    """No made-up defaults: a missing flag is a piece of data in itself."""
     assert vehicles.entry_flags({"data": [COCHE]}, COCHE["vin"]) == {}
     assert vehicles.entry_flags({"data": [COCHE]}, "OTRO") is None
 
@@ -250,22 +250,22 @@ def test_entry_flags_omite_las_que_no_vienen() -> None:
 # ───────────────────────────── password_type ─────────────────────────────
 
 
-def test_password_type_toma_el_primero_de_la_lista() -> None:
-    """El backend lo devuelve como lista (`[0]` medido en vivo): tipos de verificación
-    admitidos. Se manda el primero."""
+def test_password_type_takes_the_first_of_the_list() -> None:
+    """The backend returns it as a list (`[0]` measured live): supported verification
+    types. The first one is sent."""
     assert vehicles.password_type({"data": [{**COCHE, "passwordType": [0]}]}, COCHE["vin"]) == 0
     assert vehicles.password_type({"data": [{**COCHE, "passwordType": [2, 0]}]}, COCHE["vin"]) == 2
 
 
-def test_password_type_admite_un_escalar() -> None:
-    """Por si alguna cuenta lo devuelve suelto: este backend ya nos ha cambiado la forma de una
-    respuesta una vez (la lista de vehículos)."""
+def test_password_type_accepts_a_scalar() -> None:
+    """In case some account returns it bare: this backend has already changed the shape of a
+    response on us once (the vehicle list)."""
     assert vehicles.password_type({"data": [{**COCHE, "passwordType": 1}]}, COCHE["vin"]) == 1
 
 
-def test_password_type_sin_dato_devuelve_none() -> None:
-    """`None` tiene que distinguirse de `0`, que es un tipo válido: con `None` el campo NO se
-    manda, y mandarlo inventado sería peor que no mandarlo."""
+def test_password_type_without_data_returns_none() -> None:
+    """`None` must be distinguishable from `0`, which is a valid type: with `None` the field is NOT
+    sent, and sending a made-up one would be worse than not sending it."""
     assert vehicles.password_type({"data": [COCHE]}, COCHE["vin"]) is None
     assert vehicles.password_type({"data": [{**COCHE, "passwordType": []}]}, COCHE["vin"]) is None
     assert vehicles.password_type({"data": [COCHE]}, "OTRO") is None
@@ -275,16 +275,16 @@ def test_password_type_sin_dato_devuelve_none() -> None:
 
 
 class _Ctx:
-    """Lo mínimo que `query_list` mira del `CoreCtx`."""
+    """The bare minimum `query_list` looks at in `CoreCtx`."""
 
     channel_id = "4"
     tuserid = "401643347363401728"
 
 
-def test_query_list_manda_la_cuenta_y_el_canal() -> None:
-    """Con el cuerpo VACÍO la nube responde `code=1` y `data: null` — medido en una instalación
-    real, donde el modelo del vehículo llevaba vacío desde siempre por esto. El config flow lo
-    mandaba y el coordinator no; construirlo aquí es lo que impide que vuelvan a divergir."""
+def test_query_list_sends_the_account_and_the_channel() -> None:
+    """With an EMPTY body the cloud answers `code=1` and `data: null` — measured on a real
+    install, where the vehicle model had always been empty because of this. The config flow
+    sent it and the coordinator did not; building it here is what stops them from diverging again."""
     with (
         patch.object(vehicles.wake, "_access_token", return_value="AT"),
         patch.object(vehicles.A, "headers_post", return_value={}),
@@ -297,9 +297,9 @@ def test_query_list_manda_la_cuenta_y_el_canal() -> None:
     assert body == {"channelId": "4", "tUserId": "401643347363401728"}
 
 
-def test_query_list_sin_tuserid_manda_solo_el_canal() -> None:
-    """Durante el alta el `tUserId` aún no está en el `ctx` —lo acaba de devolver el login—, así
-    que el config flow pasa el cuerpo explícito. Mandar `tUserId: ""` sería peor que no mandarlo."""
+def test_query_list_without_tuserid_sends_only_the_channel() -> None:
+    """During setup the `tUserId` is not yet in the `ctx` —the login has only just returned it—, so
+    the config flow passes the body explicitly. Sending `tUserId: ""` would be worse than not sending it."""
     ctx = _Ctx()
     ctx.tuserid = ""
 
@@ -313,8 +313,8 @@ def test_query_list_sin_tuserid_manda_solo_el_canal() -> None:
     assert post.call_args[0][2] == {"channelId": "4"}
 
 
-def test_query_list_respeta_el_cuerpo_explicito() -> None:
-    """El config flow manda el suyo; no debe pisarse."""
+def test_query_list_honours_the_explicit_body() -> None:
+    """The config flow sends its own; it must not be overwritten."""
     propio = {"tUserId": "otro", "channelId": "9"}
 
     with (

@@ -1,4 +1,4 @@
-/* EVBro — Tus datos (Ajustes → Cuenta): descargar todo en un ZIP e importar un ZIP de EVBro en esta cuenta.
+/* EVBro — Tus datos (Ajustes → Cuenta): download everything as a ZIP and import an EVBro ZIP into this account.
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 (function () {

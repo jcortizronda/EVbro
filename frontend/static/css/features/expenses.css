@@ -1,5 +1,5 @@
-/* EVBro — Gastos (Más → Gastos) y complementos de Costes.
-   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+/* EVBro — Expenses (Más → Gastos) and Costes add-ons.
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
 .ex-card, .ex-due-card { padding: 14px 16px; margin-bottom: 12px; }
 .ex-filters { display: flex; flex-direction: column; gap: 10px; margin: 12px 0 6px; }
@@ -23,7 +23,7 @@ button.ex-due-row { cursor: pointer; min-height: 52px; }
 [data-theme="dark"] .ex-due-row[data-tone="soon"] .ex-due-chip { color: #ffd60a; }
 [data-theme="dark"] .ex-due-row[data-tone="urgent"] .ex-due-chip { color: #ff6961; }
 
-/* Costes: tarjeta ancha, serie de gastos y desglose por categoría */
+/* Costes: wide card, expense series and breakdown by category */
 .costs-card-wide { grid-column: 1 / -1; }
 .c-exp { background: var(--accent-violet, #bf5af2); }
 .costs-by-cat { padding: 14px 16px; margin-bottom: 12px; }

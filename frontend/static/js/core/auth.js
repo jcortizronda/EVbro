@@ -1,13 +1,13 @@
-/* EVBro — acceso (login propio, sesión por cookie).
+/* EVBro — sign-in (own login, cookie session).
  *
- * Se carga ANTES que app.js. Hace tres cosas:
- *   1. Intercepta fetch: si la API contesta 401 (sin sesión o caducada) muestra la pantalla de
- *      acceso. Los errores de la cuenta Ebro NO usan 401 (ver routes_commands.py), así que no se
- *      confunden con esto.
- *   2. Ofrece `EbroAuth.ready()` para que app.js no cargue datos hasta saber si hay sesión.
- *   3. Gestiona primer arranque (crear usuario), inicio/cierre de sesión (también con huella) y cambio de contraseña.
+ * Loaded BEFORE app.js. It does three things:
+ *   1. Intercepts fetch: if the API answers 401 (no session or expired) it shows the sign-in
+ *      screen. Ebro account errors do NOT use 401 (see routes_commands.py), so they are not
+ *      confused with this.
+ *   2. Offers `EbroAuth.ready()` so app.js does not load data until it knows whether there is a session.
+ *   3. Handles first start (create user), sign-in/sign-out (also with fingerprint) and password change.
  *
- * La sesión vive en una cookie HttpOnly: este script nunca ve el token.
+ * The session lives in an HttpOnly cookie: this script never sees the token.
  */
 (function () {
   'use strict';
@@ -25,7 +25,7 @@
     }
   }
 
-  // 401 de la API (salvo las propias rutas de acceso) = no hay sesión válida.
+  // 401 from the API (except the sign-in routes themselves) = no valid session.
   window.fetch = async function (input, init) {
     const res = await nativeFetch(input, init);
     const path = apiPath(input);
@@ -61,14 +61,14 @@
     el.hidden = !message;
   }
 
-  // ───────────────────────── pantalla de acceso ─────────────────────────
+  // ───────────────────────── sign-in screen ─────────────────────────
   async function showOverlay() {
     const overlay = $('authOverlay');
     if (!overlay) return;
     try {
       await fetchStatus();
-      if (state.authenticated) { state.locked = false; return; }   // la sesión sigue viva: falso aviso
-    } catch (e) { /* sin red: se enseña el login igualmente */ }
+      if (state.authenticated) { state.locked = false; return; }   // the session is still alive: false alarm
+    } catch (e) { /* no network: show the login anyway */ }
     configureForm();
     overlay.hidden = false;
     document.body.classList.add('auth-open');
@@ -135,7 +135,7 @@
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        window.location.reload();          // arranca la app ya con sesión
+        window.location.reload();          // start the app with the session in place
         return;
       }
       setError('authError', errorText(data, 'No se pudo iniciar sesión (HTTP ' + res.status + ').'));
@@ -148,9 +148,9 @@
     }
   }
 
-  // ───────────────────────── cierre de sesión y contraseña ─────────────────────────
+  // ───────────────────────── sign-out and password ─────────────────────────
   async function logout() {
-    try { await nativeFetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }); } catch (e) { /* da igual */ }
+    try { await nativeFetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }); } catch (e) { /* does not matter */ }
     window.location.reload();
   }
 
@@ -193,15 +193,15 @@
     }
   }
 
-  // ───────────────────────── API pública ─────────────────────────
-  /** Resuelve a true si se puede cargar la app; a false si se ha mostrado la pantalla de acceso. */
+  // ───────────────────────── public API ─────────────────────────
+  /** Resolves to true if the app can load; to false if the sign-in screen has been shown. */
   function ready() {
     if (!state.readyPromise) {
       state.readyPromise = (async () => {
         try {
           await fetchStatus();
         } catch (e) {
-          return true;                      // sin red: la app funciona como antes (caché del Service Worker)
+          return true;                      // no network: the app works as before (Service Worker cache)
         }
         const label = $('authCurrentUser');
         if (label) label.textContent = state.username || '—';
@@ -214,7 +214,7 @@
     return state.readyPromise;
   }
 
-  /** ¿Sigue habiendo sesión? Lo usa el WebSocket antes de reconectar. Sin red → true (se reintenta). */
+  /** Is there still a session? Used by the WebSocket before reconnecting. No network → true (it retries). */
   async function verify() {
     try {
       await fetchStatus();

@@ -1,5 +1,5 @@
-/* EVBro — Avisos tipo toast.
-   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+/* EVBro — Toast notifications.
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
 /* ==========================================================
    TOAST NOTIFICATIONS (IOS / DYNAMIC ISLAND STYLE)
@@ -64,7 +64,7 @@
   }
 }
 
-/* Franja «Sin conexión» (core/offline.js): fija bajo la cabecera, no tapa nada */
+/* «Sin conexión» strip (core/offline.js): fixed under the header, covers nothing */
 .offline-banner {
   position: sticky; top: 0; z-index: 1001; padding: 8px 16px; text-align: center;
   font-size: 0.82rem; font-weight: 600; color: #111; background: var(--warning, #ffd60a);

@@ -1,5 +1,5 @@
-/* EVBro — Sin barras de desplazamiento visibles en táctil.
-   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+/* EVBro — No visible scrollbars on touch devices.
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
 /* ========================================================
    GLOBAL MOBILE TOUCH NO-SCROLLBAR SYSTEM

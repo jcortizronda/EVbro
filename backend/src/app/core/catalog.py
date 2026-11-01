@@ -1,26 +1,26 @@
 #!/usr/bin/env python3
-"""Catálogo de comandos del coche: qué se le puede pedir y con qué cuerpo.
+"""The car's command catalogue: what can be asked of it and with which body.
 
-Datos puros — ni red, ni estado, ni decisiones. Cada entrada dice a qué endpoint va el comando
-y qué campos propios lleva; los comunes (`clientType`, `seq`, `taskId`, `vin`, firma) los añade
-`commands.send()`.
+Pure data — no network, no state, no decisions. Each entry says which endpoint the command
+goes to and which fields of its own it carries; the common ones (`clientType`, `seq`,
+`taskId`, `vin`, signature) are added by `commands.send()`.
 
-Estaban dentro de `commands.py`, ocupando 150 de sus 572 líneas y empujando la lógica de envío
-hacia el final del archivo. Separarlos deja ver de un vistazo el repertorio del coche, que es
-justo lo que se consulta al añadir un comando nuevo.
+They used to live inside `commands.py`, taking 150 of its 572 lines and pushing the sending
+logic to the end of the file. Splitting them out shows the car's repertoire at a glance,
+which is exactly what you look up when adding a new command.
 
-⚠️ Los cuerpos están reconstruidos 1:1 desde los envelopes reales capturados. Cambiar uno no es
-un detalle de estilo: es cambiar lo que se le manda al vehículo.
+⚠️ The bodies are rebuilt 1:1 from real captured envelopes. Changing one is not a matter of
+style: it changes what is sent to the vehicle.
 """
 
 
-# ───────────────────────── Catálogo de comandos ─────────────────────────
-# Cada entrada: key -> {endpoint, body(fijos específicos), name, icon, group}
-# Los campos comunes (clientType/seq/taskId/vin/appId/sign) los añade send().
+# ───────────────────────── Command catalogue ─────────────────────────
+# Each entry: key -> {endpoint, body (specific fixed fields), name, icon, group}
+# The common fields (clientType/seq/taskId/vin/appId/sign) are added by send().
 COMMANDS = [
-    # — Clima —
-    # clima ON/OFF: temperatura y duración son PARAMÉTRICAS (las pasa la interfaz vía
-    # `params`); los valores del body son solo los por defecto si se invoca sin override.
+    # — Climate —
+    # climate ON/OFF: temperature and duration are PARAMETRIC (the interface passes them via
+    # `params`); the body values are only the defaults when invoked without an override.
     ("clima_on",  {"endpoint": "airControl",
                    "body": {"airControlType": "1", "airType": "1", "temperature": "21.0", "times": "15"},
                    "name": "Clima encendido", "icon": "mdi:air-conditioner", "group": "Climatización"}),
@@ -57,9 +57,9 @@ COMMANDS = [
     ("asiento_conductor_ventilacion_off", {"endpoint": "seatControl",
                    "body": {"mSeatAiry": "0"},
                    "name": "Asiento conductor ventilado OFF", "icon": "mdi:car-seat-cooler", "group": "Climatización"}),
-    # Asientos pasajero y traseros — mismo endpoint único `seatControl`, parámetros
-    # confirmados por el bean CVSeatControlReqBean (p=pasajero, bl=tras.izq, br=tras.der).
-    # Trasero central: el bean NO tiene un parámetro dedicado → sin comando.
+    # Passenger and rear seats — same single `seatControl` endpoint, parameters
+    # confirmed by the CVSeatControlReqBean bean (p=passenger, bl=rear left, br=rear right).
+    # Rear centre: the bean has NO dedicated parameter → no command.
     ("asiento_pasajero_caliente", {"endpoint": "seatControl",
                    "body": {"pSeatHeating": "3", "times": "15"},
                    "name": "Asiento pasajero calefactado", "icon": "mdi:car-seat-heater", "group": "Climatización"}),
@@ -97,12 +97,12 @@ COMMANDS = [
                    "body": {"brSeatAiry": "0"},
                    "name": "Asiento tras. der. ventilado OFF", "icon": "mdi:car-seat-cooler", "group": "Climatización"}),
 
-    # NB: los macros clima "todo" (coolingControl/heatingControl: "Enfriar todo"/"Calentar todo")
-    # se ELIMINARON — este coche los rechaza con A00084 «comando no permitido» (permiso denegado,
-    # verificado en vivo 2026-07-31). La climatización normal (airControl) SÍ va, y
-    # cada asiento/desempañador/volante tiene su propio interruptor.
+    # NB: the "all" climate macros (coolingControl/heatingControl: "Enfriar todo"/"Calentar todo")
+    # were REMOVED — this car rejects them with A00084 «comando no permitido» (permission denied,
+    # verified live 2026-07-31). Normal climate control (airControl) DOES work, and
+    # each seat/defroster/steering wheel has its own switch.
 
-    # — Porte / chiusure —
+    # — Doors / locks —
     ("desbloquear",   {"endpoint": "lockControl", "body": {"lockType": "1"},
                    "name": "Desbloquear puertas", "icon": "mdi:lock-open-variant", "group": "Accesos"}),
     ("bloquear",    {"endpoint": "lockControl", "body": {"lockType": "0"},
@@ -112,7 +112,7 @@ COMMANDS = [
     ("maletero_cerrar", {"endpoint": "powerLiftgateControl", "body": {"controlType": "0"},
                    "name": "Cerrar maletero", "icon": "mdi:car-back", "group": "Accesos"}),
 
-    # — Ventanillas / techo —
+    # — Windows / roof —
     ("ventanillas_abrir",   {"endpoint": "windowControl", "body": {"controlType": "1"},
                    "name": "Abrir ventanillas", "icon": "mdi:car-door", "group": "Ventanillas y techo"}),
     ("ventanillas_cerrar", {"endpoint": "windowControl", "body": {"controlType": "0"},
@@ -124,17 +124,17 @@ COMMANDS = [
     ("techo_cerrar", {"endpoint": "skylightControl", "body": {"controlType": "0", "skylightType": "1"},
                    "name": "Cerrar techo", "icon": "mdi:car-select", "group": "Ventanillas y techo"}),
 
-    # — Carga EV —
-    # Carga INMEDIATA inicio/parada (endpoint chargeStartStopControl, bean CVChargeStartStopBean
-    # → solo `controlType`; 1=inicia, 0=para, misma convención que todos los *Control).
+    # — EV charging —
+    # IMMEDIATE charge start/stop (endpoint chargeStartStopControl, bean CVChargeStartStopBean
+    # → only `controlType`; 1=start, 0=stop, same convention as every *Control).
     ("carga_iniciar", {"endpoint": "chargeStartStopControl", "body": {"controlType": "1"},
                    "name": "Iniciar carga", "icon": "mdi:battery-charging", "group": "Carga"}),
     ("carga_detener", {"endpoint": "chargeStartStopControl", "body": {"controlType": "0"},
                    "name": "Detener carga", "icon": "mdi:battery-off", "group": "Carga"}),
-    # Carga PROGRAMADA (chargeAppointControl) — body con ARRAY anidado `chargeAppointPlans` (la
-    # firma anidada la resuelve tsp_sign, verificada en 4/4 envelopes reales). mainSwitch =
-    # interruptor general; el plan (hora/duración/días) lo pasa la interfaz vía `params`.
-    # cycleData [1..7] = días; startTime/timeConsuming en MINUTOS; switchStatus = plan activo.
+    # SCHEDULED charging (chargeAppointControl) — body with a nested ARRAY `chargeAppointPlans`
+    # (tsp_sign handles the nested signature, verified on 4/4 real envelopes). mainSwitch =
+    # master switch; the plan (time/duration/days) is passed by the interface via `params`.
+    # cycleData [1..7] = days; startTime/timeConsuming in MINUTES; switchStatus = plan active.
     ("carga_prog_on", {"endpoint": "chargeAppointControl",
                    "body": {"mainSwitch": 1, "chargeAppointPlans": [
                        {"cycleData": [1, 2, 3, 4, 5, 6, 7], "startTime": 480,
@@ -146,23 +146,23 @@ COMMANDS = [
                         "switchStatus": 0, "timeConsuming": 360}]},
                    "name": "Carga programada OFF", "icon": "mdi:calendar-remove", "group": "Carga"}),
 
-    # — Otros —
+    # — Other —
     ("encontrar_coche_luces", {"endpoint": "findCar", "body": {},
                    "name": "Encontrar coche (luces)", "icon": "mdi:car-search", "group": "Otros"}),
-    # NB: remoteStart (arranque de motor remoto) ELIMINADO: probado en vivo (2026-06-21) → el
-    # coche responde A00084 "No vehicle control command permission" (permiso denegado para este
-    # vehículo). Inútil exponer un botón que siempre falla. El bean CVRemoteStartReqBean (sin
-    # campos) queda documentado por si en el futuro cambiara el permiso.
-    # Petición de posición GPS: NO ejecuta nada; el coche responde con un push MQTT serviceType
-    # 1301 (lat/lon) que este coche en la práctica no envía (ningún 1301 en una semana de registro, ver ARCHITECTURE.md de la integración): el fix nuevo se lee después con queryVehicleLocation.
+    # NB: remoteStart (remote engine start) REMOVED: tested live (2026-06-21) → the car
+    # answers A00084 "No vehicle control command permission" (permission denied for this
+    # vehicle). No point exposing a button that always fails. The CVRemoteStartReqBean bean (no
+    # fields) stays documented in case the permission changes in the future.
+    # GPS position request: does NOT actuate anything; the car answers with an MQTT push serviceType
+    # 1301 (lat/lon) that this car in practice never sends (no 1301 in a week of logging, see the integration's ARCHITECTURE.md): the new fix is then read with queryVehicleLocation.
     ("localizar_coche_gps", {"endpoint": "vehicleLocation", "body": {},
                    "name": "Localizar coche (GPS)", "icon": "mdi:crosshairs-gps", "group": "Otros"}),
 
-    # — Seguridad — Alarma antirrobo (theftAlarm). Avisos+sirena ante movimiento no autorizado,
-    # forzado de puertas, rotura de lunas (descr. oficial de la app). NB: vive en /act (NO
-    # /asc/vehicleControl) → usa la clave `path` en vez de `endpoint`. Body = theftAlarmSwitch
-    # 0/1; send() añade clientType/seq/vin y el taskId generado (el backend lo exige: A00643
-    # sin él). Estado legible vía query_theft_switch() (/act/theftAlarm/querySwitch).
+    # — Security — Anti-theft alarm (theftAlarm). Alerts+siren on unauthorised movement,
+    # forced doors, broken glass (the app's official description). NB: lives under /act (NOT
+    # /asc/vehicleControl) → uses the `path` key instead of `endpoint`. Body = theftAlarmSwitch
+    # 0/1; send() adds clientType/seq/vin and the minted taskId (the backend requires it: A00643
+    # without it). State readable via query_theft_switch() (/act/theftAlarm/querySwitch).
     ("alarma_on",  {"path": "/act/theftAlarm/setSwitch", "body": {"theftAlarmSwitch": "1"},
                    "name": "Alarma activada", "icon": "mdi:shield-car", "group": "Seguridad"}),
     ("alarma_off", {"path": "/act/theftAlarm/setSwitch", "body": {"theftAlarmSwitch": "0"},

@@ -1,11 +1,11 @@
-"""Detector de repostajes: una subida del nivel del depósito con el coche parado.
+"""Refuel detector: a rise of the tank level with the car stopped.
 
-El coche da el nivel como un % (`oilSurplus`) que baja al conducir y sube al repostar. Se guarda el nivel MÁS BAJO desde el último
-repostaje y, cuando una lectura con el coche parado queda al menos `FUEL_JUMP_PCT` puntos por encima, hay un repostaje. Los litros
-son una estimación (puntos de % × capacidad del depósito, configurable en el vehículo); el precio lo pone el usuario después.
+The car reports the level as a % (`oilSurplus`) that drops while driving and rises when refuelling. The LOWEST level since the last
+refuel is kept and, when a reading with the car stopped is at least `FUEL_JUMP_PCT` points above it, there is a refuel. The litres
+are an estimate (% points × tank size, configurable on the vehicle); the user adds the price later.
 
-Cautelas: una lectura de 0 % que luego «vuelve» no es un repostaje (el coche a veces la manda con el depósito sin leer), y no se
-registran dos repostajes con menos de `MIN_GAP` de diferencia.
+Caveats: a 0 % reading that later «comes back» is not a refuel (the car sometimes sends it before reading the tank), and two
+refuels less than `MIN_GAP` apart are not recorded.
 """
 from __future__ import annotations
 
@@ -21,10 +21,10 @@ from app.services.geofence import reverse_geocode
 
 _LOGGER = logging.getLogger(__name__)
 
-FUEL_JUMP_PCT = 8.0                                  # ≈ 4 L en un depósito de 50 L; el bamboleo del indicador es de 2-3 puntos
+FUEL_JUMP_PCT = 8.0                                  # ≈ 4 L in a 50 L tank; the gauge wobbles by 2-3 points
 MIN_GAP = datetime.timedelta(minutes=30)
 
-# Nivel más bajo visto desde el último repostaje, por VIN
+# lowest level seen since the last refuel, per VIN
 _FUEL_LOW: Dict[str, float] = {}
 _LAST_REFUEL_AT: Dict[str, datetime.datetime] = {}
 
@@ -32,7 +32,7 @@ _LAST_REFUEL_AT: Dict[str, datetime.datetime] = {}
 class RefuelDetector:
     @classmethod
     async def _baseline(cls, session: AsyncSession, vin: str, now: datetime.datetime) -> Optional[float]:
-        """Tras un reinicio no hay nivel en memoria: se toma el de la última lectura guardada."""
+        """After a restart there is no level in memory: take the one of the last stored reading."""
         if vin in _FUEL_LOW:
             return _FUEL_LOW[vin]
         row = (await session.execute(
@@ -52,17 +52,17 @@ class RefuelDetector:
         now = datetime.datetime.utcnow()
         low = await cls._baseline(session, vin, now)
         if low is None or (fuel <= 0 and low > 2.0):
-            # Primera lectura, o un 0 % de un depósito que no estaba casi vacío: lectura inválida, no cuenta para nada
+            # first reading, or a 0 % from a tank that was not nearly empty: an invalid reading, it counts for nothing
             if low is None and fuel > 0:
                 _FUEL_LOW[vin] = fuel
             return None
 
-        parado = (telemetry.get("speed_kmh") or 0.0) <= 2.0 and telemetry.get("state") != "driving"
+        stopped = (telemetry.get("speed_kmh") or 0.0) <= 2.0 and telemetry.get("state") != "driving"
         if fuel <= low:
-            _FUEL_LOW[vin] = fuel                                       # consumo: el mínimo baja
+            _FUEL_LOW[vin] = fuel                                       # consumption: the minimum goes down
             return None
-        if not parado or fuel - low < FUEL_JUMP_PCT:
-            return None                                                 # bamboleo o subida con el coche en marcha: nada
+        if not stopped or fuel - low < FUEL_JUMP_PCT:
+            return None                                                 # wobble, or a rise while moving: nothing
         last = _LAST_REFUEL_AT.get(vin)
         if last and now - last < MIN_GAP:
             _FUEL_LOW[vin] = fuel
@@ -79,5 +79,5 @@ class RefuelDetector:
         await session.flush()
         _FUEL_LOW[vin] = fuel
         _LAST_REFUEL_AT[vin] = now
-        _LOGGER.info(f"Repostaje detectado para {vin}: {low:.0f}% -> {fuel:.0f}% (~{liters} L) [Refuel #{refuel.id}]")
+        _LOGGER.info(f"Refuel detected for {vin}: {low:.0f}% -> {fuel:.0f}% (~{liters} L) [Refuel #{refuel.id}]")
         return refuel

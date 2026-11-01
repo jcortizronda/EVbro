@@ -1,4 +1,4 @@
-"""Estados del coche según la alta tensión, hora de fin del viaje y regla de la distancia (solo el odómetro)."""
+"""Car states from the high voltage, trip end time and the distance rule (odometer only)."""
 from __future__ import annotations
 
 import pytest
@@ -7,33 +7,33 @@ from app.core.telemetry import parse_telemetry_data
 from app.services.trip_detector import resolve_distance
 
 
-def estado(**raw):
+def state(**raw):
     return parse_telemetry_data({"onlineStatus": "1", **raw})["state"]
 
 
-# ───────────────────────── Estados ─────────────────────────
-@pytest.mark.parametrize("raw,esperado", [
-    ({"hVoltageState": "1", "vehicleSpeed": "40"}, "driving"),                       # encendido y rodando
-    ({"hVoltageState": "1", "vehicleSpeed": "0"}, "ready"),                          # encendido y parado (semáforo, listo)
+# ───────────────────────── States ─────────────────────────
+@pytest.mark.parametrize("raw,expected", [
+    ({"hVoltageState": "1", "vehicleSpeed": "40"}, "driving"),                       # on and moving
+    ({"hVoltageState": "1", "vehicleSpeed": "0"}, "ready"),                          # on and stopped (traffic light, ready)
     ({"hVoltageState": "1", "vehicleSpeed": "0", "engineState": "1"}, "ready"),
-    ({"hVoltageState": "0", "vehicleSpeed": "0"}, "parked"),                         # apagado
-    ({"hVoltageState": "0", "vehicleSpeed": "30", "engineState": "1"}, "parked"),     # lectura vieja: con HV apagada no cuenta
+    ({"hVoltageState": "0", "vehicleSpeed": "0"}, "parked"),                         # off
+    ({"hVoltageState": "0", "vehicleSpeed": "30", "engineState": "1"}, "parked"),     # stale reading: with HV off it does not count
     ({"hVoltageState": "0", "onlineStatus": "0"}, "asleep"),
-    ({"hVoltageState": "1", "chargeGunState": "1"}, "plugged"),                      # el cable manda sobre el encendido
+    ({"hVoltageState": "1", "chargeGunState": "1"}, "plugged"),                      # the cable wins over the ignition
     ({"hVoltageState": "0", "chargeGunState": "1", "chargeState": "1"}, "charging"),
-    ({"vehicleSpeed": "40"}, "driving"),                                             # sin dato de alta tensión: regla antigua
+    ({"vehicleSpeed": "40"}, "driving"),                                             # no high-voltage data: old rule
     ({"engineState": "1"}, "driving"),
     ({}, "parked"),
 ])
-def test_estado_segun_la_alta_tension(raw, esperado) -> None:
-    assert estado(**raw) == esperado
+def test_state_from_the_high_voltage(raw, expected) -> None:
+    assert state(**raw) == expected
 
 
-def test_sin_conexion_ni_dato_el_coche_esta_dormido() -> None:
+def test_without_connection_or_data_the_car_is_asleep() -> None:
     assert parse_telemetry_data({"onlineStatus": "0"})["state"] == "asleep"
 
 
-# ───────────────────────── Distancia ─────────────────────────
+# ───────────────────────── Distance ─────────────────────────
 @pytest.mark.parametrize("start,end,expected", [
     (1000.0, 1012.0, 12.0),   # the odometer alone, whole kilometres
     (1000.0, 1000.0, 0.0),    # too short to move the odometer

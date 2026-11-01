@@ -1,6 +1,6 @@
-/* EVBro — Interfaz según el nivel de acceso de la cuenta sobre el coche actual y su rol.
- * El SERVIDOR lo impone todo (backend/src/app/security/access.py); esto solo oculta lo que respondería 403.
- * (Script clásico: comparte el ámbito global con los demás ficheros; ver el orden de carga en templates/index.html.)
+/* EVBro — Interface according to the account's access level on the current car and its role.
+ * The SERVER enforces everything (backend/src/app/security/access.py); this only hides what would answer 403.
+ * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
 // A level is a set of permissions (mirror of LEVEL_GRANTS in security/access.py): «ver y controlar» does not include editing.
@@ -9,7 +9,7 @@ const LEVEL_GRANTS = {
   owner: ['view', 'edit', 'control', 'owner'],
 };
 
-// Qué elementos exigen cada nivel (por selector: así no hay que marcar el HTML uno a uno).
+// Which elements each level requires (by selector: so the HTML need not be tagged one by one).
 const ACCESS_SELECTORS = {
   control: [
     '[data-on-click*="promptCommand"]', '[data-on-click*="toggleLockState"]', '[data-on-click*="openWindowsActionSheet"]', '[data-on-click*="openTrunkActionSheet"]',

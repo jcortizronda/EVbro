@@ -1,5 +1,5 @@
 /* EVBro — Shared period picker (features/period-picker.js): preset chips plus «desde / hasta» month fields.
-   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
 .period-picker { display: grid; gap: 8px; margin: 12px 0 10px; }
 /* Same segmented look as the old three-button control, but the chips wrap when there are more */

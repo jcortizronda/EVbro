@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Servidor de demostración AISLADO para las pruebas de navegador:
-#   - SQLite temporal y datos de demo (python -m app.seed_demo); nunca toca tu PostgreSQL.
-#   - Sin salida a internet (proxy muerto): el poller no llama a Chery.
-#   - Usuario: juan / una-contraseña-larga-1   ·   URL: http://127.0.0.1:${PORT:-8099}
-# Uso:  tools/e2e/demo_server.sh start | stop
+# ISOLATED demo server for the browser tests:
+#   - temporary SQLite and demo data (python -m app.seed_demo); never touches your PostgreSQL.
+#   - no internet access (dead proxy): the poller does not call Chery.
+#   - user: juan / una-contraseña-larga-1   ·   URL: http://127.0.0.1:${PORT:-8099}
+# Usage:  tools/e2e/demo_server.sh start | stop
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 PORT="${PORT:-8099}"
@@ -22,7 +22,7 @@ case "${1:-start}" in
     # shellcheck disable=SC1091
     . .venv/bin/activate
     export PYTHONPATH=src DATABASE_URL="sqlite+aiosqlite:///$WORK/e2e.db" DATA_DIR="$WORK/data" SETUP_CODE="$CODE"
-    export ADMIN_PORT="${ADMIN_PORT:-8098}"             # consola de administración de la demo (tools/e2e/admin.py)
+    export ADMIN_PORT="${ADMIN_PORT:-8098}"             # the demo's admin console (tools/e2e/admin.py)
     export HTTP_PROXY=http://127.0.0.1:9 HTTPS_PROXY=http://127.0.0.1:9 http_proxy=http://127.0.0.1:9 https_proxy=http://127.0.0.1:9
     python - <<'PY'
 import asyncio, os
@@ -52,7 +52,7 @@ PY
     curl --noproxy "*" -s -o /dev/null -X POST "http://127.0.0.1:$ADMIN_PORT/api/auth/setup" -H "Origin: http://127.0.0.1:$ADMIN_PORT" \
       -H "Content-Type: application/json" \
       -d "{\"username\":\"$ADMIN_NAME\",\"password\":\"$ADMIN_PASS\",\"setup_code\":\"$CODE\"}"
-    echo "Demo lista en http://127.0.0.1:$PORT  ($USER_NAME / $USER_PASS) · consola http://127.0.0.1:$ADMIN_PORT ($ADMIN_NAME / $ADMIN_PASS) · log: $WORK/server.log"
+    echo "Demo ready at http://127.0.0.1:$PORT  ($USER_NAME / $USER_PASS) · console http://127.0.0.1:$ADMIN_PORT ($ADMIN_NAME / $ADMIN_PASS) · log: $WORK/server.log"
     ;;
-  *) echo "uso: $0 start|stop"; exit 2 ;;
+  *) echo "usage: $0 start|stop"; exit 2 ;;
 esac

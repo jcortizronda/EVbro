@@ -186,7 +186,7 @@ def load(folder: str, stored_name: str, missing: str = "El fichero no está en e
     try:
         return decrypt_bytes(folder, stored_name, blob)
     except FileDecryptionError:
-        _LOGGER.error("No se pudo descifrar %s/%s: ¿ha cambiado la clave de cifrado (ENCRYPTION_KEY o secret.key)?", folder, os.path.basename(stored_name))
+        _LOGGER.error("Could not decrypt %s/%s: has the encryption key changed (ENCRYPTION_KEY or secret.key)?", folder, os.path.basename(stored_name))
         raise HTTPException(status_code=500, detail="No se ha podido descifrar el fichero en el servidor. "
                                                     "Puede que haya cambiado la clave de cifrado; avisa al administrador.") from None
 

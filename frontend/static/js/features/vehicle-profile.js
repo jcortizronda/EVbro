@@ -1,5 +1,5 @@
-/* EVBro — Ficha del vehículo (Ajustes → Coche): identidad, compra, documentación, neumáticos, energía, y la foto.
- * (Script clásico: comparte el ámbito global con los demás ficheros; ver el orden de carga en templates/index.html.)
+/* EVBro — Vehicle sheet (Ajustes → Coche): identity, purchase, paperwork, tyres, energy, and the photo.
+ * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
 const VP_DEFAULT_BANNER = "url('/static/images/banner-exterior.jpg')";
@@ -9,14 +9,14 @@ function currentVehicle() {
   return (allVehiclesList || []).find((v) => v.vin === currentVin) || null;
 }
 
-/** El lápiz de la cabecera y los enlaces «Cambiar en la ficha» llevan a la ficha completa. */
+/** The header pencil and the «Cambiar en la ficha» links lead to the full sheet. */
 function openVehicleSettings() {
   switchTab('vehicle');                                    // the «Coches» section (Más → Coches)
   if (typeof setVehiclePane === 'function') setVehiclePane('data');
 }
 function openEditVehicleModal() { openVehicleSettings(); }
 
-/** Foto del vehículo como fondo de la cabecera de Inicio (si no hay, la imagen de siempre). */
+/** Vehicle photo as the Inicio header background (if there is none, the usual image). */
 function applyVehiclePhoto(v) {
   const banner = vpEl('overviewBanner');
   if (!banner) return;
@@ -33,17 +33,17 @@ function renderPhoto(v) {
   vpEl('vpPhotoPick').textContent = has ? 'Cambiar foto' : 'Subir foto';
 }
 
-// ───────────────────────── Secciones plegables ─────────────────────────
+// ───────────────────────── Collapsible sections ─────────────────────────
 // Which sections are open is remembered per browser; the first time only «Identidad» is open (less vertical scrolling on a phone).
 const VP_FOLD_KEY = 'evbro_vp_open';
 
 function vpOpenSections() {
-  try { const v = JSON.parse(localStorage.getItem(VP_FOLD_KEY)); if (Array.isArray(v)) return v; } catch (e) { /* sin almacenamiento */ }
+  try { const v = JSON.parse(localStorage.getItem(VP_FOLD_KEY)); if (Array.isArray(v)) return v; } catch (e) { /* no storage */ }
   return ['identity'];
 }
 function vpSaveSections() {
   const open = [...document.querySelectorAll('.vp-section[open]')].map((d) => d.dataset.key);
-  try { localStorage.setItem(VP_FOLD_KEY, JSON.stringify(open)); } catch (e) { /* da igual */ }
+  try { localStorage.setItem(VP_FOLD_KEY, JSON.stringify(open)); } catch (e) { /* does not matter */ }
 }
 function initVehicleFolds() {
   const saved = vpOpenSections();
@@ -59,7 +59,7 @@ function foldVehicleSections(open) {
 /** Opens the section that holds a field (before focusing it after a validation error). */
 function vpRevealField(el) { const d = el && el.closest('details'); if (d) d.open = true; }
 
-// ───────────────────────── Marca, modelo y bastidor ─────────────────────────
+// ───────────────────────── Brand, model and chassis number ─────────────────────────
 const VP_BRAND_OTHER = '__other';
 const VP_CHASSIS_RE = /^[A-Z0-9]{11,17}$/;
 
@@ -117,7 +117,7 @@ function loadVehicleProfile() {
   const set = (id, val) => { const el = vpEl(id); if (el) el.value = val ?? ''; };
   const day = (iso) => (iso ? iso.slice(0, 10) : '');
   set('vpName', v.name); vpSetBrand(v.brand); set('vpTrim', v.trim); set('vpColor', v.color); set('vpEnvLabel', v.env_label);
-  // Lista cerrada de modelos; si el coche trae otro valor (instalaciones anteriores) se conserva como opción extra
+  // Closed list of models; if the car carries another value (older installs) it is kept as an extra option
   const sel = vpEl('vpModel');
   sel.querySelectorAll('option[data-extra]').forEach((o) => o.remove());
   if (v.model && !Array.from(sel.options).some((o) => o.value === v.model)) {
@@ -145,7 +145,7 @@ async function saveVehicleProfile() {
   if (!v) { showToast('No hay ningún vehículo seleccionado.', 'warning'); return; }
   const text = (id) => vpEl(id).value.trim() || null;
   const num = (id) => { const x = parseFloat(vpEl(id).value.replace(',', '.')); return isNaN(x) ? null : x; };
-  const day = (id) => { const x = vpEl(id).value; return x ? `${x}T00:00:00` : null; };     // día de calendario, sin zona horaria
+  const day = (id) => { const x = vpEl(id).value; return x ? `${x}T00:00:00` : null; };     // calendar day, no time zone
   const brand = vpBrandValue();
   if (!brand) {
     showToast('Escribe la marca del coche.', 'warning');
@@ -200,7 +200,7 @@ async function saveVehicleProfile() {
   }
 }
 
-/** Sustituye el vehículo en la lista en memoria y refresca lo que lo muestra. */
+/** Replaces the vehicle in the in-memory list and refreshes whatever shows it. */
 function replaceVehicle(updated) {
   const i = (allVehiclesList || []).findIndex((x) => x.vin === updated.vin);
   if (i !== -1) allVehiclesList[i] = updated;
@@ -210,7 +210,7 @@ function replaceVehicle(updated) {
   if (typeof applyVehicleCapabilities === 'function') applyVehicleCapabilities();
 }
 
-// ───────────────────────── Foto ─────────────────────────
+// ───────────────────────── Photo ─────────────────────────
 async function uploadVehiclePhoto(file) {
   const v = currentVehicle();
   if (!v || !file) return;

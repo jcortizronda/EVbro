@@ -1,5 +1,5 @@
-/* EVBro — Órdenes al coche: hojas de acción, diálogo del PIN y envío.
- * (Script clásico: comparte el ámbito global con los demás ficheros; ver el orden de carga en templates/index.html.)
+/* EVBro — Orders to the car: action sheets, PIN dialog and sending.
+ * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
 function openTrunkActionSheet() {
@@ -62,7 +62,7 @@ function openSunroofActionSheet() {
   ]);
 }
 
-// Cierre centralizado: se decide por el estado REAL del coche; si aún no ha informado, se deja elegir
+// Central locking: decided by the car's REAL state; if it has not reported yet, let the user choose
 function toggleLockState() {
   const locked = latestTelemetryData ? latestTelemetryData.is_locked : null;
   if (locked === true) { executeCommandDirect('desbloquear', 'Desbloquear puertas'); return; }
@@ -92,7 +92,7 @@ function locateGps() {
 }
 
 /**
- * Envía o solicita confirmación para un comando remoto.
+ * Sends a remote command or asks for confirmation first.
  */
 async function promptCommand(commandKey, commandName, extraParams = null) {
   if (!currentVin) {
@@ -115,7 +115,7 @@ function applyCommandResult(message, failed) {
   if (recent && !failed) lastCommandToast = null;
 }
 
-// Qué comandos exigen el PIN lo decide el servidor (campo `requires_pin` del catálogo).
+// The server decides which commands need the PIN (`requires_pin` field of the catalogue).
 let commandPinMap = null;
 
 async function commandRequiresPin(commandKey) {
@@ -125,7 +125,7 @@ async function commandRequiresPin(commandKey) {
       if (res.ok) {
         commandPinMap = Object.fromEntries((await res.json()).map((c) => [c.key, !!c.requires_pin]));
       }
-    } catch (e) { /* si no carga, el servidor lo exigirá igualmente y se abrirá el diálogo */ }
+    } catch (e) { /* if it does not load, the server will require it anyway and the dialog will open */ }
   }
   return commandPinMap ? !!commandPinMap[commandKey] : false;
 }
@@ -144,7 +144,7 @@ function openPinModalForCommand(commandKey, commandName, extraParams = null, err
   if (titleEl) titleEl.innerText = commandName;
   if (inputEl) inputEl.value = '';
   setPinModalError(errorMessage);
-  // Guardar el PIN solo tiene sentido si aún no hay uno guardado.
+  // Saving the PIN only makes sense if none is saved yet.
   const rememberRow = document.getElementById('pinRememberRow');
   if (rememberRow) rememberRow.hidden = !!currentAccountInfo?.has_pin;
   const rememberChk = document.getElementById('chkRememberPin');
@@ -155,8 +155,8 @@ function openPinModalForCommand(commandKey, commandName, extraParams = null, err
 }
 
 /**
- * Qué hacer cuando el servidor rechaza un comando. Se decide por `reason` (valor estable), no por
- * el texto del mensaje. Los errores de la cuenta Ebro nunca usan 401, que queda para el login.
+ * What to do when the server rejects a command. Decided by `reason` (a stable value), not by
+ * the message text. Ebro account errors never use 401, which is reserved for the login.
  */
 function handleCommandFailure(data, commandKey, commandName, extraParams) {
   const reason = data.reason || null;
@@ -171,8 +171,8 @@ function handleCommandFailure(data, commandKey, commandName, extraParams) {
 }
 
 /**
- * Envío de comando con feedback visual no intrusivo (Toast + Loading).
- * Los comandos que abren o desarman piden el PIN en cada envío; el PIN no se guarda en el navegador.
+ * Sends a command with unobtrusive visual feedback (toast + loading).
+ * Commands that open or disarm ask for the PIN on every send; the PIN is not stored in the browser.
  */
 async function executeCommandDirect(commandKey, commandName, extraParams = null, pin = null) {
   if (!(pin && pin.trim()) && await commandRequiresPin(commandKey)) {
@@ -282,12 +282,12 @@ async function executePendingCommand() {
       closePinModal();
       rememberCommandToast(cmd.name, showToast(t('{p0}: orden aceptada por la nube Ebro', {p0: cmd.name}), 'success', 6000));
       window.dispatchEvent(new CustomEvent('evbro:command-accepted', { detail: { key: cmd.key } }));
-      // Solo si el usuario lo pide, y solo tras comprobar que el PIN es válido (el comando ha pasado).
+      // Only if the user asks for it, and only after checking the PIN is valid (the command went through).
       if (remember) {
         saveAccountPin(pin);
       }
     } else if (data.reason === 'pin_invalid' || data.reason === 'pin' || data.reason === 'pin_required') {
-      // Se queda el diálogo abierto para reintentar.
+      // The dialog stays open to retry.
       setPinModalError(data.detail || data.message || 'PIN incorrecto.');
       const input = document.getElementById('pinInput');
       input.value = '';
@@ -305,8 +305,8 @@ async function executePendingCommand() {
 }
 
 /**
- * Guarda o actualiza el PIN en la cuenta activa del servidor para no volver a solicitarlo.
- * @param {string} pin - PIN de 4 a 6 dígitos.
+ * Saves or updates the PIN on the server's active account so it is not asked for again.
+ * @param {string} pin - PIN of 4 to 6 digits.
  */
 async function saveAccountPin(pin) {
   try {
@@ -319,18 +319,18 @@ async function saveAccountPin(pin) {
       await checkAccountStatus();
     }
   } catch (e) {
-    console.warn("No se pudo persistir el PIN:", e);
+    console.warn("Could not save the PIN:", e);
   }
 }
 
 /**
- * Abre un diálogo para modificar o guardar el PIN en Ajustes -> Cuenta Ebro.
+ * Opens a dialog to change or save the PIN in Ajustes -> Cuenta Ebro.
  */
 async function openUpdatePinModal() {
   const currentStatus = currentAccountInfo?.has_pin ? "Hay un PIN guardado actualmente en tu cuenta." : "No hay ningún PIN guardado en tu cuenta.";
   const newPin = await promptDialog(t('{p0}\nIntroduce el PIN de 4 a 6 dígitos para las órdenes que no piden confirmación, como el clima o las luces (déjalo en blanco para eliminarlo). Las que abren el coche siempre te lo pedirán.', {p0: currentStatus}),
     { title: 'PIN de órdenes rápidas', type: 'password', inputmode: 'numeric', placeholder: '••••••', maxLength: 6, confirmText: 'Guardar' });
-  if (newPin === null) return; // Cancelado
+  if (newPin === null) return; // Cancelled
 
   saveAccountPin(newPin.trim()).then(() => {
     showToast(newPin.trim() ? 'PIN guardado. Las órdenes que abren el coche seguirán pidiéndolo cada vez.' : 'PIN eliminado. Las órdenes volverán a pedir el PIN.', 'success', 6000);

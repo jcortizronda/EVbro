@@ -1,4 +1,4 @@
-"""Configuración del vehículo (fechas), ITV desde la matriculación e intervenciones puntuales de mantenimiento."""
+"""Vehicle settings (dates), ITV from the registration date and one-off maintenance jobs."""
 from __future__ import annotations
 
 import datetime
@@ -36,38 +36,38 @@ async def web(db):
     await c.aclose()
 
 
-# ───────────────────────── lógica pura de la ITV ─────────────────────────
-def test_primera_itv_a_los_4_anos_de_la_matriculacion() -> None:
+# ───────────────────────── ITV pure logic ─────────────────────────
+def test_first_itv_4_years_after_registration() -> None:
     n = mo.itv_next_due(D(2023, 5, 10), None)
     assert n["due_date"] == D(2027, 5, 10) and n["basis"] == "registration"
 
 
-def test_con_itv_previa_cada_2_anos_y_cada_1_a_partir_de_los_10() -> None:
+def test_after_a_previous_itv_every_2_years_and_every_year_from_10() -> None:
     assert mo.itv_next_due(D(2023, 5, 10), D(2027, 5, 2))["due_date"] == D(2029, 5, 2)
-    viejo = mo.itv_next_due(D(2012, 1, 1), D(2023, 3, 1))                  # 11 años al pasarla
-    assert viejo["due_date"] == D(2024, 3, 1)
-    assert mo.itv_next_due(D(2013, 1, 1), D(2023, 3, 1))["due_date"] == D(2024, 3, 1)       # justo 10 años y 2 meses
+    old = mo.itv_next_due(D(2012, 1, 1), D(2023, 3, 1))                  # 11 years old when it passed
+    assert old["due_date"] == D(2024, 3, 1)
+    assert mo.itv_next_due(D(2013, 1, 1), D(2023, 3, 1))["due_date"] == D(2024, 3, 1)       # exactly 10 years and 2 months
 
 
-def test_la_pegatina_manda_sobre_el_calculo() -> None:
+def test_the_sticker_wins_over_the_computation() -> None:
     n = mo.itv_next_due(D(2023, 5, 10), D(2027, 5, 2), valid_until=D(2029, 4, 30))
     assert n["due_date"] == D(2029, 4, 30) and n["basis"] == "valid_until"
 
 
-def test_sin_matriculacion_no_hay_fecha_calculada() -> None:
+def test_without_registration_there_is_no_computed_date() -> None:
     assert mo.itv_next_due(None, None) == {"due_date": None, "basis": "unknown"}
     assert mo.itv_status(None, datetime.date(2026, 1, 1))["status"] == "unknown"
 
 
-def test_estados_de_la_itv() -> None:
-    hoy = datetime.date(2026, 6, 1)
-    assert mo.itv_status(D(2026, 5, 31), hoy)["status"] == "due"
-    assert mo.itv_status(D(2026, 7, 20), hoy)["status"] == "warning"
-    assert mo.itv_status(D(2026, 9, 1), hoy)["status"] == "ok"
+def test_itv_states() -> None:
+    today = datetime.date(2026, 6, 1)
+    assert mo.itv_status(D(2026, 5, 31), today)["status"] == "due"
+    assert mo.itv_status(D(2026, 7, 20), today)["status"] == "warning"
+    assert mo.itv_status(D(2026, 9, 1), today)["status"] == "ok"
 
 
-# ───────────────────────── configuración del vehículo ─────────────────────────
-async def test_fechas_y_capacidad_se_guardan_y_se_borran_con_null(web) -> None:
+# ───────────────────────── vehicle settings ─────────────────────────
+async def test_dates_and_capacity_are_saved_and_cleared_with_null(web) -> None:
     r = await web.put(f"/api/vehicles/{VIN}", json={"registration_date": "2023-05-10T00:00:00", "delivery_date": "2023-06-01T00:00:00",
                                                     "battery_capacity_kwh": 18.5})
     d = r.json()
@@ -76,32 +76,32 @@ async def test_fechas_y_capacidad_se_guardan_y_se_borran_con_null(web) -> None:
     r = await web.put(f"/api/vehicles/{VIN}", json={"delivery_date": None})
     d = r.json()
     assert d["delivery_date"] is None and d["registration_date"].startswith("2023-05-10")
-    assert d["battery_capacity_kwh"] == 18.5                                        # lo no enviado no se toca
+    assert d["battery_capacity_kwh"] == 18.5                                        # what is not sent is not touched
 
 
-async def test_validaciones_de_la_configuracion(web) -> None:
+async def test_settings_validations(web) -> None:
     assert (await web.put(f"/api/vehicles/{VIN}", json={"battery_capacity_kwh": 0})).status_code == 422
-    assert (await web.get("/api/vehicles")).json()[0]["battery_capacity_kwh"] != 0              # el 422 no dejó nada a medias
+    assert (await web.get("/api/vehicles")).json()[0]["battery_capacity_kwh"] != 0              # the 422 left nothing half-done
     # no order is imposed between registration and delivery (a second-hand car is delivered after its registration)
     r = await web.put(f"/api/vehicles/{VIN}", json={"registration_date": "2019-01-01T00:00:00", "delivery_date": "2023-01-01T00:00:00"})
     assert r.status_code == 200 and r.json()["delivery_date"].startswith("2023-01-01")
 
 
-async def test_el_plan_oficial_usa_la_fecha_de_entrega_del_vehiculo(web) -> None:
+async def test_the_official_plan_uses_the_vehicle_delivery_date(web) -> None:
     await web.put(f"/api/vehicles/{VIN}", json={"delivery_date": "2025-03-31T00:00:00"})
     d = (await web.get(f"/api/vehicles/{VIN}/maintenance/plan")).json()
     assert d["baseline"]["configured"] and d["official"]["next"]["due_date"].startswith("2026-03-31")
 
 
-async def test_el_endpoint_antiguo_del_plan_escribe_la_fecha_en_el_vehiculo(web) -> None:
+async def test_the_old_plan_endpoint_writes_the_date_on_the_vehicle(web) -> None:
     await web.put(f"/api/vehicles/{VIN}/maintenance/plan", json={"baseline_date": "2025-03-31T00:00:00"})
     assert (await web.get("/api/vehicles")).json()[0]["delivery_date"].startswith("2025-03-31")
 
 
 # ───────────────────────── ITV ─────────────────────────
-async def test_la_itv_cuenta_desde_la_matriculacion_y_se_registra(web) -> None:
+async def test_the_itv_counts_from_registration_and_is_recorded(web) -> None:
     d = (await web.get(f"/api/vehicles/{VIN}/maintenance/plan")).json()
-    assert d["itv"]["status"] == "unknown" and d["itv"]["next_due_date"] is None                   # sin matriculación no hay fecha
+    assert d["itv"]["status"] == "unknown" and d["itv"]["next_due_date"] is None                   # no registration, no date
     await web.put(f"/api/vehicles/{VIN}", json={"registration_date": "2023-05-10T00:00:00"})
     itv = (await web.get(f"/api/vehicles/{VIN}/maintenance/plan")).json()["itv"]
     assert itv["next_due_date"].startswith("2027-05-10") and itv["basis"] == "registration"
@@ -116,24 +116,24 @@ async def test_la_itv_cuenta_desde_la_matriculacion_y_se_registra(web) -> None:
     assert itv["next_due_date"].startswith("2031-04-30") and itv["basis"] == "valid_until"
     logs = (await web.get(f"/api/vehicles/{VIN}/maintenance/logs")).json()
     assert [x["item_name"] for x in logs] == ["ITV", "ITV"] and logs[0]["category"] == "Legal"
-    assert (await web.get(f"/api/vehicles/{VIN}/maintenance")).json() == []                        # no es una tarea propia
+    assert (await web.get(f"/api/vehicles/{VIN}/maintenance")).json() == []                        # it is not a custom task
 
 
-async def test_aviso_de_itv_en_los_dos_modos(web) -> None:
+async def test_itv_alert_in_both_modes(web) -> None:
     await web.put(f"/api/vehicles/{VIN}", json={"registration_date": "2023-05-10T00:00:00"})
-    for modo in ("official", "custom"):
-        await web.put(f"/api/vehicles/{VIN}/maintenance/plan", json={"mode": modo})
+    for mode in ("official", "custom"):
+        await web.put(f"/api/vehicles/{VIN}/maintenance/plan", json={"mode": mode})
         async with async_session_factory() as s:
-            alertas = await collect_alerts(s, VIN, 14000.0, D(2027, 4, 20))                       # 20 días antes
-        itv = [a for a in alertas if a["key"].startswith("itv:")]
-        assert len(itv) == 1 and itv[0]["remaining_days"] == 20 and not itv[0]["is_overdue"], modo
+            alerts = await collect_alerts(s, VIN, 14000.0, D(2027, 4, 20))                       # 20 days before
+        itv = [a for a in alerts if a["key"].startswith("itv:")]
+        assert len(itv) == 1 and itv[0]["remaining_days"] == 20 and not itv[0]["is_overdue"], mode
     async with async_session_factory() as s:
-        vencida = [a for a in await collect_alerts(s, VIN, 14000.0, D(2027, 6, 1)) if a["key"].startswith("itv:")]
-    assert vencida[0]["is_overdue"] and vencida[0]["key"] == "itv:due"
+        overdue = [a for a in await collect_alerts(s, VIN, 14000.0, D(2027, 6, 1)) if a["key"].startswith("itv:")]
+    assert overdue[0]["is_overdue"] and overdue[0]["key"] == "itv:due"
 
 
-# ───────────────────────── intervenciones puntuales ─────────────────────────
-async def test_intervencion_puntual_con_titulo_categoria_y_coste(web) -> None:
+# ───────────────────────── one-off jobs ─────────────────────────
+async def test_one_off_job_with_title_category_and_cost(web) -> None:
     r = await web.post(f"/api/vehicles/{VIN}/maintenance/events", json={
         "title": "Pastillas de freno delanteras", "category": "Frenos", "service_date": "2026-09-01T00:00:00",
         "odometer": 13500, "cost": 120.0, "workshop": "Taller X", "notes": "Discos en buen estado"})
@@ -143,12 +143,12 @@ async def test_intervencion_puntual_con_titulo_categoria_y_coste(web) -> None:
     e = logs[0]
     assert e["item_name"] == "Pastillas de freno delanteras" and e["category"] == "Frenos" and e["origin"] == "oneoff"
     assert e["odometer"] == 13500 and e["cost"] == 120.0 and e["workshop"] == "Taller X"
-    assert (await web.get(f"/api/vehicles/{VIN}/maintenance")).json() == []                        # no crea una tarea con intervalo
+    assert (await web.get(f"/api/vehicles/{VIN}/maintenance")).json() == []                        # does not create a task with an interval
     d = (await web.get(f"/api/vehicles/{VIN}/maintenance/plan")).json()
     assert d["custom"]["items"] == []
 
 
-async def test_intervencion_puntual_valida_y_usa_el_odometro_actual_por_defecto(web) -> None:
+async def test_one_off_job_validates_and_uses_the_current_odometer_by_default(web) -> None:
     assert (await web.post(f"/api/vehicles/{VIN}/maintenance/events", json={"title": "x"})).status_code == 422
     r = await web.post(f"/api/vehicles/{VIN}/maintenance/events", json={"title": "Reparación de rueda", "category": "Neumáticos"})
     assert r.status_code == 200
@@ -156,7 +156,7 @@ async def test_intervencion_puntual_valida_y_usa_el_odometro_actual_por_defecto(
     assert log["odometer"] == 14000.0
 
 
-async def test_las_rutas_nuevas_exigen_sesion(db) -> None:
+async def test_the_new_routes_require_a_session(db) -> None:
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://testserver") as c:
         assert (await c.post(f"/api/vehicles/{VIN}/maintenance/events", json={"title": "xx"})).status_code == 401
         assert (await c.post(f"/api/vehicles/{VIN}/maintenance/itv/complete", json={})).status_code == 401

@@ -1,4 +1,4 @@
-"""Repostajes de combustible: los detectados por la subida del depósito y los añadidos a mano."""
+"""Fuel refuels: those detected by the tank level going up and those added by hand."""
 from __future__ import annotations
 
 import datetime
@@ -45,14 +45,14 @@ def serialize(r: Refuel) -> dict:
         "liters": r.liters, "price_per_liter": r.price_per_liter, "total_cost": r.total_cost,
         "station": r.station, "address": r.address, "notes": r.notes, "detected": r.detected,
         "needs_price": r.total_cost is None,
-        "liters_estimated": bool(r.detected and r.fuel_before_pct is not None),     # los litros de un repostaje detectado son estimados
+        "liters_estimated": bool(r.detected and r.fuel_before_pct is not None),     # the litres of a detected refuel are estimated
         "full_tank": refuel_stats.is_full(r),
         "full_tank_stated": r.full_tank is not None,
     }
 
 
 def _apply_cost(r: Refuel, price: Optional[float], total: Optional[float]) -> None:
-    """Precio por litro o total (no ambos): el otro se deduce de los litros."""
+    """Price per litre or total (not both): the other one is derived from the litres."""
     if total is not None:
         r.total_cost = round(total, 2)
         r.price_per_liter = round(total / r.liters, 3) if r.liters else None
@@ -70,10 +70,10 @@ async def list_refuels(vin: str, limit: int = Query(100, ge=1, le=500), session:
 @router.get("/vehicles/{vin}/refuels/summary")
 async def refuel_summary(vin: str, period: str = Query("all"), frm: Optional[str] = Query(None, alias="from", max_length=10),
                          to: Optional[str] = Query(None, max_length=10), session: AsyncSession = Depends(get_db)):
-    """Consumo real entre llenados, coste por 100 km, precio medio del litro, km entre repostajes y totales por mes.
+    """Real consumption between fill-ups, cost per 100 km, average price per litre, km between refuels and monthly totals.
 
-    Devuelve también la lista de repostajes del periodo, cada uno con los km desde el anterior y, si cierra un tramo entre
-    llenados, su consumo: la pestaña Repostajes se pinta con una sola petición."""
+    Also returns the list of refuels of the period, each with the km since the previous one and, if it closes a stretch
+    between fill-ups, its consumption: the Repostajes tab is drawn with a single request."""
     vehicle = (await session.execute(select(Vehicle).where(Vehicle.vin == vin))).scalar_one_or_none()
     if vehicle is None:
         raise HTTPException(status_code=404, detail="Vehículo no encontrado.")
@@ -90,7 +90,7 @@ async def refuel_summary(vin: str, period: str = Query("all"), frm: Optional[str
 
 @router.post("/vehicles/{vin}/refuels")
 async def create_refuel(vin: str, req: RefuelCreate, session: AsyncSession = Depends(get_db)):
-    """Añade un repostaje a mano (por ejemplo, uno que el coche no detectó)."""
+    """Adds a refuel by hand (for example, one the car did not detect)."""
     if req.price_per_liter is not None and req.total_cost is not None:
         raise HTTPException(status_code=422, detail="Indica el precio por litro o el coste total, no los dos.")
     vehicle = (await session.execute(select(Vehicle).where(Vehicle.vin == vin))).scalar_one_or_none()
@@ -127,7 +127,7 @@ async def update_refuel(refuel_id: int, req: RefuelUpdate, session: AsyncSession
         r.liters = req.liters
     if req.total_cost is not None or req.price_per_liter is not None:
         _apply_cost(r, req.price_per_liter, req.total_cost)
-    elif req.liters is not None and r.price_per_liter is not None:            # solo cambian los litros: el total se recalcula
+    elif req.liters is not None and r.price_per_liter is not None:            # only the litres change: the total is recomputed
         r.total_cost = round(r.price_per_liter * r.liters, 2)
     await session.commit()
     return serialize(r)

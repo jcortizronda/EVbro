@@ -1,13 +1,13 @@
-"""Plan de mantenimiento oficial de EBRO y su cálculo (funciones puras, sin BD).
+"""EBRO's official maintenance plan and its calculation (pure functions, no DB).
 
-**Qué es.** La tabla de fábrica tiene seis escalones (15.000 km / 12 meses, 30.000 / 24 … 90.000 / 72). En cada uno hay
-operaciones a **reemplazar (R)** e **inspeccionar (I)** y un tiempo de mano de obra.
+**What it is.** The factory table has six steps (15,000 km / 12 months, 30,000 / 24 … 90,000 / 72). Each one has
+operations to **replace (R)** and **inspect (I)** and a labour time.
 
-**Cómo se calcula la próxima revisión.** Antes salía solo del odómetro actual, así que no recordaba cuándo se había hecho
-la última ni miraba los meses. Ahora:
-  * el escalón siguiente es el primero cuyo kilometraje es MAYOR que el del último escalón registrado;
-  * vence **lo que antes llegue**: los km del escalón o su fecha (entrega del coche + los meses del escalón);
-  * sin fecha de entrega configurada solo se vigilan los kilómetros (la interfaz la pide).
+**How the next service is worked out.** It used to come only from the current odometer, so it did not remember when the
+last one was done nor look at the months. Now:
+  * the next step is the first one whose mileage is GREATER than that of the last recorded step;
+  * it is due on **whichever comes first**: the step's km or its date (car delivery + the step's months);
+  * without a delivery date configured only the kilometres are watched (the interface asks for it).
 """
 from __future__ import annotations
 
@@ -20,8 +20,8 @@ def is_ebro(brand: Optional[str]) -> bool:
     return (brand or "").strip().lower() == "ebro"
 
 
-WARNING_KM = 1500        # «próximo»: faltan menos de estos kilómetros…
-WARNING_DAYS = 30        # …o menos de estos días
+WARNING_KM = 1500        # «próximo» (upcoming): fewer than these kilometres left…
+WARNING_DAYS = 30        # …or fewer than these days
 
 STEPS: List[Dict[str, Any]] = [
     {"months": 12, "km": 15000, "label": "15.000 km / 12 meses (Año 1)"},
@@ -64,7 +64,7 @@ RULES: List[Dict[str, Any]] = [
      "operations": {15000: "-", 30000: "-", 45000: "-", 60000: "R", 75000: "-", 90000: "-"}},
 ]
 
-# Tareas que se ofrecen como sugerencia en el modo personalizado (no se crean solas)
+# tasks offered as suggestions in custom mode (never created on their own)
 SUGGESTIONS: List[Dict[str, Any]] = [
     {"key": "aceite", "name": "Aceite y filtro de aceite", "category": "Motor", "interval_km": 15000, "interval_months": 12},
     {"key": "neumaticos", "name": "Rotación de neumáticos", "category": "Neumáticos", "interval_km": 10000, "interval_months": 12},
@@ -81,7 +81,7 @@ def labor_key(model: Optional[str]) -> str:
 
 
 def add_months(date: datetime.datetime, months: int) -> datetime.datetime:
-    """Suma meses de calendario (el día se ajusta al último del mes si hace falta)."""
+    """Adds calendar months (the day is clamped to the last of the month when needed)."""
     total = date.month - 1 + months
     year, month = date.year + total // 12, total % 12 + 1
     for day in (date.day, 30, 29, 28):
@@ -93,7 +93,7 @@ def add_months(date: datetime.datetime, months: int) -> datetime.datetime:
 
 
 def next_step(last_done_km: Optional[int]) -> Optional[Dict[str, Any]]:
-    """Primer escalón con km mayor que el último registrado; None si ya se hicieron todos."""
+    """First step with more km than the last recorded one; None when all are done."""
     for step in STEPS:
         if last_done_km is None or step["km"] > last_done_km:
             return step
@@ -101,7 +101,7 @@ def next_step(last_done_km: Optional[int]) -> Optional[Dict[str, Any]]:
 
 
 def step_detail(step_km: int, model: Optional[str]) -> Dict[str, Any]:
-    """Qué se reemplaza/inspecciona en un escalón y cuánta mano de obra lleva."""
+    """What is replaced/inspected at a step and how much labour it takes."""
     base = LABOR_HOURS[labor_key(model)].get(step_km, 1.0)
     extra, notes = 0.0, []
     if step_km == 60000:
@@ -123,7 +123,7 @@ def step_detail(step_km: int, model: Optional[str]) -> Dict[str, Any]:
 
 
 def status_for(remaining_km: Optional[float], remaining_days: Optional[int]) -> str:
-    """due (vencido) · warning (próximo) · ok. Lo que antes llegue, km o días."""
+    """due (overdue) · warning (upcoming) · ok. Whichever comes first, km or days."""
     if (remaining_km is not None and remaining_km <= 0) or (remaining_days is not None and remaining_days <= 0):
         return "due"
     if (remaining_km is not None and remaining_km <= WARNING_KM) or (remaining_days is not None and remaining_days <= WARNING_DAYS):
@@ -139,7 +139,7 @@ def official_next(
     baseline_odometer: float,
     model: Optional[str],
 ) -> Optional[Dict[str, Any]]:
-    """Próxima revisión oficial con su estado; None si el plan oficial ya está completo."""
+    """Next official service with its status; None when the official plan is complete."""
     step = next_step(last_done_km)
     if step is None:
         return None
@@ -168,10 +168,10 @@ def official_next(
     }
 
 
-# ───────────────────────── ITV (se cuenta desde la fecha de matriculación) ─────────────────────────
-ITV_FIRST_YEARS = 4          # turismos: la primera, a los 4 años de la matriculación
-ITV_EVERY_YEARS = 2          # …después cada 2 años hasta los 10 años de antigüedad
-ITV_YEARLY_AFTER_YEARS = 10  # …y cada año a partir de entonces
+# ───────────────────────── ITV (counted from the registration date) ─────────────────────────
+ITV_FIRST_YEARS = 4          # passenger cars: the first one 4 years after registration
+ITV_EVERY_YEARS = 2          # …then every 2 years until the car is 10 years old
+ITV_YEARLY_AFTER_YEARS = 10  # …and every year from then on
 ITV_WARNING_DAYS = 60
 
 
@@ -184,10 +184,10 @@ def itv_next_due(
     last_itv_date: Optional[datetime.datetime],
     valid_until: Optional[datetime.datetime] = None,
 ) -> Dict[str, Any]:
-    """Próxima ITV. Prioridad: la fecha «válida hasta» de la última pegatina (la oficial); si no, el cálculo por antigüedad.
+    """Next ITV. Priority: the «valid until» date of the last sticker (the official one); otherwise the age-based calculation.
 
-    Cálculo: sin ITV previa, matriculación + 4 años; con ITV previa, esa fecha + 2 años (+ 1 año si el coche tenía 10 o más
-    años cuando la pasó). Es una estimación: manda la fecha de tu pegatina."""
+    Calculation: without a previous ITV, registration + 4 years; with one, that date + 2 years (+ 1 year if the car was 10 or more
+    years old when it passed). It is an estimate: the date on the sticker wins."""
     if valid_until is not None:
         return {"due_date": valid_until, "basis": "valid_until"}
     if last_itv_date is not None:

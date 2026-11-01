@@ -1,4 +1,4 @@
-"""Prueba de navegador (Playwright) contra un servidor de demostración: ver tools/e2e/README.md."""
+"""Browser test (Playwright) against a demo server: see tools/e2e/README.md."""
 import os, sys, tempfile  # noqa: E401
 import json
 from playwright.sync_api import sync_playwright
@@ -26,7 +26,7 @@ with sync_playwright() as p:
         ctx.add_init_script(f"localStorage.setItem('evbro_theme','{theme}')")
         ctx.add_init_script("new MutationObserver(() => { const b = document.querySelector('#appDialog.open #appDialogOk'); if (b) b.click(); }).observe(document, { attributes: true, subtree: true, attributeFilter: ['class'] })")   # the app's own confirm dialog is accepted
         pg=ctx.new_page(); errs=[]; reqs=[]; state={"plan":plan(),"fail":None}
-        pg.on("pageerror",lambda e:errs.append(str(e))); pg.on("dialog",lambda d:(errs.append("diálogo del navegador: "+d.message),d.dismiss()))
+        pg.on("pageerror",lambda e:errs.append(str(e))); pg.on("dialog",lambda d:(errs.append("browser dialog: "+d.message),d.dismiss()))
         def handle(route, request):
             url=request.url
             if "/charge/" not in url: return route.continue_()
@@ -52,56 +52,56 @@ with sync_playwright() as p:
         pg.evaluate("switchTab('charges')"); pg.evaluate("ChargeControl.load()"); pg.wait_for_timeout(500)
         print("==",theme)
         txt=lambda i: pg.inner_text(i)
-        ok(pg.get_attribute("#energyTargetSlider","aria-valuenow")=="100" and txt("#energyTargetLabel")=="Objetivo: 100 %" and "sin límite" not in pg.inner_text(".native-energy-panel"),"objetivo inicial: solo el porcentaje, sin texto «sin límite»")
-        ok(txt("#chargeStatusLine")=="Carga libre" and True,"estado «Carga libre»")
-        ok("is-current" in pg.get_attribute("#btnChargeStart","class"),"Iniciar es el estado actual")
-        ok(pg.text_content("#scheduleBadge").strip()=="Sin programar" and pg.get_attribute("#scheduleStatus","data-state")=="off" and pg.is_hidden("#btnScheduleClear"),"programación: SIN PROGRAMAR, sin botón de quitar")
+        ok(pg.get_attribute("#energyTargetSlider","aria-valuenow")=="100" and txt("#energyTargetLabel")=="Objetivo: 100 %" and "sin límite" not in pg.inner_text(".native-energy-panel"),"initial target: only the percentage, no «sin límite» text")
+        ok(txt("#chargeStatusLine")=="Carga libre" and True,"state «Carga libre»")
+        ok("is-current" in pg.get_attribute("#btnChargeStart","class"),"Iniciar is the current state")
+        ok(pg.text_content("#scheduleBadge").strip()=="Sin programar" and pg.get_attribute("#scheduleStatus","data-state")=="off" and pg.is_hidden("#btnScheduleClear"),"schedule: SIN PROGRAMAR, no remove button")
         if theme=="dark": pg.screenshot(path=f"{OUT}/energia-dark.png",full_page=True)
         else: pg.screenshot(path=f"{OUT}/energia-light.png",full_page=True)
-        # objetivo
+        # target
         drag(pg,100,80); pg.wait_for_timeout(400)
         toasts=pg.inner_text("#appToastContainer") if pg.query_selector("#appToastContainer") else ""
-        ok("guardado en EVBro" in toasts and "enviado al coche" not in toasts,"cambiar el objetivo NO dice «enviado al coche»: «guardado en EVBro»")
+        ok("guardado en EVBro" in toasts and "enviado al coche" not in toasts,"changing the target does NOT say «enviado al coche»: «guardado en EVBro»")
         drag(pg,80,85); pg.wait_for_timeout(400)
-        ok(reqs[-1]==("PUT","target",{"target_pct":85}),"el círculo admite 85 % (pasos de 5)")
+        ok(reqs[-1]==("PUT","target",{"target_pct":85}),"the circle accepts 85 % (steps of 5)")
         drag(pg,85,80); pg.wait_for_timeout(400)
-        ok(reqs[-1]==("PUT","target",{"target_pct":80}),"desplegable → PUT target 80")
-        ok("80%" in pg.get_attribute("#energyTargetSlider .energy-thumb","style").replace(" ","") and "Objetivo: 80 %" in txt("#energyTargetLabel"),"el círculo queda al 80 % sobre la barra")
-        ok("Se pausará al llegar al 80" in txt("#chargeStatusDetail"),"explica que se pausará al 80 %")
-        # parar / iniciar
+        ok(reqs[-1]==("PUT","target",{"target_pct":80}),"drop-down → PUT target 80")
+        ok("80%" in pg.get_attribute("#energyTargetSlider .energy-thumb","style").replace(" ","") and "Objetivo: 80 %" in txt("#energyTargetLabel"),"the circle sits at 80 % on the bar")
+        ok("Se pausará al llegar al 80" in txt("#chargeStatusDetail"),"explains that it will pause at 80 %")
+        # stop / start
         pg.click("#btnChargeStop"); pg.wait_for_timeout(500)
-        ok(reqs[-1]==("POST","stop",None),"Parar → POST stop (tras confirmar)")
-        ok(txt("#chargeStatusTitle")=="Carga en pausa" and "is-current" in pg.get_attribute("#btnChargeStop","class"),"muestra «Carga en pausa» y Parar queda como actual")
-        ok("renueva la pausa solo" in txt("#chargeStatusDetail"),"avisa de que la pausa se renueva sola")
+        ok(reqs[-1]==("POST","stop",None),"Parar → POST stop (after confirming)")
+        ok(txt("#chargeStatusTitle")=="Carga en pausa" and "is-current" in pg.get_attribute("#btnChargeStop","class"),"shows «Carga en pausa» and Parar stays as current")
+        ok("renueva la pausa solo" in txt("#chargeStatusDetail"),"warns that the pause renews itself")
         pg.evaluate("document.querySelectorAll('.app-toast').forEach(t=>t.remove())")
         pg.click("#btnChargeStart"); pg.wait_for_timeout(500)
         ok(reqs[-1]==("POST","start",None),"Iniciar → POST start")
-        # programar con fin
+        # schedule with an end time
         pg.fill("#schedStart","23:30"); pg.fill("#schedEnd","07:30")
-        ok("23:30 a 07:30 (8 h)" in txt("#scheduleSummary"),"resumen: de 23:30 a 07:30 (8 h) (cruza medianoche)")
+        ok("23:30 a 07:30 (8 h)" in txt("#scheduleSummary"),"summary: from 23:30 to 07:30 (8 h) (crosses midnight)")
         pg.click("#btnScheduleApply"); pg.wait_for_timeout(500)
-        ok(reqs[-1]==("PUT","schedule",{"start":"23:30","end":"07:30"}),"Programar con hora de fin → PUT schedule {start,end}")
-        ok(txt("#chargeStatusTitle")=="Carga programada" and "23:30 → 07:30" in txt("#scheduleMain") and pg.text_content("#scheduleBadge").strip()=="Activa" and pg.get_attribute("#scheduleStatus","data-state")=="on" and pg.is_visible("#btnScheduleClear") and txt("#btnScheduleApply")=="Cambiar programación","estado «Carga programada»: bloque ACTIVA con 23:30 → 07:30, botón Quitar visible")
-        # programar con duración
+        ok(reqs[-1]==("PUT","schedule",{"start":"23:30","end":"07:30"}),"Schedule with an end time → PUT schedule {start,end}")
+        ok(txt("#chargeStatusTitle")=="Carga programada" and "23:30 → 07:30" in txt("#scheduleMain") and pg.text_content("#scheduleBadge").strip()=="Activa" and pg.get_attribute("#scheduleStatus","data-state")=="on" and pg.is_visible("#btnScheduleClear") and txt("#btnScheduleApply")=="Cambiar programación","«Carga programada» state: ACTIVA block with 23:30 → 07:30, Quitar button visible")
+        # schedule with a duration
         pg.evaluate("document.querySelectorAll('.app-toast').forEach(t=>t.remove())")
         pg.check('input[name="schedMode"][value="duration"]')
-        ok(pg.is_hidden("#schedEndRow") and pg.is_visible("#schedDurRow"),"modo duración: se oculta la hora de fin y salen horas/minutos")
+        ok(pg.is_hidden("#schedEndRow") and pg.is_visible("#schedDurRow"),"duration mode: the end time hides and hours/minutes show up")
         pg.fill("#schedStart","01:00"); pg.fill("#schedHours","5"); pg.select_option("#schedMinutes","30")
-        ok("01:00 a 06:30 (5 h 30 min)" in txt("#scheduleSummary"),"resumen con duración: 01:00 a 06:30 (5 h 30 min)")
+        ok("01:00 a 06:30 (5 h 30 min)" in txt("#scheduleSummary"),"summary with duration: 01:00 to 06:30 (5 h 30 min)")
         pg.click("#btnScheduleApply"); pg.wait_for_timeout(500)
-        ok(reqs[-1]==("PUT","schedule",{"start":"01:00","duration_min":330}),"Programar con duración → PUT schedule {start,duration_min:330}")
+        ok(reqs[-1]==("PUT","schedule",{"start":"01:00","duration_min":330}),"Schedule with a duration → PUT schedule {start,duration_min:330}")
         pg.fill("#schedHours","0"); pg.select_option("#schedMinutes","30")
-        ok("al menos 1 hora" in txt("#scheduleSummary"),"menos de 1 h: avisa antes de enviar")
+        ok("al menos 1 hora" in txt("#scheduleSummary"),"less than 1 h: warns before sending")
         pg.evaluate("document.querySelectorAll('.app-toast').forEach(t=>t.remove())")
         pg.click("#btnScheduleClear"); pg.wait_for_timeout(500)
-        ok(reqs[-1]==("DELETE","schedule",None),"Quitar programación → DELETE schedule")
-        # error del coche
+        ok(reqs[-1]==("DELETE","schedule",None),"Remove schedule → DELETE schedule")
+        # car error
         state["fail"]={"success":False,"detail":"Falta el PIN de la cuenta Ebro","reason":"pin"}
         pg.evaluate("document.querySelectorAll('.app-toast').forEach(t=>t.remove())")
         pg.click("#btnChargeStop"); pg.wait_for_timeout(600)
-        ok("Falta el PIN" in pg.inner_text("#appToastContainer") and "Ajustes" in pg.inner_text("#appToastContainer"),"error del servidor: aviso con el motivo y a dónde ir")
-        ok(pg.evaluate("document.documentElement.scrollWidth-document.documentElement.clientWidth")==0,"sin desborde horizontal")
-        ok(not errs,"sin errores JS "+str(errs[:2]))
+        ok("Falta el PIN" in pg.inner_text("#appToastContainer") and "Ajustes" in pg.inner_text("#appToastContainer"),"server error: toast with the reason and where to go")
+        ok(pg.evaluate("document.documentElement.scrollWidth-document.documentElement.clientWidth")==0,"no horizontal overflow")
+        ok(not errs,"no JS errors "+str(errs[:2]))
         ctx.close()
     b.close()
-print("\nFALLOS:",fails if fails else "ninguno"); sys.exit(1 if fails else 0)
+print("\nFAILURES:", fails if fails else "none"); sys.exit(1 if fails else 0)

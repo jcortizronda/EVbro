@@ -1,14 +1,14 @@
-"""Telemetría del coche: qué campos existen y cómo se lee un mensaje MQTT.
+"""Car telemetry: which fields exist and how an MQTT message is read.
 
-Este módulo **no conoce FastAPI ni la BD**: es el mapa de la telemetría del vehículo y las
-funciones puras que la interpretan. Vivía dentro del coordinator, donde la tabla de campos y
-el parseo del payload estaban mezclados con locks, timers y creación de tareas — así que la
-única forma de probar «¿un heartbeat de marcha cuenta como contacto con datos?» era levantar
-un servidor entero.
+This module **knows nothing about FastAPI or the DB**: it is the map of the vehicle's telemetry
+and the pure functions that interpret it. It used to live inside the coordinator, where the field
+table and the payload parsing were mixed with locks, timers and task creation — so the only
+way to test "does a driving heartbeat count as contact with data?" was to bring up a whole
+server.
 
-El parseo devuelve un `CarMessage`: qué tipo de mensaje es, qué campos de estado trae y si
-merece refrescar la interfaz. Las decisiones que dependen de estado vivo (locks, ráfaga,
-timers) siguen en `services/car_events.py`, que es donde ese estado vive.
+Parsing returns a `CarMessage`: what kind of message it is, which state fields it carries and
+whether it is worth refreshing the UI. Decisions that depend on live state (locks, burst,
+timers) stay in `services/car_events.py`, which is where that state lives.
 """
 from __future__ import annotations
 
@@ -24,12 +24,12 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def truncate_status(text: str, limit: int = MAX_STATUS_LEN) -> str:
-    """Recorta un texto de estado al tope, con puntos suspensivos."""
+    """Trim a status text to the cap, with an ellipsis."""
     return text if len(text) <= limit else text[: limit - 1] + "…"
 
 
-# Mapa campo-del-coche → entidad.
-# kind: open|onoff → binary_sensor ON si != 0 ; lock → 0=Bloqueado/1=Desbloqueado ; level → sensor 0-3
+# Map car-field → entity.
+# kind: open|onoff → binary_sensor ON if != 0 ; lock → 0=Locked/1=Unlocked ; level → sensor 0-3
 SENSORS = [
     {"key": "frontLeftDoor",  "name": "Puerta del. izquierda",  "comp": "binary_sensor", "dclass": "door",   "kind": "open"},
     {"key": "frontRightDoor", "name": "Puerta del. derecha",  "comp": "binary_sensor", "dclass": "door",   "kind": "open"},
@@ -57,69 +57,69 @@ SENSORS = [
     {"key": "pSeatVentilateState","name": "Ventilación asiento pasajero", "comp": "binary_sensor", "dclass": "running", "kind": "onoff"},
     {"key": "lSeatHeatingState2","name": "Calefacción asiento tras. izquierdo",      "comp": "sensor", "dclass": None, "kind": "level", "icon": "mdi:car-seat-heater"},
     {"key": "rSeatHeatingState2","name": "Calefacción asiento tras. derecho",      "comp": "sensor", "dclass": None, "kind": "level", "icon": "mdi:car-seat-heater"},
-    # NB: asiento trasero CENTRAL (mSeat*State2) eliminado: este coche no lo tiene
-    # (sin calefacción/ventilación en la plaza central) → sensores siempre ausentes.
+    # NB: rear CENTRE seat (mSeat*State2) removed: this car does not have it
+    # (no heating/ventilation in the middle seat) → sensors always missing.
     {"key": "lSeatVentilateState2","name": "Ventilación asiento tras. izquierdo",       "comp": "sensor", "dclass": None, "kind": "level", "icon": "mdi:car-seat-cooler"},
     {"key": "rSeatVentilateState2","name": "Ventilación asiento tras. derecho",       "comp": "sensor", "dclass": None, "kind": "level", "icon": "mdi:car-seat-cooler"},
-    # — telemetría adicional (campos ya enviados por el coche en el 5A02) —
+    # — extra telemetry (fields already sent by the car in the 5A02) —
     {"key": "chargeGunState", "name": "Cable de carga conectado",  "comp": "binary_sensor", "dclass": "plug",    "kind": "onoff"},
     {"key": "engineState",    "name": "Motor",          "comp": "binary_sensor", "dclass": "running", "kind": "onoff", "icon": "mdi:engine"},
-    # sunroofMoveState = código de FASE de movimiento del techo (valores 1/2/3/4/8, nunca 0):
-    # no es un on/off limpio (no hay un valor "parado" conocido) → sensor de diagnóstico en crudo.
+    # sunroofMoveState = sunroof movement PHASE code (values 1/2/3/4/8, never 0):
+    # not a clean on/off (no known "stopped" value) → raw diagnostic sensor.
     {"key": "sunroofMoveState", "name": "Estado del techo", "comp": "sensor", "dclass": None, "kind": "value", "icon": "mdi:car-select", "diag": True},
-    # NB campos NO mapeados a propósito (verificado en events.jsonl reales, 2026-06-21):
-    #   rangeUnit / averageFuelUnit / tirePressureUnit valen SIEMPRE "1" = son FLAGS de unidad
-    #   de medida, NO el valor. El coche no envía por este canal el valor real de autonomía/
-    #   consumo/presión de neumáticos → mapearlos mostraría "1" fijo. Aplazados: hace falta el
-    #   otro canal (realtime /asr/manager o estructura TPMS anidada).
+    # NB fields deliberately NOT mapped (verified on real events.jsonl, 2026-06-21):
+    #   rangeUnit / averageFuelUnit / tirePressureUnit are ALWAYS "1" = they are unit-of-measure
+    #   FLAGS, NOT the value. The car does not send the real range/consumption/tyre pressure
+    #   value on this channel → mapping them would show a fixed "1". Postponed: the other
+    #   channel is needed (realtime /asr/manager or nested TPMS structure).
 ]
 META = {s["key"]: s for s in SENSORS}
 
-# Meta-campos de los push de CONFIRMACIÓN de comando (110x/1105/1135…): NO son telemetría de
-# estado del vehículo → no van entre los "fields".
+# Meta-fields of command CONFIRMATION pushes (110x/1105/1135…): they are NOT vehicle state
+# telemetry → they do not go among the "fields".
 CMD_CONFIRM_META = ("result", "resultTime", "seq", "reason", "hasAsy")
 
-# [MED] Campos "geo" admitidos en la posición (push 1301 / sonda realtime). Se conserva
-# SOLO la geolocalización: batería/velocidad/online viven en `data["realtime"]`.
+# [MED] "geo" fields allowed in the position (1301 push / realtime probe). ONLY the
+# geolocation is kept: battery/speed/online live in `data["realtime"]`.
 GEO_KEYS = ("lat", "lon", "latitude", "longitude", "speed", "vehicleSpeed",
             "direction", "heading", "altitude", "gpsTime", "positionTime")
 
-# Relojes presentes en el frame realtime. Doble uso, y por eso una sola definición:
-#   * se IGNORAN al comparar dos lecturas (si no, dos respuestas con datos idénticos
-#     parecerían siempre "cambiadas");
-#   * son los candidatos, EN ESTE ORDEN, para fechar el primer frame tras el arranque.
-# El orden importa para lo segundo, así que es una tupla y el conjunto se deriva de ella.
+# Clocks present in the realtime frame. Dual use, hence a single definition:
+#   * they are IGNORED when comparing two readings (otherwise two responses with identical
+#     data would always look "changed");
+#   * they are the candidates, IN THIS ORDER, for dating the first frame after startup.
+# Order matters for the latter, so it is a tuple and the set is derived from it.
 CLOCK_FIELDS = ("resultTime", "collectTime", "time", "updateTime")
 _CLOCK_FIELDS = frozenset(CLOCK_FIELDS)
 
-# El coche emite un push con SOLO este campo cada pocos segundos mientras circula: es un
-# latido, no telemetría. Ver `CarMessage.meaningful`.
+# The car emits a push with ONLY this field every few seconds while driving: it is a
+# heartbeat, not telemetry. See `CarMessage.meaningful`.
 _HEARTBEAT_FIELD = "time"
 
 
 def is_unit_flag(key: str) -> bool:
-    """True si el campo es un FLAG DE UNIDAD DE MEDIDA, no un valor.
+    """True if the field is a UNIT-OF-MEASURE FLAG, not a value.
 
-    Convención de la API Chery: los campos que terminan en `Unit` (`rangeUnit`,
-    `averageFuelUnit`, `tirePressureUnit`, `avgHkPowerUnit`…) valen siempre 1 o 2 y dicen solo
-    *en qué unidad* está expresado el campo homónimo — no contienen un dato. El
-    auto-descubrimiento de los campos no mapeados (monitor de diagnóstico) los señalaba como
-    "por mapear": ruido puro, que ocultaba los posibles campos REALES aún por descubrir.
-    Filtrarlos por sufijo cubre también los que aparecieran en el futuro."""
+    Chery API convention: fields ending in `Unit` (`rangeUnit`,
+    `averageFuelUnit`, `tirePressureUnit`, `avgHkPowerUnit`…) are always 1 or 2 and only say
+    *which unit* the homonymous field is expressed in — they carry no data. The
+    auto-discovery of unmapped fields (diagnostics monitor) flagged them as
+    "to be mapped": pure noise, hiding the possible REAL fields still to be discovered.
+    Filtering by suffix also covers any that appear in the future."""
     return key.endswith("Unit")
 
 
 def geo_only(data: dict) -> dict:
-    """Los campos de geolocalización de un frame, y solo esos.
+    """The geolocation fields of a frame, and only those.
 
-    Se usa tanto para el push de posición (1301) como para la respuesta de la sonda realtime.
-    Filtrar por `GEO_KEYS` en vez de guardar `**data` es lo que mantiene batería/velocidad
-    fuera de la posición (viven en `data["realtime"]`)."""
+    Used both for the position push (1301) and for the realtime probe response.
+    Filtering by `GEO_KEYS` instead of storing `**data` is what keeps battery/speed
+    out of the position (they live in `data["realtime"]`)."""
     return {k: data[k] for k in GEO_KEYS if k in data}
 
 
 def _without_clocks(obj: Any) -> Any:
-    """Copia de la telemetría sin los campos-reloj, a cualquier profundidad."""
+    """Copy of the telemetry without the clock fields, at any depth."""
     if isinstance(obj, dict):
         return {k: _without_clocks(v) for k, v in obj.items() if k not in _CLOCK_FIELDS}
     if isinstance(obj, list):
@@ -128,34 +128,34 @@ def _without_clocks(obj: Any) -> Any:
 
 
 def content_fingerprint(data: dict) -> str:
-    """Huella del CONTENIDO de la telemetría: cambia solo si cambia un dato real.
+    """Fingerprint of the telemetry CONTENT: changes only if a real value changes.
 
-    Es lo que permite fechar «datos del coche actualizados» por el contenido y no por el
-    `resultTime` que manda el backend — medido el 22/07 que ese reloj se queda parado
-    mientras los valores sí cambian, o sea justo lo contrario de lo que el sensor promete."""
+    It is what allows dating "car data updated" by the content and not by the
+    `resultTime` the backend sends — measured on 22/07 that this clock stays frozen
+    while the values do change, i.e. exactly the opposite of what the sensor promises."""
     return hashlib.sha256(
         json.dumps(_without_clocks(data), sort_keys=True, default=str).encode("utf-8")
     ).hexdigest()
 
 
 def format_command_result(data: dict) -> str:
-    """Traduce el resultado REAL de un push de confirmación de comando en una frase para el
-    usuario.
+    """Turn the REAL result of a command confirmation push into a sentence for the
+    user.
 
-    Distinto del "aceptado" del backend (A00079, mostrado al enviar): aquí es lo que el
-    COCHE reporta tras intentar ejecutar. Interpretación CONSERVADORA, basada en los datos
-    reales (events.jsonl 2026-06-21) y en el significado del bean:
-      - `reason` (lista) solo se rellena en los fallos → si está presente = NO conseguido;
-      - `result`: 5 = operación asíncrona aún en curso (siempre con hasAsy=1);
-        1/2 = ejecutado/aplicado (estado del vehículo actualizado);
-      - códigos distintos → reportados en crudo, sin inventar su significado."""
-    # Import local: `const` ya está importado arriba, pero estos dos nombres solo se usan aquí
-    # y se leen mejor al lado de la tabla que documentan.
+    Different from the backend's "accepted" (A00079, shown when sending): this is what the
+    CAR reports after trying to execute. CONSERVATIVE interpretation, based on real data
+    (events.jsonl 2026-06-21) and on the meaning of the bean:
+      - `reason` (list) is only filled on failures → if present = NOT achieved;
+      - `result`: 5 = asynchronous operation still running (always with hasAsy=1);
+        1/2 = executed/applied (vehicle state updated);
+      - other codes → reported raw, without inventing their meaning."""
+    # Local import: `const` is already imported above, but these two names are only used here
+    # and read better next to the table they document.
     from .constants import CMD_RESULT_APPLIED, CMD_RESULT_ASYNC_RUNNING
 
     result = str(data.get("result", "")).strip()
     reason = data.get("reason")
-    if reason:  # lista de motivos de fallo señalados por el coche
+    if reason:  # list of failure reasons reported by the car
         return truncate_status(f"El coche ha señalado un problema ❌ ({reason})")
     if result == CMD_RESULT_ASYNC_RUNNING:
         return "Comando en ejecución en el coche… ⏳"
@@ -166,46 +166,46 @@ def format_command_result(data: dict) -> str:
 
 @dataclass(frozen=True)
 class CarMessage:
-    """Un mensaje MQTT del coche, ya interpretado.
+    """An MQTT message from the car, already interpreted.
 
-    Separar el QUÉ dice el mensaje del QUÉ hacemos con él es lo que permite probar las reglas
-    de interpretación (¿esto es una confirmación?, ¿trae datos o es un latido?) sin levantar
-    el servidor.
+    Separating WHAT the message says from WHAT we do with it is what allows testing the
+    interpretation rules (is this a confirmation?, does it carry data or is it a heartbeat?)
+    without bringing up the server.
     """
 
     service_type: str
-    #: payload en crudo tal como llegó (lo consume el auto-descubrimiento del monitor).
+    #: raw payload as it arrived (consumed by the monitor's auto-discovery).
     data: dict[str, Any] = field(default_factory=dict)
-    #: campos de ESTADO del vehículo, ya como cadenas y sin los meta-campos de confirmación.
+    #: vehicle STATE fields, already as strings and without the confirmation meta-fields.
     state_fields: dict[str, str] = field(default_factory=dict)
-    #: geolocalización, solo si este mensaje es un reporte de posición.
+    #: geolocation, only if this message is a position report.
     geo: dict[str, Any] = field(default_factory=dict)
 
     @property
     def is_confirmation(self) -> bool:
-        """True si es la respuesta del coche a un comando (110x/1105/1135…).
+        """True if it is the car's response to a command (110x/1105/1135…).
 
-        Se reconoce por la presencia de `result`/`seq`: la telemetría 5A02 "pura" no los trae.
+        Recognised by the presence of `result`/`seq`: "pure" 5A02 telemetry does not carry them.
         """
         return "result" in self.data or "seq" in self.data
 
     @property
     def meaningful(self) -> bool:
-        """True si trae datos reales; False si es el latido de marcha (solo `time`).
+        """True if it carries real data; False if it is the driving heartbeat (only `time`).
 
-        Mientras circula, el coche emite un push de solo `time` cada pocos segundos. Ese
-        latido no debe mover «Último contacto» ni escribir en el recorder durante todo el
-        viaje — pero sí cuenta para detectar la marcha y el estado «despierto», que se miden
-        sobre las marcas de tiempo de los mensajes, no sobre su contenido."""
+        While driving, the car emits a `time`-only push every few seconds. That heartbeat
+        must not move «Último contacto» nor write to the recorder during the whole
+        trip — but it does count for detecting driving and the "awake" state, which are measured
+        on the message timestamps, not on their content."""
         return any(k != _HEARTBEAT_FIELD for k in self.data)
 
 
 def parse_car_message(payload: bytes | str) -> CarMessage | None:
-    """Decodifica el payload MQTT del coche. `None` si no es interpretable.
+    """Decode the car's MQTT payload. `None` if it cannot be interpreted.
 
-    El envoltorio varía: algunos mensajes traen los datos bajo `content.data` y otros son ya
-    el propio contenido. Se normaliza aquí para que el resto del componente vea siempre la
-    misma forma."""
+    The envelope varies: some messages carry the data under `content.data` and others are
+    already the content itself. It is normalised here so the rest of the component always sees
+    the same shape."""
     try:
         obj = json.loads(payload.decode("utf-8") if isinstance(payload, bytes) else payload)
     except Exception as err:
@@ -218,16 +218,16 @@ def parse_car_message(payload: bytes | str) -> CarMessage | None:
         data = {}
     service_type = str(content.get("serviceType")) if isinstance(content, dict) else ""
 
-    # Los campos de ESTADO: sin el latido y sin los meta-campos de confirmación, que
-    # describen el comando y no el vehículo.
+    # The STATE fields: without the heartbeat and without the confirmation meta-fields, which
+    # describe the command and not the vehicle.
     state_fields = {
         k: str(v)
         for k, v in data.items()
         if k != _HEARTBEAT_FIELD and k not in CMD_CONFIRM_META
     }
 
-    # La posición se discrimina por el TIPO de mensaje, no por la mera presencia de lat/lon:
-    # un 5A02 podría traerlas y no sería un reporte de posición.
+    # Position is told apart by the message TYPE, not by the mere presence of lat/lon:
+    # a 5A02 could carry them and it would not be a position report.
     geo = (
         geo_only(data)
         if service_type == SERVICE_TYPE_POSITION and "lat" in data and "lon" in data
@@ -237,13 +237,13 @@ def parse_car_message(payload: bytes | str) -> CarMessage | None:
 
 
 def unknown_fields(message: CarMessage) -> list[tuple[str, Any]]:
-    """Campos del 5A02 que el coche manda pero que `META` no mapea.
+    """5A02 fields the car sends but `META` does not map.
 
-    Es el canal para descubrir la telemetría aún ausente (autonomía/TPMS). Se limita al 5A02
-    a propósito: comparar con `META` los campos de un push de POSICIÓN señalaba `lat`/`lon`
-    como "no mapeados" — falsos positivos, y peor, así una coordenada acababa registrada como
-    muestra (fuga vista en campo el 2026-07-20). `GEO_KEYS` queda excluido igualmente, por si
-    el coche metiera la posición dentro de un 5A02."""
+    It is the channel for discovering the telemetry still missing (range/TPMS). It is limited to
+    5A02 on purpose: comparing the fields of a POSITION push against `META` flagged `lat`/`lon`
+    as "unmapped" — false positives, and worse, a coordinate ended up recorded as a
+    sample that way (leak seen in the field on 2026-07-20). `GEO_KEYS` is excluded anyway, in case
+    the car put the position inside a 5A02."""
     from .constants import SERVICE_TYPE_TELEMETRY
 
     if message.service_type != SERVICE_TYPE_TELEMETRY:
@@ -259,8 +259,8 @@ def unknown_fields(message: CarMessage) -> list[tuple[str, Any]]:
     ]
 
 
-# Reexportado para que quien importe el módulo no tenga que ir a `const` a por el tope de
-# longitud cuando compone mensajes de estado.
+# Re-exported so whoever imports the module does not have to go to `const` for the length
+# cap when composing status messages.
 __all__ = [
     "CLOCK_FIELDS",
     "CMD_CONFIRM_META",

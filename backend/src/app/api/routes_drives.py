@@ -1,4 +1,4 @@
-"""Rutas de historial de viajes, trazados GPS, edición y analítica avanzada."""
+"""Routes for drive history, GPS tracks, editing and advanced analytics."""
 from __future__ import annotations
 
 import datetime
@@ -39,12 +39,12 @@ class DriveUpdate(BaseModel):
 
 
 def format_drive_dict(d: Drive) -> Dict[str, Any]:
-    """Formatea un viaje con todas las métricas de consumo y eficiencia calculadas."""
+    """Formats a drive with every computed consumption and efficiency metric."""
     dist = d.distance_km or 0.0
     energy_kwh = d.energy_consumed_kwh or 0.0
     fuel_l = d.fuel_used_l or 0.0
 
-    # Wh/km o kWh/100km
+    # Wh/km or kWh/100km
     consumption_wh_km = round((energy_kwh * 1000.0) / dist, 1) if dist > 0.1 and energy_kwh > 0 else None
     consumption_l_100km = round((fuel_l * 100.0) / dist, 2) if dist > 0.1 and fuel_l > 0 else None
 
@@ -97,27 +97,27 @@ async def list_vehicle_drives(
     offset: int = Query(0, ge=0),
     session: AsyncSession = Depends(get_db),
 ):
-    """Lista viajes con filtros avanzados y cálculo de totales del periodo."""
+    """Lists drives with advanced filters and the totals of the period."""
     filters = [Drive.vin == vin]
 
-    # Filtro por geocerca
+    # filter by geofence
     if geofence_id:
         filters.append(or_(Drive.start_geofence_id == geofence_id, Drive.end_geofence_id == geofence_id))
 
-    # Filtro de búsqueda por ubicación
+    # search filter by location
     if location and location.strip():
         term = f"%{location.strip()}%"
         filters.append(or_(Drive.start_address.ilike(term), Drive.end_address.ilike(term)))
 
-    # Filtro distancia mínima
+    # minimum distance filter
     if min_distance is not None and min_distance > 0:
         filters.append(Drive.distance_km >= min_distance)
 
-    # Filtro velocidad mínima
+    # minimum speed filter
     if min_speed is not None and min_speed > 0:
         filters.append(Drive.speed_max_kmh >= min_speed)
 
-    # Filtro de periodo: preajuste o rango (services/periods.py); start_date/end_date se mantienen por compatibilidad
+    # period filter: preset or range (services/periods.py); start_date/end_date are kept for compatibility
     if period in periods.PRESETS or frm or to:
         filters.append(periods.condition(Drive.start_time, periods.resolve(period if period in periods.PRESETS else None, frm, to)))
     elif start_date:
@@ -137,7 +137,7 @@ async def list_vehicle_drives(
     result = await session.execute(stmt)
     all_drives = result.scalars().all()
 
-    # Separar viajes completos e incompletos
+    # split complete and incomplete drives
     complete_drives = []
     incomplete_drives = []
 
@@ -157,11 +157,11 @@ async def list_vehicle_drives(
             total_duration_sec += (d.duration_seconds or 0)
             total_distance_km += (d.distance_km or 0.0)
 
-    # Calcular promedios para el banner de resumen de periodo
+    # averages for the period summary banner
     avg_wh_km = round((total_energy_kwh * 1000.0) / total_distance_km, 1) if total_distance_km > 0 else 0.0
     avg_fuel_l_100 = round((total_fuel_l * 100.0) / total_distance_km, 2) if total_distance_km > 0 else 0.0
 
-    # Paginación sobre los viajes completos
+    # pagination over the complete drives
     paginated_drives = complete_drives[offset : offset + limit]
 
     return {
@@ -203,7 +203,7 @@ def _month_totals(drives: list[Drive]) -> list[Dict[str, Any]]:
 
 @router.get("/drives/{drive_id}")
 async def get_drive_details(drive_id: int, session: AsyncSession = Depends(get_db)):
-    """Obtiene los detalles completos de un viaje."""
+    """Gets the full details of a drive."""
     drive = await session.get(Drive, drive_id)
     if not drive:
         raise HTTPException(status_code=404, detail="Viaje no encontrado.")
@@ -212,7 +212,7 @@ async def get_drive_details(drive_id: int, session: AsyncSession = Depends(get_d
 
 @router.put("/drives/{drive_id}")
 async def update_drive(drive_id: int, req: DriveUpdate, session: AsyncSession = Depends(get_db)):
-    """Permite editar y corregir cualquier parámetro de un viaje (direcciones, km, consumo, notas)."""
+    """Edits and corrects any field of a drive (addresses, km, consumption, notes)."""
     drive = await session.get(Drive, drive_id)
     if not drive:
         raise HTTPException(status_code=404, detail="Viaje no encontrado.")
@@ -228,7 +228,7 @@ async def update_drive(drive_id: int, req: DriveUpdate, session: AsyncSession = 
 
 @router.delete("/drives/{drive_id}")
 async def delete_drive(drive_id: int, session: AsyncSession = Depends(get_db)):
-    """Elimina un viaje del histórico."""
+    """Deletes a drive from the history."""
     drive = await session.get(Drive, drive_id)
     if not drive:
         raise HTTPException(status_code=404, detail="Viaje no encontrado.")
@@ -239,7 +239,7 @@ async def delete_drive(drive_id: int, session: AsyncSession = Depends(get_db)):
 
 @router.get("/drives/{drive_id}/track")
 async def get_drive_track(drive_id: int, session: AsyncSession = Depends(get_db)):
-    """Obtiene el trazado GPS detallado (GeoJSON LineString y puntos) de un viaje."""
+    """Gets the detailed GPS track (GeoJSON LineString and points) of a drive."""
     drive = await session.get(Drive, drive_id)
     if not drive:
         raise HTTPException(status_code=404, detail="Viaje no encontrado.")

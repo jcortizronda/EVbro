@@ -1,13 +1,13 @@
-/* EVBro — Mapa en vivo del coche (Leaflet).
- * (Script clásico: comparte el ámbito global con los demás ficheros; ver el orden de carga en templates/index.html.)
+/* EVBro — Live map of the car (Leaflet).
+ * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
 /**
- * Genera una capa de mapa estándar y 100% gratuita que NO requiere ninguna API key.
- * Sustituye proveedores comerciales restrictivos (como CartoDB) por OpenStreetMap estándar,
- * eliminando pantallas en blanco y avisos de "API Key Required".
- * Incluye tolerancia a fallos con servidor espejo humanitario (HOT) en caso de caída temporal.
- * @param {Object} [options] - Opciones adicionales de Leaflet TileLayer.
+ * Builds a standard, completely free map layer that needs NO API key.
+ * Replaces restrictive commercial providers (such as CartoDB) with standard OpenStreetMap,
+ * avoiding blank screens and "API Key Required" notices.
+ * Falls back to the humanitarian mirror server (HOT) during a temporary outage.
+ * @param {Object} [options] - Extra Leaflet TileLayer options.
  * @returns {L.TileLayer}
  */
 function createStandardTileLayer(options = {}) {
@@ -33,13 +33,13 @@ function createStandardTileLayer(options = {}) {
   return layer;
 }
 
-// ───────────────────────── Mapa de la portada ─────────────────────────
-// Plegado: vista previa fija (no arrastra, para que la página se pueda desplazar con el dedo); un toque lo AMPLÍA a pantalla
-// completa, donde se puede mover y hacer zoom. «Centrar» vuelve al coche; «Ir a» abre la navegación hacia sus coordenadas.
+// ───────────────────────── Home tab map ─────────────────────────
+// Collapsed: fixed preview (no dragging, so the page can be scrolled with a finger); a tap EXPANDS it to full screen,
+// where it can be moved and zoomed. «Centrar» goes back to the car; «Ir a» opens navigation to its coordinates.
 
 const MAP_DEFAULT_ZOOM = 15;
 
-/** Activa o desactiva los gestos del mapa (plegado = sin gestos, ampliado = todos). */
+/** Turns the map gestures on or off (collapsed = none, expanded = all). */
 function setMapInteractive(on) {
   if (!liveMap) return;
   for (const h of ['dragging', 'touchZoom', 'doubleClickZoom', 'scrollWheelZoom', 'boxZoom', 'keyboard']) {
@@ -53,7 +53,7 @@ function updateMapButtons() {
   const go = document.getElementById('btnMapGo');
   if (center) {
     center.disabled = !has;
-    // Resalta «Centrar» cuando el coche ya no está en el centro de la vista
+    // Highlight «Centrar» when the car is no longer in the centre of the view
     let off = false;
     if (has && liveMap) {
       const p = liveMap.latLngToContainerPoint(vehicleLatLng), c = liveMap.getSize().divideBy(2);
@@ -64,14 +64,14 @@ function updateMapButtons() {
   if (go) go.disabled = !has;
 }
 
-/** Vuelve a centrar el mapa en el coche y retoma el seguimiento automático. */
+/** Re-centres the map on the car and resumes automatic following. */
 function centerMapOnVehicle() {
   if (!liveMap || !vehicleLatLng) return;
   mapUserMoved = false;
   liveMap.setView(vehicleLatLng, Math.max(liveMap.getZoom(), MAP_DEFAULT_ZOOM), { animate: true });
 }
 
-/** Abre la navegación hacia el coche: Google Maps (la app en Android/iOS si está instalada, o el navegador). */
+/** Opens navigation to the car: Google Maps (the app on Android/iOS if installed, or the browser). */
 function openNavigationToVehicle() {
   if (!vehicleLatLng) return;
   const [lat, lon] = vehicleLatLng;
@@ -88,7 +88,7 @@ function setMapExpanded(expanded, fromHistory = false) {
   const close = document.getElementById('btnMapClose');
   if (close) close.hidden = !expanded;
   setMapInteractive(expanded);
-  // «Atrás» del móvil cierra el mapa ampliado en vez de salir de la página
+  // The phone's «back» closes the expanded map instead of leaving the page
   if (expanded) history.pushState({ ebroMap: true }, '');
   else if (!fromHistory && history.state && history.state.ebroMap) history.back();
   setTimeout(() => {
@@ -99,7 +99,7 @@ function setMapExpanded(expanded, fromHistory = false) {
   }, 60);
 }
 
-// Inicialización de Leaflet Map
+// Leaflet map initialisation
 function initMap() {
   const mapElem = document.getElementById('liveMap');
   if (!mapElem || liveMap) return;
@@ -144,7 +144,7 @@ function updateMapPosition(lat, lon, address) {
     vehicleMarker.setLatLng(latLng);
   }
 
-  // Sigue al coche mientras el usuario no haya movido el mapa (antes se recentraba en cada lectura)
+  // Follow the car while the user has not moved the map (it used to re-centre on every reading)
   if (firstFix || !mapUserMoved) liveMap.setView(latLng, firstFix ? MAP_DEFAULT_ZOOM : liveMap.getZoom());
   updateMapButtons();
   if (typeof refreshGpsPosition === 'function') refreshGpsPosition();
@@ -156,9 +156,9 @@ function updateMapPosition(lat, lon, address) {
 }
 
 
-// ───────────────────────── Posición por GPS (Traccar) ─────────────────────────
-// Un coche con localizador propio reporta a Traccar; si esa posición es más fresca que la de la nube (y de hace menos de
-// 10 min) se pinta con su propio marcador. Se consulta como mucho cada 30 s.
+// ───────────────────────── GPS position (Traccar) ─────────────────────────
+// A car with its own tracker reports to Traccar; if that position is fresher than the cloud's (and less than 10 min old)
+// it is drawn with its own marker. Queried at most every 30 s.
 let gpsMarker = null;
 let gpsLastFetch = 0;
 async function refreshGpsPosition(force = false) {
@@ -185,5 +185,5 @@ async function refreshGpsPosition(force = false) {
     }
     gpsMarker.bindTooltip(text, { direction: 'top', offset: [0, -8] });
     if (!mapUserMoved && (!vehicleLatLng || liveMap.distance(latLng, vehicleLatLng) > 50)) liveMap.panTo(latLng);
-  } catch (e) { /* sin conexión: se intenta en la siguiente lectura */ }
+  } catch (e) { /* offline: try again on the next reading */ }
 }

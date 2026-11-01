@@ -3,7 +3,7 @@
 Two roles, both in every installation:
 
 * **Online server** (the owner's): issues *catalogue keys* from its console (`create_key`; only the hash is stored and the key is shown
-  once as a link `https://servidor#clave`), serves its approved entries to a valid key (`/api/catalog/online/export`) and receives
+  once as a link `https://server#key`), serves its approved entries to a valid key (`/api/catalog/online/export`) and receives
   proposals from other installations into its own review queue (`/api/catalog/online/propose`, `receive_proposal`).
 * **Self-hosted server**: its administrator chooses in the console whether the catalogue is its own or online (`CatalogRemote`, one row).
   With a link, `sync` downloads the approved entries once a day and keeps them as a read-only mirror (`catalog_entries.origin = remote`),
@@ -64,7 +64,7 @@ def make_link(public_url: str, key: str) -> str:
 
 
 def parse_link(link: str) -> Tuple[str, str]:
-    """`https://servidor#clave` → (base url, key). Raises RemoteError when the link is not one."""
+    """`https://server#key` → (base url, key). Raises RemoteError when the link is not one."""
     text = (link or "").strip()
     url, _, key = text.partition("#")
     url, key = url.strip().rstrip("/"), key.strip()
@@ -282,7 +282,7 @@ async def sync(session: AsyncSession) -> Dict[str, Any]:
         count += 1
     c.entries, c.last_sync_at, c.last_error = count, _now(), None
     await session.commit()
-    _LOGGER.info(f"Catálogo en línea sincronizado: {count} entradas de {url}")
+    _LOGGER.info(f"Online catalogue synced: {count} entries from {url}")
     return {"entries": count, "server": url}
 
 
@@ -292,7 +292,7 @@ async def sync_if_enabled(session: AsyncSession) -> None:
         try:
             await sync(session)
         except RemoteError as ex:
-            _LOGGER.warning(f"Catálogo en línea: {ex.detail}")
+            _LOGGER.warning(f"Online catalogue: {ex.detail}")
 
 
 async def maybe_forward(session: AsyncSession, entry: CatalogEntry) -> None:
@@ -309,6 +309,6 @@ async def maybe_forward(session: AsyncSession, entry: CatalogEntry) -> None:
             entry.forwarded_at = _now()
             await session.commit()
         else:
-            _LOGGER.warning(f"El catálogo en línea rechazó la propuesta {entry.id} ({status}).")
+            _LOGGER.warning(f"The online catalogue rejected proposal {entry.id} ({status}).")
     except Exception as ex:                                     # noqa: BLE001 — forwarding is best effort
-        _LOGGER.warning(f"No se pudo enviar la propuesta {entry.id} al catálogo en línea: {ex}")
+        _LOGGER.warning(f"Could not send proposal {entry.id} to the online catalogue: {ex}")

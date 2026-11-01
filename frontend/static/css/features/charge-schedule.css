@@ -1,7 +1,7 @@
-/* EVBro — Estado de la carga programada.
-   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+/* EVBro — Scheduled charging status.
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
-/* Estado de la carga programada (Energía): un bloque con color y etiqueta, no una línea de texto */
+/* Scheduled charging status (Energía): a block with colour and label, not a line of text */
 .sched-status {
   --sched: var(--text-muted);
   border: 1px solid var(--border-color); border-left: 4px solid var(--sched);

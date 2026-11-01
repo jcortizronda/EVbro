@@ -1,14 +1,14 @@
-/* EVBro — Tablas convertidas en tarjetas.
-   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+/* EVBro — Tables turned into cards.
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
-/* ───────── Tablas → tarjetas (en TODAS las anchuras) ─────────
-   La tabla de viajes tiene 16 columnas (1.571 px) y su contenedor mide 680-900 px: nunca cabe, y desplazar en
-   horizontal con la barra oculta dejaba las columnas cortadas sin avisar. Cada fila es una tarjeta con rejilla
-   adaptable (2 columnas en móvil, más en pantallas anchas; etiqueta pequeña encima del valor).
-   Ocupan todo el ancho: la primera celda, los textos largos y las acciones.
-   `ui.js` rellena `data-label` desde el <thead>. */
+/* ───────── Tables → cards (at ALL widths) ─────────
+   The trips table has 16 columns (1,571 px) and its container is 680-900 px wide: it never fits, and scrolling
+   horizontally with the hidden scrollbar left the columns cut off without notice. Each row is a card with an
+   adaptive grid (2 columns on a phone, more on wide screens; small label above the value).
+   Full width: the first cell, long texts and the actions.
+   `ui.js` fills `data-label` from the <thead>. */
 table.data-table, table.data-table tbody, table.data-table tr, table.data-table td { display: block; width: 100%; }
-table.data-table thead {                    /* oculto a la vista, pero accesible para lectores de pantalla */
+table.data-table thead {                    /* hidden from view, but available to screen readers */
   position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
   clip: rect(0, 0, 0, 0); border: 0;
 }

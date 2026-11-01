@@ -1,5 +1,5 @@
-/* EVBro — Pantalla de acceso a EVBro.
-   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+/* EVBro — EVBro sign-in screen.
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
 /* ==================== Acceso a EVBro (login) ==================== */
 [hidden] { display: none !important; }
@@ -9,7 +9,7 @@ body.auth-open { overflow: hidden; }
 .auth-overlay {
   position: fixed;
   inset: 0;
-  z-index: 5000;                       /* por encima de cualquier modal */
+  z-index: 5000;                       /* above any modal */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -51,7 +51,7 @@ body.auth-open { overflow: hidden; }
   width: 100%;
   min-height: 44px;
   padding: 0.7rem 0.9rem;
-  font-size: 1rem;                     /* 16px: evita el zoom automático de iOS al enfocar */
+  font-size: 1rem;                     /* 16px: avoids iOS auto-zoom on focus */
   color: var(--text-primary);
   background: var(--surface-secondary);
   border: 1px solid var(--border-color);
@@ -72,7 +72,7 @@ body.auth-open { overflow: hidden; }
 
 .auth-card .btn-primary { width: 100%; min-height: 46px; }
 
-/* Consentimiento al registrarse con invitación */
+/* Consent when signing up with an invitation */
 .auth-consent { display: flex; align-items: flex-start; gap: 10px; margin: 10px 0 2px; font-size: 0.85rem; line-height: 1.4; color: var(--text-secondary); }
 .auth-consent[hidden] { display: none; }
 .auth-consent input { width: 20px; height: 20px; flex: none; margin-top: 1px; accent-color: var(--accent-bright); }

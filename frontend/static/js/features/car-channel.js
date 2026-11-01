@@ -1,5 +1,5 @@
-/* EVBro — Canal MQTT del coche (estado en Ajustes → Sistema).
- * (Script clásico: comparte el ámbito global con los demás ficheros; ver el orden de carga en templates/index.html.)
+/* EVBro — Car MQTT channel (status in Ajustes → Sistema).
+ * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
 const CAR_CHANNEL_BADGES = {
@@ -30,7 +30,7 @@ async function loadCarChannelStatus() {
     const btn = document.getElementById('btnCarReconnect');
     if (btn) btn.hidden = s.state === 'disabled';
   } catch (e) {
-    console.warn('Estado del canal del coche:', e);
+    console.warn('Car channel status:', e);
   }
 }
 

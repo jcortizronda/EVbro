@@ -31,7 +31,7 @@ def _encrypt_one(folder: str, folder_dir: str, name: str) -> str:
         with open(path, "rb") as fh:
             original = fh.read()
     except OSError as exc:
-        _LOGGER.error("No se pudo leer %s/%s para cifrarlo: %s", folder, name, exc)
+        _LOGGER.error("Could not read %s/%s to encrypt it: %s", folder, name, exc)
         return "failed"
     if uploads.is_encrypted(original):
         return "skipped"
@@ -43,11 +43,11 @@ def _encrypt_one(folder: str, folder_dir: str, name: str) -> str:
             os.fsync(fh.fileno())
         with open(tmp, "rb") as fh:
             if uploads.decrypt_bytes(folder, name, fh.read()) != original:
-                raise ValueError("el fichero cifrado no coincide con el original")
+                raise ValueError("the encrypted file does not match the original")
         os.replace(tmp, path)
         return "encrypted"
     except Exception as exc:  # noqa: BLE001 — one bad file must not stop the others; the original stays untouched
-        _LOGGER.error("No se pudo cifrar %s/%s (se deja como estaba): %s", folder, name, exc)
+        _LOGGER.error("Could not encrypt %s/%s (left as it was): %s", folder, name, exc)
         try:
             os.remove(tmp)
         except OSError:
@@ -94,11 +94,11 @@ async def encrypt_legacy_files() -> Dict[str, int]:
     async with async_session_factory() as session:
         counts["photo_sizes"] = await _fill_photo_sizes(session)
     if counts["failed"]:
-        _LOGGER.error("Ficheros subidos: %s cifrados, %s ya lo estaban, %s con error (se reintentará en el próximo arranque).",
+        _LOGGER.error("Uploaded files: %s encrypted, %s already were, %s failed (will retry on the next start).",
                       counts["encrypted"], counts["skipped"], counts["failed"])
         return counts
     async with engine.begin() as conn:
         await conn.execute(text("INSERT INTO app_settings (key, value) VALUES (:k, '1')"), {"k": FLAG})
-    _LOGGER.info("Ficheros subidos cifrados en reposo: %s cifrados ahora, %s ya lo estaban; tamaño calculado de %s fotos.",
+    _LOGGER.info("Uploaded files encrypted at rest: %s encrypted now, %s already were; size computed for %s photos.",
                  counts["encrypted"], counts["skipped"], counts["photo_sizes"])
     return counts

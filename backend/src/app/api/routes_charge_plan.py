@@ -1,4 +1,4 @@
-"""Control de la carga: objetivo de batería, parar/iniciar y programación (todo vía la programación del coche)."""
+"""Charge control: battery target, stop/start and scheduling (all through the car's charge schedule)."""
 from __future__ import annotations
 
 import re
@@ -26,8 +26,8 @@ class TargetRequest(BaseModel):
 
 
 class ScheduleRequest(BaseModel):
-    start: str                              # "HH:MM", hora local
-    end: Optional[str] = None               # "HH:MM"; puede pasar de medianoche
+    start: str                              # "HH:MM", local time
+    end: Optional[str] = None               # "HH:MM"; may go past midnight
     duration_min: Optional[int] = None      # alternativa a `end`
 
 
@@ -49,14 +49,14 @@ def _error(err: ChargeError) -> JSONResponse:
 
 @router.get("/plan")
 async def get_plan(vin: str, live: bool = False, session: AsyncSession = Depends(get_db)):
-    """Estado del control de carga. `live=true` añade la programación real que tiene el coche (consulta a la nube)."""
+    """Charge control status. `live=true` adds the schedule the car actually has (asks the cloud)."""
     await _check_vehicle(vin, session)
     return await ChargeManager.get_instance().state(vin, live=live)
 
 
 @router.put("/target")
 async def put_target(vin: str, req: TargetRequest, request: Request, session: AsyncSession = Depends(get_db)):
-    """Batería objetivo. Con 100 % se quita el límite; con menos, la carga se pausa al alcanzarlo."""
+    """Battery target. 100 % removes the limit; below that, charging pauses when it is reached."""
     await _check_vehicle(vin, session)
     try:
         return await ChargeManager.get_instance().set_target(vin, req.target_pct, f"web {client_ip(request)}")
@@ -66,7 +66,7 @@ async def put_target(vin: str, req: TargetRequest, request: Request, session: As
 
 @router.post("/stop")
 async def post_stop(vin: str, request: Request, session: AsyncSession = Depends(get_db)):
-    """Parar carga: se programa una ventana ya terminada (el coche no tiene parada directa)."""
+    """Stop charging: schedules a window that has already ended (the car has no direct stop)."""
     await _check_vehicle(vin, session)
     try:
         return await ChargeManager.get_instance().stop(vin, f"web {client_ip(request)}")
@@ -76,7 +76,7 @@ async def post_stop(vin: str, request: Request, session: AsyncSession = Depends(
 
 @router.post("/start")
 async def post_start(vin: str, request: Request, session: AsyncSession = Depends(get_db)):
-    """Iniciar carga: se quita la programación o la pausa para que el coche cargue ahora."""
+    """Start charging: removes the schedule or the pause so the car charges now."""
     await _check_vehicle(vin, session)
     try:
         return await ChargeManager.get_instance().start(vin, f"web {client_ip(request)}")
@@ -86,7 +86,7 @@ async def post_start(vin: str, request: Request, session: AsyncSession = Depends
 
 @router.put("/schedule")
 async def put_schedule(vin: str, req: ScheduleRequest, request: Request, session: AsyncSession = Depends(get_db)):
-    """Programar la carga con hora de inicio y (hora de fin o duración)."""
+    """Schedules charging with a start time and (an end time or a duration)."""
     await _check_vehicle(vin, session)
     try:
         start = _minutes(req.start, "inicio")
@@ -102,7 +102,7 @@ async def put_schedule(vin: str, req: ScheduleRequest, request: Request, session
 
 @router.delete("/schedule")
 async def delete_schedule(vin: str, request: Request, session: AsyncSession = Depends(get_db)):
-    """Quitar la programación de carga."""
+    """Removes the charge schedule."""
     await _check_vehicle(vin, session)
     try:
         return await ChargeManager.get_instance().clear_schedule(vin, f"web {client_ip(request)}")

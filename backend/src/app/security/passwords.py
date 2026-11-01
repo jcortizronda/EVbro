@@ -1,7 +1,7 @@
-"""Hash de contraseñas con scrypt (librería estándar, sin dependencias extra).
+"""Password hashing with scrypt (standard library, no extra dependencies).
 
-Formato guardado: `scrypt$N$r$p$salt_b64$hash_b64`. Los parámetros van dentro del hash, así se
-pueden subir en el futuro sin invalidar los existentes.
+Stored format: `scrypt$N$r$p$salt_b64$hash_b64`. The parameters live inside the hash, so they
+can be raised in the future without invalidating existing hashes.
 """
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ import hashlib
 import hmac
 import os
 
-N = 2 ** 15          # coste de CPU/memoria: ~32 MB y ~100 ms por comprobación
+N = 2 ** 15          # CPU/memory cost: ~32 MB and ~100 ms per check
 R = 8
 P = 1
 _MAXMEM = 128 * 1024 * 1024
@@ -32,7 +32,7 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(password: str, stored: str | None) -> bool:
-    """True si `password` corresponde al hash guardado. Nunca lanza: un hash ilegible es «no»."""
+    """True if `password` matches the stored hash. Never raises: an unreadable hash means "no"."""
     try:
         scheme, n, r, p, salt_b64, hash_b64 = (stored or "").split("$")
         if scheme != "scrypt":
@@ -48,10 +48,10 @@ _dummy_hash: str | None = None
 
 
 def burn_time(password: str) -> None:
-    """Gasta el mismo tiempo que una comprobación real.
+    """Takes the same time as a real check.
 
-    Se llama cuando el usuario NO existe: si ese caso respondiera al instante, medir el tiempo
-    de respuesta revelaría qué usuarios existen."""
+    Called when the user does NOT exist: if that case answered instantly, timing the
+    response would reveal which users exist."""
     global _dummy_hash
     if _dummy_hash is None:
         _dummy_hash = hash_password(os.urandom(8).hex())
@@ -59,7 +59,7 @@ def burn_time(password: str) -> None:
 
 
 def password_problem(password: str, username: str = "") -> str | None:
-    """Motivo por el que la contraseña no vale, o None si es aceptable."""
+    """Reason why the password is not valid, or None if it is acceptable."""
     if len(password) < MIN_LENGTH:
         return f"La contraseña debe tener al menos {MIN_LENGTH} caracteres."
     if len(password) > MAX_LENGTH:

@@ -1,4 +1,4 @@
-"""Módulo de base de datos de EVBro."""
+"""EVBro database package."""
 from app.db.models import (
     AppSetting,
     Base,

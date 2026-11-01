@@ -1,5 +1,5 @@
-/* EVBro — Mantenimiento: facturas y justificantes adjuntos.
- * (Script clásico: comparte el ámbito global con los demás ficheros; ver el orden de carga en templates/index.html.)
+/* EVBro — Maintenance: attached invoices and receipts.
+ * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
 let targetLogIdForInvoiceUpload = null;

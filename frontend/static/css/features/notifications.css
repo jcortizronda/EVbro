@@ -1,8 +1,8 @@
-/* EVBro — Centro de notificaciones y controles nativos.
-   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+/* EVBro — Notification centre and native controls.
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
 /* ==========================================================
-   CENTRO DE NOTIFICACIONES Y CONTROLES NATIVOS
+   NOTIFICATION CENTRE AND NATIVE CONTROLS
    ========================================================== */
 .notif-badge-dot {
   position: absolute;
@@ -181,11 +181,11 @@
   margin-bottom: 14px;
 }
 
-/* Ajuste propio de un aviso (p. ej. margen de la presión de neumáticos) */
+/* An alert's own setting (e.g. tyre pressure margin) */
 .notif-trigger-extra { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.5rem; }
 .notif-trigger-extra label { font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); }
 .notif-trigger-extra .form-control { min-height: 40px; }
 
-/* Historial de avisos: estado de cada envío */
+/* Alert history: status of each delivery */
 .notif-log-ok { color: var(--accent-green); }
 .notif-log-fail { color: var(--accent-red); }

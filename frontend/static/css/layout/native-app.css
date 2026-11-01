@@ -1,5 +1,5 @@
-/* EVBro — Interfaz nativa móvil: cabeceras, dock y paneles.
-   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+/* EVBro — Native-style mobile interface: headers, dock and panels.
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
 /* ========================================================
    EVBRO NATIVE MOBILE APPLICATION UI STYLES
@@ -19,7 +19,7 @@
   }
 }
 
-/* Dual Range Overlay Card (Batería 29 km / Gasolina 374 km) */
+/* Dual range overlay card (battery 29 km / petrol 374 km) */
 .native-dual-range {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -259,7 +259,7 @@
   color: var(--muted);
 }
 
-/* Screen 2: Energía (Charging Hero & Battery Display) */
+/* Screen 2: Energía (charging hero & battery display) */
 .native-energy-panel {
   background: #131620;
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -381,7 +381,7 @@
   color: #0b0c0e;
 }
 
-/* Expandable Action Cards (Telemetría de batería / Limitar carga) */
+/* Expandable action cards (battery telemetry / charge limit) */
 .native-accordion-card {
   background: #141721;
   border: 1px solid rgba(255, 255, 255, 0.08);

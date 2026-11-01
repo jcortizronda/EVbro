@@ -1,4 +1,4 @@
-"""Tests de `core/codes.py` — el mapa único código → frase legible."""
+"""Tests for `core/codes.py` — the single code → readable sentence map."""
 
 from __future__ import annotations
 
@@ -9,10 +9,10 @@ from app.core import codes
 
 
 def test_mapa_completo(snapshot: SnapshotAssertion) -> None:
-    """Snapshot del mapa entero.
+    """Snapshot of the whole map.
 
-    Son los únicos textos de diagnóstico que ve el usuario: fijarlos hace que cualquier
-    reformulación pase por una revisión explícita del diff.
+    They are the only diagnostic texts the user sees: pinning them makes any
+    rewording go through an explicit diff review.
     """
     assert snapshot == codes.CODE_MEANING
 
@@ -22,9 +22,9 @@ def test_mapa_completo(snapshot: SnapshotAssertion) -> None:
     [
         ("000000", "ok ✅"),
         ("A00082", codes.CODE_MEANING["A00082"]),
-        # no-cadena: se normaliza antes de buscar
+        # non-string: normalised before the lookup
         (0, "código 0"),
-        # desconocido → genérico con el código en crudo, nunca un texto inventado
+        # unknown → generic with the raw code, never a made-up text
         ("A99999", "código A99999"),
         (None, "sin código"),
     ],
@@ -34,24 +34,24 @@ def test_meaning(code, esperado) -> None:
 
 
 @pytest.mark.parametrize("code", [None, "A99999"])
-def test_meaning_respeta_el_default(code) -> None:
-    """El `default` gana tanto para `None` como para un código desconocido."""
+def test_meaning_honours_the_default(code) -> None:
+    """The `default` wins both for `None` and for an unknown code."""
     assert codes.meaning(code, default="mi texto") == "mi texto"
 
 
-def test_meaning_ignora_el_default_si_el_codigo_es_conocido() -> None:
+def test_meaning_ignores_the_default_for_a_known_code() -> None:
     assert codes.meaning("000000", default="mi texto") == "ok ✅"
 
 
-def test_los_codigos_enrutados_tienen_texto() -> None:
-    """Todo código con una decisión asociada en `routing` debe tener también una frase.
+def test_routed_codes_have_text() -> None:
+    """Every code with a decision attached in `routing` must also have a sentence.
 
-    Si no, el usuario vería «código A00546» en vez de una explicación — el módulo `codes`
-    existe justamente para eso.
+    Otherwise the user would see «código A00546» instead of an explanation — the `codes` module
+    exists precisely for that.
     """
     from app.core import routing
 
     sin_texto = set(routing._TABLE) - set(codes.CODE_MEANING)
-    # Los códigos de "solo aviso de configuración" no necesitan frase propia: el detalle del
-    # backend ya llega en el mensaje. Los demás sí.
+    # The "configuration notice only" codes need no sentence of their own: the backend's
+    # detail already arrives in the message. The rest do.
     assert sin_texto == {"A00374", "A00554", "A00604", "A00643", "A00757"}

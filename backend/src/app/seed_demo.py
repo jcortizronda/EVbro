@@ -1,8 +1,8 @@
-"""Script de demostración / datos de prueba para EVBro.
+"""Demo script / test data for EVBro.
 
-Puebla la base de datos con un vehículo 'Ebro S900 Demo',
-telemetría en vivo, varios viajes con trazado GPS y combustible,
-sesiones de carga, tareas de mantenimiento y registro de revisiones.
+Fills the database with an 'Ebro S900 Demo' vehicle,
+live telemetry, several drives with GPS track and fuel,
+charging sessions, maintenance tasks and a service log.
 """
 import asyncio
 import datetime
@@ -27,11 +27,11 @@ from app.db.session import async_session_factory, init_db
 DEMO_OWNER_ID = 1
 
 async def seed():
-    print("Inicializando base de datos y sembrando datos completos de prueba...")
+    print("Initialising the database and seeding full test data...")
     await init_db()
 
     async with async_session_factory() as session:
-        # 1. Geocercas
+        # 1. geofences
         gf_stmt = select(Geofence)
         existing_gfs = (await session.execute(gf_stmt)).scalars().all()
         if not existing_gfs:
@@ -44,7 +44,7 @@ async def seed():
             gf_casa = existing_gfs[0]
             gf_trabajo = existing_gfs[1] if len(existing_gfs) > 1 else existing_gfs[0]
 
-        # 2. Vehículo (limpiar previo si existe para re-sembrado limpio)
+        # 2. vehicle (remove any previous one for a clean re-seed)
         vin = "LSJA8888888888888"
         v_existing = (await session.execute(select(Vehicle).where(Vehicle.vin == vin))).scalar_one_or_none()
         if v_existing:
@@ -71,7 +71,7 @@ async def seed():
         session.add(vehicle)
         await session.flush()
 
-        # 3. Snapshot de Telemetría
+        # 3. telemetry snapshot
         snap = TelemetrySnapshot(
             vin=vin,
             online_status=True,
@@ -107,7 +107,7 @@ async def seed():
 
         now = datetime.datetime.utcnow()
 
-        # 4. Múltiples Viajes de prueba (con combustible y métricas)
+        # 4. several test drives (with fuel and metrics)
         drives_data = [
             {
                 "start": now - datetime.timedelta(days=1, hours=2),
@@ -181,7 +181,7 @@ async def seed():
             session.add(d)
             await session.flush()
 
-            # Puntos GPS para el primer viaje
+            # GPS points for the first drive
             if idx == 0:
                 positions = []
                 steps = 15
@@ -205,11 +205,11 @@ async def seed():
                     )
                 session.add_all(positions)
 
-        # 5. Viaje incompleto (para probar la sección Incomplete Drives)
+        # 5. incomplete drive (to try the Incomplete Drives section)
         inc_drive = Drive(
             vin=vin,
             start_time=now - datetime.timedelta(minutes=45),
-            end_time=None,  # Incompleto
+            end_time=None,  # incomplete
             start_address="Aeropuerto Madrid-Barajas T4",
             end_address=None,
             start_lat=40.4900,
@@ -224,7 +224,7 @@ async def seed():
         )
         session.add(inc_drive)
 
-        # 6. Sesión de Recarga de prueba
+        # 6. test charging session
         charge_start = now - datetime.timedelta(days=1, hours=8)
         charge_end = charge_start + datetime.timedelta(hours=2, minutes=15)
         charge = ChargingSession(
@@ -262,7 +262,7 @@ async def seed():
             )
         session.add_all(charge_pts)
 
-        # 7. Tareas y Componentes de Mantenimiento (Mantenimiento Ebro PHEV)
+        # 7. maintenance tasks and components (Ebro PHEV maintenance)
         maint_items = [
             MaintenanceItem(
                 vin=vin,
@@ -285,7 +285,7 @@ async def seed():
                 last_service_odometer=0.0,
                 last_service_date=now - datetime.timedelta(days=340),
                 next_due_odometer=20000.0,
-                next_due_date=now + datetime.timedelta(days=25),  # Próximo a vencer
+                next_due_date=now + datetime.timedelta(days=25),  # coming due soon
                 notes="Filtro de partículas y carbón activo.",
             ),
             MaintenanceItem(
@@ -296,7 +296,7 @@ async def seed():
                 interval_months=12,
                 last_service_odometer=5000.0,
                 last_service_date=now - datetime.timedelta(days=200),
-                next_due_odometer=15000.0,  # Faltan ~480 km
+                next_due_odometer=15000.0,  # ~480 km to go
                 next_due_date=now + datetime.timedelta(days=165),
                 notes="Revisar desgaste interior en eje delantero.",
             ),
@@ -328,7 +328,7 @@ async def seed():
         session.add_all(maint_items)
         await session.flush()
 
-        # 8. Logs de revisiones ya realizadas
+        # 8. log of services already done
         log1 = MaintenanceLog(
             item_id=maint_items[0].id,
             service_date=now - datetime.timedelta(days=110),
@@ -348,10 +348,10 @@ async def seed():
         session.add_all([log1, log2])
 
         await session.commit()
-        print("Base de datos sembrada con datos avanzados:")
-        print("   • Viajes con consumo eléctrico, gasolina, eficiencias y trazados GPS.")
-        print("   • Tareas de mantenimiento programadas con seguimiento de salud.")
-        print("   • Registro histórico de intervenciones y costes.")
+        print("Database seeded with advanced data:")
+        print("   • Drives with electric and petrol consumption, efficiencies and GPS tracks.")
+        print("   • Scheduled maintenance tasks with health tracking.")
+        print("   • History of interventions and costs.")
 
 
 if __name__ == "__main__":

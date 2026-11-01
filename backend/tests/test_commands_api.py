@@ -1,4 +1,4 @@
-"""Envío de comandos: PIN obligatorio en los que abren el coche, parámetros y flujo del PIN."""
+"""Sending commands: mandatory PIN for those that open the car, parameters and the PIN flow."""
 from __future__ import annotations
 
 import httpx
@@ -20,11 +20,11 @@ from app.services.poller import VehiclePoller
 VIN = "LSJA0000000000001"
 STORED_PIN = "1234"
 PASSWORD = "una-contraseña-larga-1"
-ABREN = {"desbloquear", "maletero_abrir", "ventanillas_abrir", "ventilar_ventanillas", "techo_abrir", "alarma_off"}
+OPENING = {"desbloquear", "maletero_abrir", "ventanillas_abrir", "ventilar_ventanillas", "techo_abrir", "alarma_off"}
 
 
 class FakeSend:
-    """Sustituye a `commands.send`: no toca la red, anota con qué PIN y parámetros se envió."""
+    """Stands in for `commands.send`: never touches the network, records the PIN and parameters it was sent with."""
 
     def __init__(self) -> None:
         self.calls: list[dict] = []
@@ -38,7 +38,7 @@ class FakeSend:
 
 
 @pytest.fixture(autouse=True)
-def _estado_limpio(monkeypatch, data_dir):
+def _clean_state(monkeypatch, data_dir):
     monkeypatch.setattr(settings, "SETUP_CODE", "codigo-de-prueba")
     auth.reset_setup_code()
     for t in (routes_auth.ip_throttle, routes_auth.pair_throttle, command_policy.pin_throttle):
@@ -54,225 +54,225 @@ def send(monkeypatch) -> FakeSend:
     fake = FakeSend()
     monkeypatch.setattr(poller_module.commands, "send", fake)
 
-    async def _sin_sondeo(self, vin, force=False):          # el sondeo posterior al éxito iría a la red
+    async def _no_poll(self, vin, force=False):          # the poll after a success would hit the network
         return None
-    monkeypatch.setattr(VehiclePoller, "poll_vehicle", _sin_sondeo)
+    monkeypatch.setattr(VehiclePoller, "poll_vehicle", _no_poll)
     return fake
 
 
-class _PeticionFalsa:
+class _FakeRequest:
     client = type("C", (), {"host": "127.0.0.1"})()
     headers = {"user-agent": "tests"}
 
 
-async def preparar(db, *, pin=STORED_PIN) -> httpx.AsyncClient:
-    """Vehículo + cuenta Ebro (con o sin PIN guardado) + usuario de EVBro con la sesión ya iniciada.
+async def prepare(db, *, pin=STORED_PIN) -> httpx.AsyncClient:
+    """Vehicle + Ebro account (with or without a stored PIN) + EVBro user with the session already started.
 
-    El cliente se devuelve SIN abrir: cada test lo usa con `async with`."""
+    The client is returned NOT opened: each test uses it with `async with`."""
     async with async_session_factory() as s:
         s.add(Vehicle(owner_id=1, vin=VIN, name="Ebro"))
         s.add(EbroAccount(phone="600123456", password="x", pin=pin, is_active=True, user_id=1))
         user = AppUser(id=1, role="manager", username="juan", password_hash=passwords.hash_password(PASSWORD))
         s.add(user)
         await s.commit()
-        token = await auth.create_session(s, user, _PeticionFalsa())
+        token = await auth.create_session(s, user, _FakeRequest())
     client = httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://testserver")
     client.cookies.set(auth.COOKIE_NAME, token)
     return client
 
 
-async def enviar(client, command, pin=None, params=None, vin=VIN):
+async def send_command(client, command, pin=None, params=None, vin=VIN):
     return await client.post(f"/api/vehicles/{vin}/commands", json={"command": command, "pin": pin, "params": params})
 
 
-async def auditoria() -> list[CommandAudit]:
+async def audit_rows() -> list[CommandAudit]:
     async with async_session_factory() as s:
         return list((await s.execute(select(CommandAudit).order_by(CommandAudit.id))).scalars())
 
 
-# ───────────────────────── política ─────────────────────────
-def test_la_politica_solo_nombra_comandos_que_existen() -> None:
+# ───────────────────────── policy ─────────────────────────
+def test_the_policy_only_names_commands_that_exist() -> None:
     assert command_policy.check_catalog_consistency() == []
-    assert command_policy.PIN_REQUIRED == ABREN
+    assert command_policy.PIN_REQUIRED == OPENING
 
 
-def test_los_comandos_que_abren_estan_cubiertos() -> None:
-    """Cualquier comando del catálogo cuyo cuerpo abra/desbloquee/desarme debe exigir PIN."""
-    por_cuerpo = {
+def test_the_opening_commands_are_covered() -> None:
+    """Any catalogue command whose body opens/unlocks/disarms must require the PIN."""
+    by_body = {
         k for k, c in catalog.CMD_MAP.items()
         if (c["body"].get("lockType") == "1" or (c["endpoint"] if "endpoint" in c else "") in
             ("powerLiftgateControl", "windowControl", "skylightControl") and c["body"].get("controlType") in ("1", "2")
             or c.get("path", "").endswith("theftAlarm/setSwitch") and c["body"].get("theftAlarmSwitch") == "0")
     }
-    assert por_cuerpo == command_policy.PIN_REQUIRED
+    assert by_body == command_policy.PIN_REQUIRED
 
 
-async def test_el_catalogo_indica_que_comandos_piden_pin(db) -> None:
-    client = await preparar(db)
+async def test_the_catalogue_says_which_commands_ask_for_the_pin(db) -> None:
+    client = await prepare(db)
     async with client:
         cat = (await client.get("/api/commands/catalog")).json()
-    assert {c["key"] for c in cat if c["requires_pin"]} == ABREN
+    assert {c["key"] for c in cat if c["requires_pin"]} == OPENING
     assert len(cat) == len(catalog.COMMANDS)
 
 
-# ───────────────────────── PIN obligatorio ─────────────────────────
-@pytest.mark.parametrize("comando", sorted(ABREN))
-async def test_sin_pin_no_se_envia_nada(db, send, comando) -> None:
-    client = await preparar(db)
+# ───────────────────────── mandatory PIN ─────────────────────────
+@pytest.mark.parametrize("command", sorted(OPENING))
+async def test_without_pin_nothing_is_sent(db, send, command) -> None:
+    client = await prepare(db)
     async with client:
-        r = await enviar(client, comando)                      # hay PIN guardado, pero NO basta
+        r = await send_command(client, command)                      # there is a stored PIN, but it is NOT enough
     assert r.status_code == 422 and r.json()["reason"] == "pin_required"
     assert send.calls == []
 
 
-async def test_pin_incorrecto_se_rechaza_en_local_sin_contactar_con_chery(db, send) -> None:
-    client = await preparar(db)
+async def test_wrong_pin_is_rejected_locally_without_contacting_chery(db, send) -> None:
+    client = await prepare(db)
     async with client:
-        r = await enviar(client, "desbloquear", pin="9999")
+        r = await send_command(client, "desbloquear", pin="9999")
     assert r.status_code == 403 and r.json()["reason"] == "pin_invalid"
     assert send.calls == []
-    (fila,) = await auditoria()
-    assert fila.success is False and fila.code == "pin_invalid"
-    assert "9999" not in (fila.message or "") and "9999" not in str(fila.params)
+    (row,) = await audit_rows()
+    assert row.success is False and row.code == "pin_invalid"
+    assert "9999" not in (row.message or "") and "9999" not in str(row.params)
 
 
-async def test_pin_correcto_envia_con_ese_pin(db, send) -> None:
-    client = await preparar(db)
+async def test_correct_pin_sends_with_that_pin(db, send) -> None:
+    client = await prepare(db)
     async with client:
-        r = await enviar(client, "desbloquear", pin=STORED_PIN)
+        r = await send_command(client, "desbloquear", pin=STORED_PIN)
     assert r.status_code == 200 and r.json()["success"] is True
     assert [(c["key"], c["pin"]) for c in send.calls] == [("desbloquear", STORED_PIN)]
 
 
-async def test_cinco_pin_incorrectos_bloquean_tambien_el_correcto(db, send) -> None:
-    client = await preparar(db)
+async def test_five_wrong_pins_lock_the_correct_one_too(db, send) -> None:
+    client = await prepare(db)
     async with client:
         for _ in range(5):
-            assert (await enviar(client, "desbloquear", pin="0000")).status_code == 403
-        r = await enviar(client, "desbloquear", pin=STORED_PIN)
+            assert (await send_command(client, "desbloquear", pin="0000")).status_code == 403
+        r = await send_command(client, "desbloquear", pin=STORED_PIN)
         assert r.status_code == 429 and r.json()["reason"] == "pin_locked" and int(r.headers["Retry-After"]) > 0
         command_policy.pin_throttle._fails.clear()
-        assert (await enviar(client, "desbloquear", pin=STORED_PIN)).status_code == 200
+        assert (await send_command(client, "desbloquear", pin=STORED_PIN)).status_code == 200
     assert len(send.calls) == 1
 
 
-async def test_un_pin_correcto_pone_a_cero_los_fallos(db, send) -> None:
-    client = await preparar(db)
+async def test_a_correct_pin_resets_the_failures(db, send) -> None:
+    client = await prepare(db)
     async with client:
         for _ in range(4):
-            await enviar(client, "desbloquear", pin="0000")
-        assert (await enviar(client, "desbloquear", pin=STORED_PIN)).status_code == 200
+            await send_command(client, "desbloquear", pin="0000")
+        assert (await send_command(client, "desbloquear", pin=STORED_PIN)).status_code == 200
         for _ in range(4):
-            assert (await enviar(client, "desbloquear", pin="0000")).status_code == 403   # no llega a bloquear
+            assert (await send_command(client, "desbloquear", pin="0000")).status_code == 403   # does not reach the lock
 
 
-async def test_comando_que_no_abre_no_pide_pin_y_usa_el_guardado(db, send) -> None:
-    client = await preparar(db)
+async def test_a_non_opening_command_does_not_ask_for_the_pin_and_uses_the_stored_one(db, send) -> None:
+    client = await prepare(db)
     async with client:
-        for comando in ("bloquear", "clima_on", "maletero_cerrar", "ventanillas_cerrar", "alarma_on", "carga_iniciar"):
-            assert (await enviar(client, comando)).status_code == 200, comando
+        for command in ("bloquear", "clima_on", "maletero_cerrar", "ventanillas_cerrar", "alarma_on", "carga_iniciar"):
+            assert (await send_command(client, command)).status_code == 200, command
     assert {c["pin"] for c in send.calls} == {STORED_PIN}
 
 
-# ───────────────────────── el PIN tecleado no se queda guardado ─────────────────────────
-async def test_el_pin_tecleado_vale_solo_para_ese_envio(db, send) -> None:
-    client = await preparar(db, pin=None)                      # sin PIN guardado
+# ───────────────────────── the typed PIN is not stored ─────────────────────────
+async def test_the_typed_pin_is_only_valid_for_that_send(db, send) -> None:
+    client = await prepare(db, pin=None)                      # no stored PIN
     async with client:
-        r = await enviar(client, "bloquear", pin="9999")
+        r = await send_command(client, "bloquear", pin="9999")
         assert r.status_code == 200
-        r = await enviar(client, "bloquear")                   # sin PIN y sin guardado
+        r = await send_command(client, "bloquear")                   # no PIN and nothing stored
     assert [c["pin"] for c in send.calls] == ["9999", ""]
     assert VehiclePoller.get_instance()._contexts[VIN].pin == ""
 
 
-async def test_sin_pin_guardado_un_comando_que_abre_obliga_a_verificar_el_pin(db, send) -> None:
-    """El taskId en caché no prueba que quien manda conozca el PIN: se descarta para forzar a Chery."""
-    client = await preparar(db, pin=None)
+async def test_without_a_stored_pin_an_opening_command_forces_pin_verification(db, send) -> None:
+    """The cached taskId does not prove the sender knows the PIN: it is dropped to force Chery to check."""
+    client = await prepare(db, pin=None)
     ctx = VehiclePoller.get_instance()._get_or_create_ctx(VIN)
     ctx.state.taskid, ctx.state.taskid_ts = "taskid-en-cache", 9e12
     async with client:
-        assert (await enviar(client, "desbloquear", pin="4321")).status_code == 200
+        assert (await send_command(client, "desbloquear", pin="4321")).status_code == 200
     assert ctx.state.taskid is None
     assert send.calls[0]["pin"] == "4321"
-    assert send.calls[0]["ctx"].state is ctx.state             # comparte el anti-bloqueo del vehículo
+    assert send.calls[0]["ctx"].state is ctx.state             # shares the vehicle's anti-lockout
 
 
-async def test_con_pin_guardado_el_taskid_en_cache_se_conserva(db, send) -> None:
-    client = await preparar(db)
+async def test_with_a_stored_pin_the_cached_taskid_is_kept(db, send) -> None:
+    client = await prepare(db)
     ctx = VehiclePoller.get_instance()._get_or_create_ctx(VIN)
     ctx.state.taskid, ctx.state.taskid_ts = "taskid-en-cache", 9e12
     async with client:
-        assert (await enviar(client, "desbloquear", pin=STORED_PIN)).status_code == 200
+        assert (await send_command(client, "desbloquear", pin=STORED_PIN)).status_code == 200
     assert ctx.state.taskid == "taskid-en-cache"
 
 
-# ───────────────────────── parámetros ─────────────────────────
-async def test_params_no_pueden_convertir_un_comando_libre_en_uno_que_abre(db, send) -> None:
-    client = await preparar(db)
+# ───────────────────────── parameters ─────────────────────────
+async def test_params_cannot_turn_a_free_command_into_an_opening_one(db, send) -> None:
+    client = await prepare(db)
     async with client:
-        for comando, params in [("bloquear", {"lockType": "1"}),
+        for command, params in [("bloquear", {"lockType": "1"}),
                                 ("maletero_cerrar", {"controlType": "1"}),
                                 ("ventanillas_cerrar", {"controlType": "2"}),
                                 ("alarma_on", {"theftAlarmSwitch": "0"}),
                                 ("clima_on", {"vin": "OTRO", "taskId": "x"})]:
-            r = await enviar(client, comando, params=params)
-            assert r.status_code == 422 and r.json()["reason"] == "params_invalid", (comando, r.text)
+            r = await send_command(client, command, params=params)
+            assert r.status_code == 422 and r.json()["reason"] == "params_invalid", (command, r.text)
     assert send.calls == []
 
 
-async def test_temperatura_y_duracion_se_validan_y_normalizan(db, send) -> None:
-    client = await preparar(db)
+async def test_temperature_and_duration_are_validated_and_normalised(db, send) -> None:
+    client = await prepare(db)
     async with client:
-        assert (await enviar(client, "clima_on", params={"temperature": "21,5", "times": 20})).status_code == 200
-        for malo in ({"temperature": "99"}, {"temperature": "caliente"}, {"times": "0"}, {"times": "x"}):
-            assert (await enviar(client, "clima_on", params=malo)).status_code == 422, malo
+        assert (await send_command(client, "clima_on", params={"temperature": "21,5", "times": 20})).status_code == 200
+        for bad in ({"temperature": "99"}, {"temperature": "caliente"}, {"times": "0"}, {"times": "x"}):
+            assert (await send_command(client, "clima_on", params=bad)).status_code == 422, bad
     assert [c["params"] for c in send.calls] == [{"temperature": "21.5", "times": "20"}]
 
 
-# ───────────────────────── errores del core ─────────────────────────
+# ───────────────────────── core errors ─────────────────────────
 @pytest.mark.parametrize("reason,status", [("pin", 422), ("reauth", 424), ("config", 422), (None, 422)])
-async def test_error_del_core_devuelve_estado_y_reason(db, send, reason, status) -> None:
+async def test_core_error_returns_status_and_reason(db, send, reason, status) -> None:
     send.error = CommandError("fallo de prueba", code="A00084", reason=reason)
-    client = await preparar(db)
+    client = await prepare(db)
     async with client:
-        r = await enviar(client, "bloquear")
+        r = await send_command(client, "bloquear")
     assert r.status_code == status and r.json()["reason"] == reason and r.json()["success"] is False
     assert "fallo de prueba" in r.json()["detail"]
-    (fila,) = await auditoria()
-    assert fila.success is False and fila.code == "A00084"
+    (row,) = await audit_rows()
+    assert row.success is False and row.code == "A00084"
 
 
-async def test_424_no_se_confunde_con_sesion_de_evbro_caducada(db, send) -> None:
-    """La web muestra el login ante un 401; una sesión Ebro caducada no debe provocarlo."""
+async def test_424_is_not_mistaken_for_an_expired_evbro_session(db, send) -> None:
+    """The web shows the login on a 401; an expired Ebro session must not trigger it."""
     send.error = CommandError("Sesión caducada", reason="reauth")
-    client = await preparar(db)
+    client = await prepare(db)
     async with client:
-        assert (await enviar(client, "bloquear")).status_code != 401
+        assert (await send_command(client, "bloquear")).status_code != 401
 
 
-async def test_vehiculo_desconocido_o_con_ruta_peligrosa_da_404(db, send) -> None:
-    client = await preparar(db)
+async def test_unknown_vehicle_or_dangerous_path_gives_404(db, send) -> None:
+    client = await prepare(db)
     async with client:
-        assert (await enviar(client, "bloquear", vin="LSJA9999999999999")).status_code == 404
-        assert (await enviar(client, "bloquear", vin="%2e%2e")).status_code == 404
+        assert (await send_command(client, "bloquear", vin="LSJA9999999999999")).status_code == 404
+        assert (await send_command(client, "bloquear", vin="%2e%2e")).status_code == 404
     assert send.calls == []
 
 
-def test_vehicle_data_dir_no_permite_salirse_de_data_dir(data_dir) -> None:
+def test_vehicle_data_dir_does_not_allow_escaping_data_dir(data_dir) -> None:
     from app.services.accounts import vehicle_data_dir
-    for malo in ("..", "../x", "a/b", "", "ab"):
+    for bad in ("..", "../x", "a/b", "", "ab"):
         with pytest.raises(ValueError):
-            vehicle_data_dir(malo)
+            vehicle_data_dir(bad)
     assert vehicle_data_dir(VIN).startswith(str(data_dir))
 
 
-# ───────────────────────── flujo del PIN de la cuenta ─────────────────────────
-async def test_cambiar_el_pin_reinicia_el_antibloqueo_y_el_taskid(db, send) -> None:
-    client = await preparar(db)
+# ───────────────────────── account PIN flow ─────────────────────────
+async def test_changing_the_pin_resets_the_anti_lockout_and_the_taskid(db, send) -> None:
+    client = await prepare(db)
     ctx = VehiclePoller.get_instance()._get_or_create_ctx(VIN)
     for _ in range(2):
-        with ctx.lockout.attempt() as intento:
-            intento.record_failure()
+        with ctx.lockout.attempt() as attempt:
+            attempt.record_failure()
     ctx.state.taskid = "viejo"
     assert ctx.lockout.is_locked() is True
     async with client:
@@ -283,8 +283,8 @@ async def test_cambiar_el_pin_reinicia_el_antibloqueo_y_el_taskid(db, send) -> N
         assert (await s.execute(select(EbroAccount.pin))).scalar_one() == "5678"
 
 
-async def test_borrar_el_pin_deja_vacio_el_del_contexto(db, send) -> None:
-    client = await preparar(db)
+async def test_deleting_the_pin_empties_the_context_one(db, send) -> None:
+    client = await prepare(db)
     ctx = VehiclePoller.get_instance()._get_or_create_ctx(VIN)
     ctx.pin = STORED_PIN
     async with client:
@@ -292,8 +292,8 @@ async def test_borrar_el_pin_deja_vacio_el_del_contexto(db, send) -> None:
     assert ctx.pin == ""
 
 
-async def test_desconectar_la_cuenta_ebro_borra_el_pin_de_memoria(db, send) -> None:
-    client = await preparar(db)
+async def test_disconnecting_the_ebro_account_wipes_the_pin_from_memory(db, send) -> None:
+    client = await prepare(db)
     ctx = VehiclePoller.get_instance()._get_or_create_ctx(VIN)
     ctx.pin = STORED_PIN
     async with client:
@@ -301,40 +301,40 @@ async def test_desconectar_la_cuenta_ebro_borra_el_pin_de_memoria(db, send) -> N
     assert ctx.pin == ""
 
 
-# ───────────────────────── cuándo se pide el PIN: la elección del gestor ─────────────────────────
-async def _politica(client, policy):
+# ───────────────────────── when the PIN is asked: the manager's choice ─────────────────────────
+async def _set_policy(client, policy):
     return await client.put("/api/account/pin-policy", json={"policy": policy})
 
 
-async def test_la_politica_siempre_pide_el_pin_tambien_para_encender(db, send) -> None:
-    client = await preparar(db)
+async def test_the_always_policy_asks_for_the_pin_also_to_switch_on(db, send) -> None:
+    client = await prepare(db)
     async with client:
-        assert (await _politica(client, "always")).status_code == 200
-        r = await enviar(client, "clima_on")
+        assert (await _set_policy(client, "always")).status_code == 200
+        r = await send_command(client, "clima_on")
         assert r.status_code == 422 and r.json()["reason"] == "pin_required" and send.calls == []
-        assert (await enviar(client, "clima_on", pin=STORED_PIN)).status_code == 200
+        assert (await send_command(client, "clima_on", pin=STORED_PIN)).status_code == 200
         cat = (await client.get("/api/commands/catalog")).json()
         assert all(c["requires_pin"] for c in cat)
         assert (await client.get("/api/account/status")).json()["pin_policy"] == "always"
 
 
-async def test_la_politica_nunca_abre_con_el_pin_guardado_sin_teclearlo(db, send) -> None:
-    client = await preparar(db)
+async def test_the_never_policy_opens_with_the_stored_pin_without_typing_it(db, send) -> None:
+    client = await prepare(db)
     async with client:
-        assert (await _politica(client, "never")).status_code == 200
-        for comando in ("desbloquear", "maletero_abrir", "alarma_off"):
-            assert (await enviar(client, comando)).status_code == 200, comando
+        assert (await _set_policy(client, "never")).status_code == 200
+        for command in ("desbloquear", "maletero_abrir", "alarma_off"):
+            assert (await send_command(client, command)).status_code == 200, command
         assert {c["pin"] for c in send.calls} == {STORED_PIN}
         assert not any(c["requires_pin"] for c in (await client.get("/api/commands/catalog")).json())
         # back to the default: opening asks again
-        assert (await _politica(client, "open")).status_code == 200
-        assert (await enviar(client, "desbloquear")).json()["reason"] == "pin_required"
+        assert (await _set_policy(client, "open")).status_code == 200
+        assert (await send_command(client, "desbloquear")).json()["reason"] == "pin_required"
 
 
-async def test_nunca_exige_un_pin_guardado_y_los_valores_raros_se_rechazan(db, send) -> None:
-    client = await preparar(db, pin=None)
+async def test_never_requires_a_stored_pin_and_odd_values_are_rejected(db, send) -> None:
+    client = await prepare(db, pin=None)
     async with client:
-        r = await _politica(client, "never")
+        r = await _set_policy(client, "never")
         assert r.status_code == 409 and "PIN guardado" in r.json()["detail"]
-        assert (await _politica(client, "sometimes")).status_code == 422
+        assert (await _set_policy(client, "sometimes")).status_code == 422
         assert (await client.get("/api/account/status")).json()["pin_policy"] == "open"

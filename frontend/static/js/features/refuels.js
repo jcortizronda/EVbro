@@ -1,6 +1,6 @@
-/* EVBro — Repostajes (Más → Repostajes): consumo real de gasolina entre llenados, coste por 100 km, precio del litro,
- * km entre repostajes, totales por mes y la lista de repostajes (detectados o a mano) con su formulario.
- * El balance de todo el dinero sigue en Costes; aquí solo gasolina.
+/* EVBro — Refuels (Más → Repostajes): real fuel consumption between fill-ups, cost per 100 km, price per litre,
+ * km between refuels, monthly totals and the list of refuels (detected or manual) with its form.
+ * The overall money balance stays in Costes; here only fuel.
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
@@ -22,7 +22,7 @@ async function loadRefuels() {
     refuelsData = data.refuels;
     renderRefuels(data);
   } catch (err) {
-    console.warn('No se pudieron cargar los repostajes:', err);
+    console.warn('Could not load the refuels:', err);
   }
 }
 
@@ -87,7 +87,7 @@ function renderRefuelList() {
   }).join('');
 }
 
-// ───────────────────────── Formulario ─────────────────────────
+// ───────────────────────── Form ─────────────────────────
 function setRefuelMode(mode) {
   rfEl('rfPrice').hidden = mode !== 'price';
   rfEl('rfTotal').hidden = mode !== 'total';

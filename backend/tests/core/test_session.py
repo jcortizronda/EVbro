@@ -1,9 +1,9 @@
-"""Tests de `core/session.py` — salud del token (keep-alive de la sesión).
+"""Tests for `core/session.py` — token health (session keep-alive).
 
-El módulo solo orquesta: toda su lógica interesante está en cuatro costuras hacia `wake`.
-Mockeándolas queda un módulo efectivamente puro, y la rama que de verdad importa es
-**EXPIRED vs NET_ERROR**: es la que decide si a un usuario le aparece la tarjeta
-«Reautenticar». Confundirlas ante un corte de red le haría reautenticar en balde.
+The module only orchestrates: all its interesting logic sits in four seams towards `wake`.
+Mocking them leaves an effectively pure module, and the branch that really matters is
+**EXPIRED vs NET_ERROR**: it decides whether a user sees the
+«Reautenticar» card. Mixing them up on a network outage would make them re-authenticate for nothing.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ from app.core import session
 
 
 def _ctx(*, refresh_reason: str = "", refresh_ts: float | None = None):
-    """Contexto mínimo: `check()` solo mira `estado.refresh_motivo` y `estado.refresh_ts`."""
+    """Minimal context: `check()` only looks at `state.refresh_reason` and `state.refresh_ts`."""
     return SimpleNamespace(
         state=SimpleNamespace(
             refresh_reason=refresh_reason,
@@ -38,8 +38,8 @@ def test_check_ok() -> None:
     assert "activa" in detalle
 
 
-def test_check_excepcion_es_error_de_red_no_sesion_caducada() -> None:
-    """Una excepción del login (DNS, TLS, timeout) NO es una sesión muerta."""
+def test_check_exception_is_network_error_not_expired_session() -> None:
+    """A login exception (DNS, TLS, timeout) is NOT a dead session."""
     with patch.object(session.wake, "_bff_login", side_effect=OSError("dns")):
         ok, detalle, status = session.check(_ctx())
 
@@ -48,8 +48,8 @@ def test_check_excepcion_es_error_de_red_no_sesion_caducada() -> None:
     assert "OSError" in detalle
 
 
-def test_check_login_fallido_sin_marcador_es_expired() -> None:
-    """Sin ninguna señal de red, un login rechazado se interpreta como sesión muerta."""
+def test_check_failed_login_without_marker_is_expired() -> None:
+    """With no network signal at all, a rejected login is read as a dead session."""
     with patch.object(session.wake, "_bff_login", return_value=(None, None)):
         ok, _, status = session.check(_ctx())
 
@@ -57,11 +57,11 @@ def test_check_login_fallido_sin_marcador_es_expired() -> None:
     assert status == session.STATUS_EXPIRED
 
 
-def test_check_login_fallido_con_marcador_de_red_reciente_es_net_error() -> None:
-    """Si la RENOVACIÓN ni siquiera arrancó por red, la sesión puede seguir viva al otro lado.
+def test_check_failed_login_with_recent_network_marker_is_net_error() -> None:
+    """If the RENEWAL did not even start because of the network, the session may still be alive on the other side.
 
-    Declararla caducada haría aparecer «Reautenticar» sin motivo — el caso que motiva el
-    marcador `red:` y su ventana de frescura.
+    Declaring it expired would bring up «Reautenticar» for no reason — the case behind the
+    `red:` marker and its freshness window.
     """
     ctx = _ctx(refresh_reason="red:ConnectTimeout")
 
@@ -73,8 +73,8 @@ def test_check_login_fallido_con_marcador_de_red_reciente_es_net_error() -> None
     assert "ConnectTimeout" in detalle
 
 
-def test_check_ignora_un_marcador_de_red_viejo() -> None:
-    """Un marcador anterior a `_MOTIVO_RECIENTE_S` habla de otra vuelta, no de esta."""
+def test_check_ignores_an_old_network_marker() -> None:
+    """A marker older than `_REASON_FRESH_S` refers to another pass, not this one."""
     ctx = _ctx(
         refresh_reason="red:ConnectTimeout",
         refresh_ts=time.time() - session._REASON_FRESH_S - 1,
@@ -86,8 +86,8 @@ def test_check_ignora_un_marcador_de_red_viejo() -> None:
     assert status == session.STATUS_EXPIRED
 
 
-def test_check_marcador_reciente_pero_no_de_red_es_expired() -> None:
-    """Solo `red:` indica red. Un `rechazado:*` es un rechazo real → sesión muerta."""
+def test_check_recent_non_network_marker_is_expired() -> None:
+    """Only `red:` means network. A `rechazado:*` is a real rejection → dead session."""
     ctx = _ctx(refresh_reason="rechazado:invalid_grant")
 
     with patch.object(session.wake, "_bff_login", return_value=(None, None)):
@@ -96,14 +96,14 @@ def test_check_marcador_reciente_pero_no_de_red_es_expired() -> None:
     assert status == session.STATUS_EXPIRED
 
 
-def test_check_sin_marcador_de_red_declara_la_sesion_caducada() -> None:
-    """Sin un marcador RECIENTE de «la renovación no salió por red», un login fallido es una
-    sesión muerta y toca reautenticar.
+def test_check_without_network_marker_declares_the_session_expired() -> None:
+    """Without a RECENT «the renewal did not go out because of the network» marker, a failed login is a
+    dead session and re-authentication is due.
 
-    Antes este test pasaba un `SimpleNamespace()` vacío para ejercitar un `try/except` que
-    toleraba contextos sin `state`. Esos contextos eran las herramientas de diagnóstico por
-    línea de comandos, borradas en la primera pasada: el guarda ya no protegía de nada y, si
-    algún día hubiera saltado, se habría tragado un AttributeError real."""
+    This test used to pass an empty `SimpleNamespace()` to exercise a `try/except` that
+    tolerated contexts without `state`. Those contexts were the command-line diagnostic
+    tools, deleted in the first pass: the guard no longer protected anything and, had it
+    ever fired, it would have swallowed a real AttributeError."""
     from app.core.context import CoreCtx
 
     with patch.object(session.wake, "_bff_login", return_value=(None, None)):
@@ -121,16 +121,16 @@ def test_refresh(devuelto, esperado) -> None:
         assert session.refresh(_ctx()) is esperado
 
 
-def test_refresh_nunca_lanza() -> None:
+def test_refresh_never_raises() -> None:
     with patch.object(session.wake, "_refresh_token", side_effect=RuntimeError("boom")):
         assert session.refresh(_ctx()) is False
 
 
-# ───────────────────────── refresh_si_proximo_a_caducar() ─────────────────────────
+# ───────────────────────── refresh_if_expiring() ─────────────────────────
 
 
-def test_proactivo_no_hace_falta_todavia() -> None:
-    """A mitad de vida no se renueva y NO se hace ninguna llamada."""
+def test_proactive_not_needed_yet() -> None:
+    """At half its lifetime it is not renewed and NO call is made."""
     with (
         patch.object(session.wake, "_eta_token", return_value=(6 * 3600, 12 * 3600)),
         patch.object(session.wake, "_refresh_token_detail") as detalle,
@@ -141,8 +141,8 @@ def test_proactivo_no_hace_falta_todavia() -> None:
     detalle.assert_not_called()
 
 
-def test_proactivo_renueva_al_superar_la_cuota() -> None:
-    """Pasada la cuota (0.8 = a las 9h36m de 12h) se renueva por adelantado."""
+def test_proactive_renews_past_the_quota() -> None:
+    """Past the quota (0.8 = at 9h36m of 12h) it renews ahead of time."""
     with (
         patch.object(session.wake, "_eta_token", return_value=(10 * 3600, 12 * 3600)),
         patch.object(
@@ -156,14 +156,14 @@ def test_proactivo_renueva_al_superar_la_cuota() -> None:
 
 
 @pytest.mark.parametrize("eta_duracion", [(-1, 12 * 3600), (100, 0)])
-def test_proactivo_no_determinable(eta_duracion) -> None:
-    """Sin token.json (o con un mtime imposible) no se decide nada."""
+def test_proactive_not_determinable(eta_duracion) -> None:
+    """Without token.json (or with an impossible mtime) nothing is decided."""
     with patch.object(session.wake, "_eta_token", return_value=eta_duracion):
         assert session.refresh_if_expiring(_ctx()) == (False, "no_determinable")
 
 
-def test_proactivo_nunca_lanza() -> None:
-    """Es una optimización: no puede romper el keep-alive que la invoca."""
+def test_proactive_never_raises() -> None:
+    """It is an optimisation: it cannot break the keep-alive that invokes it."""
     with patch.object(session.wake, "_eta_token", side_effect=OSError("stat")):
         renewed, reason = session.refresh_if_expiring(_ctx())
 

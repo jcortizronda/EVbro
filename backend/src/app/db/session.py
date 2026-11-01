@@ -1,4 +1,4 @@
-"""Configuración del motor de base de datos y sesiones asíncronas."""
+"""Database engine setup and async sessions."""
 from __future__ import annotations
 
 import logging
@@ -16,9 +16,9 @@ from app.db.models import Base
 
 _LOGGER = logging.getLogger(__name__)
 
-# Configuración del motor asíncrono
+# async engine setup
 database_url = settings.DATABASE_URL
-# Si se usa postgresql:// estándar, convertir a postgresql+asyncpg://
+# a plain postgresql:// URL is turned into postgresql+asyncpg://
 if database_url.startswith("postgresql://"):
     database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
@@ -46,11 +46,11 @@ async def init_db() -> None:
     from app.db import migrate
     if await migrate.is_tracked(engine):
         await migrate.upgrade_to_head()
-        _LOGGER.info("Esquema de la base de datos al día (Alembic, revisión %s).", migrate.head_revision())
+        _LOGGER.info("Database schema up to date (Alembic, revision %s).", migrate.head_revision())
     else:
         await _legacy_schema()
         await migrate.stamp_head()
-        _LOGGER.info("Base de datos marcada en la revisión base de Alembic (%s); a partir de aquí migra con revisiones.", migrate.head_revision())
+        _LOGGER.info("Database stamped at the Alembic base revision (%s); from here on it migrates with revisions.", migrate.head_revision())
     await _data_migrations()
 
 
@@ -115,7 +115,7 @@ async def _legacy_schema() -> None:
             await conn.execute(text("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS photo_size INTEGER;"))
             await conn.execute(text("ALTER TABLE app_users ADD COLUMN IF NOT EXISTS storage_limit_mb INTEGER;"))
             await conn.execute(text("ALTER TABLE invites ADD COLUMN IF NOT EXISTS storage_limit_mb INTEGER;"))
-            # La fecha de entrega que se guardaba en el plan de mantenimiento pasa a la configuración del vehículo
+            # the delivery date stored in the maintenance plan moves to the vehicle settings
             await conn.execute(text(
                 "UPDATE vehicles v SET delivery_date = p.baseline_date FROM maintenance_plans p "
                 "WHERE p.vin = v.vin AND v.delivery_date IS NULL AND p.baseline_date IS NOT NULL;"))
@@ -146,14 +146,14 @@ async def _legacy_schema() -> None:
             await conn.execute(text("ALTER TABLE notification_configs ADD COLUMN IF NOT EXISTS notify_tyre_pressure BOOLEAN DEFAULT TRUE;"))
             await conn.execute(text("ALTER TABLE notification_configs ADD COLUMN IF NOT EXISTS notify_renewals BOOLEAN DEFAULT TRUE;"))
         except Exception as e:
-            _LOGGER.warning("Aviso al verificar columnas en base de datos: %s", e)
-    _LOGGER.info("Tablas de base de datos inicializadas correctamente.")
+            _LOGGER.warning("Warning while checking database columns: %s", e)
+    _LOGGER.info("Database tables initialised.")
 
 
 async def _data_migrations() -> None:
     """One-time data migrations, each idempotent and in its own transaction (a flag in `app_settings` marks the ones already done)."""
-    # Secretos en reposo: columnas a TEXT (PostgreSQL) y cifrado de lo que estuviera en claro.
-    # Transacción aparte: un fallo aquí no debe arrastrar las migraciones de arriba.
+    # secrets at rest: columns to TEXT (PostgreSQL) and encryption of anything in plain text.
+    # Separate transaction: a failure here must not drag down the migrations above.
     from app.db.secrets_migration import encrypt_legacy_secrets, widen_columns_to_text
     try:
         async with engine.begin() as conn:
@@ -161,12 +161,12 @@ async def _data_migrations() -> None:
             await encrypt_legacy_secrets(conn)
     except Exception:
         _LOGGER.exception(
-            "No se pudieron cifrar los secretos guardados. Siguen legibles pero sin cifrar; "
-            "revisa ENCRYPTION_KEY / DATA_DIR y reinicia."
+            "Could not encrypt the stored secrets. They are still readable but unencrypted; "
+            "check ENCRYPTION_KEY / DATA_DIR and restart."
         )
 
-    # Una sola vez: la «energía de la red» que se guardaba era un cálculo (añadida / 0,95), no un dato. Se borra para que la
-    # interfaz muestre «desconocida» hasta que el usuario indique los kWh de su contador.
+    # one-off: the stored "grid energy" was a calculation (added / 0.95), not real data. It is cleared so the
+    # interface shows "unknown" until the user enters the kWh from their meter.
     try:
         async with engine.begin() as conn:
             done = (await conn.execute(text("SELECT 1 FROM app_settings WHERE key = 'migration.kwh_used_cleared'"))).first()
@@ -174,9 +174,9 @@ async def _data_migrations() -> None:
                 await conn.execute(text("UPDATE charging_sessions SET kwh_used = NULL"))
                 await conn.execute(text("INSERT INTO app_settings (key, value) VALUES ('migration.kwh_used_cleared', '1')"))
     except Exception as e:
-        _LOGGER.warning("Aviso al limpiar la energía de red estimada: %s", e)
+        _LOGGER.warning("Warning while clearing the estimated grid energy: %s", e)
 
-    # Una sola vez: los umbrales de combustible y batería eran de la configuración global de avisos; ahora son del coche.
+    # one-off: the fuel and battery thresholds belonged to the global notice settings; now they belong to the car.
     try:
         async with engine.begin() as conn:
             done = (await conn.execute(text("SELECT 1 FROM app_settings WHERE key = 'migration.thresholds_to_vehicle'"))).first()
@@ -189,7 +189,7 @@ async def _data_migrations() -> None:
                                             "notification_configs ORDER BY id LIMIT 1), 20)"))
                 await conn.execute(text("INSERT INTO app_settings (key, value) VALUES ('migration.thresholds_to_vehicle', '1')"))
     except Exception as e:
-        _LOGGER.warning("Aviso al mover los umbrales de avisos al coche: %s", e)
+        _LOGGER.warning("Warning while moving the notice thresholds to the car: %s", e)
 
     await _migrate_accounts_and_owners()
 
@@ -198,7 +198,7 @@ async def _data_migrations() -> None:
     try:
         await encrypt_legacy_files()
     except Exception:
-        _LOGGER.exception("No se pudieron cifrar los ficheros subidos que estaban sin cifrar; se reintentará en el próximo arranque.")
+        _LOGGER.exception("Could not encrypt the unencrypted uploaded files; will retry on the next start.")
 
 
 async def _migrate_accounts_and_owners() -> None:
@@ -231,11 +231,11 @@ async def _migrate_accounts_and_owners() -> None:
                                   ("notification_configs", "user_id"), ("notification_logs", "user_id")):
                 await conn.execute(text(f"UPDATE {table} SET {column} = {owner} WHERE {column} IS NULL AND {owner} IS NOT NULL;"))
     except Exception as e:
-        _LOGGER.error("FALLÓ la migración de cuentas y propietarios (no se ha aplicado nada de ella): %s", e)
+        _LOGGER.error("The accounts and owners migration FAILED (none of it was applied): %s", e)
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """Inyector de dependencias para FastAPI."""
+    """FastAPI dependency injector."""
     async with async_session_factory() as session:
         try:
             yield session

@@ -1,7 +1,7 @@
-/* EVBro — Iconos SVG en línea (trazo, color = currentColor).
- * Sustituyen a los emojis en botones y avisos: se ven igual en todos los móviles y respetan el tema.
- * Uso: `icon('edit')` devuelve el <svg> como texto para meterlo en un innerHTML/plantilla.
- * (Script clásico: comparte el ámbito global con los demás ficheros; ver el orden de carga en templates/index.html.)
+/* EVBro — Inline SVG icons (stroke, colour = currentColor).
+ * They replace the emojis in buttons and toasts: they look the same on every phone and follow the theme.
+ * Usage: `icon('edit')` returns the <svg> as text to put into innerHTML/a template.
+ * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
 const ICON_PATHS = {
@@ -44,7 +44,7 @@ function icon(name, size = 18) {
   return `<svg class="ico" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON_PATHS[name] || ''}</svg>`;
 }
 
-/** Quita los emojis de un texto (mensajes que vienen del servidor o del protocolo del coche, que llevan uno delante). */
+/** Strips the emojis from a text (messages from the server or the car protocol, which carry one in front). */
 function stripEmoji(text) {
   return String(text ?? '')
     .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B50}\u{2B06}\u{2B07}\u{2300}-\u{23FF}\u{FE0F}\u{200D}]/gu, '')
@@ -52,7 +52,7 @@ function stripEmoji(text) {
     .replace(/\s{2,}/g, ' ');
 }
 
-/** Nivel de un texto de estado que empieza por un círculo de color (verde, amarillo, rojo o blanco): lo usa la franja «En vivo» para pintar un punto CSS. */
+/** Level of a status text that starts with a coloured circle (green, yellow, red or white): the «En vivo» strip uses it to draw a CSS dot. */
 function statusLevel(text) {
   const t = String(text ?? '');
   if (t.includes('\u{1F7E2}')) return 'ok';

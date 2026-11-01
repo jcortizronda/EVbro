@@ -1,4 +1,4 @@
-/* EVBro — consola de administración (escritorio). Sin estilos en línea: la política CSP de la consola no los permite. */
+/* EVBro — admin console (desktop). No inline styles: the console's CSP does not allow them. */
 :root {
   --bg: #f4f5f7; --card: #fff; --text: #14161a; --muted: #5d6573; --line: #dfe2e8; --accent: #0a6cff; --danger: #c62828; --ok: #1b7f3b; --warn: #8a5a00;
   --chip: #eef0f4; color-scheme: light dark;
@@ -56,7 +56,7 @@ td .row-actions button { padding: 5px 10px; font-size: 0.82rem; }
 .toast.error { background: var(--danger); color: #fff; }
 @media (max-width: 700px) { .top { padding: 10px 12px; } .inline-form label, .inline-form label.wide { width: 100%; } }
 
-/* Estadísticas */
+/* Statistics */
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 18px; }
 .grid2 .card { margin-bottom: 0; }
 .grid2 + .grid2, .grid2 + .card { margin-top: 18px; }
@@ -68,7 +68,7 @@ td .row-actions button { padding: 5px 10px; font-size: 0.82rem; }
 .kpi-n { font-size: 0.78rem; color: var(--muted); }
 .chart { width: 100%; height: auto; max-height: 220px; }
 .chart .bar { fill: var(--accent); } .chart .axis { fill: var(--muted); font-size: 10px; } .chart .val { fill: var(--text); font-size: 11px; font-weight: 700; }
-/* Diálogo de límites */
+/* Limits dialog */
 dialog { width: min(440px, calc(100vw - 32px)); padding: 22px; color: var(--text); background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
 dialog::backdrop { background: rgba(0, 0, 0, 0.45); }
 dialog form { display: flex; flex-direction: column; gap: 12px; }

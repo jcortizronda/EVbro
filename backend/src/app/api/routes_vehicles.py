@@ -1,4 +1,4 @@
-"""Rutas de vehículos y telemetría en vivo."""
+"""Vehicle and live telemetry routes."""
 from __future__ import annotations
 
 import datetime
@@ -36,7 +36,7 @@ class VehicleOut(BaseModel):
     odometer: Optional[float] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
-    # Ficha del vehículo
+    # vehicle profile
     model_year: Optional[int] = None
     registration_date: Optional[datetime.datetime] = None
     delivery_date: Optional[datetime.datetime] = None
@@ -69,7 +69,7 @@ class VehicleOut(BaseModel):
 
 
 class VehicleUpdate(BaseModel):
-    """Los campos enviados con `null` (o texto vacío) borran el valor; los no enviados no se tocan."""
+    """Fields sent as `null` (or empty text) clear the value; fields not sent are left alone."""
     name: Optional[str] = None
     model: Optional[str] = None
     brand: Optional[str] = Field(default=None, max_length=50)
@@ -113,7 +113,7 @@ class VehicleUpdate(BaseModel):
         return clean
 
 
-# Se pueden borrar enviándolos a null. El resto (nombre, modelo, marca, capacidades, tolerancia) siempre tiene valor.
+# These can be cleared by sending null. The rest (name, model, brand, capacities, tolerance) always has a value.
 _CLEARABLE_TEXT = ("license_plate", "chassis_number", "insurance_company", "insurance_policy", "insurance_coverage", "insurance_assistance_phone", "trim", "color", "env_label", "tyre_front_size", "tyre_rear_size")
 _CLEARABLE = ("registration_date", "delivery_date", "insurance_renewal_date", "purchase_price", "model_year",
               "tyre_front_pressure_bar", "tyre_rear_pressure_bar")
@@ -176,7 +176,7 @@ async def create_manual_vehicle(req: ManualVehicle, session: AsyncSession = Depe
 
 @router.put("/{vin}", response_model=VehicleOut)
 async def update_vehicle(vin: str, payload: VehicleUpdate, session: AsyncSession = Depends(get_db)):
-    """Actualiza la ficha del vehículo (identidad, compra, documentación, neumáticos, energía y combustible). A new battery capacity
+    """Updates the vehicle profile (identity, purchase, paperwork, tyres, energy and fuel). A new battery capacity
     re-estimates the energy of every past drive and charge (services/energy_recalc.py)."""
     vehicle = await _get_vehicle(session, vin)
     previous_capacity = vehicle.battery_capacity_kwh
@@ -262,7 +262,7 @@ async def delete_vehicle_photo(vin: str, session: AsyncSession = Depends(get_db)
 
 @router.post("/discover")
 async def discover_vehicles(session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)):
-    """Conecta con la nube Ebro con LA cuenta de este usuario y descubre sus vehículos nuevos."""
+    """Connects to the Ebro cloud with THIS user's account and discovers its new vehicles."""
     account = (await session.execute(select(EbroAccount).where(EbroAccount.is_active == True, EbroAccount.user_id == user.id)  # noqa: E712
                                      .order_by(EbroAccount.id.desc()))).scalars().first()
     if account is None:
@@ -274,13 +274,13 @@ async def discover_vehicles(session: AsyncSession = Depends(get_db), user: AppUs
 
 @router.get("/{vin}/latest")
 async def get_latest_telemetry(vin: str, session: AsyncSession = Depends(get_db)):
-    """Obtiene la instantánea de telemetría más reciente del vehículo."""
+    """Gets the vehicle's most recent telemetry snapshot."""
     poller = VehiclePoller.get_instance()
     mem_latest = poller.get_latest(vin)
     if mem_latest:
         return mem_latest
 
-    # Si no está en memoria, consultar último snapshot de DB y normalizarlo
+    # if it is not in memory, read the last snapshot from the DB and normalise it
     stmt = (
         select(TelemetrySnapshot)
         .where(TelemetrySnapshot.vin == vin)
@@ -332,7 +332,7 @@ async def get_latest_telemetry(vin: str, session: AsyncSession = Depends(get_db)
 
 @router.post("/{vin}/poll")
 async def poll_vehicle_now(vin: str):
-    """Fuerza un sondeo inmediato de telemetría hacia la nube Ebro."""
+    """Forces an immediate telemetry poll of the Ebro cloud."""
     poller = VehiclePoller.get_instance()
     data = await poller.poll_vehicle(vin, force=True)
     if not data:

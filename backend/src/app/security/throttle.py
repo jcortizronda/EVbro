@@ -1,8 +1,8 @@
-"""Límite de intentos fallidos de acceso (en memoria).
+"""Limit on failed login attempts (in memory).
 
-Ventana deslizante por clave: si una clave acumula `max_failures` fallos dentro de `window_s`,
-queda bloqueada hasta que el fallo más antiguo salga de la ventana. Está en memoria a propósito:
-reiniciar el servidor lo pone a cero, pero un atacante no controla los reinicios.
+Sliding window per key: if a key piles up `max_failures` failures within `window_s`, it stays
+blocked until the oldest failure leaves the window. It is in memory on purpose: restarting the
+server resets it, but an attacker does not control restarts.
 """
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ class LoginThrottle:
         return q
 
     def retry_after(self, key: str) -> int:
-        """Segundos hasta poder reintentar (0 = permitido)."""
+        """Seconds until a retry is allowed (0 = allowed)."""
         now = time.monotonic()
         q = self._recent(key, now)
         if len(q) < self.max_failures:
@@ -38,7 +38,7 @@ class LoginThrottle:
         now = time.monotonic()
         self._recent(key, now)
         self._fails.setdefault(key, deque()).append(now)
-        if len(self._fails) > 10_000:                       # evita crecer sin límite bajo ataque
+        if len(self._fails) > 10_000:                       # keeps it from growing without bound under attack
             for k in list(self._fails):
                 self._recent(k, now)
 

@@ -1,4 +1,4 @@
-"""Rutas de gestión de geocercas (Casa, Trabajo, Cargador, Tarifas Eléctricas)."""
+"""Geofence management routes (home, work, charger, electricity tariffs)."""
 from __future__ import annotations
 
 import datetime
@@ -79,7 +79,7 @@ class GeofenceOut(BaseModel):
 
 @router.get("", response_model=List[GeofenceOut])
 async def list_geofences(session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)):
-    """Lista las geocercas del espacio de esta cuenta (las de su gestor)."""
+    """Lists the geofences of this account's space (those of its manager)."""
     stmt = select(Geofence).where(Geofence.owner_id == space_owner_id(user)).order_by(Geofence.name)
     result = await session.execute(stmt)
     return result.scalars().all()
@@ -87,7 +87,7 @@ async def list_geofences(session: AsyncSession = Depends(get_db), user: AppUser 
 
 @router.get("/pvpc/current")
 async def current_pvpc_info(zone: str = "Peninsula"):
-    """Devuelve la tarifa eléctrica regulada PVPC actual y el tramo 2.0TD en vigor."""
+    """Returns the current regulated PVPC electricity price and the 2.0TD period in force."""
     now = datetime.datetime.utcnow()
     period, period_desc = get_time_of_use_period(now)
     price, label = await get_pvpc_hourly_price(now, zone=zone)
@@ -103,7 +103,7 @@ async def current_pvpc_info(zone: str = "Peninsula"):
 
 @router.get("/reverse")
 async def reverse_geocode_endpoint(lat: float, lon: float):
-    """Devuelve la dirección legible de unas coordenadas para el mapa de geocercas."""
+    """Returns the readable address of some coordinates for the geofence map."""
     from app.services.geofence import reverse_geocode
     addr = await reverse_geocode(lat, lon)
     return {"address": addr or f"{lat:.4f}, {lon:.4f}"}
@@ -111,7 +111,7 @@ async def reverse_geocode_endpoint(lat: float, lon: float):
 
 @router.get("/search-address")
 async def search_address_endpoint(q: str = Query(max_length=200)):
-    """Busca direcciones o lugares en OpenStreetMap Nominatim para posicionar geocercas en el mapa."""
+    """Searches addresses or places in OpenStreetMap Nominatim to place geofences on the map."""
     if not q or len(q.strip()) < 2:
         return []
 
@@ -149,7 +149,7 @@ async def search_address_endpoint(q: str = Query(max_length=200)):
 
 @router.post("", response_model=GeofenceOut)
 async def create_geofence(req: GeofenceCreate, session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)):
-    """Crea una nueva geocerca con soporte para avisos y tarifas avanzadas (Fija, 2.0TD, PVPC)."""
+    """Creates a new geofence with support for notices and advanced tariffs (fixed, 2.0TD, PVPC)."""
     gf = Geofence(
         owner_id=space_owner_id(user),
         name=req.name,
@@ -178,7 +178,7 @@ async def create_geofence(req: GeofenceCreate, session: AsyncSession = Depends(g
 async def update_geofence(
     geofence_id: int, req: GeofenceUpdate, session: AsyncSession = Depends(get_db)
 ):
-    """Actualiza la configuración, notificaciones o tarifas de una geocerca existente."""
+    """Updates the settings, notifications or tariffs of an existing geofence."""
     gf = await session.get(Geofence, geofence_id)
     if not gf:
         raise HTTPException(status_code=404, detail="Geocerca no encontrada.")
@@ -194,7 +194,7 @@ async def update_geofence(
 
 @router.delete("/{geofence_id}")
 async def delete_geofence(geofence_id: int, session: AsyncSession = Depends(get_db)):
-    """Elimina una geocerca existente."""
+    """Deletes an existing geofence."""
     gf = await session.get(Geofence, geofence_id)
     if not gf:
         raise HTTPException(status_code=404, detail="Geocerca no encontrada.")

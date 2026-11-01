@@ -1,15 +1,15 @@
-"""Aprovisionamiento automático de los certificados mutual-TLS MQTT (broker EMQX del coche).
+"""Automatic provisioning of the mutual-TLS MQTT certificates (the car's EMQX broker).
 
-Los certificados de cliente EMQX son **constantes universales por región** (`Subject:
-CN=client`), **NO** datos por cuenta: son idénticos para todos los usuarios de una región.
-Provienen tal cual de los assets **PÚBLICOS** del APK oficial (`assets/tspemqx-app-<host>_*`),
-donde están ofuscados con un cifrado de flujo de keystream fijo y desofuscados en tiempo de
-ejecución por `libapp.so`. Aquí están empaquetados en la misma forma cifrada + el keystream
-(ver `certs/store.json`) y se desofuscan en el setup. No se envía ningún dato por usuario.
+The EMQX client certificates are **universal per-region constants** (`Subject:
+CN=client`), **NOT** per-account data: they are identical for every user in a region.
+They come as-is from the **PUBLIC** assets of the official APK (`assets/tspemqx-app-<host>_*`),
+where they are obfuscated with a fixed-keystream stream cipher and deobfuscated at run time
+by `libapp.so`. Here they are bundled in the same encrypted form + the keystream
+(see `certs/store.json`) and deobfuscated at setup. No per-user data is sent.
 
-El aislamiento entre cuentas se hace vía usuario/contraseña MQTT (clientId + md5) y ACL sobre
-los topics, NO mediante el certificado → un único certificado compartido es el modelo de la
-propia app.
+Isolation between accounts is done through the MQTT username/password (clientId + md5) and ACLs
+on the topics, NOT through the certificate → a single shared certificate is the app's own
+model.
 """
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ def _load() -> dict:
 
 
 def available_regions() -> list[str]:
-    """Hosts MQTT (regiones) para los que existe un juego de certificados empaquetado."""
+    """MQTT hosts (regions) for which a bundled certificate set exists."""
     try:
         return sorted(_load().get("regions", {}))
     except Exception:
@@ -35,10 +35,10 @@ def available_regions() -> list[str]:
 
 
 def decrypt_region(host: str) -> dict[str, bytes] | None:
-    """Devuelve {'ca.pem','client.pem','client.key': bytes} para el broker `host`, o None.
+    """Return {'ca.pem','client.pem','client.key': bytes} for the `host` broker, or None.
 
-    Desofusca los assets (XOR con el keystream fijo, conservando la longitud) — idéntico a lo
-    que hace `libapp.so` cuando carga los mismos assets del APK."""
+    Deobfuscates the assets (XOR with the fixed keystream, keeping the length) — identical to
+    what `libapp.so` does when it loads the same APK assets."""
     try:
         store = _load()
         reg = store.get("regions", {}).get(host)

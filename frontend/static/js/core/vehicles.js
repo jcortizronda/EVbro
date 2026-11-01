@@ -1,11 +1,11 @@
-/* EVBro — Vehículos: selector, cabecera, edición del coche y lectura de telemetría.
- * (Script clásico: comparte el ámbito global con los demás ficheros; ver el orden de carga en templates/index.html.)
+/* EVBro — Vehicles: picker, header, car editing and telemetry reading.
+ * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
 /**
- * Sincroniza la información del encabezado del vehículo (Nombre y VIN).
- * Garantiza auditoría y persistencia visual del VIN en la vista principal.
- * @param {Object} [vehicle] - Metadatos opcionales del vehículo (name, model, vin).
+ * Syncs the vehicle header information (name and VIN).
+ * Keeps the VIN visible in the main view.
+ * @param {Object} [vehicle] - Optional vehicle metadata (name, model, vin).
  */
 function updateVehicleHeaderInfo(vehicle) {
   const nameEl = document.getElementById('vehicleName');
@@ -23,19 +23,19 @@ function updateVehicleHeaderInfo(vehicle) {
     nameEl.innerText = displayName;
   }
 
-  // Actualizar subtítulo en la cabecera
+  // Update the header subtitle
   const headerSubtitle = document.getElementById('headerVehicleSubtitle');
   if (headerSubtitle) {
     headerSubtitle.innerText = modelName;
   }
 
-  // Actualizar matrícula en las cabeceras de las pestañas
+  // Update the plate in the tab headers
   const plateBadge = document.getElementById('heroPlateBadge');
   if (plateBadge) plateBadge.innerText = plateText;
   const energyPlateBadge = document.getElementById('energyHeroPlateBadge');
   if (energyPlateBadge) energyPlateBadge.innerText = plateText;
 
-  // Actualizar panel de información en Ajustes -> Cuenta
+  // Update the info panel in Ajustes -> Cuenta
   const setName = document.getElementById('settingsVehicleNameDisplay');
   if (setName) setName.innerText = displayName;
   const setModel = document.getElementById('settingsVehicleModelDisplay');
@@ -48,7 +48,7 @@ function updateVehicleHeaderInfo(vehicle) {
 
   if (typeof applyAccessLevel === 'function') applyAccessLevel();
 
-  // Actualizar título del navegador
+  // Update the browser title
   document.title = t('EVBro — {p0}', {p0: displayName});
 
   if (vinEl) {
@@ -83,20 +83,20 @@ async function loadVehicles() {
 
     // The car chosen last time (per browser) if it is still there; otherwise the first one
     let saved = null;
-    try { saved = localStorage.getItem(VEHICLE_KEY); } catch (e) { /* sin almacenamiento */ }
+    try { saved = localStorage.getItem(VEHICLE_KEY); } catch (e) { /* no storage */ }
     const chosen = vehicles.find(v => v.vin === saved) || vehicles[0];
     currentVin = chosen.vin;
     sel.value = currentVin;
 
-    // Actualizar nombre y VIN en el encabezado principal
+    // Update name and VIN in the main header
     updateVehicleHeaderInfo(chosen);
     applyVehicleCapabilities();                     // fuel type and «no Ebro account» decide what the interface shows
 
-    // Cargar telemetría y detalles de carga del coche elegido
+    // Load telemetry and charge details of the chosen car
     loadLatestTelemetry(currentVin);
     loadLatestCharge(currentVin);
   } catch (err) {
-    console.error("Error cargando vehículos:", err);
+    console.error("Error loading vehicles:", err);
   }
 }
 
@@ -111,7 +111,7 @@ function vehicleLabel(v) {
 function selectVehicle(vin) {
   if (!vin) return;
   currentVin = vin;
-  try { localStorage.setItem(VEHICLE_KEY, vin); } catch (e) { /* da igual */ }
+  try { localStorage.setItem(VEHICLE_KEY, vin); } catch (e) { /* does not matter */ }
   const sel = document.getElementById('vehicleSelector');
   if (sel && sel.value !== vin) sel.value = vin;
   updateVehicleHeaderInfo();
@@ -125,7 +125,7 @@ function selectVehicle(vin) {
 
 function onVehicleChange(vin) { selectVehicle(vin); }
 
-// Cargar última telemetría
+// Load the latest telemetry
 async function loadLatestTelemetry(vin) {
   if (!vin) return;
   try {
@@ -135,7 +135,7 @@ async function loadLatestTelemetry(vin) {
       applyTelemetry(data);
     }
   } catch (err) {
-    console.error("Error al cargar última telemetría:", err);
+    console.error("Error loading the latest telemetry:", err);
   }
 }
 

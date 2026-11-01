@@ -1,4 +1,4 @@
-"""Detector y gestor de trayectos / viajes."""
+"""Trip detector and manager."""
 from __future__ import annotations
 
 import datetime
@@ -16,26 +16,26 @@ from app.services.geofence import (
 
 _LOGGER = logging.getLogger(__name__)
 
-# Memoria de viajes activos por VIN
+# Active trips per VIN
 _ACTIVE_DRIVES: Dict[str, int] = {}
-# Última hora en que se detectó movimiento (para saber si se ha aparcado definitivamente)
+# Last time motion was seen (to know when the car is parked for good)
 _LAST_MOTION_TIME: Dict[str, datetime.datetime] = {}
-# Última lectura SIN movimiento por VIN: si el viaje se detecta tarde (con el coche ya en marcha), de ahí se recupera el inicio
+# Last reading WITHOUT motion per VIN: if a trip is detected late (car already moving), its start is recovered from here
 _LAST_IDLE: Dict[str, Dict] = {}
-# Cuándo se vio por primera vez la alta tensión apagada tras el último movimiento: es la hora de fin del viaje
-# (el viaje se cierra a los 5 min, pero termina cuando el coche se apagó)
+# When high voltage was first seen off after the last motion: that is the trip's end time
+# (the trip is closed after 5 min, but it ends when the car was switched off)
 _HV_OFF_AT: Dict[str, datetime.datetime] = {}
-# Minutos de parada para considerar un viaje finalizado
+# Minutes stopped before a trip counts as finished
 IDLE_MINUTES_TO_END_TRIP = 5
-# Un viaje abierto tras un reinicio solo se retoma si hubo actividad hace menos de esto
+# A trip left open across a restart is only resumed if there was activity less than this ago
 RESUME_MAX_AGE = datetime.timedelta(minutes=30)
 
-# Recuperación del inicio de un viaje detectado tarde
-ASSUMED_TRIP_SPEED_KMH = 35.0          # para estimar cuánto llevaba en marcha según los km recorridos desde la lectura en parado
-BACKFILL_MAX_AGE = datetime.timedelta(hours=6)       # una lectura en parado más antigua ya no sirve de punto de partida
+# Recovering the start of a trip detected late
+ASSUMED_TRIP_SPEED_KMH = 35.0          # to estimate how long it had been moving from the km covered since the idle reading
+BACKFILL_MAX_AGE = datetime.timedelta(hours=6)       # an older idle reading is no longer a valid starting point
 BACKFILL_MAX_MINUTES = 90.0
 
-# Un «viaje» de menos de este tiempo y sin kilómetros es ruido (maniobra de aparcamiento, una sola lectura en marcha)
+# A «trip» shorter than this and without kilometres is noise (a parking manoeuvre, a single moving reading)
 MIN_TRIP_SECONDS = 60
 
 
@@ -54,12 +54,12 @@ def resolve_distance(start_odometer: Optional[float], end_odometer: Optional[flo
 class TripDetector:
     @staticmethod
     def has_open_trip(vin: str) -> bool:
-        """True mientras haya un viaje abierto: el poller acorta el sondeo para poder cerrarlo a los 5 min de parada."""
+        """True while a trip is open: the poller shortens its interval so it can close it after 5 min stopped."""
         return vin in _ACTIVE_DRIVES
 
     @classmethod
     async def _resume_open_drive(cls, session: AsyncSession, vin: str, now: datetime.datetime) -> Optional[int]:
-        """Tras un reinicio: retoma el viaje abierto de este coche si hubo actividad reciente (si no, se deja como está)."""
+        """After a restart: resumes this car's open trip if there was recent activity (otherwise it is left as it is)."""
         drive = (await session.execute(
             select(Drive).where(Drive.vin == vin, Drive.end_time.is_(None)).order_by(Drive.start_time.desc()).limit(1)
         )).scalar_one_or_none()
@@ -73,12 +73,12 @@ class TripDetector:
             return None
         _ACTIVE_DRIVES[vin] = drive.id
         _LAST_MOTION_TIME[vin] = last_at
-        _LOGGER.info(f"Viaje abierto retomado tras un reinicio para {vin} [Drive #{drive.id}]")
+        _LOGGER.info(f"Open trip resumed after a restart for {vin} [Drive #{drive.id}]")
         return drive.id
 
     @classmethod
     async def _previous_idle(cls, session: AsyncSession, vin: str, now: datetime.datetime) -> Optional[Dict]:
-        """Última lectura en parado antes de ésta: de memoria o, tras un reinicio, de la base de datos."""
+        """Last idle reading before this one: from memory or, after a restart, from the database."""
         prev = _LAST_IDLE.get(vin)
         if prev is not None:
             return prev
@@ -96,10 +96,10 @@ class TripDetector:
 
     @staticmethod
     def _backfill(prev: Optional[Dict], now: datetime.datetime, odometer: Optional[float]) -> Optional[Dict]:
-        """Inicio estimado de un viaje detectado con el coche ya en marcha, o None si no hay base fiable.
+        """Estimated start of a trip detected with the car already moving, or None when there is no reliable base.
 
-        Hace falta una lectura en parado reciente con posición y que el odómetro haya avanzado desde entonces (si no, el viaje
-        empezó justo ahora). La hora se estima por los km recorridos, sin pasar nunca de la lectura en parado."""
+        It needs a recent idle reading with a position and the odometer to have moved since then (otherwise the trip
+        started just now). The time is estimated from the km covered, never earlier than the idle reading."""
         if not prev or prev.get("lat") is None or prev.get("lon") is None:
             return None
         if odometer is None or prev.get("odometer") is None or odometer <= prev["odometer"]:
@@ -116,7 +116,7 @@ class TripDetector:
         vehicle: Vehicle,
         telemetry: Dict,
     ) -> Optional[Drive]:
-        """Procesa una instantánea de telemetría y gestiona el ciclo de vida del viaje."""
+        """Processes a telemetry snapshot and manages the trip's life cycle."""
         vin = vehicle.vin
         now = datetime.datetime.utcnow()
         speed = telemetry.get("speed_kmh", 0.0) or 0.0
@@ -134,20 +134,20 @@ class TripDetector:
 
         if is_moving:
             _LAST_MOTION_TIME[vin] = now
-        # Alta tensión: la primera lectura con ella apagada fija la hora de fin; volver a encenderla la descarta
+        # High voltage: the first reading with it off sets the end time; switching it back on discards it
         hv = telemetry.get("high_voltage_on")
         if hv is False and not is_moving:
             _HV_OFF_AT.setdefault(vin, now)
         else:
             _HV_OFF_AT.pop(vin, None)
 
-        # 1. Comprobar si hay que iniciar un nuevo viaje
+        # 1. Check whether a new trip must start
         if active_drive_id is None and is_moving and lat is not None and lon is not None:
-            # Si el viaje se detecta tarde (la lectura llega con el coche ya en marcha), el inicio es el de la última lectura en parado
+            # If the trip is detected late (the reading arrives with the car already moving), it starts at the last idle reading
             back = cls._backfill(await cls._previous_idle(session, vin, now), now, odometer)
             s_lat, s_lon = (back["lat"], back["lon"]) if back else (lat, lon)
 
-            # Buscar si está en una geocerca
+            # Look up whether it is inside a geofence
             gf = await find_geofence(session, s_lat, s_lon, owner_id=vehicle.owner_id)
             addr = await reverse_geocode(s_lat, s_lon)
             if gf:
@@ -175,24 +175,23 @@ class TripDetector:
             session.add(new_drive)
             await session.flush()
             if back:
-                # El recorrido empieza en el punto de partida, no a mitad de ruta
+                # The track starts at the starting point, not halfway
                 session.add(DrivePosition(drive_id=new_drive.id, timestamp=new_drive.start_time, latitude=s_lat, longitude=s_lon,
                                           speed_kmh=0.0, battery_pct=back["battery"]))
 
             active_drive_id = new_drive.id
             _ACTIVE_DRIVES[vin] = active_drive_id
-            _LOGGER.info(f"Nuevo viaje iniciado para {vin} [Drive #{active_drive_id}]" + (" (inicio estimado)" if back else ""))
+            _LOGGER.info(f"New trip started for {vin} [Drive #{active_drive_id}]" + (" (estimated start)" if back else ""))
 
-        # 2. Si hay un viaje activo, registrar punto y comprobar si finaliza
+        # 2. With an active trip, record the point and check whether it ends
         if active_drive_id is not None:
             drive = await session.get(Drive, active_drive_id)
             if not drive:
                 _ACTIVE_DRIVES.pop(vin, None)
                 return None
 
-            # Añadir posición si hay coordenadas válidas
+            # Add a position when the coordinates are valid
             if lat is not None and lon is not None:
-                # Comprobar si el punto se movió al menos 5 metros o si la velocidad es positiva
                 pos = DrivePosition(
                     drive_id=active_drive_id,
                     timestamp=now,
@@ -205,22 +204,22 @@ class TripDetector:
                 )
                 session.add(pos)
 
-                # Actualizar velocidad máxima
+                # Update the top speed
                 if speed > (drive.speed_max_kmh or 0.0):
                     drive.speed_max_kmh = round(speed, 1)
 
-            # 3. Comprobar condición de fin de viaje (detenido por más de IDLE_MINUTES_TO_END_TRIP)
+            # 3. Check the end-of-trip condition (stopped for more than IDLE_MINUTES_TO_END_TRIP)
             last_motion = _LAST_MOTION_TIME.get(vin, drive.start_time)
             stopped_duration = (now - last_motion).total_seconds() / 60.0
 
-            # También finalizar si el coche se pone a cargar o se duerme
+            # Also end it if the car starts charging or gets plugged in
             force_end = telemetry.get("is_charging") or telemetry.get("cable_connected")
 
             if stopped_duration >= IDLE_MINUTES_TO_END_TRIP or force_end:
-                # Cerrar viaje
+                # Close the trip
                 hv_off = _HV_OFF_AT.get(vin)
                 if stopped_duration >= IDLE_MINUTES_TO_END_TRIP:
-                    # El viaje acaba cuando se apagó el coche (si se vio), nunca antes del último movimiento
+                    # The trip ends when the car was switched off (if seen), never before the last motion
                     drive.end_time = hv_off if hv_off and last_motion <= hv_off <= now else last_motion
                 else:
                     drive.end_time = now
@@ -244,7 +243,7 @@ class TripDetector:
                 if drive.start_fuel is not None and drive.end_fuel is not None:
                     drive.fuel_used_l = max(0.0, round(drive.start_fuel - drive.end_fuel, 2))
 
-                # Geocodificar destino
+                # Geocode the destination
                 end_gf = await find_geofence(session, lat, lon, owner_id=vehicle.owner_id)
                 end_addr = await reverse_geocode(lat, lon)
                 if end_gf:
@@ -252,15 +251,15 @@ class TripDetector:
                 drive.end_geofence_id = end_gf.id if end_gf else None
                 drive.end_address = end_addr
 
-                # Velocidad media
+                # Average speed
                 if drive.duration_seconds > 0 and drive.distance_km > 0:
                     hours = drive.duration_seconds / 3600.0
                     drive.speed_avg_kmh = round(drive.distance_km / hours, 1)
 
                 if drive.duration_seconds < MIN_TRIP_SECONDS and not (distance and distance > 0):
-                    # Ruido: una maniobra o una sola lectura en marcha, sin kilómetros. No es un viaje.
-                    _LOGGER.info(f"Descartado un viaje de {drive.duration_seconds} s sin kilómetros para {vin} [Drive #{drive.id}]")
-                    await session.flush()      # (el punto de esta misma lectura aún no estaba guardado: se guarda y se borra con el resto)
+                    # Noise: a manoeuvre or a single moving reading, without kilometres. Not a trip.
+                    _LOGGER.info(f"Discarded a {drive.duration_seconds} s trip without kilometres for {vin} [Drive #{drive.id}]")
+                    await session.flush()      # (this reading's point was not saved yet: save it and delete it with the rest)
                     await session.execute(delete(DrivePosition).where(DrivePosition.drive_id == drive.id))
                     await session.delete(drive)
                     await session.flush()
@@ -272,8 +271,8 @@ class TripDetector:
 
                 await session.flush()
                 _LOGGER.info(
-                    f"Viaje completado para {vin} [Drive #{drive.id}]: "
-                    f"{drive.distance_km} km en {drive.duration_seconds // 60} min."
+                    f"Trip completed for {vin} [Drive #{drive.id}]: "
+                    f"{drive.distance_km} km in {drive.duration_seconds // 60} min."
                 )
                 _ACTIVE_DRIVES.pop(vin, None)
                 _LAST_MOTION_TIME.pop(vin, None)
@@ -286,7 +285,7 @@ class TripDetector:
 
 
 def _remember_idle(vin, now, lat, lon, odometer, battery, telemetry, is_moving) -> None:
-    """Guarda la última lectura en parado (punto de partida si el siguiente viaje se detecta tarde)."""
+    """Stores the last idle reading (the starting point if the next trip is detected late)."""
     if not is_moving:
         _LAST_IDLE[vin] = {"time": now, "lat": lat, "lon": lon, "odometer": odometer, "battery": battery,
                            "fuel": telemetry.get("fuel_level")}

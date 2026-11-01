@@ -1,4 +1,4 @@
-"""Acceso a EVBro: primer usuario, inicio y cierre de sesión, cambio de contraseña."""
+"""Access to EVBro: first user, login and logout, password change."""
 from __future__ import annotations
 
 import asyncio
@@ -22,8 +22,8 @@ from app.services import invites
 _LOGGER = logging.getLogger("app.api.auth")
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
-# Por IP (cualquier usuario) y por IP+usuario. No hay bloqueo «global» por usuario: así quien
-# adivine tu nombre de usuario no puede dejarte fuera desde cualquier sitio.
+# Per IP (any user) and per IP+user. There is no "global" lockout per user: that way whoever
+# guesses your username cannot lock you out from anywhere.
 ip_throttle = LoginThrottle(max_failures=8)
 pair_throttle = LoginThrottle(max_failures=5)
 
@@ -64,7 +64,7 @@ async def _hash(password: str) -> str:
 
 @router.get("/status")
 async def auth_status(request: Request, db: AsyncSession = Depends(get_db)):
-    """Estado de acceso, para que la web sepa qué pantalla enseñar."""
+    """Access status, so the web app knows which screen to show."""
     user = await auth.get_session_user(db, request.cookies.get(auth.COOKIE_NAME))
     return {
         "authenticated": user is not None,
@@ -110,7 +110,7 @@ async def register(req: RegisterRequest, request: Request, response: Response, d
     except IntegrityError as exc:
         await db.rollback()
         taken = (await db.execute(select(AppUser.id).where(AppUser.username == username, AppUser.is_admin.is_(False)))).first() is not None
-        _LOGGER.error("No se pudo registrar a '%s': %s", username, exc)
+        _LOGGER.error("Could not register '%s': %s", username, exc)
         raise HTTPException(status_code=409, detail="Ese nombre de usuario ya está en uso." if taken
                             else "No se pudo crear la cuenta por un conflicto en la base de datos (mira el log del servidor).") from None
     if not await invites.mark_used(db, invite.id, user.id):      # two people raced for the same invitation
@@ -145,7 +145,7 @@ async def login(req: Credentials, request: Request, response: Response, db: Asyn
     if not ok:
         ip_throttle.record_failure(f"ip:{ip}")
         pair_throttle.record_failure(pair_key)
-        _LOGGER.warning("Intento de acceso fallido para '%s' desde %s", username[:40], ip)
+        _LOGGER.warning("Failed login attempt for '%s' from %s", username[:40], ip)
         raise HTTPException(status_code=401, detail=GENERIC_LOGIN_ERROR)
 
     pair_throttle.reset(pair_key)
@@ -165,7 +165,7 @@ async def logout(request: Request, response: Response, db: AsyncSession = Depend
 @router.post("/password")
 async def change_password(req: PasswordChange, request: Request, db: AsyncSession = Depends(get_db),
                           user: AppUser = Depends(auth.require_auth)):
-    """Cambia la contraseña y cierra el resto de sesiones (no la actual)."""
+    """Changes the password and closes every other session (not the current one)."""
     ip = auth.client_ip(request)
     _check_throttle((ip_throttle, f"ip:{ip}"))
     if not await asyncio.to_thread(passwords.verify_password, req.current_password, user.password_hash):

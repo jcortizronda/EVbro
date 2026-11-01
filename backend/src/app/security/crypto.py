@@ -1,19 +1,19 @@
-"""Cifrado de secretos en reposo con AES-256-GCM.
+"""Encryption of secrets at rest with AES-256-GCM.
 
-Qué protege: la contraseña y el PIN de la cuenta Ebro, sus tokens y los datos de los canales de
-notificación, que viven en la base de datos. Un volcado de PostgreSQL (copia de seguridad, disco
-robado, inyección SQL) no basta para leerlos: falta la clave, que vive fuera de la BD.
+What it protects: the Ebro account password and PIN, its tokens and the notification channel
+data, which live in the database. A PostgreSQL dump (backup, stolen disk, SQL injection) is not
+enough to read them: the key is missing, and it lives outside the DB.
 
-Dónde está la clave, por orden de preferencia:
-  1. `ENCRYPTION_KEY` (variable de entorno): la clave está fuera de TODOS los volúmenes.
-  2. `DATA_DIR/secret.key` (se genera sola la primera vez, permisos 0600): en el volumen de
-     datos, que es distinto del de PostgreSQL. Protege frente a un volcado de la BD, pero no
-     frente a quien lea también el volumen de datos.
+Where the key is, in order of preference:
+  1. `ENCRYPTION_KEY` (environment variable): the key is outside ALL volumes.
+  2. `DATA_DIR/secret.key` (generated automatically the first time, mode 0600): in the data
+     volume, which is not PostgreSQL's. It protects against a DB dump, but not against
+     someone who can also read the data volume.
 
-Formato: `enc:v1:` + base64url(nonce[12] + tag[16] + cifrado). El `context` (p. ej.
-`ebro_accounts.pin`) va como dato autenticado: un valor cifrado para un campo no se puede
-copiar a otro. Un valor sin el prefijo se considera texto plano heredado (anterior al cifrado)
-y se devuelve tal cual hasta que la migración de arranque lo cifra.
+Format: `enc:v1:` + base64url(nonce[12] + tag[16] + ciphertext). The `context` (e.g.
+`ebro_accounts.pin`) goes in as authenticated data: a value encrypted for one field cannot be
+copied to another. A value without the prefix is taken as legacy plain text (from before
+encryption) and returned as is until the startup migration encrypts it.
 """
 from __future__ import annotations
 
@@ -42,7 +42,7 @@ _key_lock = threading.Lock()
 
 
 class DecryptionError(Exception):
-    """El valor no se pudo descifrar: clave distinta a la que lo cifró, o dato corrupto."""
+    """The value could not be decrypted: a different key from the one that encrypted it, or corrupt data."""
 
 
 SALT = b"evbro-secrets-v1"                                 # changing it needs a data migration like 0019
@@ -73,8 +73,8 @@ def _read_or_create_key_file(path: str) -> str:
         value = secrets.token_urlsafe(48)
         fh.write(value)
     _LOGGER.warning(
-        "Clave de cifrado generada en %s. Haz copia de este archivo (o define ENCRYPTION_KEY): "
-        "sin ella no se podrán leer las credenciales guardadas.", path)
+        "Encryption key generated at %s. Back this file up (or set ENCRYPTION_KEY): "
+        "without it the stored credentials cannot be read.", path)
     return value
 
 
@@ -100,7 +100,7 @@ def get_key() -> bytes:
 
 
 def reset_key_cache() -> None:
-    """Olvida la clave en memoria (los tests cambian de configuración entre casos)."""
+    """Forgets the in-memory key (tests change the configuration between cases)."""
     global _key
     with _key_lock:
         _key = None
@@ -119,7 +119,7 @@ def encrypt(plaintext: str, context: str = "", key: bytes | None = None) -> str:
 
 
 def decrypt(value: str, context: str = "", key: bytes | None = None) -> str:
-    """Descifra `value`. Si no lleva el prefijo es texto plano heredado y se devuelve igual."""
+    """Decrypts `value`. Without the prefix it is legacy plain text and is returned unchanged."""
     if not is_encrypted(value):
         return value
     try:

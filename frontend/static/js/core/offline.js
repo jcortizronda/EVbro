@@ -1,8 +1,8 @@
-/* EVBro — Sin conexión: aviso fijo cuando la aplicación enseña datos guardados en vez de datos frescos.
+/* EVBro — Offline: a fixed notice when the app shows saved data instead of fresh data.
  *
- * El Service Worker (sw.js) guarda la última respuesta buena de las lecturas de la API que pintan la aplicación y, si no hay
- * red, la devuelve con la cabecera `X-EVBro-Offline: <fecha de esa respuesta>`. Aquí se envuelve `fetch` para verla y
- * enseñar la franja «Sin conexión»; se oculta en cuanto vuelve a llegar una respuesta fresca o el navegador avisa de que hay red.
+ * The Service Worker (sw.js) keeps the last good response of the API reads that render the app and, without a network,
+ * returns it with the header `X-EVBro-Offline: <date of that response>`. Here `fetch` is wrapped to see it and show
+ * the «Sin conexión» strip; it hides as soon as a fresh response arrives again or the browser reports the network is back.
  * (Classic script: shares the global scope with the other files; loaded right after core/feedback.js.)
  */
 (function () {

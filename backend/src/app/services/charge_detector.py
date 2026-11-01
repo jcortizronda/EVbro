@@ -1,4 +1,4 @@
-"""Detector y gestor de sesiones de carga."""
+"""Charging session detector and manager."""
 from __future__ import annotations
 
 import datetime
@@ -23,7 +23,7 @@ def detect_charge_type(telemetry: dict, power_kw: float) -> str:
         return "dc"
     return "ac"
 
-# Memoria de sesiones de carga activas por VIN
+# Active charging sessions per VIN
 _ACTIVE_CHARGES: Dict[str, int] = {}
 DEFAULT_CAPACITY_KWH = 19.27
 
@@ -36,7 +36,7 @@ class ChargeDetector:
         vehicle: Vehicle,
         telemetry: Dict,
     ) -> Optional[ChargingSession]:
-        """Procesa una instantánea de telemetría y gestiona el ciclo de vida de la recarga."""
+        """Processes a telemetry snapshot and manages the charging session's life cycle."""
         vin = vehicle.vin
         now = datetime.datetime.utcnow()
 
@@ -51,7 +51,7 @@ class ChargeDetector:
 
         active_charge_id = _ACTIVE_CHARGES.get(vin)
 
-        # 1. Iniciar nueva sesión de recarga
+        # 1. Start a new charging session
         if active_charge_id is None and (is_charging or (cable_connected and power_kw > 0.5)):
             gf = await find_geofence(session, lat, lon, only_charging_spots=True, owner_id=vehicle.owner_id)
             addr = await reverse_geocode(lat, lon)
@@ -76,9 +76,9 @@ class ChargeDetector:
 
             active_charge_id = new_session.id
             _ACTIVE_CHARGES[vin] = active_charge_id
-            _LOGGER.info(f"Nueva sesión de carga iniciada para {vin} [Charge #{active_charge_id}]")
+            _LOGGER.info(f"New charging session started for {vin} [Charge #{active_charge_id}]")
 
-        # 2. Registrar puntos de la curva de recarga
+        # 2. Record the points of the charging curve
         if active_charge_id is not None:
             charge = await session.get(ChargingSession, active_charge_id)
             if not charge:
@@ -103,7 +103,7 @@ class ChargeDetector:
             if charge.charge_type != "dc" and detect_charge_type(telemetry, power_kw) == "dc":
                 charge.charge_type = "dc"                         # the fast gun (or a DC power level) showed up mid-session
 
-            # 3. Detectar fin de carga (cable desconectado o carga terminada)
+            # 3. Detect the end of the charge (cable unplugged or charge finished)
             charge_ended = not cable_connected or (not is_charging and power_kw < 0.2)
             if charge_ended:
                 charge.end_time = now
@@ -111,13 +111,13 @@ class ChargeDetector:
                 charge.end_range_km = electric_range
                 charge.duration_seconds = max(0, int((now - charge.start_time).total_seconds()))
 
-                # Estimación de energía añadida (% ganado y aproximación de capacidad)
-                # La mayoría de Ebro / Chery PHEV tienen ~19 kWh, o EVs ~60-70 kWh
+                # Estimate of the energy added (% gained times an approximate capacity)
+                # Most Ebro / Chery PHEVs have ~19 kWh, EVs ~60-70 kWh
                 if charge.start_battery_pct is not None and charge.end_battery_pct is not None:
                     pct_gained = max(0.0, charge.end_battery_pct - charge.start_battery_pct)
                     estimated_kwh = round((pct_gained / 100.0) * (vehicle.battery_capacity_kwh or DEFAULT_CAPACITY_KWH), 2)
-                    charge.kwh_added = estimated_kwh       # estimada: % ganado × capacidad útil (configurable en el vehículo)
-                    # kwh_used (energía de la red) NO se inventa: solo la indica el usuario (ver PUT /charges/{id}/cost)
+                    charge.kwh_added = estimated_kwh       # estimated: % gained × usable capacity (set on the vehicle)
+                    # kwh_used (energy from the grid) is NOT made up: only the user enters it (see PUT /charges/{id}/cost)
 
                     if charge.geofence_id:
                         gf = await session.get(Geofence, charge.geofence_id)
@@ -128,16 +128,16 @@ class ChargeDetector:
                         charge.effective_cost_per_kwh = cost_res["effective_kwh_cost"]
                         charge.cost_mode = cost_res["cost_mode"]
                     else:
-                        # Fuera de geocercas: 0 €/kWh por defecto (se puede indicar el precio real en la carga)
+                        # Outside geofences: 0 €/kWh by default (the real price can be entered on the charge)
                         charge.effective_cost_per_kwh = 0.0
                         charge.charge_cost = 0.0
                         charge.cost_mode = "default"
 
                 await session.flush()
                 _LOGGER.info(
-                    f"Carga finalizada para {vin} [Charge #{charge.id}]: "
+                    f"Charge finished for {vin} [Charge #{charge.id}]: "
                     f"+{charge.kwh_added} kWh ({charge.start_battery_pct}% → {charge.end_battery_pct}%) "
-                    f"en {charge.duration_seconds // 60} min."
+                    f"in {charge.duration_seconds // 60} min."
                 )
                 _ACTIVE_CHARGES.pop(vin, None)
                 return charge

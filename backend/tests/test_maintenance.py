@@ -1,4 +1,4 @@
-"""Mantenimiento: plan oficial de EBRO (próxima revisión, escalones, plazos) y plan personalizado."""
+"""Maintenance: EBRO's official plan (next service, steps, deadlines) and the custom plan."""
 from __future__ import annotations
 
 import datetime
@@ -14,53 +14,53 @@ from app.services import maintenance_official as mo
 from app.services.maintenance_alerts import collect_alerts
 
 VIN = "LSJA0000000000001"
-ENTREGA = datetime.datetime(2025, 3, 31)
+DELIVERY = datetime.datetime(2025, 3, 31)
 
 
-# ───────────────────────── lógica pura ─────────────────────────
-def test_el_primer_escalon_es_15000_y_despues_se_avanza_desde_el_ultimo_registrado() -> None:
+# ───────────────────────── pure logic ─────────────────────────
+def test_the_first_step_is_15000_and_then_it_advances_from_the_last_recorded() -> None:
     assert mo.next_step(None)["km"] == 15000
     assert mo.next_step(15000)["km"] == 30000
     assert mo.next_step(30000)["km"] == 45000
     assert mo.next_step(90000) is None
-    # si se salta uno, el siguiente cuenta desde el más alto registrado
+    # if one is skipped, the next counts from the highest recorded
     assert mo.next_step(45000)["km"] == 60000
 
 
-def test_vence_lo_que_antes_llegue_km_o_fecha() -> None:
-    hoy = datetime.date(2026, 2, 1)
-    por_km = mo.official_next(14800, hoy - datetime.timedelta(days=200), None, ENTREGA, 0.0, "S900 PHEV")
-    assert por_km["km"] == 15000 and por_km["status"] == "warning"                 # 200 km: ya «próximo»
-    por_fecha = mo.official_next(5000, datetime.date(2026, 3, 25), None, ENTREGA, 0.0, "S900 PHEV")
-    assert por_fecha["status"] == "warning" and por_fecha["remaining_days"] == 6   # pocos km, pero casi 12 meses
-    vencida = mo.official_next(5000, datetime.date(2026, 4, 2), None, ENTREGA, 0.0, "S900 PHEV")
-    assert vencida["status"] == "due" and vencida["remaining_days"] < 0            # vencida por fecha con 5.000 km
-    ok = mo.official_next(3000, datetime.date(2025, 6, 1), None, ENTREGA, 0.0, "S900 PHEV")
+def test_due_on_whichever_comes_first_km_or_date() -> None:
+    today = datetime.date(2026, 2, 1)
+    by_km = mo.official_next(14800, today - datetime.timedelta(days=200), None, DELIVERY, 0.0, "S900 PHEV")
+    assert by_km["km"] == 15000 and by_km["status"] == "warning"                 # 200 km: already «upcoming»
+    by_date = mo.official_next(5000, datetime.date(2026, 3, 25), None, DELIVERY, 0.0, "S900 PHEV")
+    assert by_date["status"] == "warning" and by_date["remaining_days"] == 6   # few km, but almost 12 months
+    overdue = mo.official_next(5000, datetime.date(2026, 4, 2), None, DELIVERY, 0.0, "S900 PHEV")
+    assert overdue["status"] == "due" and overdue["remaining_days"] < 0            # overdue by date with 5,000 km
+    ok = mo.official_next(3000, datetime.date(2025, 6, 1), None, DELIVERY, 0.0, "S900 PHEV")
     assert ok["status"] == "ok"
 
 
-def test_sin_fecha_de_entrega_solo_se_vigilan_los_kilometros() -> None:
+def test_without_a_delivery_date_only_kilometres_are_watched() -> None:
     n = mo.official_next(9000, datetime.date(2030, 1, 1), None, None, 0.0, None)
     assert n["due_date"] is None and n["remaining_days"] is None and n["progress_time_pct"] is None
     assert n["status"] == "ok" and n["remaining_km"] == 6000
 
 
-def test_meses_de_calendario_y_fin_de_mes() -> None:
+def test_calendar_months_and_end_of_month() -> None:
     assert mo.add_months(datetime.datetime(2025, 3, 31), 12) == datetime.datetime(2026, 3, 31)
     assert mo.add_months(datetime.datetime(2025, 3, 31), 11) == datetime.datetime(2026, 2, 28)
-    assert mo.add_months(datetime.datetime(2024, 1, 31), 1) == datetime.datetime(2024, 2, 29)     # bisiesto
+    assert mo.add_months(datetime.datetime(2024, 1, 31), 1) == datetime.datetime(2024, 2, 29)     # leap year
 
 
-def test_detalle_del_escalon_de_60000_incluye_anticongelante_y_transmision() -> None:
+def test_the_60000_step_detail_includes_coolant_and_transmission() -> None:
     phev = mo.step_detail(60000, "S900 PHEV")
-    nombres = [i["name"] for i in phev["replace_items"]]
-    assert "Anticongelante" in nombres and any("Transmisión" in n for n in nombres)
+    names = [i["name"] for i in phev["replace_items"]]
+    assert "Anticongelante" in names and any("Transmisión" in n for n in names)
     assert phev["extra_labor_hours"] == 0.5 and phev["labor_hours"] == 2.3
     assert mo.step_detail(60000, "S800 HEV")["extra_labor_hours"] == 0.3
     assert mo.step_detail(15000, "S900 PHEV")["extra_labor_hours"] == 0.0
 
 
-def test_las_sugerencias_no_se_crean_solas_y_tienen_intervalo() -> None:
+def test_suggestions_are_not_created_on_their_own_and_have_an_interval() -> None:
     assert all(s["interval_km"] or s["interval_months"] for s in mo.SUGGESTIONS)
 
 
@@ -84,17 +84,17 @@ async def web(db):
     await c.aclose()
 
 
-async def test_el_plan_por_defecto_es_oficial_y_no_inventa_tareas(web) -> None:
+async def test_the_default_plan_is_official_and_does_not_invent_tasks(web) -> None:
     r = await web.get(f"/api/vehicles/{VIN}/maintenance/plan")
     assert r.status_code == 200
     d = r.json()
     assert d["mode"] == "official" and d["baseline"]["configured"] is False
     assert d["custom"]["items"] == [] and len(d["custom"]["suggestions"]) == len(mo.SUGGESTIONS)
     assert d["official"]["next"]["km"] == 15000 and d["official"]["next"]["remaining_km"] == 1000.0
-    assert (await web.get(f"/api/vehicles/{VIN}/maintenance")).json() == []          # ya no se crean 6 tareas solas
+    assert (await web.get(f"/api/vehicles/{VIN}/maintenance")).json() == []          # 6 tasks are no longer created on their own
 
 
-async def test_fijar_entrega_y_cambiar_de_modo(web) -> None:
+async def test_set_delivery_and_change_mode(web) -> None:
     r = await web.put(f"/api/vehicles/{VIN}/maintenance/plan",
                       json={"mode": "custom", "baseline_date": "2025-03-31T00:00:00", "baseline_odometer": 12})
     d = r.json()
@@ -102,10 +102,10 @@ async def test_fijar_entrega_y_cambiar_de_modo(web) -> None:
     assert d["official"]["next"]["due_date"].startswith("2026-03-31")
     assert (await web.put(f"/api/vehicles/{VIN}/maintenance/plan", json={"mode": "otro"})).status_code == 422
     r = await web.put(f"/api/vehicles/{VIN}/maintenance/plan", json={"clear_baseline_date": True})
-    assert r.json()["baseline"]["configured"] is False and r.json()["mode"] == "custom"   # el modo se conserva
+    assert r.json()["baseline"]["configured"] is False and r.json()["mode"] == "custom"   # the mode is kept
 
 
-async def test_registrar_un_escalon_avanza_al_siguiente_y_queda_en_el_historial(web) -> None:
+async def test_recording_a_step_advances_to_the_next_and_stays_in_the_history(web) -> None:
     r = await web.post(f"/api/vehicles/{VIN}/maintenance/official/complete",
                        json={"step_km": 15000, "odometer": 15210, "cost": 120.5, "workshop": "Taller X"})
     assert r.status_code == 200 and r.json()["log_id"]
@@ -115,34 +115,34 @@ async def test_registrar_un_escalon_avanza_al_siguiente_y_queda_en_el_historial(
     assert d["official"]["matrix"]["columns"][0]["is_done"] and d["official"]["matrix"]["columns"][1]["is_next"]
     logs = (await web.get(f"/api/vehicles/{VIN}/maintenance/logs")).json()
     assert logs[0]["revision_km"] == 15000 and logs[0]["origin"] == "official" and logs[0]["cost"] == 120.5
-    # no aparece como tarea propia
+    # it does not show up as a custom task
     assert (await web.get(f"/api/vehicles/{VIN}/maintenance")).json() == []
-    # repetirlo es un error claro; un escalón inventado, 422
+    # repeating it is a clear error; a made-up step, 422
     dup = await web.post(f"/api/vehicles/{VIN}/maintenance/official/complete", json={"step_km": 15000})
     assert dup.status_code == 409
     assert (await web.post(f"/api/vehicles/{VIN}/maintenance/official/complete", json={"step_km": 20000})).status_code == 422
 
 
-async def test_completar_todos_los_escalones_cierra_el_plan(web) -> None:
+async def test_completing_every_step_closes_the_plan(web) -> None:
     for st in mo.STEPS:
         assert (await web.post(f"/api/vehicles/{VIN}/maintenance/official/complete", json={"step_km": st["km"]})).status_code == 200
     d = (await web.get(f"/api/vehicles/{VIN}/maintenance/plan")).json()
     assert d["official"]["finished"] is True and d["official"]["next"] is None
 
 
-async def test_las_tareas_propias_y_sus_sugerencias(web) -> None:
+async def test_custom_tasks_and_their_suggestions(web) -> None:
     r = await web.post(f"/api/vehicles/{VIN}/maintenance", json={"name": "Rotación de neumáticos", "category": "Neumáticos",
                                                                  "interval_km": 10000, "interval_months": 12})
     assert r.status_code == 200 and r.json()["status"] == "ok"
     d = (await web.get(f"/api/vehicles/{VIN}/maintenance/plan")).json()
     assert [i["name"] for i in d["custom"]["items"]] == ["Rotación de neumáticos"]
-    assert "Rotación de neumáticos" not in [s["name"] for s in d["custom"]["suggestions"]]     # ya no se sugiere
+    assert "Rotación de neumáticos" not in [s["name"] for s in d["custom"]["suggestions"]]     # no longer suggested
     item_id = d["custom"]["items"][0]["id"]
     done = await web.post(f"/api/maintenance/{item_id}/complete", json={"odometer": 14100, "cost": 30})
     assert done.status_code == 200 and done.json()["next_due_odometer"] == 24100.0
 
 
-async def test_cambiar_el_intervalo_de_una_tarea_recalcula_su_vencimiento(web) -> None:
+async def test_changing_a_task_interval_recomputes_its_due_point(web) -> None:
     r = await web.post(f"/api/vehicles/{VIN}/maintenance", json={"name": "Aceite", "interval_km": 10000, "interval_months": 12,
                                                                  "last_service_odometer": 12000})
     item_id = r.json()["id"]
@@ -150,39 +150,39 @@ async def test_cambiar_el_intervalo_de_una_tarea_recalcula_su_vencimiento(web) -
     r = await web.put(f"/api/maintenance/{item_id}", json={"interval_km": 15000, "interval_months": 6})
     assert r.json()["next_due_odometer"] == 27000 and r.json()["interval_months"] == 6 and r.json()["next_due_date"]
     r = await web.put(f"/api/maintenance/{item_id}", json={"interval_km": None})
-    assert r.json()["next_due_odometer"] is None                                           # solo por meses
+    assert r.json()["next_due_odometer"] is None                                           # by months only
 
 
-async def test_las_rutas_del_plan_exigen_sesion(db) -> None:
+async def test_the_plan_routes_require_a_session(db) -> None:
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://testserver") as c:
         assert (await c.get(f"/api/vehicles/{VIN}/maintenance/plan")).status_code == 401
         assert (await c.put(f"/api/vehicles/{VIN}/maintenance/plan", json={})).status_code == 401
         assert (await c.post(f"/api/vehicles/{VIN}/maintenance/official/complete", json={"step_km": 15000})).status_code == 401
 
 
-async def test_vehiculo_inexistente_da_404(web) -> None:
+async def test_missing_vehicle_gives_404(web) -> None:
     assert (await web.get("/api/vehicles/NOEXISTE/maintenance/plan")).status_code == 404
 
 
-# ───────────────────────── avisos ─────────────────────────
-async def test_avisos_en_modo_oficial_usan_el_escalon_siguiente(db) -> None:
+# ───────────────────────── alerts ─────────────────────────
+async def test_alerts_in_official_mode_use_the_next_step(db) -> None:
     async with async_session_factory() as s:
         s.add(Vehicle(owner_id=1, vin=VIN, name="Ebro", model="S900 PHEV", odometer=14600.0))
-        s.add(MaintenancePlan(vin=VIN, mode="official", baseline_date=ENTREGA, baseline_odometer=0.0))
+        s.add(MaintenancePlan(vin=VIN, mode="official", baseline_date=DELIVERY, baseline_odometer=0.0))
         await s.commit()
     async with async_session_factory() as s:
         a = await collect_alerts(s, VIN, 14600.0, datetime.datetime(2025, 9, 1))
     assert len(a) == 1 and a[0]["key"] == "official:15000:warning" and not a[0]["is_overdue"]
     assert "Aceite (4,5 Litros) 0W-20" in a[0]["items"]
     async with async_session_factory() as s:
-        a = await collect_alerts(s, VIN, 5000.0, datetime.datetime(2026, 5, 1))            # vencida por fecha
+        a = await collect_alerts(s, VIN, 5000.0, datetime.datetime(2026, 5, 1))            # overdue by date
     assert a[0]["is_overdue"] and a[0]["key"] == "official:15000:due"
 
 
-async def test_avisos_en_modo_personalizado_ignoran_el_plan_oficial_y_miran_las_tareas(db) -> None:
+async def test_alerts_in_custom_mode_ignore_the_official_plan_and_look_at_the_tasks(db) -> None:
     async with async_session_factory() as s:
         s.add(Vehicle(owner_id=1, vin=VIN, name="Ebro", model="S900 PHEV", odometer=30000.0))
-        s.add(MaintenancePlan(vin=VIN, mode="custom", baseline_date=ENTREGA))
+        s.add(MaintenancePlan(vin=VIN, mode="custom", baseline_date=DELIVERY))
         s.add(MaintenanceItem(vin=VIN, name="Aceite", category="Motor", origin="custom", interval_km=10000.0,
                               last_service_odometer=19000.0, next_due_odometer=29000.0))
         s.add(MaintenanceItem(vin=VIN, name="Frenos", category="Frenos", origin="custom", interval_km=30000.0,
@@ -193,20 +193,20 @@ async def test_avisos_en_modo_personalizado_ignoran_el_plan_oficial_y_miran_las_
     assert [x["label"] for x in a] == ["Aceite"] and a[0]["is_overdue"]
 
 
-async def test_el_texto_del_aviso_dice_km_o_dias_segun_lo_que_toque(monkeypatch) -> None:
+async def test_the_alert_text_says_km_or_days_as_appropriate(monkeypatch) -> None:
     from app.services.notification_service import NotificationService
 
-    enviados = []
+    sent = []
 
-    async def falso(cls, category, title, message, tags=None, priority="default", **kwargs):
-        enviados.append((str(title), str(message)))          # `Message`s render in Spanish by default
+    async def fake_dispatch(cls, category, title, message, tags=None, priority="default", **kwargs):
+        sent.append((str(title), str(message)))          # `Message`s render in Spanish by default
         return []
 
-    monkeypatch.setattr(NotificationService, "dispatch", classmethod(falso))
+    monkeypatch.setattr(NotificationService, "dispatch", classmethod(fake_dispatch))
     await NotificationService.notify_maintenance_alert("Ebro", "revisión oficial de 15.000 km", 800.0, False, ["Aceite"], 1.0, remaining_days=20)
-    assert "800 km o 20 días" in enviados[0][1] and "lo que antes llegue" in enviados[0][1] and enviados[0][0].startswith("Próximo")
+    assert "800 km o 20 días" in sent[0][1] and "lo que antes llegue" in sent[0][1] and sent[0][0].startswith("Próximo")
     await NotificationService.notify_maintenance_alert("Ebro", "revisión oficial de 15.000 km", 2000.0, True, [], None, remaining_days=-9)
-    assert "9 días" in enviados[1][1] and "km" not in enviados[1][1].split("desde hace")[1] and enviados[1][0].startswith("Mantenimiento vencido")
+    assert "9 días" in sent[1][1] and "km" not in sent[1][1].split("desde hace")[1] and sent[1][0].startswith("Mantenimiento vencido")
 
 
 # ───────────────────────── the official plan is EBRO's ─────────────────────────
@@ -232,7 +232,7 @@ async def test_another_brand_has_no_official_plan_but_keeps_the_itv(web) -> None
 async def test_alerts_of_another_brand_skip_official_steps(db) -> None:
     async with async_session_factory() as s:
         s.add(Vehicle(owner_id=1, vin=VIN, name="Corolla", brand="Toyota", model="Corolla", odometer=14600.0))
-        s.add(MaintenancePlan(vin=VIN, mode="official", baseline_date=ENTREGA, baseline_odometer=0.0))
+        s.add(MaintenancePlan(vin=VIN, mode="official", baseline_date=DELIVERY, baseline_odometer=0.0))
         s.add(MaintenanceItem(vin=VIN, name="Aceite", category="Motor", origin="custom", interval_km=10000.0,
                               last_service_odometer=4000.0, next_due_odometer=14000.0))
         await s.commit()

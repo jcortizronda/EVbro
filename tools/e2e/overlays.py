@@ -1,4 +1,4 @@
-"""Modales y hojas de acciones en dispositivos táctiles: sin backdrop-filter (Chrome Android los pinta mal)."""
+"""Modals and action sheets on touch devices: no backdrop-filter (Chrome on Android renders them badly)."""
 import os
 import sys
 import tempfile
@@ -38,16 +38,16 @@ with sync_playwright() as p:
             tag = f"{name}/{theme}"
             n = pg.evaluate(COUNT_BLUR)
             if touch:
-                ok(n == 0, f"{tag}: ningún elemento usa backdrop-filter ({n})")
+                ok(n == 0, f"{tag}: no element uses backdrop-filter ({n})")
             else:
-                ok(True, f"{tag}: escritorio conserva el desenfoque de overlays ({n} elementos)")
-            # hoja de acciones (Ventanillas) y modal (repostaje)
+                ok(True, f"{tag}: desktop keeps the overlay blur ({n} elements)")
+            # action sheet (Ventanillas) and modal (refuel)
             pg.evaluate("currentVin='LSJA8888888888888'; openWindowsActionSheet()")
             pg.wait_for_timeout(500)
             sheet = pg.evaluate("""() => { const o=document.querySelector('.action-sheet-overlay.open'); if(!o) return null;
               const c=o.querySelector('.action-sheet-card').getBoundingClientRect(); const s=getComputedStyle(o);
               return {bg:s.backgroundColor, bottom:Math.round(c.bottom), vh:innerHeight, w:Math.round(c.width), right:Math.round(c.right), vw:innerWidth}; }""")
-            ok(sheet is not None and sheet["bottom"] == sheet["vh"], f"{tag}: la hoja de acciones llega al borde inferior {sheet}")
+            ok(sheet is not None and sheet["bottom"] == sheet["vh"], f"{tag}: the action sheet reaches the bottom edge {sheet}")
             pg.screenshot(path=f"{OUT}/sheet-{w}-{theme}.png")
             pg.evaluate("closeActionSheet()")
             pg.wait_for_timeout(400)
@@ -57,10 +57,10 @@ with sync_playwright() as p:
               const c=o.querySelector('.modal-card').getBoundingClientRect(); return {top:Math.round(c.top), bottom:Math.round(c.bottom), vh:innerHeight, left:Math.round(c.left), right:Math.round(c.right), vw:innerWidth,
               bg:getComputedStyle(o).backgroundColor}; }""")
             ok(modal is not None and modal["top"] >= 0 and modal["bottom"] <= modal["vh"] and modal["left"] >= 0 and modal["right"] <= modal["vw"],
-               f"{tag}: el modal cabe entero en pantalla {modal}")
+               f"{tag}: the modal fits entirely on screen {modal}")
             pg.screenshot(path=f"{OUT}/modal-{w}-{theme}.png")
-            ok(not errs, f"{tag}: sin errores JS {errs[:1]}")
+            ok(not errs, f"{tag}: no JS errors {errs[:1]}")
             ctx.close()
     b.close()
-print("FALLOS:", fails if fails else "ninguno")
+print("FAILURES:", fails if fails else "none")
 sys.exit(1 if fails else 0)

@@ -1,6 +1,6 @@
-/* EVBro — Estadísticas (Más → Estadísticas): gráficas del historial del coche a partir de GET /api/vehicles/{vin}/stats.
- * Barras y líneas se dibujan en canvas con el color de acento del tema; nada externo. Todo lo que se pinta lo calcula el servidor
- * (services/stats.py); aquí solo se dibuja y se etiqueta. Un coche sin datos enseña «Sin datos» en cada tarjeta.
+/* EVBro — Statistics (Más → Estadísticas): charts of the car's history from GET /api/vehicles/{vin}/stats.
+ * Bars and lines are drawn on canvas with the theme's accent colour; nothing external. Everything drawn is computed by the server
+ * (services/stats.py); here it is only drawn and labelled. A car without data shows «Sin datos» on each card.
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 (function () {

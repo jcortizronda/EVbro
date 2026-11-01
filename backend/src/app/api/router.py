@@ -1,9 +1,9 @@
-"""Enrutador principal de la API REST.
+"""Main REST API router.
 
-**Qué es público y qué no.** Todo lo que cuelga de `protected` exige sesión. Público solo hay:
-`/api/auth/*` (para poder iniciar sesión) y `/api/ws`, que se autentica él mismo antes de
-aceptar la conexión. Añadir un router nuevo: ponlo en `protected`. `tests/test_api_auth.py`
-recorre todas las rutas y falla si alguna queda sin proteger.
+**What is public and what is not.** Everything hanging from `protected` requires a session. The only public parts are
+`/api/auth/*` (so that one can log in) and `/api/ws`, which authenticates itself before
+accepting the connection. Adding a new router: put it in `protected`. `tests/test_api_auth.py`
+walks every route and fails if any is left unprotected.
 """
 from fastapi import APIRouter, Depends
 
@@ -43,13 +43,13 @@ from app.security.auth import require_auth, verify_origin
 
 api_router = APIRouter(prefix="/api")
 
-# Público: iniciar sesión (con comprobación de origen contra «login CSRF»)
+# Public: log in (with an origin check against "login CSRF")
 api_router.include_router(auth_router, dependencies=[Depends(verify_origin)])
 api_router.include_router(passkey_login_router, dependencies=[Depends(verify_origin)])     # /api/auth/passkeys/login/*
 # Server to server: another installation reads this server's catalogue or sends a proposal with its key (no session, no cookies)
 api_router.include_router(catalog_online_router)
 
-# Protegido: sesión válida + origen propio en las peticiones que modifican datos
+# Protected: valid session + same origin on requests that modify data
 protected = APIRouter(dependencies=[Depends(verify_origin), Depends(require_auth), Depends(authorize)])
 protected.include_router(account_router)
 protected.include_router(notifications_router)
@@ -87,5 +87,5 @@ async def get_version():
 
 api_router.include_router(protected)
 
-# WebSocket: comprueba sesión y origen él mismo (las dependencias HTTP no aplican a WS)
+# WebSocket: checks session and origin itself (HTTP dependencies do not apply to WS)
 api_router.include_router(ws_router)

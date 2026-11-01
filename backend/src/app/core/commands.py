@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 """
-commands.py — Catálogo + envío de los comandos del coche Ebro Auto (tspconsole EU REST).
+commands.py — Catalogue + sending of the Ebro Auto car's commands (tspconsole EU REST).
 
-Reutiliza la cadena verificada:
-  - userToken vía  wake._bff_login()      (token en token.json, refresco automático)
-  - firma          tsp_sign.sign_body()   (base64(sha256(base)).upper())
-  - taskId         get_taskid()           (archivo piggyback -> checkPassword auto-generado)
+Reuses the verified chain:
+  - userToken via  wake._bff_login()      (token in token.json, automatic refresh)
+  - signature      tsp_sign.sign_body()   (base64(sha256(base)).upper())
+  - taskId         get_taskid()           (piggyback file -> auto-minted via checkPassword)
 
 POST  https://tspconsole-eu.ebroauto.com/asc/vehicleControl/<endpoint>
 Header: Authorization=<userToken>, timestamp=<ms>, Content-Type=application/json; charset=utf-8,
         User-Agent=okhttp/4.9.2
 
-⚠️  Cada send() con un taskId válido ACTÚA sobre el coche. Está pensado para invocarse SOLO
-    con el toque del usuario en un botón de la interfaz de EVBro (= su consentimiento explícito).
-    Los body del catálogo están reconstruidos 1:1 desde los envelopes reales capturados.
+⚠️  Every send() with a valid taskId ACTS on the car. It is meant to be invoked ONLY
+    when the user taps a button in EVBro's interface (= their explicit consent).
+    The catalogue bodies are rebuilt 1:1 from real captured envelopes.
 """
 import contextlib
 import json
@@ -30,39 +30,39 @@ from .taskid import get_taskid, invalidate_taskid
 _LOGGER = logging.getLogger(__name__)
 
 
-# Se eliminó `importlib.reload(tsp_sign)` en tiempo de import (side-effect inútil; tsp_sign no
-# se muta en otro sitio y recargarlo al importar podía anular posibles monkeypatches).
+# The import-time `importlib.reload(tsp_sign)` was removed (a pointless side effect; tsp_sign is
+# not mutated anywhere else and reloading it on import could undo monkeypatches).
 
-# VIN, PIN, host, archivo del taskId y generación automática NO son globales de módulo
-# reescritos antes de cada llamada: llegan del `CoreCtx` del vehículo, primer argumento de
-# cada función pública. Con dos coches configurados, el enfoque antiguo hacía que el segundo
-# entry sobrescribiera la configuración del primero y un comando pudiera partir hacia el coche
-# equivocado.
+# VIN, PIN, host, taskId file and automatic minting are NOT module globals
+# rewritten before each call: they come from the vehicle's `CoreCtx`, the first argument of
+# every public function. With two cars configured, the old approach let the second
+# entry overwrite the first one's configuration and a command could leave for the
+# wrong car.
 
-# Códigos de respuesta tspconsole → texto legible: ahora desde el mapa ÚNICO core/codes.py.
+# tspconsole response codes → readable text: now from the SINGLE map core/codes.py.
 CODE_MEANING = codes.CODE_MEANING
 
-# Resultado del comando: el backend responde SIEMPRE HTTP 200, el resultado real está en el
-# `code` del body. `SUCCESS_CODES` = comando aceptado por el backend (luego el coche confirma
-# vía MQTT 110x); `FAILURE_CODES` = comando NO ejecutado (coche ocupado/en reposo, permiso
-# denegado, taskId o token no válidos). Distinguir los dos es lo que permite a la interfaz
-# NO mostrar un falso "éxito" cuando el coche ha rechazado.
+# Command result: the backend ALWAYS answers HTTP 200, the real result is in the body's
+# `code`. `SUCCESS_CODES` = command accepted by the backend (the car then confirms
+# via MQTT 110x); `FAILURE_CODES` = command NOT executed (car busy/asleep, permission
+# denied, invalid taskId or token). Telling the two apart is what lets the interface
+# NOT show a false "success" when the car has refused.
 #
-# Estos conjuntos están ahora DERIVADOS de la tabla única de routing, ya no son listas
-# escritas a mano al lado. Eran listas paralelas que podían divergir en silencio de cómo se
-# enrutaban de verdad los códigos.
+# These sets are now DERIVED from the single routing table, no longer hand-written
+# lists next to it. They were parallel lists that could silently drift from how codes
+# were actually routed.
 SUCCESS_CODES = routing.SUCCESS_CODES
 FAILURE_CODES = routing.FAILURE_CODES
 RETRYABLE_CODES = routing.RETRYABLE_CODES
 
 
 def send(ctx, cmd_key, emit=lambda m: None, params=None):
-    """Envía un comando. emit(str) recibe los pasos (para registrar los pasos).
-       `params` (opcional) = override/añadidos al body del catálogo ANTES de los campos comunes
-       → permite los comandos paramétricos (clima: temperature/times; carga inmediata:
-       controlType; carga programada: mainSwitch + chargeAppointPlans). Los campos de sistema
-       (clientType/seq/taskId/vin) siguen siendo siempre los generados aquí.
-       Devuelve una cadena-resultado legible."""
+    """Send a command. emit(str) receives the steps (to log the steps).
+       `params` (optional) = overrides/additions to the catalogue body BEFORE the common fields
+       → enables the parametric commands (climate: temperature/times; immediate charging:
+       controlType; scheduled charging: mainSwitch + chargeAppointPlans). The system fields
+       (clientType/seq/taskId/vin) are still always the ones generated here.
+       Returns a readable result string."""
     c = CMD_MAP.get(cmd_key)
     if not c:
         emit(f"comando desconocido: {cmd_key}")
@@ -75,19 +75,19 @@ def send(ctx, cmd_key, emit=lambda m: None, params=None):
             "Sesión caducada — vuelve a iniciar sesión con tu cuenta Ebro",
             reason="reauth")
 
-    # path explícito (ej. alarma en /act/theftAlarm/setSwitch) o el clásico
-    # /asc/vehicleControl/<endpoint> para los comandos de vehículo estándar.
+    # explicit path (e.g. alarm at /act/theftAlarm/setSwitch) or the classic
+    # /asc/vehicleControl/<endpoint> for the standard vehicle commands.
     url = ctx.tsp_host + (c.get("path") or ("/asc/vehicleControl/" + c["endpoint"]))
 
-    # Intento 1 con el taskId reutilizado (rápido). Si el coche lo rechaza como no válido/
-    # caducado, se regenera (checkPassword) y se reintenta UNA sola vez.
+    # Attempt 1 with the reused taskId (fast). If the car rejects it as invalid/
+    # expired, it is re-minted (checkPassword) and retried ONCE only.
     for attempt in (1, 2):
-        # get_taskid propaga CommandError (PIN/anti-bloqueo/sesión) con su `reason`.
+        # get_taskid propagates CommandError (PIN/lockout/session) with its `reason`.
         taskid, src = get_taskid(ctx, tuid, emit, force_mint=(attempt == 2))
         if not taskid:
-            # ningún taskId PERO ninguna excepción = la generación está DESACTIVADA
-            # (EBRO_MINT_TASKID=0) y no había un taskId ni en env ni en archivo. El PIN no tiene
-            # que ver: decir «PIN erróneo» mandaba al usuario a reconfigurar un PIN sano.
+            # no taskId BUT no exception = minting is DISABLED
+            # (EBRO_MINT_TASKID=0) and there was no taskId in env or in the file. The PIN has
+            # nothing to do with it: saying «wrong PIN» sent the user off to reconfigure a healthy PIN.
             emit("no hay taskId disponible (generación desactivada)")
             raise CommandError(
                 "Generación de taskId desactivada (EBRO_MINT_TASKID=0) y no hay ningún "
@@ -98,7 +98,7 @@ def send(ctx, cmd_key, emit=lambda m: None, params=None):
         ts = int(time.time() * 1000)
         body = dict(c["body"])
         if params:
-            body.update(params)    # override paramétrico (temperatura/duración/controlType/plan)
+            body.update(params)    # parametric override (temperature/duration/controlType/plan)
         body.update({"clientType": "1", "seq": f"{ctx.vin}-{ts}",
                      "taskId": taskid, "vin": ctx.vin})
         m = tsp_sign.sign_body(body, ts, half=ctx.sign_key)
@@ -119,11 +119,11 @@ def send(ctx, cmd_key, emit=lambda m: None, params=None):
             raise CommandError(f"Error de red al enviar el comando: {e}") from e
 
         code = None
-        with contextlib.suppress(Exception):   # cuerpo no-JSON: se queda sin código
+        with contextlib.suppress(Exception):   # non-JSON body: stays without a code
             code = json.loads(raw).get("code")
 
-        # la tabla dice si el taskId hay que rehacerlo. En la primera vuelta se regenera y se
-        # reintenta, así el usuario no ve un falso error por un taskId simplemente caducado.
+        # the table says whether the taskId must be re-minted. On the first pass it is re-minted
+        # and retried, so the user does not see a false error for a merely expired taskId.
         outcome = routing.classify(code, routing.CONTEXT_COMMAND)
         if attempt == 1 and outcome.regenerate_taskid and ctx.mint_taskid:
             invalidate_taskid(ctx)
@@ -134,24 +134,24 @@ def send(ctx, cmd_key, emit=lambda m: None, params=None):
     meaning = CODE_MEANING.get(code, raw[:120])
     out = f"{c['name']}: HTTP {status} {code or ''} — {meaning}"
     emit(out)
-    # Resultado real desde el `code` (el backend responde siempre HTTP 200). Un fallo conocido =
-    # comando NO ejecutado → CommandError, así la interfaz recibe el fallo real en vez
-    # de mostrar un falso éxito. Los códigos desconocidos quedan no bloqueantes por prudencia: no
-    # se inventa un fallo que el backend no ha declarado.
+    # Real result from the `code` (the backend always answers HTTP 200). A known failure =
+    # command NOT executed → CommandError, so the interface gets the real failure instead
+    # of showing a false success. Unknown codes stay non-blocking out of caution: we do not
+    # invent a failure the backend has not declared.
     if outcome.failed:
         raise CommandError(out, code=outcome.code, reason=outcome.reason)
     return out
 
 
 def query_charge_schedule(ctx):
-    """Lee la programación de carga que tiene el coche (SOLO LECTURA).
+    """Read the charge schedule the car has (READ ONLY).
 
-    `/asd/chargeAppointManage/chargeAppointQuery`, sin taskId: no ejecuta nada ni despierta al
-    coche. Devuelve el `body` en crudo (`mainSwitch` + `chargeAppointPlans`) o `None`.
+    `/asd/chargeAppointManage/chargeAppointQuery`, without a taskId: it does not actuate anything
+    or wake the car. Returns the raw `body` (`mainSwitch` + `chargeAppointPlans`) or `None`.
 
-    Existe porque la programación se puede cambiar desde la app oficial o desde el propio
-    coche, y por ahí EVBro no se entera de nada: los campos de hora y duración de la interfaz son
-    la PREFERENCIA de lo que se enviará, no lo que el vehículo tiene puesto."""
+    It exists because the schedule can be changed from the official app or from the car
+    itself, and EVBro learns nothing of it that way: the interface's time and duration fields
+    are the PREFERENCE of what will be sent, not what the vehicle currently has set."""
     token, _tuid = wake._bff_login(ctx)
     if not token:
         return None
@@ -165,9 +165,9 @@ def query_charge_schedule(ctx):
 
 
 def query_theft_switch(ctx):
-    """Lee el estado de la alarma (SOLO LECTURA, /act/theftAlarm/querySwitch).
-       Devuelve 1/0 (int) o None si no está disponible. NO usa taskId ni ejecuta nada:
-       la respuesta pone el valor bajo `body.theftAlarmSwitch`."""
+    """Read the alarm state (READ ONLY, /act/theftAlarm/querySwitch).
+       Returns 1/0 (int) or None if unavailable. Does NOT use a taskId or actuate anything:
+       the response puts the value under `body.theftAlarmSwitch`."""
     token, _tuid = wake._bff_login(ctx)
     if not token:
         return None

@@ -1,50 +1,50 @@
 #!/usr/bin/env python3
-"""Tabla ÚNICA de enrutado de los códigos del backend.
+"""The SINGLE routing table for backend codes.
 
-**Qué decide este módulo.** El backend Chery responde siempre HTTP 200 y pone el
-resultado real en un `code` (`A00xxx`). De ese código dependen cuatro decisiones
-independientes:
+**What this module decides.** The Chery backend always answers HTTP 200 and puts the
+real result in a `code` (`A00xxx`). Four independent decisions depend on that
+code:
 
-1. ¿el comando ha tenido éxito?
-2. qué **remedio** proponer al usuario (`reason`) — y por tanto qué acción propone la
-   interfaz: volver a iniciar sesión, reconfigurar el PIN, o solo un aviso;
-3. ¿el error debe **contar** hacia el anti-bloqueo del PIN?
-4. ¿conviene **regenerar el taskId** y reintentar?
+1. did the command succeed?
+2. which **remedy** to offer the user (`reason`) — and therefore which action the
+   interface offers: log in again, reconfigure the PIN, or just a notice;
+3. should the error **count** towards the PIN lockout?
+4. is it worth **re-minting the taskId** and retrying?
 
-Tenerlas repartidas tenía un coste medible: el respaldo del despertar clasificaba como
-«PIN erróneo» rechazos que eran de permisos o de sesión, así que mostraba el remedio
-equivocado y — peor — acercaba el bloqueo real de la cuenta por una causa que con el PIN
-no tenía nada que ver.
+Having them spread around had a measurable cost: the wake fallback classified as
+«wrong PIN» rejections that were about permissions or the session, so it showed the wrong
+remedy and — worse — brought the real account lockout closer for a cause that had nothing
+to do with the PIN.
 
-**Reparto de tareas.** Aquí están las DECISIONES; en `codes.py` quedan los TEXTOS
-legibles. Es la regla del proyecto: nunca se decide sobre una cadena localizada, porque
-traducir o reformular un mensaje no debe poder desactivar la reautenticación.
+**Division of labour.** The DECISIONS live here; the readable TEXTS stay in `codes.py`.
+It is the project rule: never decide on a localised string, because
+translating or rewording a message must not be able to disable re-authentication.
 
-**El contexto importa.** El mismo código puede significar cosas distintas según de dónde
-llegue: `A00567` durante `checkPassword` es una petición malformada (no es el PIN), pero
-en respuesta a un comando significa «taskId no válido» → se regenera y se reintenta. Por
-eso `clasifica()` pide siempre el contexto.
+**Context matters.** The same code can mean different things depending on where it
+comes from: `A00567` during `checkPassword` is a malformed request (not the PIN), but
+in response to a command it means «invalid taskId» → it is re-minted and retried. That is
+why `classify()` always asks for the context.
 
-**El valor por defecto es deliberadamente asimétrico.** Un código desconocido en
-`checkPassword` cae en la rama PIN (conservador: mejor proponer revisar el PIN que dejar
-al usuario sin remedio), mientras que en respuesta a un comando queda no bloqueante — no
-se inventa un fallo que el backend no ha declarado.
+**The default is deliberately asymmetric.** An unknown code in
+`checkPassword` falls into the PIN branch (conservative: better to suggest checking the PIN than to leave
+the user without a remedy), while in response to a command it stays non-blocking — we do not
+invent a failure the backend has not declared.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
 
-# ───────────────────────── remedios (`reason`) ─────────────────────────
-# Valores ESTABLES: la interfaz enruta según estos, nunca según el texto del mensaje.
-REASON_PIN = "pin"        # PIN de comandos erróneo → pedir reconfigurar el PIN
-REASON_REAUTH = "reauth"  # sesión/token muertos → volver a iniciar sesión con la cuenta Ebro
-REASON_CONFIG = "config"  # ni PIN ni sesión (permisos, petición malformada) → solo aviso
-REASON_NONE = None     # rechazo del coche (ocupado / no permitido / en reposo) → aviso
+# ───────────────────────── remedies (`reason`) ─────────────────────────
+# STABLE values: the interface routes on these, never on the message text.
+REASON_PIN = "pin"        # wrong command PIN → ask to reconfigure the PIN
+REASON_REAUTH = "reauth"  # dead session/token → log in again with the Ebro account
+REASON_CONFIG = "config"  # neither PIN nor session (permissions, malformed request) → notice only
+REASON_NONE = None     # rejection by the car (busy / not allowed / asleep) → notice
 
-# ───────────────────────── acciones de la interfaz ─────────────────────────
-ACTION_REAUTH = "reauth"          # pide volver a iniciar sesión con la cuenta Ebro
-ACTION_REPAIR_PIN = "repair_pin"  # pide reconfigurar el PIN de comandos
-ACTION_NOTICE = "aviso"           # ningún remedio automático: se muestra y ya
+# ───────────────────────── interface actions ─────────────────────────
+ACTION_REAUTH = "reauth"          # asks to log in again with the Ebro account
+ACTION_REPAIR_PIN = "repair_pin"  # asks to reconfigure the command PIN
+ACTION_NOTICE = "aviso"           # no automatic remedy: just shown
 
 _ACTION_BY_REASON = {
     REASON_REAUTH: ACTION_REAUTH,
@@ -55,30 +55,30 @@ _ACTION_BY_REASON = {
 
 
 def action_for_reason(reason: str | None) -> str:
-    """Remedio → acción concreta de la interfaz.
+    """Remedy → concrete interface action.
 
-    Un `reason` desconocido degrada a aviso: nunca a una acción invasiva como forzar una
-    otro inicio de sesión o pedir cambiar un PIN que no es el problema."""
+    An unknown `reason` degrades to a notice: never to an invasive action such as forcing
+    another login or asking to change a PIN that is not the problem."""
     return _ACTION_BY_REASON.get(reason, ACTION_NOTICE)
 
 
-# ───────────────────────── contextos ─────────────────────────
-CONTEXT_CHECKPASSWORD = "checkpassword"  # generación del taskId (verificación del PIN)
-CONTEXT_COMMAND = "comando"              # envío de un comando al coche
+# ───────────────────────── contexts ─────────────────────────
+CONTEXT_CHECKPASSWORD = "checkpassword"  # taskId minting (PIN verification)
+CONTEXT_COMMAND = "comando"              # sending a command to the car
 
 
 @dataclass(frozen=True)
 class Classification:
-    """Qué hacer con un código, en un contexto."""
+    """What to do with a code, in a context."""
 
     code: str | None = None
     reason: str | None = REASON_NONE
-    # resultado del envío: "ok" aceptado, "ko" rechazado, "unknown" = el backend no se ha
-    # expresado de forma reconocible → no bloqueante, por prudencia.
+    # send outcome: "ok" accepted, "ko" rejected, "unknown" = the backend did not express
+    # itself recognisably → non-blocking, out of caution.
     outcome: str = "unknown"
-    retryable: bool = False            # tiene sentido reintentar tal cual (coche ocupado)
-    regenerate_taskid: bool = False       # el taskId hay que rehacerlo: regenera y reintenta UNA vez
-    counts_for_lockout: bool = False        # incrementa el anti-bloqueo del PIN
+    retryable: bool = False            # retrying as-is makes sense (car busy)
+    regenerate_taskid: bool = False       # the taskId must be redone: re-mint and retry ONCE
+    counts_for_lockout: bool = False        # increments the PIN lockout
 
     @property
     def action(self) -> str:
@@ -97,73 +97,73 @@ def _entry(**kw) -> Classification:
     return Classification(**kw)
 
 
-# ───────────────────────── la tabla ─────────────────────────
-# Válida en AMBOS contextos salvo override explícito más abajo.
+# ───────────────────────── the table ─────────────────────────
+# Valid in BOTH contexts unless explicitly overridden below.
 _TABLE: dict[str, Classification] = {
-    # — aceptados —
+    # — accepted —
     "000000": _entry(outcome="ok"),
     "A00079": _entry(outcome="ok"),
 
-    # — rechazos del coche: ningún remedio automático, solo aviso —
-    # el coche ejecuta UN comando cada vez → transitorio, reintentable
+    # — rejections by the car: no automatic remedy, notice only —
+    # the car runs ONE command at a time → transient, retryable
     "A00082": _entry(outcome="ko", retryable=True),
-    # permiso denegado para ESA función (visto en vivo con remoteStart)
+    # permission denied for THAT function (seen live with remoteStart)
     "A00084": _entry(outcome="ko"),
-    "A07312": _entry(outcome="ko"),   # rate-limit del despertar
-    "A07900": _entry(outcome="ko"),   # coche en reposo / firma o car_token no válidos
+    "A07312": _entry(outcome="ko"),   # wake rate limit
+    "A07900": _entry(outcome="ko"),   # car asleep / invalid signature or car_token
 
-    # — taskId a rehacer: se regenera y se reintenta una vez —
+    # — taskId to redo: re-minted and retried once —
     "A00089": _entry(outcome="ko", regenerate_taskid=True),
     "A00546": _entry(outcome="ko", regenerate_taskid=True),
     "A00567": _entry(outcome="ko", regenerate_taskid=True),
 
-    # — sesión muerta: el único remedio es reautenticar (el PIN es irrelevante) —
+    # — dead session: the only remedy is re-authenticating (the PIN is irrelevant) —
     "A00000": _entry(outcome="ko", reason=REASON_REAUTH),
 
-    # — no es el PIN: permisos sobre el vehículo o petición mal construida —
-    # NO cuentan para el anti-bloqueo: contarlos acercaría el bloqueo real de la cuenta
-    # por una causa que con el PIN no tiene nada que ver (bug P1-2).
-    "A00374": _entry(reason=REASON_CONFIG),   # permisos del vehículo
-    "A00554": _entry(reason=REASON_CONFIG),   # autorización del vehículo
-    "A00604": _entry(reason=REASON_CONFIG),   # clientType ausente/erróneo
-    "A00643": _entry(reason=REASON_CONFIG),   # taskId ausente en la petición
-    "A00757": _entry(reason=REASON_CONFIG),   # petición malformada
+    # — not the PIN: vehicle permissions or a badly built request —
+    # they do NOT count towards the lockout: counting them would bring the real account lockout closer
+    # for a cause that has nothing to do with the PIN (bug P1-2).
+    "A00374": _entry(reason=REASON_CONFIG),   # vehicle permissions
+    "A00554": _entry(reason=REASON_CONFIG),   # vehicle authorisation
+    "A00604": _entry(reason=REASON_CONFIG),   # clientType missing/wrong
+    "A00643": _entry(reason=REASON_CONFIG),   # taskId missing from the request
+    "A00757": _entry(reason=REASON_CONFIG),   # malformed request
 }
 
-# Override por contexto. `A00567` es el caso a tener en cuenta: en `checkPassword` es una
-# petición incompleta (el PIN puede ser correcto), en respuesta a un comando es un taskId
-# a rehacer. Mismo código, dos remedios distintos.
+# Per-context override. `A00567` is the case to watch: in `checkPassword` it is an
+# incomplete request (the PIN may be correct), in response to a command it is a taskId
+# to redo. Same code, two different remedies.
 _OVERRIDE_CHECKPASSWORD: dict[str, Classification] = {
     "A00567": _entry(reason=REASON_CONFIG),
-    # PIN/contraseña erróneos: los únicos que de verdad deben contar para el bloqueo.
+    # wrong PIN/password: the only ones that should really count towards the lockout.
     "A00285": _entry(reason=REASON_PIN, counts_for_lockout=True),
     "A00282": _entry(reason=REASON_PIN, counts_for_lockout=True),
-    # A07908/A07909: PIN erróneo, CONFIRMADO en campo el 2026-10-01 — el usuario recordó el PIN
-    # bueno y el comando salió a la primera, en la misma cuenta y con el mismo código de error
-    # que llevaba toda la mañana.
+    # A07908/A07909: wrong PIN, CONFIRMED in the field on 2026-10-01 — the user remembered the right
+    # PIN and the command went through first time, on the same account and with the same error code
+    # it had been returning all morning.
     #
-    # Estuvieron unas horas clasificados como «no es el PIN» por un razonamiento que parecía
-    # solidísimo: la app aceptaba el PIN que a nosotros nos fallaba. Lo que no se vio es que la
-    # app estaba aceptando el PIN NUEVO de otra cuenta. La deducción era impecable y la premisa
-    # falsa, y el precio de equivocarse aquí no lo paga el software — lo paga la cuenta del
-    # usuario, porque sin `counts_for_lockout` el anti-bloqueo deja de frenar un PIN erróneo de
-    # verdad y Chery acaba bloqueando la cuenta.
+    # For a few hours they were classified as «not the PIN» on reasoning that looked
+    # rock-solid: the app accepted the PIN that failed for us. What was missed is that the
+    # app was accepting the NEW PIN of another account. The deduction was flawless and the premise
+    # false, and the price of being wrong here is not paid by the software — it is paid by the
+    # user's account, because without `counts_for_lockout` the lockout stops braking a genuinely
+    # wrong PIN and Chery ends up locking the account.
     #
-    # Por eso van explícitos y no apoyados en la regla por defecto: para que se vea que son una
-    # medida y no una suposición.
+    # That is why they are explicit and do not rely on the default rule: so it is visible that they are a
+    # measurement and not an assumption.
     "A07908": _entry(reason=REASON_PIN, counts_for_lockout=True),
     "A07909": _entry(reason=REASON_PIN, counts_for_lockout=True),
 }
 
-# Código nunca visto. La asimetría es intencionada — ver el docstring del módulo.
+# Never-seen code. The asymmetry is intentional — see the module docstring.
 _DEFAULT_CHECKPASSWORD = _entry(reason=REASON_PIN, counts_for_lockout=True)
 _DEFAULT_COMMAND = _entry(outcome="unknown")
 
 
 def classify(code, context: str) -> Classification:
-    """Código del backend → qué hacer, en el contexto dado.
+    """Backend code → what to do, in the given context.
 
-    `code` puede ser `None` o no-cadena (respuesta ilegible): se normaliza.
+    `code` may be `None` or a non-string (unreadable response): it is normalised.
     """
     key = str(code) if code is not None else ""
 
@@ -177,9 +177,9 @@ def classify(code, context: str) -> Classification:
     return replace(entry_, code=key or None)
 
 
-# ───────────────────────── vistas derivadas (compatibilidad) ─────────────────────────
-# Conjuntos derivados DE la tabla, no escritos a mano al lado: antes eran listas paralelas
-# que podían divergir en silencio de cómo se enrutaban los códigos.
+# ───────────────────────── derived views (compatibility) ─────────────────────────
+# Sets derived FROM the table, not hand-written next to it: they used to be parallel lists
+# that could silently drift from how the codes were routed.
 SUCCESS_CODES = frozenset(c for c, v in _TABLE.items() if v.outcome == "ok")
 FAILURE_CODES = frozenset(c for c, v in _TABLE.items() if v.outcome == "ko")
 RETRYABLE_CODES = frozenset(c for c, v in _TABLE.items() if v.retryable)

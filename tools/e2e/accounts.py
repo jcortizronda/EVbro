@@ -1,4 +1,4 @@
-"""Cuentas asociadas: crear una cuenta, darle un coche con un nivel y ver qué ve y qué no. Ver tools/e2e/README.md."""
+"""Linked accounts: create an account, give it a car with a level and check what it sees and what it does not. See tools/e2e/README.md."""
 import os
 import sys
 import tempfile
@@ -27,7 +27,7 @@ def open_page(b, user, password, theme):
     pg = ctx.new_page()
     errs = []
     pg.on("pageerror", lambda e: errs.append(str(e)))
-    pg.on("dialog", lambda d: (errs.append("diálogo del navegador: " + d.message), d.dismiss()))
+    pg.on("dialog", lambda d: (errs.append("browser dialog: " + d.message), d.dismiss()))
     pg.goto(BASE)
     pg.wait_for_load_state("load")
     pg.wait_for_timeout(2500)
@@ -44,53 +44,53 @@ with sync_playwright() as p:
         tag = theme
         ctx, pg, errs = open_page(b, USER, PASSWORD, theme)
         vin = pg.evaluate("currentVin")
-        ok(pg.evaluate("document.body.dataset.level") == "owner" and pg.evaluate("window.accountInfo.role") == "manager", f"{tag}: la gestora es propietaria de su coche")
+        ok(pg.evaluate("document.body.dataset.level") == "owner" and pg.evaluate("window.accountInfo.role") == "manager", f"{tag}: the manager owns her car")
 
-        # Ajustes → Compartir (cuentas asociadas)
+        # Ajustes → Compartir (linked accounts)
         pg.evaluate("switchTab('settings'); switchSettingsSubTab('accounts')")
         pg.wait_for_timeout(700)
-        ok(pg.is_visible("#settingsSubTabAccounts"), f"{tag}: aparece la pestaña Compartir")
-        ok(pg.text_content("#btnSettingsSubAccount").strip() == "Cuenta" and pg.text_content("#btnSettingsSubAccounts").strip() == "Compartir", f"{tag}: las pestañas Cuenta y Compartir no se confunden")
-        ok(pg.locator("#memReadOnly").count() == 0, f"{tag}: ya no hay «solo lectura» en las cuentas asociadas")
+        ok(pg.is_visible("#settingsSubTabAccounts"), f"{tag}: the Compartir tab shows up")
+        ok(pg.text_content("#btnSettingsSubAccount").strip() == "Cuenta" and pg.text_content("#btnSettingsSubAccounts").strip() == "Compartir", f"{tag}: the Cuenta and Compartir tabs are not mixed up")
+        ok(pg.locator("#memReadOnly").count() == 0, f"{tag}: there is no «solo lectura» in the linked accounts any more")
         pg.click("text=Añadir cuenta")
         pg.fill("#memUser", MEMBER)
         pg.fill("#memPass", MEMBER_PW)
         pg.click("#memberModal >> text=Crear cuenta")
         pg.wait_for_timeout(900)
-        ok(MEMBER in pg.text_content("#accMembers"), f"{tag}: la cuenta asociada aparece")
-        ok(pg.locator("#accMembers select").count() == 1, f"{tag}: hay un selector de permiso por coche")
+        ok(MEMBER in pg.text_content("#accMembers"), f"{tag}: the linked account shows up")
+        ok(pg.locator("#accMembers select").count() == 1, f"{tag}: there is a permission picker per car")
         pg.screenshot(path=f"{OUT}/accounts-{theme}.png", full_page=True)
 
-        # Ajustes → Coche: la lista de coches elige el coche de toda la aplicación
+        # Ajustes → Coche: the car list picks the car for the whole app
         pg.evaluate("switchTab('vehicle')")
         pg.wait_for_timeout(600)
-        ok("sin límite" in pg.text_content("#accCarsLimit") and "1 coche " in pg.text_content("#accCarsLimit"), f"{tag}: la gestora de la demo no tiene límite de coches ({pg.text_content('#accCarsLimit').strip()})")
+        ok("sin límite" in pg.text_content("#accCarsLimit") and "1 coche " in pg.text_content("#accCarsLimit"), f"{tag}: the demo manager has no car limit ({pg.text_content('#accCarsLimit').strip()})")
         pg.click("text=Añadir coche sin cuenta Ebro")
         pg.fill("#manName", "Mi otro Ebro")
         ok(pg.locator("#manBrand option").count() > 30 and pg.input_value("#manBrand") == "EBRO" and pg.is_visible("#manModel") and not pg.is_visible("#manModelText"),
-           f"{tag}: el alta sin cuenta Ebro pide la marca (EBRO por defecto, con la lista de modelos de EBRO)")
+           f"{tag}: adding a car without an Ebro account asks for the brand (EBRO by default, with the EBRO model list)")
         pg.select_option("#manBrand", "Toyota")
-        ok(not pg.is_visible("#manModel") and pg.is_visible("#manModelText"), f"{tag}: con otra marca el modelo se escribe a mano")
+        ok(not pg.is_visible("#manModel") and pg.is_visible("#manModelText"), f"{tag}: with another brand the model is typed by hand")
         pg.fill("#manModelText", "Corolla")
         pg.click("#manualVehicleModal >> button:has-text('Añadir')")
         pg.wait_for_timeout(1300)
-        ok("Mi otro Ebro" in pg.text_content("#accCars") and "Sin cuenta Ebro" in pg.text_content("#accCars"), f"{tag}: el coche manual se añade")
+        ok("Mi otro Ebro" in pg.text_content("#accCars") and "Sin cuenta Ebro" in pg.text_content("#accCars"), f"{tag}: the manual car is added")
         new_vin = pg.evaluate("currentVin")
-        ok(new_vin != vin and pg.input_value("#vpName") == "Mi otro Ebro", f"{tag}: el coche nuevo queda elegido y la ficha es la suya")
-        ok(pg.input_value("#vpBrand") == "Toyota" and pg.input_value("#vpModelText") == "Corolla", f"{tag}: la ficha trae la marca y el modelo elegidos")
-        ok("Mi otro Ebro" in pg.text_content(".car-pick.is-current"), f"{tag}: la lista marca el coche elegido")
-        ok(pg.input_value("#vehicleSelector") == new_vin, f"{tag}: el selector de la cabecera también cambia")
+        ok(new_vin != vin and pg.input_value("#vpName") == "Mi otro Ebro", f"{tag}: the new car stays chosen and the sheet is its own")
+        ok(pg.input_value("#vpBrand") == "Toyota" and pg.input_value("#vpModelText") == "Corolla", f"{tag}: the sheet carries the chosen brand and model")
+        ok("Mi otro Ebro" in pg.text_content(".car-pick.is-current"), f"{tag}: the list marks the chosen car")
+        ok(pg.input_value("#vehicleSelector") == new_vin, f"{tag}: the header picker changes too")
         pg.screenshot(path=f"{OUT}/cars-{theme}.png", full_page=True)
         pg.click(".car-pick:has-text('Ebro Demo')")
         pg.wait_for_timeout(900)
-        ok(pg.evaluate("currentVin") == vin and pg.input_value("#vpName") == "Ebro Demo", f"{tag}: al tocar otro coche, la ficha cambia a ese")
+        ok(pg.evaluate("currentVin") == vin and pg.input_value("#vpName") == "Ebro Demo", f"{tag}: tapping another car switches the sheet to it")
         pg.reload()
         pg.wait_for_load_state("load")
         pg.wait_for_timeout(2500)
-        ok(pg.evaluate("currentVin") == vin, f"{tag}: el coche elegido se recuerda al recargar")
+        ok(pg.evaluate("currentVin") == vin, f"{tag}: the chosen car is remembered on reload")
         pg.evaluate("switchTab('settings'); switchSettingsSubTab('accounts')")
         pg.wait_for_timeout(800)
-        ok(pg.locator("#accMembers select").count() == 2, f"{tag}: el coche nuevo ya se puede compartir")
+        ok(pg.locator("#accMembers select").count() == 2, f"{tag}: the new car can already be shared")
 
         def set_level(level):
             pg.select_option("#accMembers select >> nth=0", level)
@@ -114,17 +114,17 @@ with sync_playwright() as p:
             results[level]["edit_btn"] = visible_count(mpg, "#tabExpenses [data-on-click*='openExpenseModal']")
             if level == "view":
                 mpg.screenshot(path=f"{OUT}/member-view-{theme}.png")
-            ok(not merrs, f"{tag}/{level}: sin errores JS {merrs[:2]}")
+            ok(not merrs, f"{tag}/{level}: no JS errors {merrs[:2]}")
             mctx.close()
         v, e, c = results["view"], results["edit"], results["control"]
-        ok(v["level"] == "view" and v["cars"] == ["view"], f"{tag}: la cuenta con «Ver» solo ve su coche ({v['cars']})")
-        ok(v["climate"] == 0 and v["lock"] == 0 and v["chargeCtl"] == 0, f"{tag}: con «Ver» no hay órdenes (Confort {v['climate']}, órdenes {v['lock']}, carga {v['chargeCtl']})")
-        ok(v["edit_btn"] == 0, f"{tag}: con «Ver» no se puede añadir gastos")
-        ok(v["sheet"] == 0 and v["accounts"] == 0 and v["polling"] == 0, f"{tag}: un miembro no ve la ficha, las cuentas ni el sondeo")
-        ok(e["level"] == "edit" and e["edit_btn"] >= 1 and e["climate"] == 0 and e["lock"] == 0, f"{tag}: con «Editar» puede anotar gastos pero no controlar")
-        ok(c["level"] == "control" and c["climate"] == 1 and c["lock"] >= 1 and c["edit_btn"] >= 1 and c["sheet"] == 0, f"{tag}: con «Controlar» ve las órdenes pero no la ficha")
+        ok(v["level"] == "view" and v["cars"] == ["view"], f"{tag}: the account with «Ver» only sees its car ({v['cars']})")
+        ok(v["climate"] == 0 and v["lock"] == 0 and v["chargeCtl"] == 0, f"{tag}: with «Ver» there are no orders (Confort {v['climate']}, orders {v['lock']}, charge {v['chargeCtl']})")
+        ok(v["edit_btn"] == 0, f"{tag}: with «Ver» expenses cannot be added")
+        ok(v["sheet"] == 0 and v["accounts"] == 0 and v["polling"] == 0, f"{tag}: a member does not see the sheet, the accounts or the polling")
+        ok(e["level"] == "edit" and e["edit_btn"] >= 1 and e["climate"] == 0 and e["lock"] == 0, f"{tag}: with «Editar» it can log expenses but not control")
+        ok(c["level"] == "control" and c["climate"] == 1 and c["lock"] >= 1 and c["edit_btn"] >= 1 and c["sheet"] == 0, f"{tag}: with «Controlar» it sees the orders but not the sheet")
 
-        # el miembro tampoco puede por la API aunque salte la interfaz
+        # the member cannot do it through the API either, even bypassing the interface
         mctx, mpg, _ = open_page(b, MEMBER, MEMBER_PW, theme)
         codes = mpg.evaluate("""async () => {
           const vin = currentVin;
@@ -133,24 +133,24 @@ with sync_playwright() as p:
           return [await put('/api/vehicles/' + vin, {name: 'x'}), await post('/api/members', {username: 'otra', password: 'abcdefghij12345'}),
                   await fetch('/api/admin/users').then(r => r.status), await fetch('/api/vehicles/LSJA8888888888888/latest').then(r => r.status)];
         }""")
-        ok(codes[:3] == [403, 403, 404], f"{tag}: por la API el miembro sigue sin poder tocar la ficha, crear cuentas ni administrar: las rutas de administración ni existen en la app ({codes})")
+        ok(codes[:3] == [403, 403, 404], f"{tag}: through the API the member still cannot touch the sheet, create accounts or administer: the admin routes do not even exist in the app ({codes})")
         mctx.close()
 
-        # quitar el acceso: el miembro deja de ver el coche
+        # remove the access: the member stops seeing the car
         pg.select_option("#accMembers select >> nth=0", "")
         pg.wait_for_timeout(700)
         mctx, mpg, _ = open_page(b, MEMBER, MEMBER_PW, theme)
-        ok(mpg.evaluate("allVehiclesList.length") == 0, f"{tag}: sin enlace la cuenta no ve ningún coche")
+        ok(mpg.evaluate("allVehiclesList.length") == 0, f"{tag}: without a link the account sees no car")
         mctx.close()
         pg.evaluate("switchTab('settings'); switchSettingsSubTab('accounts')")
         pg.wait_for_timeout(400)
         over = pg.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
-        ok(over <= 0, f"{tag}: Cuentas sin desbordamiento horizontal ({over} px)")
-        ok(not errs, f"{tag}: sin errores JS {errs[:2]}")
+        ok(over <= 0, f"{tag}: Cuentas without horizontal overflow ({over} px)")
+        ok(not errs, f"{tag}: no JS errors {errs[:2]}")
         ctx.close()
         if theme == "dark":
             import subprocess
             subprocess.run([os.path.join(os.path.dirname(__file__), "demo_server.sh"), "start"], check=True, capture_output=True)
     b.close()
-print("FALLOS:", fails if fails else "ninguno")
+print("FAILURES:", fails if fails else "none")
 sys.exit(1 if fails else 0)

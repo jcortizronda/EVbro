@@ -84,13 +84,13 @@ async def setup_first_admin(req: SetupRequest, request: Request, response: Respo
     except IntegrityError as exc:
         await db.rollback()
         taken = (await db.execute(select(AppUser.id).where(AppUser.username == username, AppUser.is_admin.is_(True)))).first() is not None
-        _LOGGER.error("No se pudo crear el administrador '%s': %s", username, exc)
+        _LOGGER.error("Could not create the administrator '%s': %s", username, exc)
         raise HTTPException(status_code=409, detail="Ya hay un administrador con ese nombre." if taken
                             else "No se pudo crear la cuenta por un conflicto en la base de datos (mira el log del servidor).") from None
     await db.refresh(user)
     token = await auth.create_session(db, user, request)
     auth.set_session_cookie(response, request, token, auth.ADMIN_COOKIE_NAME)
-    _LOGGER.info("Administrador '%s' creado desde %s.", username, ip)
+    _LOGGER.info("Administrator '%s' created from %s.", username, ip)
     return {"status": "ok", "username": username}
 
 
@@ -111,7 +111,7 @@ async def login(req: Credentials, request: Request, response: Response, db: Asyn
     if not ok:
         ip_throttle.record_failure(f"ip:{ip}")
         pair_throttle.record_failure(pair_key)
-        _LOGGER.warning("Intento de acceso fallido a la consola para '%s' desde %s", username[:40], ip)
+        _LOGGER.warning("Failed console login attempt for '%s' from %s", username[:40], ip)
         raise HTTPException(status_code=401, detail=GENERIC_LOGIN_ERROR)
     pair_throttle.reset(pair_key)
     token = await auth.create_session(db, user, request)

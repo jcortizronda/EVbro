@@ -1,15 +1,15 @@
-"""El estado en vivo del coche, y el lock que lo protege.
+"""The car's live state, and the lock that protects it.
 
-**Por qué existe.** Tres hilos distintos tocan estos datos: el de **paho**, que entrega los
-mensajes MQTT; el **executor**, donde corren la sonda y los comandos; y el **bucle de eventos**
-de asyncio, desde el que lee la API. Estaban como cuatro atributos privados del
-coordinator (`_fields`, `position`, `_last_msg_ts`, `_state_lock`) y cada acceso repetía a mano
-el `with self._state_lock:`. Basta olvidarlo una vez para tener una lectura a medio escribir, y
-es el tipo de fallo que no aparece en los tests: aparece de noche, en el coche del usuario.
+**Why it exists.** Three different threads touch this data: **paho**'s, which delivers the
+MQTT messages; the **executor**, where the probe and the commands run; and the asyncio **event
+loop**, from which the API reads. They used to be four private attributes of the
+coordinator (`_fields`, `position`, `_last_msg_ts`, `_state_lock`) and every access repeated
+`with self._state_lock:` by hand. Forgetting it once is enough to get a half-written read, and
+it is the kind of bug that does not show up in tests: it shows up at night, in the user's car.
 
-Aquí el lock no es opcional. No hay forma de leer ni escribir sin pasar por un método que ya lo
-toma, y todo lo que sale es una **copia**: si se devolviera el dict vivo, el hilo de paho podría
-estar mutándolo mientras el servidor lo serializa.
+Here the lock is not optional. There is no way to read or write without going through a method
+that already takes it, and everything that comes out is a **copy**: if the live dict were
+returned, the paho thread could be mutating it while the server serialises it.
 """
 from __future__ import annotations
 
@@ -19,10 +19,10 @@ from typing import Any
 
 
 class VehicleState:
-    """Telemetría 5A02, última posición y «cuándo habló el coche por última vez».
+    """5A02 telemetry, last position and "when the car last spoke".
 
-    `awake_window` = cuántos segundos sin recibir nada hay que esperar antes de dar el coche por
-    dormido.
+    `awake_window` = how many seconds without receiving anything to wait before considering the
+    car asleep.
     """
 
     def __init__(self, awake_window: float) -> None:
@@ -32,13 +32,13 @@ class VehicleState:
         self._position: dict[str, Any] | None = None
         self._last_msg_ts: float = 0.0
 
-    # ───────────────────────── escritura ─────────────────────────
+    # ───────────────────────── writing ─────────────────────────
     def record_message(self, fields: dict[str, str], now: float) -> tuple[dict[str, str], bool]:
-        """Aplica los campos de un mensaje del coche. Devuelve `(copia, estaba_despierto)`.
+        """Apply the fields of a car message. Return `(copy, was_awake)`.
 
-        Las dos cosas se hacen bajo el MISMO lock a propósito: `was_awake` se mide contra el
-        instante ANTERIOR, así que leerlo por separado abriría una ventana en la que otro
-        mensaje ya habría movido la marca y el flanco de despertar se perdería.
+        Both things are done under the SAME lock on purpose: `was_awake` is measured against the
+        PREVIOUS instant, so reading it separately would open a window in which another
+        message would already have moved the timestamp and the wake-up edge would be lost.
         """
         with self._lock:
             was_awake = self._is_awake_locked(now)
@@ -47,35 +47,35 @@ class VehicleState:
             return dict(self._fields), was_awake
 
     def set_position(self, geo: dict[str, Any]) -> dict[str, Any]:
-        """Sustituye la posición (push 1301). Devuelve una copia."""
+        """Replace the position (1301 push). Return a copy."""
         with self._lock:
             self._position = dict(geo)
             return dict(self._position)
 
     def merge_position(self, geo: dict[str, Any]) -> dict[str, Any]:
-        """Funde una posición parcial sobre la conocida (sonda realtime). Devuelve una copia.
+        """Merge a partial position over the known one (realtime probe). Return a copy.
 
-        La sonda puede traer solo algunos campos geográficos, y perder los demás dejaría el
-        device_tracker peor de lo que estaba.
+        The probe may bring only some geographic fields, and losing the rest would leave the
+        device_tracker worse than it was.
         """
         with self._lock:
             self._position = {**(self._position or {}), **geo}
             return dict(self._position)
 
-    # ───────────────────────── lectura ─────────────────────────
+    # ───────────────────────── reading ─────────────────────────
     def fields(self) -> dict[str, str]:
-        """Copia de la telemetría 5A02."""
+        """Copy of the 5A02 telemetry."""
         with self._lock:
             return dict(self._fields)
 
     def field(self, key: str) -> str | None:
-        """Un campo de la telemetría, sin copiar el dict entero."""
+        """One telemetry field, without copying the whole dict."""
         with self._lock:
             return self._fields.get(key)
 
     @property
     def position(self) -> dict[str, Any] | None:
-        """Copia de la última posición conocida, o `None`."""
+        """Copy of the last known position, or `None`."""
         with self._lock:
             return dict(self._position) if self._position is not None else None
 
@@ -83,20 +83,20 @@ class VehicleState:
         return bool(self._last_msg_ts) and (now - self._last_msg_ts) < self._awake_window
 
     def is_awake(self, now: float | None = None) -> bool:
-        """El coche está publicando AHORA.
+        """The car is publishing NOW.
 
-        Se mide por el tiempo transcurrido desde el último mensaje, no por un flag: un flag hay
-        que acordarse de apagarlo, y cuando eso se olvidó el botón «Despertar coche» respondía
-        «ya está despierto» y no mandaba nada durante días.
+        Measured by the time elapsed since the last message, not by a flag: a flag has to be
+        remembered to be cleared, and when that was forgotten the «Despertar coche» button
+        answered "already awake" and sent nothing for days.
         """
         now = time.time() if now is None else now
         with self._lock:
             return self._is_awake_locked(now)
 
-    # ─────────────── siembra para los tests y la restauración ───────────────
+    # ─────────────── seeding for tests and restore ───────────────
     def seed(self, *, fields: dict[str, str] | None = None,
              position: dict[str, Any] | None = None, last_msg_ts: float | None = None) -> None:
-        """Fija el estado de golpe. Lo usa el arnés de tests para simular un coche vivo."""
+        """Set the state in one go. The test harness uses it to simulate a live car."""
         with self._lock:
             if fields is not None:
                 self._fields = dict(fields)

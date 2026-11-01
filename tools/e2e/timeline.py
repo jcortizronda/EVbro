@@ -1,6 +1,6 @@
-"""Cronología y búsqueda (Más → Cronología): la lista mezcla viajes, cargas, taller y demás del coche de la demo; los chips filtran;
-el buscador encuentra el taller de una intervención y tocar un resultado lleva a Mantenimiento.
-    tools/e2e/demo_server.sh start && python tools/e2e/timeline.py [carpeta_capturas]
+"""Timeline and search (Más → Cronología): the list mixes trips, charges, workshop visits and more of the demo car; the chips filter;
+the search box finds the workshop of an intervention and tapping a result leads to Mantenimiento.
+    tools/e2e/demo_server.sh start && python tools/e2e/timeline.py [screenshot_dir]
 """
 import os, sys, tempfile
 from playwright.sync_api import sync_playwright
@@ -29,26 +29,26 @@ with sync_playwright() as p:
         print("==", theme)
         pg.evaluate("switchTab('timeline')"); pg.wait_for_timeout(1200)
         kinds = pg.eval_on_selector_all("#tlList .tl-row", "els => els.map(e => [...e.classList].find(c => c.startsWith('tl-kind-')).slice(8))")
-        ok(len(kinds) >= 5 and {"drive", "charge", "maintenance"} <= set(kinds), f"la cronología mezcla varios tipos ({sorted(set(kinds))})")
-        ok(pg.locator("#tlList .hist-month").count() >= 1, "hay separadores de mes")
-        ok(pg.locator("#tlChips .ex-chip").count() == 8 and pg.locator("#tlChips .ex-chip.is-active").inner_text() == "Todo", "ocho chips de tipo, «Todo» activo")
+        ok(len(kinds) >= 5 and {"drive", "charge", "maintenance"} <= set(kinds), f"the timeline mixes several kinds ({sorted(set(kinds))})")
+        ok(pg.locator("#tlList .hist-month").count() >= 1, "there are month separators")
+        ok(pg.locator("#tlChips .ex-chip").count() == 8 and pg.locator("#tlChips .ex-chip.is-active").inner_text() == "Todo", "eight kind chips, «Todo» active")
         pg.screenshot(path=f"{OUT}/cronologia-{theme}.png", full_page=True)
         pg.click("#tlChips .ex-chip[data-kind='maintenance']"); pg.wait_for_timeout(800)
         only = pg.eval_on_selector_all("#tlList .tl-row", "els => els.map(e => e.className)")
-        ok(only and all("tl-kind-maintenance" in c for c in only), f"el chip «Taller» deja solo intervenciones ({len(only)})")
+        ok(only and all("tl-kind-maintenance" in c for c in only), f"the «Taller» chip leaves only interventions ({len(only)})")
         pg.click("#tlChips .ex-chip[data-kind='']"); pg.wait_for_timeout(600)
         pg.fill("#tlSearch", "neumáticos"); pg.wait_for_timeout(900)
         hits = pg.eval_on_selector_all("#tlList .tl-row .tl-main strong", "els => els.map(e => e.textContent)")
-        ok(any("neum" in h.lower() for h in hits) and "Resultados de" in pg.text_content("#tlTitle"), f"la búsqueda encuentra el taller de neumáticos ({hits})")
+        ok(any("neum" in h.lower() for h in hits) and "Resultados de" in pg.text_content("#tlTitle"), f"the search finds the tyre workshop ({hits})")
         pg.screenshot(path=f"{OUT}/busqueda-{theme}.png", full_page=True)
         pg.click("#tlList .tl-row.tl-kind-maintenance >> nth=0"); pg.wait_for_timeout(600)
-        ok(pg.evaluate("document.getElementById('tabMaintenance').classList.contains('active')"), "tocar un resultado de taller abre Mantenimiento")
+        ok(pg.evaluate("document.getElementById('tabMaintenance').classList.contains('active')"), "tapping a workshop result opens Mantenimiento")
         pg.evaluate("switchTab('timeline')"); pg.wait_for_timeout(500)
         pg.click("#tabTimeline .tl-clear"); pg.wait_for_timeout(900)
-        ok(pg.input_value("#tlSearch") == "" and pg.text_content("#tlTitle").strip() == "Cronología" and pg.locator("#tlList .tl-row").count() >= 5, "borrar la búsqueda vuelve a la cronología")
-        ok(pg.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), "sin desbordamiento horizontal")
-        ok(not errs, f"sin errores JS {errs}")
+        ok(pg.input_value("#tlSearch") == "" and pg.text_content("#tlTitle").strip() == "Cronología" and pg.locator("#tlList .tl-row").count() >= 5, "clearing the search goes back to the timeline")
+        ok(pg.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), "no horizontal overflow")
+        ok(not errs, f"no JS errors {errs}")
         ctx.close()
     b.close()
-print("FALLOS:", fails or "ninguno")
+print("FAILURES:", fails or "none")
 sys.exit(1 if fails else 0)

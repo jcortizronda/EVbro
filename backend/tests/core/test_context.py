@@ -1,8 +1,8 @@
-"""Tests de `core/context.py` — el `CoreCtx` de un vehículo.
+"""Tests for `core/context.py` — a vehicle's `CoreCtx`.
 
-⚠️ Las rutas por defecto de `CoreCtx` apuntan DENTRO del paquete instalado
-(`core/token.json`, `core/data/taskid.txt`). Todo test que vaya a escribir debe pasar
-`tmp_path` explícitamente; aquí solo se comprueba el cálculo de la ruta, sin tocar disco.
+⚠️ `CoreCtx`'s default paths point INSIDE the installed package
+(`core/token.json`, `core/data/taskid.txt`). Any test that writes must pass
+`tmp_path` explicitly; here only the path computation is checked, without touching disk.
 """
 
 from __future__ import annotations
@@ -19,15 +19,15 @@ from app.core.context import (
 )
 
 
-def test_rutas_por_defecto_dentro_del_paquete() -> None:
-    """Solo para el uso por línea de comandos: en HA las fija siempre el coordinator."""
+def test_default_paths_inside_the_package() -> None:
+    """Only for command-line use: in HA the coordinator always sets them."""
     ctx = CoreCtx(vin="V")
 
     assert ctx.token_path == os.path.join(HERE, "token.json")
     assert ctx.taskid_file == os.path.join(HERE, "data", "taskid.txt")
 
 
-def test_rutas_explicitas_ganan(tmp_path) -> None:
+def test_explicit_paths_win(tmp_path) -> None:
     ctx = CoreCtx(
         vin="V",
         token_path=str(tmp_path / "token.json"),
@@ -38,7 +38,7 @@ def test_rutas_explicitas_ganan(tmp_path) -> None:
     assert ctx.taskid_file == str(tmp_path / "taskid.txt")
 
 
-def test_defaults_de_region() -> None:
+def test_region_defaults() -> None:
     ctx = CoreCtx()
     assert ctx.bff == DEFAULT_BFF
     assert ctx.tsp_host == DEFAULT_TSP_HOST
@@ -46,9 +46,9 @@ def test_defaults_de_region() -> None:
     assert ctx.mint_taskid is True
 
 
-def test_cada_contexto_tiene_su_propio_estado() -> None:
-    """La razón de ser del módulo: con dos coches configurados, los errores de PIN de uno no
-    deben bloquear los comandos del otro, ni su taskId acabar en el vehículo equivocado."""
+def test_each_context_has_its_own_state() -> None:
+    """The module's raison d'être: with two cars configured, one car's PIN errors must not
+    block the other's commands, nor its taskId end up on the wrong vehicle."""
     a = CoreCtx(vin="VIN_A")
     b = CoreCtx(vin="VIN_B")
 
@@ -60,7 +60,7 @@ def test_cada_contexto_tiene_su_propio_estado() -> None:
     assert b.state.taskid is None
 
 
-def test_lockout_es_el_del_estado() -> None:
+def test_lockout_is_the_state_one() -> None:
     ctx = CoreCtx()
     assert ctx.lockout is ctx.state.lockout
 
@@ -76,8 +76,8 @@ def test_invalidate_taskid() -> None:
     assert ctx.state.taskid_ts == 0.0
 
 
-def test_reset_pin_lockout_limpia_contador_y_taskid() -> None:
-    """El taskId está ligado al PIN: cambiarlo sin descartarlo dejaría uno inservible en caché."""
+def test_reset_pin_lockout_clears_counter_and_taskid() -> None:
+    """The taskId is bound to the PIN: changing it without dropping it would leave a useless one cached."""
     ctx = CoreCtx()
     with ctx.lockout.attempt() as attempt:
         attempt.record_failure()
@@ -89,12 +89,12 @@ def test_reset_pin_lockout_limpia_contador_y_taskid() -> None:
     assert ctx.state.taskid is None
 
 
-def test_diag_sin_hook_no_hace_nada() -> None:
-    """Con el monitor dormido el coste debe ser un simple `is None`."""
-    CoreCtx().diag("command", key="bloquear")  # no debe lanzar
+def test_diag_without_hook_does_nothing() -> None:
+    """With the monitor dormant the cost must be a mere `is None`."""
+    CoreCtx().diag("command", key="bloquear")  # must not raise
 
 
-def test_diag_llama_al_hook() -> None:
+def test_diag_calls_the_hook() -> None:
     hook = Mock()
     ctx = CoreCtx(diag_hook=hook)
 
@@ -103,16 +103,16 @@ def test_diag_llama_al_hook() -> None:
     hook.assert_called_once_with("command", key="bloquear", ok=True)
 
 
-def test_diag_traga_un_hook_roto() -> None:
-    """El monitor observa, no participa: si revienta no puede tumbar un comando."""
+def test_diag_swallows_a_broken_hook() -> None:
+    """The monitor observes, it does not take part: if it blows up it cannot bring a command down."""
     ctx = CoreCtx(diag_hook=Mock(side_effect=RuntimeError("monitor roto")))
 
-    ctx.diag("command", key="bloquear")  # no debe lanzar
+    ctx.diag("command", key="bloquear")  # must not raise
 
 
-def test_ctx_from_environ_lee_el_entorno(monkeypatch) -> None:
-    """Camino exclusivo de la línea de comandos: HA nunca pasa por aquí (el PIN no debe
-    acabar nunca en el entorno del proceso de Home Assistant)."""
+def test_ctx_from_environ_reads_the_environment(monkeypatch) -> None:
+    """Command-line-only path: HA never goes through here (the PIN must never
+    end up in the Home Assistant process environment)."""
     from app.core.context import ctx_from_environ
 
     monkeypatch.setenv("VIN", "VIN_CLI")

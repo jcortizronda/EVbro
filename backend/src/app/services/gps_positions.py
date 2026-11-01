@@ -1,9 +1,9 @@
 """What a GPS fix from Traccar does: it is stored, it updates the link's "last seen", and it feeds the drives.
 
 Two modes per car (`TraccarLink.build_trips`):
-  * **Trazado** (connected cars): the fix only enriches the open drive's track; the car's own telemetry decides when a drive
+  * **Trazado** («track», connected cars): the fix only enriches the open drive's track; the car's own telemetry decides when a drive
     starts and ends (services/trip_detector.py).
-  * **Viajes** (cars without an Ebro account, or whose cloud gives no position): the GPS builds the drives. A drive opens with
+  * **Viajes** («trips», cars without an Ebro account, or whose cloud gives no position): the GPS builds the drives. A drive opens with
     the first fix in motion (Traccar's `motion` attribute, or speed above `MOVING_KMH`); it closes when the car has been still
     for `stop_minutes` within `STOP_RADIUS_M` of the first still fix, and the end time is that first still fix (not the moment
     we noticed). A gap longer than `stop_minutes` between fixes closes the drive at the last fix and a new one opens if the car
@@ -130,7 +130,7 @@ async def _open(session: AsyncSession, vehicle: Vehicle, fix: Fix) -> int:
     session.add(_position(drive.id, fix))
     _OPEN[vehicle.vin] = drive.id
     _STILL_SINCE.pop(vehicle.vin, None)
-    _LOGGER.info("Traccar: viaje iniciado para %s [Drive #%s]", vehicle.vin[-6:], drive.id)
+    _LOGGER.info("Traccar: trip started for %s [Drive #%s]", vehicle.vin[-6:], drive.id)
     return drive.id
 
 
@@ -149,7 +149,7 @@ async def _close(session: AsyncSession, vehicle: Vehicle, drive_id: int, end_tim
         for p in (await session.execute(select(DrivePosition).where(DrivePosition.drive_id == drive_id))).scalars():
             await session.delete(p)
         await session.delete(drive)
-        _LOGGER.info("Traccar: viaje de %s descartado (%.0f m)", vin[-6:], meters)
+        _LOGGER.info("Traccar: trip of %s discarded (%.0f m)", vin[-6:], meters)
         return
     drive.end_time = end_time
     drive.end_lat, drive.end_lon = lat, lon
@@ -162,4 +162,4 @@ async def _close(session: AsyncSession, vehicle: Vehicle, drive_id: int, end_tim
     drive.speed_max_kmh = round(max(speeds), 1) if speeds else 0.0
     hours = drive.duration_seconds / 3600.0
     drive.speed_avg_kmh = round(drive.distance_km / hours, 1) if hours > 0 else 0.0
-    _LOGGER.info("Traccar: viaje cerrado para %s [Drive #%s] %.1f km", vin[-6:], drive_id, drive.distance_km)
+    _LOGGER.info("Traccar: trip closed for %s [Drive #%s] %.1f km", vin[-6:], drive_id, drive.distance_km)

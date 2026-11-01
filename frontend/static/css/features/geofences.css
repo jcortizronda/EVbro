@@ -1,5 +1,5 @@
-/* EVBro — Geocercas: botones y menú emergente.
-   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+/* EVBro — Geofences: buttons and popup menu.
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
 /* ==========================================================
    GEOFENCE MODERN ACTION BUTTONS & POPOVER
@@ -91,7 +91,7 @@
   background: rgba(255, 69, 58, 0.15);
 }
 
-/* Entradas y salidas de geocercas */
+/* Geofence entries and exits */
 .gf-events-card { padding: 14px 16px; margin-top: 12px; }
 .gf-event { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-top: 1px solid var(--border-color); }
 .gf-event-kind { flex: none; min-width: 52px; text-align: center; padding: 3px 8px; border-radius: 999px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; }

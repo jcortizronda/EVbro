@@ -1,6 +1,6 @@
-/* EVBro — Consumibles y referencias: lo que lleva el coche (Ajustes → Coche → Consumibles) y las piezas de cada intervención.
+/* EVBro — Consumables and part numbers: what the car takes (Ajustes → Coche → Consumibles) and the parts of each intervention.
  * The same row editor is used in the car sheet and in the maintenance modals (a "picker" that returns the parts to send).
- * (Script clásico: comparte el ámbito global con los demás ficheros; ver el orden de carga en templates/index.html.)
+ * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
 let partCatalog = null;
@@ -113,7 +113,7 @@ function setVehiclePane(which) {
   if (which === 'parts') loadParts();
 }
 
-// ───────────────────────── Catálogo compartido ─────────────────────────
+// ───────────────────────── Shared catalogue ─────────────────────────
 let myProposals = {};          // catalog entry id → entry (my own proposals, with their state)
 let currentModel = '';
 const PROPOSAL_LABEL = { pending: 'Propuesta enviada', approved: 'En el catálogo', rejected: 'Propuesta rechazada' };
@@ -193,7 +193,7 @@ async function loadParts() {
     vehicleParts = await fetch(`/api/vehicles/${currentVin}/parts`).then((r) => r.json());
     renderParts();
   } catch (e) {
-    console.warn('No se pudieron cargar las piezas:', e);
+    console.warn('Could not load the parts:', e);
   }
 }
 

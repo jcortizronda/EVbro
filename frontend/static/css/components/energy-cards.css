@@ -1,5 +1,5 @@
-/* EVBro — Tarjetas de energía y combustible (portada).
-   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+/* EVBro — Energy and fuel cards (home tab).
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
 /* ========================================================
    HABRO PHEV DUAL ENERGY & FUEL CARDS (habroremote.com style)
@@ -131,7 +131,7 @@
   font-weight: 700;
 }
 
-/* Resumen PHEV Combinado & Odómetro (Hero Strip) */
+/* Combined PHEV summary & odometer (hero strip) */
 .habro-total-strip {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

@@ -1,4 +1,4 @@
-"""Servicio de Geocercas y Geocodificación Inversa (estilo Traccar)."""
+"""Geofences and reverse geocoding (Traccar style)."""
 from __future__ import annotations
 
 import logging
@@ -14,13 +14,13 @@ from app.db.models import Geofence
 
 _LOGGER = logging.getLogger(__name__)
 
-# Caché en memoria para evitar peticiones redundantes a Nominatim
+# In-memory cache to avoid repeated requests to Nominatim
 _GEOCODE_CACHE: Dict[Tuple[float, float], str] = {}
 
 
 def haversine_distance_meters(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    """Calcula la distancia en metros entre dos coordenadas geográficas."""
-    R = 6371000.0  # Radio de la Tierra en metros
+    """Distance in metres between two geographic coordinates."""
+    R = 6371000.0  # Earth's radius in metres
     phi1 = math.radians(lat1)
     phi2 = math.radians(lat2)
     delta_phi = math.radians(lat2 - lat1)
@@ -39,7 +39,7 @@ async def find_geofence(
     only_charging_spots: bool = False,
     owner_id: Optional[int] = None,
 ) -> Optional[Geofence]:
-    """Busca si una coordenada cae dentro de alguna geocerca del propietario del coche (cada gestor tiene las suyas)."""
+    """Finds whether a coordinate falls inside one of the car owner's geofences (each manager has their own)."""
     if lat is None or lon is None:
         return None
 
@@ -47,7 +47,7 @@ async def find_geofence(
     result = await session.execute(stmt)
     geofences = result.scalars().all()
 
-    # Si hay geocercas coincidentes, ordenar por cercanía al centro
+    # If several geofences match, sort them by distance to the centre
     matching = []
     for gf in geofences:
         if only_charging_spots and not getattr(gf, "is_charging_spot", True):
@@ -65,11 +65,11 @@ async def find_geofence(
 
 
 async def reverse_geocode(lat: Optional[float], lon: Optional[float]) -> Optional[str]:
-    """Convierte coordenadas en dirección legible usando OpenStreetMap Nominatim."""
+    """Turns coordinates into a readable address using OpenStreetMap Nominatim."""
     if lat is None or lon is None or not settings.NOMINATIM_ENABLED:
         return None
 
-    # Redondear a 4 decimales (~11 metros de precisión) para la caché
+    # Round to 4 decimals (~11 metres of precision) for the cache
     cache_key = (round(lat, 4), round(lon, 4))
     if cache_key in _GEOCODE_CACHE:
         return _GEOCODE_CACHE[cache_key]
@@ -92,7 +92,7 @@ async def reverse_geocode(lat: Optional[float], lon: Optional[float]) -> Optiona
                     data = await resp.json()
                     name = data.get("display_name")
                     if name:
-                        # Extraer formato conciso (calle + municipio)
+                        # Build a short form (street + town)
                         address = data.get("address", {})
                         road = address.get("road") or address.get("pedestrian") or ""
                         house_number = address.get("house_number", "")
@@ -105,6 +105,6 @@ async def reverse_geocode(lat: Optional[float], lon: Optional[float]) -> Optiona
                         _GEOCODE_CACHE[cache_key] = short_addr
                         return short_addr
     except Exception as e:
-        _LOGGER.debug(f"Error en geocodificación inversa para ({lat}, {lon}): {e}")
+        _LOGGER.debug(f"Reverse geocoding error for ({lat}, {lon}): {e}")
 
     return None

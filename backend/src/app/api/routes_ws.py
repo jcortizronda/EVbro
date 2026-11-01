@@ -1,4 +1,4 @@
-"""Canal WebSocket para suscripción en tiempo real a la telemetría."""
+"""WebSocket channel for real-time telemetry subscription."""
 from __future__ import annotations
 
 import asyncio
@@ -18,8 +18,8 @@ router = APIRouter(tags=["WebSocket"])
 
 @router.websocket("/ws")
 async def websocket_telemetry_stream(websocket: WebSocket):
-    """Canal bidireccional en tiempo real para el Dashboard web."""
-    # Sin sesión válida (o desde otro origen) la conexión se rechaza sin llegar a aceptarse.
+    """Real-time two-way channel for the web dashboard."""
+    # without a valid session (or from another origin) the connection is rejected before being accepted.
     user = await websocket_user(websocket)
     if user is None:
         await websocket.close(code=4401)
@@ -49,10 +49,10 @@ async def websocket_telemetry_stream(websocket: WebSocket):
             pass
 
     poller.register_ws_subscriber(_on_event)
-    _LOGGER.info("Cliente conectado al WebSocket de telemetría.")
+    _LOGGER.info("Client connected to the telemetry WebSocket.")
 
     try:
-        # Enviar estado actual de todos los vehículos de inmediato
+        # send the current state of every vehicle right away
         for vin in [v for v in list(poller._contexts) if v in allowed]:
             latest = poller.get_latest(vin)
             if latest:
@@ -62,7 +62,7 @@ async def websocket_telemetry_stream(websocket: WebSocket):
                     "data": latest,
                 }, default=str))
 
-        # Tarea de envío de eventos en cola hacia el cliente
+        # task that sends queued events to the client
         async def send_worker():
             loop = asyncio.get_running_loop()
             next_refresh = loop.time() + ALLOWED_REFRESH_S
@@ -79,10 +79,10 @@ async def websocket_telemetry_stream(websocket: WebSocket):
 
         send_task = asyncio.create_task(send_worker())
 
-        # Bucle de recepción (pings / comandos si los hubiera)
+        # receive loop (pings / commands, if any)
         while True:
             text = await websocket.receive_text()
-            # Posible gestión de comandos o keep-alives desde el front
+            # room for handling commands or keep-alives from the front end
             if text == "ping":
                 await websocket.send_text("pong")
 

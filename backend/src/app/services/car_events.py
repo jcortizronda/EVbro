@@ -1,30 +1,30 @@
-"""Canal MQTT del coche: eventos instantáneos y confirmación de comandos.
+"""The car's MQTT channel: instant events and command confirmations.
 
-**Qué trae el coche por aquí** (documentado en la integración de Home Assistant):
-  * `5A02` — estado: puertas, cierre, maletero, techo, cable de carga, motor…
-  * `110x` — confirmación de un comando: el coche acusa que lo ha ejecutado.
-  * `1301` — posición. **Este coche no lo envía nunca**; si algún día llega, se funde igualmente.
-  La batería, la autonomía y el odómetro NO vienen por aquí: siguen saliendo de la sonda.
+**What the car sends here** (documented in the Home Assistant integration):
+  * `5A02` — state: doors, lock, boot, roof, charging cable, engine…
+  * `110x` — command confirmation: the car acknowledges it has run it.
+  * `1301` — position. **This car never sends it**; if it ever arrives, it is merged all the same.
+  Battery, range and odometer do NOT come this way: they still come from the poll.
 
-**Para qué sirve en EVBro**
-  * La telemetría de puertas/cierre/cable/motor se actualiza al instante (WebSocket), sin esperar
-    al sondeo. El push manda sobre la sonda cuando ambos traen la misma clave.
-  * Despertar, ráfaga de marcha y enchufar/desenchufar el cable disparan una sonda inmediata, que
-    es la que guarda la instantánea y alimenta los detectores de viajes y cargas.
-  * Las confirmaciones llegan a la web como `command_result`.
+**What it is for in EVBro**
+  * Door/lock/cable/engine telemetry updates instantly (WebSocket), without waiting
+    for the poll. The push wins over the poll when both carry the same key.
+  * Waking up, a driving burst and plugging/unplugging the cable trigger an immediate poll, which
+    is what saves the snapshot and feeds the trip and charge detectors.
+  * Confirmations reach the web as `command_result`.
 
-**Limitaciones que importan**
-  * Solo existe para la cuenta PROPIETARIA: con una delegada el broker acepta la suscripción pero
-    no publica nada (estado `subscribed` sin mensajes).
-  * El topic es de la cuenta y los mensajes no llevan VIN: se atribuyen a UN vehículo (el de
-    `EBRO_VIN` o el primero). Con varios vehículos en la cuenta es una aproximación.
-  * **Choque de clientId.** El clientId (`app_<canal>_<tuserid>`) es el mismo que usa la integración
-    de Home Assistant, y MQTT expulsa al cliente anterior cuando entra otro con el mismo. Por eso el
-    servicio está desactivado por defecto y, si detecta conexiones que duran segundos una tras otra,
-    se PARA (`conflict`) en vez de entrar en una guerra de reconexiones contra el broker de Chery.
+**Limitations that matter**
+  * It only exists for the OWNER account: with a delegated one the broker accepts the subscription but
+    publishes nothing (state `subscribed` with no messages).
+  * The topic belongs to the account and messages carry no VIN: they are attributed to ONE vehicle (the
+    `EBRO_VIN` one or the first). With several vehicles on the account it is an approximation.
+  * **clientId clash.** The clientId (`app_<channel>_<tuserid>`) is the same the Home Assistant integration
+    uses, and MQTT kicks out the previous client when another one joins with the same id. That is why the
+    service is off by default and, if it sees connections lasting seconds one after another,
+    it STOPS (`conflict`) instead of entering a reconnection war against Chery's broker.
 
-Los callbacks de paho llegan desde su hilo: aquí se saltan SIEMPRE al bucle de eventos antes de
-tocar nada, así el estado de este servicio solo lo modifica un hilo.
+paho callbacks arrive on paho's thread: here they ALWAYS hop to the event loop before
+touching anything, so only one thread changes this service's state.
 """
 from __future__ import annotations
 
@@ -46,14 +46,14 @@ from app.vehicle.telemetry import format_command_result, parse_car_message
 
 _LOGGER = logging.getLogger("app.services.car_events")
 
-# Guarda anti-bucle: una conexión que dura menos de FLAP_MIN_UPTIME_S cuenta como «efímera»; si
-# hay FLAP_MAX_EPHEMERAL seguidas dentro de FLAP_WINDOW_S, otro cliente está usando la misma
-# cuenta (o el broker nos rechaza) y se deja de insistir.
+# Anti-loop guard: a connection lasting less than FLAP_MIN_UPTIME_S counts as «ephemeral»; if
+# FLAP_MAX_EPHEMERAL happen in a row within FLAP_WINDOW_S, another client is using the same
+# account (or the broker rejects us) and we stop trying.
 FLAP_MIN_UPTIME_S = 20.0
 FLAP_MAX_EPHEMERAL = 3
 FLAP_WINDOW_S = 300.0
 
-# Estados visibles en la web (clave estable) y su explicación.
+# States shown on the web (stable key) and their explanation.
 STATE_TEXT = {
     "disabled": "Desactivado (CAR_MQTT_ENABLED=false)",
     "no_account": "Sin cuenta Ebro conectada",
@@ -96,9 +96,9 @@ class CarEventService:
         self._ephemeral: list[float] = []
         self._topic: str | None = None
 
-    # ───────────────────────── ciclo de vida ─────────────────────────
+    # ───────────────────────── life cycle ─────────────────────────
     async def start(self, poller, vins: list[str] | None = None) -> None:
-        """Conecta si está activado y hay cuenta. Nunca lanza: el estado queda en `self.state`."""
+        """Connects if enabled and there is an account. Never raises: the outcome is left in `self.state`."""
         self._poller = poller
         if vins is not None:
             self._vins = list(vins)
@@ -116,10 +116,10 @@ class CarEventService:
             await self._loop.run_in_executor(None, self._connect_blocking, ctx)
         except _ServiceError as err:
             self._set(err.state, str(err))
-            _LOGGER.warning("Canal MQTT del coche: %s", err)
-        except Exception as err:                     # noqa: BLE001 — el servicio no debe tumbar el arranque
+            _LOGGER.warning("Car MQTT channel: %s", err)
+        except Exception as err:                     # noqa: BLE001 — the service must not bring down start-up
             self._set("error", f"{type(err).__name__}: {err}")
-            _LOGGER.exception("Canal MQTT del coche: fallo inesperado")
+            _LOGGER.exception("Car MQTT channel: unexpected failure")
 
     async def stop(self) -> None:
         client, self._client = self._client, None
@@ -145,12 +145,12 @@ class CarEventService:
         vin = settings.EBRO_VIN if settings.EBRO_VIN in contexts else sorted(contexts)[0]
         if len(contexts) > 1:
             _LOGGER.warning(
-                "Hay %d vehículos en la cuenta y los mensajes MQTT no llevan VIN: se atribuyen a %s.",
+                "There are %d vehicles on the account and MQTT messages carry no VIN: they are attributed to %s.",
                 len(contexts), vin)
         return vin, contexts[vin]
 
     def _connect_blocking(self, ctx) -> None:
-        """Certificados + tUserId + conexión. Bloqueante: corre en el executor."""
+        """Certificates + tUserId + connection. Blocking: runs in the executor."""
         certs_dir = f"{get_data_dir()}/certs"
         ok, detail = certificates.provision(certs_dir, settings.CAR_MQTT_HOST, settings.CAR_MQTT_CERTS_SRC)
         if not ok:
@@ -178,14 +178,14 @@ class CarEventService:
         self._client = client
 
     def _from_thread(self, fn):
-        """Envuelve un callback de paho para que se ejecute en el bucle de eventos."""
+        """Wraps a paho callback so it runs on the event loop."""
         def _call(*args):
             loop = self._loop
             if loop is not None and not loop.is_closed():
                 loop.call_soon_threadsafe(fn, *args)
         return _call
 
-    # ───────────────────────── eventos de conexión (en el loop) ─────────────────────────
+    # ───────────────────────── connection events (on the loop) ─────────────────────────
     def _set(self, state: str, detail: str = "") -> None:
         self.state = state
         self.detail = detail or STATE_TEXT.get(state, "")
@@ -222,14 +222,14 @@ class CarEventService:
                 "La conexión se corta a los pocos segundos una y otra vez: otro cliente usa la misma "
                 "cuenta (¿la integración de Home Assistant?) o el broker nos rechaza. Se ha parado para "
                 "no expulsarse en bucle; desactiva el otro cliente y pulsa «Reconectar»."))
-            _LOGGER.error("Canal MQTT del coche: %s", self.detail)
+            _LOGGER.error("Car MQTT channel: %s", self.detail)
             if client is not None and self._loop is not None:
                 self._loop.run_in_executor(None, client.disconnect)
 
-    # ───────────────────────── mensajes del coche (en el loop) ─────────────────────────
+    # ───────────────────────── messages from the car (on the loop) ─────────────────────────
     def _handle_message(self, payload: bytes, topic: str | None = None) -> None:
         if topic is not None and self._topic is not None and topic != self._topic:
-            return                                    # topic que no sabemos interpretar
+            return                                    # a topic we do not know how to read
         message = parse_car_message(payload)
         if message is None or self._poller is None or self.vin is None:
             return
@@ -247,13 +247,13 @@ class CarEventService:
                 "type": "command_result", "vin": self.vin, "message": self.last_command_result,
                 "applied": "✅" in self.last_command_result, "failed": "❌" in self.last_command_result,
             })
-            return                                    # una confirmación no es telemetría
+            return                                    # a confirmation is not telemetry
 
         if message.meaningful:
             self._poller.apply_car_fields(self.vin, fields, message.geo or None)
 
-        # Disparadores de sondeo (gratis: vienen del push). El flanco de despertar respeta el
-        # cooldown de la sonda; la marcha y el cable lo fuerzan.
+        # Poll triggers (free: they come from the push). The wake-up edge respects the probe's
+        # cooldown; driving and the cable force it.
         was_bursting = self._burst.is_active(now)
         bursting = self._burst.record(now)
         trigger_force = bursting and not was_bursting
@@ -267,9 +267,9 @@ class CarEventService:
         elif not was_awake:
             self._poller.request_poll(self.vin, force=False)
 
-    # ───────────────────────── consulta ─────────────────────────
+    # ───────────────────────── query ─────────────────────────
     def fields_for(self, vin: str) -> dict[str, str]:
-        """Última telemetría 5A02 conocida de ese vehículo (vacía si no es el que escucha el MQTT)."""
+        """Latest known 5A02 telemetry of that vehicle (empty if it is not the one MQTT listens for)."""
         return self.vehicle_state.fields() if vin == self.vin else {}
 
     def status(self) -> dict:

@@ -1,4 +1,4 @@
-"""Tests de `core/ebro_login.py` — login OAuth2 teléfono+contraseña contra el BFF."""
+"""Tests for `core/ebro_login.py` — OAuth2 phone+password login against the BFF."""
 
 from __future__ import annotations
 
@@ -22,14 +22,14 @@ def _respuesta(json_data=None, *, status: int = 200, text: str = "") -> MagicMoc
     return r
 
 
-# ───────────────────────── cifrado de la contraseña (puro) ─────────────────────────
+# ───────────────────────── password encryption (pure) ─────────────────────────
 
 
 def test_aes_encrypt_password_es_determinista(snapshot: SnapshotAssertion) -> None:
-    """AES-CBC con key == IV fijos y sin nonce → mismo texto, misma salida siempre.
+    """AES-CBC with fixed key == IV and no nonce → same text, same output, always.
 
-    Es una propiedad del protocolo, no una casualidad: el backend espera exactamente este
-    valor. Congelarlo en un snapshot detecta cualquier cambio de clave o de padding.
+    It is a property of the protocol, not a coincidence: the backend expects exactly this
+    value. Freezing it in a snapshot catches any change of key or padding.
     """
     cifrada = ebro_login.aes_encrypt_password("contrasena-de-prueba")
 
@@ -37,33 +37,33 @@ def test_aes_encrypt_password_es_determinista(snapshot: SnapshotAssertion) -> No
     assert cifrada == snapshot
 
 
-def test_aes_encrypt_password_es_base64_y_multiplo_de_bloque() -> None:
+def test_aes_encrypt_password_is_base64_and_block_multiple() -> None:
     crudo = base64.b64decode(ebro_login.aes_encrypt_password("hola"))
     assert len(crudo) % 16 == 0
 
 
-def test_aes_encrypt_password_soporta_no_ascii() -> None:
-    """El padding es sobre los BYTES utf-8, no sobre los caracteres."""
+def test_aes_encrypt_password_supports_non_ascii() -> None:
+    """Padding applies to the utf-8 BYTES, not to the characters."""
     assert base64.b64decode(ebro_login.aes_encrypt_password("contraseña-ñ"))
 
 
-# ───────────────────────── cabeceras (puras) ─────────────────────────
+# ───────────────────────── headers (pure) ─────────────────────────
 
 
 def test_headers(snapshot: SnapshotAssertion) -> None:
     assert ebro_login._headers("34") == snapshot
 
 
-def test_headers_el_area_code_va_en_dept_id() -> None:
+def test_headers_area_code_goes_in_dept_id() -> None:
     assert ebro_login._headers("39")["dept-id"] == "39"
-    # el tenant es del login (numérico) y NO depende del país
+    # the tenant is the login one (numeric) and does NOT depend on the country
     assert ebro_login._headers("39")["tenant-code"] == ebro_login.TENANT_CODE
 
 
-# ───────────────────────── normalizador de la respuesta (puro) ─────────────────────────
+# ───────────────────────── response normaliser (pure) ─────────────────────────
 
 
-def test_extract_desde_data() -> None:
+def test_extract_from_data() -> None:
     tok = ebro_login._extract(
         {"data": {"access_token": "AT", "refresh_token": "RT", "expires_in": 43200}}
     )
@@ -72,15 +72,15 @@ def test_extract_desde_data() -> None:
     assert tok["expires_in"] == 43200
 
 
-def test_extract_desde_la_raiz() -> None:
-    """El BFF responde a veces con el token en el nivel superior y no bajo `data`."""
+def test_extract_from_the_root() -> None:
+    """The BFF sometimes answers with the token at the top level and not under `data`."""
     tok = ebro_login._extract({"access_token": "AT"})
     assert tok["access_token"] == "AT"
     assert tok["refresh_token"] is None
 
 
-def test_extract_conserva_el_json_crudo() -> None:
-    """`raw` es lo que el config flow escribe en token.json: no puede perderse."""
+def test_extract_keeps_the_raw_json() -> None:
+    """`raw` is what the config flow writes to token.json: it must not be lost."""
     j = {"access_token": "AT", "extra": "valor"}
     assert ebro_login._extract(j)["raw"] is j
 
@@ -89,11 +89,11 @@ def test_extract_conserva_el_json_crudo() -> None:
     "j",
     [{}, {"data": {}}, {"msg": "credenciales erróneas"}, {"data": {"access_token": ""}}],
 )
-def test_extract_sin_token(j) -> None:
+def test_extract_without_token(j) -> None:
     assert ebro_login._extract(j) is None
 
 
-# ───────────────────────── password_login (red mockeada) ─────────────────────────
+# ───────────────────────── password_login (mocked network) ─────────────────────────
 
 
 def test_password_login_ok() -> None:
@@ -106,18 +106,18 @@ def test_password_login_ok() -> None:
     assert tok["access_token"] == "AT"
 
     _, kwargs = post.call_args
-    # username = "<areaCode>_<mobile>" y grant_type/scope van en QUERY STRING
+    # username = "<areaCode>_<mobile>" and grant_type/scope go in the QUERY STRING
     assert kwargs["params"] == {
         "username": "34_600000000",
         "grant_type": "password",
         "scope": "server",
     }
-    # la contraseña viaja cifrada en el BODY, nunca en claro
+    # the password travels encrypted in the BODY, never in plain text
     assert kwargs["data"] == {"password": ebro_login.aes_encrypt_password("secreta")}
     assert "secreta" not in str(kwargs["data"])
 
 
-def test_password_login_credenciales_erroneas() -> None:
+def test_password_login_wrong_credentials() -> None:
     resp = _respuesta({"msg": "usuario o contraseña incorrectos"}, status=200)
 
     with patch.object(ebro_login.requests, "post", return_value=resp):
@@ -127,8 +127,8 @@ def test_password_login_credenciales_erroneas() -> None:
     assert "usuario o contraseña incorrectos" in detalle
 
 
-def test_password_login_respuesta_no_json() -> None:
-    """Un gateway caído devuelve HTML: no debe propagar la excepción del parser."""
+def test_password_login_non_json_response() -> None:
+    """A down gateway returns HTML: the parser exception must not propagate."""
     resp = _respuesta(None, status=502, text="<html>Bad Gateway</html>")
 
     with patch.object(ebro_login.requests, "post", return_value=resp):
@@ -146,14 +146,14 @@ def test_refresh_token_ok() -> None:
 
     assert ok is True
     assert tok["access_token"] == "AT2"
-    # el refresco NO manda contraseña: solo el grant en query string
+    # the refresh does NOT send a password: only the grant in the query string
     _, kwargs = post.call_args
     assert kwargs["params"]["grant_type"] == "refresh_token"
     assert kwargs["params"]["refresh_token"] == "RT1"
     assert "data" not in kwargs
 
 
-def test_refresh_token_rechazado() -> None:
+def test_refresh_token_rejected() -> None:
     resp = _respuesta({"error": "invalid_grant"}, status=400)
 
     with patch.object(ebro_login.requests, "post", return_value=resp):

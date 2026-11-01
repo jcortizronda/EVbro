@@ -1,13 +1,13 @@
-"""Tests de `vehicle_state.py` — el estado en vivo del coche y su lock.
+"""Tests for `vehicle_state.py` — the car's live state and its lock.
 
-Tres hilos tocan estos datos: el de paho (mensajes MQTT), el executor (sonda y comandos) y el
-bucle de eventos de Home Assistant (las entidades leyendo). Antes eran cuatro atributos privados
-del coordinator y cada acceso repetía el `with` a mano; olvidarlo una vez da una lectura a medio
-escribir, que es el tipo de fallo que no sale en los tests sino de noche y en el coche del
-usuario.
+Three threads touch this data: paho's (MQTT messages), the executor (probe and commands) and
+Home Assistant's event loop (entities reading). They used to be four private attributes of
+the coordinator and every access repeated the `with` by hand; forgetting it once gives a
+half-written read, which is the kind of bug that does not show up in tests but at night in
+the user's car.
 
-Lo que se fija aquí es que **todo lo que sale es una copia** y que el flanco de despertar se
-resuelve dentro del mismo lock que la escritura.
+What is pinned down here is that **everything that comes out is a copy** and that the wake-up
+edge is resolved inside the same lock as the write.
 """
 
 from __future__ import annotations
@@ -19,9 +19,9 @@ from app.vehicle.state import VehicleState
 VENTANA = 300.0
 
 
-def test_los_campos_que_salen_son_una_copia() -> None:
-    """Si se devolviera el dict vivo, el hilo de paho podría estar mutándolo mientras Home
-    Assistant lo serializa para el informe de diagnóstico."""
+def test_returned_fields_are_a_copy() -> None:
+    """If the live dict were returned, the paho thread could be mutating it while Home
+    Assistant serialises it for the diagnostics report."""
     state = VehicleState(VENTANA)
     state.record_message({"doorLock": "0"}, now=1_000.0)
 
@@ -31,7 +31,7 @@ def test_los_campos_que_salen_son_una_copia() -> None:
     assert state.field("doorLock") == "0"
 
 
-def test_la_posicion_que_sale_es_una_copia() -> None:
+def test_returned_position_is_a_copy() -> None:
     state = VehicleState(VENTANA)
     state.set_position({"lat": "40.4", "lon": "-3.7"})
 
@@ -41,8 +41,8 @@ def test_la_posicion_que_sale_es_una_copia() -> None:
     assert state.position["lat"] == "40.4"
 
 
-def test_los_campos_se_acumulan_entre_mensajes() -> None:
-    """El coche manda frames parciales: un mensaje nuevo no puede borrar lo ya conocido."""
+def test_fields_accumulate_across_messages() -> None:
+    """The car sends partial frames: a new message must not erase what is already known."""
     state = VehicleState(VENTANA)
     state.record_message({"doorLock": "0", "hood": "0"}, now=1_000.0)
 
@@ -51,9 +51,9 @@ def test_los_campos_se_acumulan_entre_mensajes() -> None:
     assert fields == {"doorLock": "0", "hood": "1"}
 
 
-def test_merge_position_conserva_los_campos_que_la_sonda_no_trae() -> None:
-    """La sonda realtime puede traer solo parte de la geolocalización; perder el resto dejaría
-    el device_tracker peor de lo que estaba."""
+def test_merge_position_keeps_the_fields_the_probe_does_not_bring() -> None:
+    """The realtime probe may bring only part of the geolocation; losing the rest would leave
+    the device_tracker worse than it was."""
     state = VehicleState(VENTANA)
     state.set_position({"lat": "40.4", "lon": "-3.7", "altitude": "600"})
 
@@ -62,8 +62,8 @@ def test_merge_position_conserva_los_campos_que_la_sonda_no_trae() -> None:
     assert fundida == {"lat": "41.0", "lon": "-3.0", "altitude": "600"}
 
 
-def test_set_position_sustituye_en_vez_de_fundir() -> None:
-    """El push 1301 trae la posición completa: fundir dejaría campos de un fix anterior."""
+def test_set_position_replaces_instead_of_merging() -> None:
+    """The 1301 push carries the full position: merging would leave fields from an earlier fix."""
     state = VehicleState(VENTANA)
     state.set_position({"lat": "40.4", "lon": "-3.7", "altitude": "600"})
 
@@ -72,12 +72,12 @@ def test_set_position_sustituye_en_vez_de_fundir() -> None:
     assert nueva == {"lat": "41.0", "lon": "-3.0"}
 
 
-def test_despierto_se_mide_por_el_tiempo_desde_el_ultimo_mensaje() -> None:
-    """No es un flag: un flag hay que acordarse de apagarlo, y cuando eso se olvidó el botón
-    «Despertar coche» respondía «ya está despierto» y no mandaba nada durante días."""
+def test_awake_is_measured_by_time_since_the_last_message() -> None:
+    """It is not a flag: a flag has to be remembered to be cleared, and when that was forgotten
+    the «Despertar coche» button answered "already awake" and sent nothing for days."""
     state = VehicleState(VENTANA)
 
-    assert state.is_awake(now=1_000.0) is False   # nunca ha hablado
+    assert state.is_awake(now=1_000.0) is False   # has never spoken
 
     state.record_message({"doorLock": "0"}, now=1_000.0)
 
@@ -85,25 +85,25 @@ def test_despierto_se_mide_por_el_tiempo_desde_el_ultimo_mensaje() -> None:
     assert state.is_awake(now=1_000.0 + VENTANA + 1) is False
 
 
-def test_el_flanco_de_despertar_se_resuelve_dentro_del_lock() -> None:
-    """`record_message` devuelve si el coche estaba despierto ANTES de este mensaje.
+def test_the_wake_up_edge_is_resolved_inside_the_lock() -> None:
+    """`record_message` returns whether the car was awake BEFORE this message.
 
-    Leerlo por separado abriría una ventana en la que otro mensaje ya habría movido la marca y
-    el flanco — que es lo que dispara la sonda de posición — se perdería."""
+    Reading it separately would open a window in which another message would already have moved
+    the timestamp and the edge — which is what triggers the position probe — would be lost."""
     state = VehicleState(VENTANA)
 
     _, primero = state.record_message({"a": "1"}, now=1_000.0)
     _, segundo = state.record_message({"a": "1"}, now=1_001.0)
     _, tras_dormirse = state.record_message({"a": "1"}, now=1_001.0 + VENTANA + 1)
 
-    assert primero is False        # dormido → es el flanco
-    assert segundo is True         # seguía despierto
-    assert tras_dormirse is False  # se durmió por el camino → flanco otra vez
+    assert primero is False        # asleep → this is the edge
+    assert segundo is True         # still awake
+    assert tras_dormirse is False  # fell asleep in between → edge again
 
 
-def test_escrituras_concurrentes_no_pierden_campos() -> None:
-    """Veinte hilos escribiendo a la vez: sin el lock, `dict.update` sobre el mismo dict puede
-    perder escrituras. Con él, los 200 campos tienen que estar."""
+def test_concurrent_writes_do_not_lose_fields() -> None:
+    """Twenty threads writing at once: without the lock, `dict.update` on the same dict can
+    lose writes. With it, all 200 fields must be there."""
     state = VehicleState(VENTANA)
     hilos = [
         threading.Thread(
@@ -123,8 +123,8 @@ def test_escrituras_concurrentes_no_pierden_campos() -> None:
     assert len(state.fields()) == 200
 
 
-def test_leer_mientras_se_escribe_no_da_una_lectura_a_medias() -> None:
-    """La lectura devuelve una copia coherente, nunca un dict en pleno `update`."""
+def test_reading_while_writing_never_gives_a_partial_read() -> None:
+    """Reading returns a consistent copy, never a dict in the middle of an `update`."""
     state = VehicleState(VENTANA)
     parar = threading.Event()
     incoherencias: list[int] = []
@@ -138,7 +138,7 @@ def test_leer_mientras_se_escribe_no_da_una_lectura_a_medias() -> None:
     def leer() -> None:
         for _ in range(500):
             snapshot = state.fields()
-            # cada escritura mete DOS claves; una copia coherente nunca tiene un número impar
+            # each write adds TWO keys; a consistent copy never has an odd count
             if len(snapshot) % 2:
                 incoherencias.append(len(snapshot))
 

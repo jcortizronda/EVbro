@@ -1,6 +1,6 @@
-/* EVBro — Cuentas asociadas (Ajustes → Cuentas): quién más puede usar tus coches y con qué permiso, y coches sin cuenta de Ebro.
+/* EVBro — Linked accounts (Ajustes → Cuentas): who else can use your cars and with which permission, and cars without an Ebro account.
  * Only managers (and the admin, in their own space) see this. Levels: view < edit < control; the owner is always you.
- * (Script clásico: comparte el ámbito global con los demás ficheros; ver el orden de carga en templates/index.html.)
+ * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
 let accMembers = [];
@@ -31,7 +31,7 @@ async function loadAccounts() {
     accMembers = await fetch('/api/members').then((r) => (r.ok ? r.json() : []));
     renderAccounts();
   } catch (e) {
-    console.warn('No se pudieron cargar las cuentas asociadas:', e);
+    console.warn('Could not load the linked accounts:', e);
   }
 }
 
@@ -96,7 +96,7 @@ async function removeMember(id, name) {
   try { await accCall(`/api/members/${id}`, 'DELETE'); loadAccounts(); } catch (e) { showToast(e.message, 'error'); }
 }
 
-// ───────────────────────── Modales ─────────────────────────
+// ───────────────────────── Modals ─────────────────────────
 function openMemberModal() {
   for (const id of ['memUser', 'memPass']) aEl(id).value = '';
   aEl('memberModal').classList.add('open');
@@ -165,7 +165,7 @@ async function saveManualVehicle() {
   } catch (e) { showToast(t('No se pudo añadir: {p0}', {p0: e.message}), 'error', 6000); }
 }
 
-/** Ficha del coche → zona peligrosa: borra el coche y todo lo anotado de él. */
+/** Car sheet → danger zone: deletes the car and everything recorded about it. */
 async function deleteCurrentVehicle() {
   const v = currentVehicle();
   if (!v) return;

@@ -1,8 +1,8 @@
-/* EVBro — Facturas y documentos adjuntos.
-   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+/* EVBro — Invoices and attached documents.
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
 /* ========================================================
-   ESTILOS DE FACTURAS Y DOCUMENTOS ADJUNTOS
+   INVOICE AND ATTACHED DOCUMENT STYLES
    ======================================================== */
 .btn-info {
   background: rgba(0, 180, 216, 0.16);

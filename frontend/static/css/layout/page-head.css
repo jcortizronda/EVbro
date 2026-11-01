@@ -1,8 +1,8 @@
-/* EVBro — Cabecera con imagen pequeña.
-   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+/* EVBro — Header with a small image.
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
 /* ==========================================================================
-   Cabecera con imagen PEQUEÑA (franja panorámica; no empuja el contenido hacia abajo)
+   Header with a SMALL image (panoramic strip; does not push the content down)
    ========================================================================== */
 .page-banner {
   position: relative; display: flex; flex-direction: column; justify-content: flex-start; align-items: flex-start; gap: 0.3rem;
@@ -10,7 +10,7 @@
   color: #fff;
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.72) 0%, rgba(0, 0, 0, 0.18) 100%), var(--banner) center 45% / cover no-repeat, #10131a;
 }
-.page-banner .section-tag { display: none; }                       /* el título ya lo dice; ahorra una línea */
+.page-banner .section-tag { display: none; }                       /* the title already says it; saves a line */
 .page-banner .section-title { color: #fff; font-size: 1.4rem; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5); }
 .page-banner .page-head-main { gap: 0.3rem 0.5rem; }
 .page-banner .page-head-meta { margin-top: 0; gap: 0.4rem 0.55rem; }
@@ -21,7 +21,7 @@
 }
 .page-banner .vehicle-vin-badge { color: #cdeeff; background: rgba(8, 10, 16, 0.6); border-color: rgba(255, 255, 255, 0.28); }
 .page-banner .icon-btn { width: 36px; height: 36px; color: #fff; border-color: rgba(255, 255, 255, 0.45); background: rgba(8, 10, 16, 0.45); }
-/* Todas las cabeceras con imagen (Inicio, Energía, Confort): título arriba a la izquierda, estado arriba a la derecha y los datos (VIN, matrícula, nota) abajo */
+/* Every header with an image (Inicio, Energía, Confort): title top left, status top right and the details (VIN, plate, note) at the bottom */
 .page-banner { justify-content: space-between; }
 .page-banner .page-head-main { width: 100%; flex-wrap: nowrap; justify-content: space-between; }
 .page-banner .section-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

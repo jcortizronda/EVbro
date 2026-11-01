@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
-"""Anti-bloqueo del PIN de comandos — estado encapsulado, con lock interno.
+"""Command PIN lockout guard — encapsulated state, with an internal lock.
 
-**El riesgo que este módulo existe para contener.** El PIN de los comandos
-remotos lo verifica el backend Chery (`checkPassword`). Cada verificación fallida incrementa
-un contador de errores DEL LADO DE CHERY: superado el umbral, la cuenta se bloquea — y ese
-bloqueo no se puede deshacer desde EVBro. Por eso el componente se autolimita: tras
-`max_fail` rechazos consecutivos dentro de `window_s` deja de interrogar al backend y pide al
-usuario que reconfigure el PIN.
+**The risk this module exists to contain.** The PIN for remote commands
+is verified by the Chery backend (`checkPassword`). Every failed verification increments
+an error counter ON THE CHERY SIDE: past the threshold the account gets locked — and that
+lock cannot be undone from EVBro. That is why the component limits itself: after
+`max_fail` consecutive rejections within `window_s` it stops querying the backend and asks the
+user to reconfigure the PIN.
 
-Aquí el lock no es opcional: solo se entra por `attempt()`, que es un context manager y
-serializa el INTENTO ENTERO — guardia, llamada de red, actualización del contador. No existe
-forma de usar esta API que reabra la condición de carrera.
+Here the lock is not optional: the only way in is `attempt()`, which is a context manager and
+serialises the WHOLE ATTEMPT — guard, network call, counter update. There is no
+way to use this API that reopens the race condition.
 
-**Nota.** La clase es instanciable a propósito: con el contexto por llamada cada
-vehículo/cuenta tiene su propia instancia, en vez de compartir un contador de proceso (con
-dos coches configurados, los errores de uno bloquearían los comandos del otro).
+**Note.** The class is instantiable on purpose: with the per-call context each
+vehicle/account has its own instance, instead of sharing a process-wide counter (with
+two cars configured, one car's errors would block the other's commands).
 """
 from __future__ import annotations
 
@@ -24,10 +24,10 @@ import time
 
 
 class PinLockedError(Exception):
-    """El anti-bloqueo ha saltado: NO se ha contactado con el backend.
+    """The lockout has tripped: the backend was NOT contacted.
 
-    Distinta de un rechazo real del backend precisamente porque aquí no se ha gastado ningún
-    intento del lado de Chery — es la protección que ha funcionado, no un error nuevo."""
+    Distinct from a real backend rejection precisely because no attempt has been spent
+    on the Chery side here — it is the protection working, not a new error."""
 
     def __init__(self, attempts: int, message: str | None = None) -> None:
         self.attempts = attempts
@@ -35,11 +35,11 @@ class PinLockedError(Exception):
 
 
 class _Intento:
-    """Resultado de un solo intento, declarado explícitamente por el llamador.
+    """Outcome of a single attempt, declared explicitly by the caller.
 
-    A propósito NO se deduce el resultado de la posible excepción: un error de red o un
-    rechazo por permisos del vehículo no son un PIN erróneo y no deben acercar el bloqueo de
-    la cuenta. Quien genera el taskId decide, caso por caso, si el intento es "culpa del PIN".
+    The outcome is deliberately NOT inferred from a possible exception: a network error or a
+    rejection due to vehicle permissions is not a wrong PIN and must not bring the account
+    lockout closer. Whoever mints the taskId decides, case by case, whether the attempt is "the PIN's fault".
     """
 
     __slots__ = ("_resultado",)
@@ -48,82 +48,82 @@ class _Intento:
         self._resultado: str | None = None
 
     def success(self) -> None:
-        """taskId obtenido → el contador vuelve a cero."""
+        """taskId obtained → the counter goes back to zero."""
         self._resultado = "ok"
 
     def record_failure(self) -> None:
-        """El backend ha rechazado Y es imputable al PIN → cuenta hacia el bloqueo."""
+        """The backend rejected AND it is attributable to the PIN → counts towards the lockout."""
         self._resultado = "ko"
 
 
 class PinLockout:
-    """Contador anti-bloqueo con lock interno.
+    """Lockout counter with an internal lock.
 
-    Uso::
+    Usage::
 
-        with lockout.attempt() as intento:        # lanza PinLockedError si está bloqueado
-            respuesta = llama_backend()           # serializado: un intento cada vez
-            if respuesta.taskid:
-                intento.success()
-            elif es_culpa_del_pin(respuesta):
-                intento.record_failure()
-            # ninguna declaración = el intento no cuenta (red, permisos, sesión)
+        with lockout.attempt() as attempt:        # raises PinLockedError if locked
+            response = call_backend()             # serialised: one attempt at a time
+            if response.taskid:
+                attempt.success()
+            elif is_pin_fault(response):
+                attempt.record_failure()
+            # no declaration = the attempt does not count (network, permissions, session)
     """
 
     def __init__(self, max_failures: int = 2, window_s: int = 600) -> None:
         self.max_failures = max_failures
         self.window_s = window_s
-        # RLock: `attempt()` puede llamar a `reset()` sin autobloquearse.
+        # RLock: `attempt()` can call `reset()` without deadlocking itself.
         self._lock = threading.RLock()
         self._n = 0
         self._ts = 0.0
 
-    # ───────────────────────── consulta ─────────────────────────
+    # ───────────────────────── query ─────────────────────────
     @property
     def failed_attempts(self) -> int:
         with self._lock:
             return self._n
 
     def is_locked(self) -> bool:
-        """True si un nuevo intento sería rechazado sin contactar con el backend."""
+        """True if a new attempt would be rejected without contacting the backend."""
         with self._lock:
             return self._is_locked()
 
     def _is_locked(self) -> bool:
-        """Llamar con el lock ya tomado."""
+        """Call with the lock already held."""
         if self._n < self.max_failures:
             return False
-        # la ventana es deslizante: pasados `window_s` desde el último error se reinicia
+        # the window slides: once `window_s` has passed since the last error it resets
         return (time.time() - self._ts) < self.window_s
 
-    # ───────────────────────── mutación ─────────────────────────
+    # ───────────────────────── mutation ─────────────────────────
     def reset(self) -> None:
-        """Pone a cero el bloqueo.
+        """Reset the lockout.
 
-        Se debe llamar cuando el usuario hace un gesto explícito de remedio (reconfigura el PIN
-        desde los ajustes de la cuenta Ebro) AUNQUE reintroduzca el mismo PIN: el bloqueo
-        podía no ser culpa del PIN, y sin reset el usuario se quedaría parado — sin ninguna
-        señal — hasta que venza la ventana. El estado vive solo en memoria: se pone a cero al
-        reiniciar el servidor, no al recargar la pantalla."""
+        Must be called when the user makes an explicit remedial gesture (reconfigures the PIN
+        from the Ebro account settings) EVEN IF they re-enter the same PIN: the lockout
+        might not have been the PIN's fault, and without a reset the user would be stuck — with no
+        signal at all — until the window expires. The state lives in memory only: it is reset when
+        the server restarts, not when the screen reloads."""
         with self._lock:
             self._n = 0
             self._ts = 0.0
 
     @contextlib.contextmanager
     def attempt(self):
-        """Serializa un intento y aplica la guardia. Lanza `PinLockedError` si está bloqueado.
+        """Serialise an attempt and apply the guard. Raises `PinLockedError` if locked.
 
-        El lock queda tomado durante toda la duración del bloque `with` — llamada de red
-        incluida. Es intencionado y no negociable: soltarlo antes de la respuesta reabriría
-        exactamente la condición de carrera que esta clase existe para cerrar."""
+        The lock stays held for the whole `with` block — network call
+        included. It is intentional and non-negotiable: releasing it before the response would reopen
+        exactly the race condition this class exists to close."""
         with self._lock:
             if self._is_locked():
                 raise PinLockedError(self._n)
             attempt = _Intento()
-            # `finally` NO es un detalle: el llamador declara `fallido()` y justo después LANZA
-            # (CommandError con el remedio para el usuario). Sin `finally` la excepción se
-            # saltaría la actualización del contador y el bloqueo no saltaría nunca — es decir,
-            # la protección de la cuenta quedaría desactivada en silencio.
+            # `finally` is NOT a detail: the caller declares a failure and right after RAISES
+            # (CommandError with the remedy for the user). Without `finally` the exception would
+            # skip the counter update and the lockout would never trip — that is,
+            # the account protection would be silently disabled.
             try:
                 yield attempt
             finally:

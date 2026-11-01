@@ -1,18 +1,18 @@
-"""ebro_login.py — Login y refresco del token para la plataforma Chery "legend" (marca Ebro, EU).
+"""ebro_login.py — Login and token refresh for the Chery "legend" platform (Ebro brand, EU).
 
-Receta VERIFICADA de extremo a extremo (2026-07-27) capturando el login real de la app
-(reFlutter+WireGuard) y replicándola desde Python (HTTP 200, access_token+refresh_token).
-AUTÓNOMO: el usuario inicia sesión una vez con teléfono+contraseña, luego el token se renueva
-solo con el refresh_token (< 12h de validez).
+Recipe VERIFIED end to end (2026-07-27) by capturing the app's real login
+(reFlutter+WireGuard) and replicating it from Python (HTTP 200, access_token+refresh_token).
+AUTONOMOUS: the user logs in once with phone+password, then the token is renewed
+using only the refresh_token (< 12h validity).
 
-Constantes VERIFICADAS (POST https://legend.ebroauto.com/api/auth/oauth2/token):
-  - cliente OAuth : Basic base64("legendApp:legendApp")
-  - tenant-code / tenant-id : "3000010"   (NB: NO "euebro" — euebro es solo el x-TenantId del TSP)
-  - dept-id : "34" (código de país), client-toc : "Y", version : "1.0.11", agent : "android"
-  - NINGUNA firma de gateway en oauth2/token (nada de signature/nonce/url/keys)
-  - password : AES-CBC/PKCS7, key = IV = "w9R8Ag1KiL0pvMHc", base64 → enviada en el BODY (password=..)
-  - username : "<areaCode>_<mobile>"  ej. "34_600123456"
-  - grant_type / scope en QUERY STRING
+VERIFIED constants (POST https://legend.ebroauto.com/api/auth/oauth2/token):
+  - OAuth client : Basic base64("legendApp:legendApp")
+  - tenant-code / tenant-id : "3000010"   (NB: NOT "euebro" — euebro is only the TSP x-TenantId)
+  - dept-id : "34" (country code), client-toc : "Y", version : "1.0.11", agent : "android"
+  - NO gateway signature on oauth2/token (no signature/nonce/url/keys at all)
+  - password : AES-CBC/PKCS7, key = IV = "w9R8Ag1KiL0pvMHc", base64 → sent in the BODY (password=..)
+  - username : "<areaCode>_<mobile>"  e.g. "34_600123456"
+  - grant_type / scope in the QUERY STRING
 """
 from __future__ import annotations
 
@@ -28,17 +28,17 @@ LOGIN_HOST = "https://legend.ebroauto.com/api"
 OAUTH_PATH = "/auth/oauth2/token"
 CLIENT_BASIC = "Basic " + base64.b64encode(b"legendApp:legendApp").decode()
 
-TENANT_CODE = "3000010"            # tenant del login (numérico) — distinto del x-TenantId TSP "euebro"
-_PWD_KEY = b"w9R8Ag1KiL0pvMHc"     # clave AES-128 == IV (paquete Dart `encrypt`, modo CBC)
+TENANT_CODE = "3000010"            # login tenant (numeric) — distinct from the TSP x-TenantId "euebro"
+_PWD_KEY = b"w9R8Ag1KiL0pvMHc"     # AES-128 key == IV (Dart `encrypt` package, CBC mode)
 APP_VERSION = "1.0.11"
 
-# Trozo del cuerpo que se incluye en el mensaje de error cuando la respuesta no es JSON:
-# suficiente para ver qué contestó el servidor, sin volcar una página entera en el log.
+# Slice of the body included in the error message when the response is not JSON:
+# enough to see what the server answered, without dumping a whole page into the log.
 _ERROR_SNIPPET_LEN = 150
 
 
 def aes_encrypt_password(plaintext: str) -> str:
-    """Replica EncryptUtils.aesEncrypt: AES-CBC/PKCS7(key=IV=_PWD_KEY) → base64."""
+    """Replicate EncryptUtils.aesEncrypt: AES-CBC/PKCS7(key=IV=_PWD_KEY) → base64."""
     c = AES.new(_PWD_KEY, AES.MODE_CBC, _PWD_KEY)
     return base64.b64encode(c.encrypt(pad(plaintext.encode("utf-8"), 16))).decode()
 
@@ -70,15 +70,15 @@ def _extract(j: dict) -> dict | None:
 
 def _oauth_post(params: dict, *, body: dict | None = None, area_code: str, host: str,
                 error_key: str) -> tuple[bool, dict | str]:
-    """El POST a `oauth2/token`, su parseo y la extracción del token.
+    """The POST to `oauth2/token`, its parsing and the token extraction.
 
-    Los dos grants (contraseña y refresh_token) comparten endpoint, cabeceras, manejo del
-    cuerpo no-JSON y forma del error: solo cambian los parámetros del query string, si hay
-    body, y bajo qué clave viene el detalle del fallo (`key` en el login, `error` en el
-    refresco). Estaban escritos dos veces enteros.
+    Both grants (password and refresh_token) share the endpoint, headers, non-JSON body
+    handling and error shape: only the query-string parameters change, whether there is a
+    body, and under which key the failure detail comes (`key` on login, `error` on
+    refresh). They were written out twice in full.
     """
-    # `data` solo cuando hay cuerpo: el grant de refresco NO lleva ninguno, y pasarlo como
-    # `None` — aunque `requests` lo trate igual — borraría esa garantía de la llamada.
+    # `data` only when there is a body: the refresh grant carries NONE, and passing it as
+    # `None` — even if `requests` treats it the same — would erase that guarantee from the call.
     extra = {"data": body} if body is not None else {}
     r = requests.post(host + OAUTH_PATH, params=params, headers=_headers(area_code),
                       timeout=WRITE_TIMEOUT_S, **extra)
@@ -94,8 +94,8 @@ def _oauth_post(params: dict, *, body: dict | None = None, area_code: str, host:
 
 def password_login(mobile: str, password: str, area_code: str = "34",
                    host: str = LOGIN_HOST) -> tuple[bool, dict | str]:
-    """Login teléfono+contraseña. `mobile` = solo el número; `area_code` ej. "34" (España).
-    Devuelve (True, {access_token, refresh_token,...}) o (False, mensaje)."""
+    """Phone+password login. `mobile` = the number only; `area_code` e.g. "34" (Spain).
+    Returns (True, {access_token, refresh_token,...}) or (False, message)."""
     return _oauth_post(
         {"username": f"{area_code}_{mobile}", "grant_type": "password", "scope": "server"},
         body={"password": aes_encrypt_password(password)},
@@ -104,8 +104,8 @@ def password_login(mobile: str, password: str, area_code: str = "34",
 
 def login_with_password(mobile: str, password: str, area_code: str = "34",
                         host: str = LOGIN_HOST) -> dict:
-    """Función de conveniencia para login teléfono+contraseña.
-    Devuelve el dict {access_token, refresh_token,...} o lanza excepción si falla.
+    """Convenience function for phone+password login.
+    Returns the dict {access_token, refresh_token,...} or raises if it fails.
     """
     ok, res = password_login(mobile, password, area_code=area_code, host=host)
     if ok and isinstance(res, dict):
@@ -116,7 +116,7 @@ def login_with_password(mobile: str, password: str, area_code: str = "34",
 
 def refresh_token(refresh_tok: str, area_code: str = "34",
                   host: str = LOGIN_HOST) -> tuple[bool, dict | str]:
-    """Renueva con el grant refresh_token (sin contraseña). Devuelve nuevo access+refresh."""
+    """Renew with the refresh_token grant (no password). Returns a new access+refresh."""
     return _oauth_post(
         {"grant_type": "refresh_token", "refresh_token": refresh_tok, "scope": "server"},
         area_code=area_code, host=host, error_key="error")

@@ -1,7 +1,7 @@
-/* EVBro — Costes (Más → Costes): el balance de todo lo que cuesta el coche. Solo lectura.
- * Suma compra, cargas, repostajes, mantenimiento y gastos (api/routes_costs.py calcula los totales; aquí solo se pintan).
- * Para añadir algo: gastos en Gastos, repostajes en Repostajes, cargas en Energía, intervenciones en Mantenimiento.
- * (Script clásico: comparte el ámbito global con los demás ficheros; ver el orden de carga en templates/index.html.)
+/* EVBro — Costs (Más → Costes): the balance of everything the car costs. Read only.
+ * Adds up purchase, charges, refuels, maintenance and expenses (api/routes_costs.py computes the totals; here they are only drawn).
+ * To add something: expenses in Gastos, refuels in Repostajes, charges in Energía, interventions in Mantenimiento.
+ * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
 let costsPicker = null;
@@ -23,7 +23,7 @@ async function loadCosts() {
     costsData = await fetch(`/api/vehicles/${currentVin}/costs?${costsPickerOf().query()}`).then((x) => x.json());
     renderCosts();
   } catch (e) {
-    console.warn('No se pudieron cargar los costes:', e);
+    console.warn('Could not load the costs:', e);
   }
 }
 

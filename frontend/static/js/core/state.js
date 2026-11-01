@@ -1,5 +1,5 @@
-/* EVBro — Estado compartido de la interfaz (variables globales que usan los demás ficheros).
- * (Script clásico: comparte el ámbito global con los demás ficheros; ver el orden de carga en templates/index.html.)
+/* EVBro — Shared UI state (global variables used by the other files).
+ * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
 // EVBro Frontend Application
@@ -12,8 +12,8 @@ let pendingCommand = null;
 let liveMap = null;
 
 let vehicleMarker = null;
-let vehicleLatLng = null;      // última posición conocida del coche [lat, lon]
-let mapUserMoved = false;      // el usuario movió el mapa: no se recentra solo con cada lectura
+let vehicleLatLng = null;      // last known car position [lat, lon]
+let mapUserMoved = false;      // the user moved the map: do not re-centre on every reading
 let mapExpanded = false;
 
 let routeModalMap = null;

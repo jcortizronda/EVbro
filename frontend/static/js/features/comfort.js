@@ -1,21 +1,21 @@
-/* EVBro — botones con estado real (ON/OFF): pestaña Confort (clima, lunas, volante, asientos) y los
- * interruptor de la alarma en la portada. (La carga y la carga programada las lleva charge.js.)
+/* EVBro — buttons with real state (ON/OFF): Confort tab (climate, windows, steering wheel, seats) and the
+ * alarm switch on the home tab. (Charging and scheduled charging are handled by charge.js.)
  *
- * El estado sale de la telemetría del coche (`latestTelemetryData`), NO de banderas locales: antes cada
- * botón alternaba una variable propia que empezaba vacía, así que el primer toque era siempre «encender»,
- * se invertía aunque el comando fallase y no reflejaba lo que hacía el coche.
+ * The state comes from the car's telemetry (`latestTelemetryData`), NOT from local flags: each button used to
+ * toggle its own variable that started empty, so the first tap was always «turn on», it flipped even when the
+ * command failed and it did not reflect what the car was doing.
  *
- * Tras una orden aceptada se muestra el estado esperado («ON…») hasta que el coche lo confirma (push MQTT
- * o la siguiente lectura) o pasa un minuto. La pasarela de Chery solo dice «aceptado»: el coche tarda
- * entre 3 y 15 s en ejecutarla.
+ * After an accepted order the expected state («ON…») is shown until the car confirms it (MQTT push or the
+ * next reading) or a minute passes. The Chery gateway only says «accepted»: the car takes 3 to 15 s to
+ * carry it out.
  */
 (function () {
   'use strict';
 
-  const OPTIMISTIC_TTL_MS = 60000;      // cuánto se mantiene el estado esperado si el coche no lo confirma
-  const REFRESH_AFTER_MS = 12000;       // una lectura extra, cuando el coche ya debería haber ejecutado la orden
+  const OPTIMISTIC_TTL_MS = 60000;      // how long the expected state is kept if the car does not confirm it
+  const REFRESH_AFTER_MS = 12000;       // an extra reading, when the car should already have carried out the order
 
-  // `rawKeys`: campos del coche que informan de esta función. Si ninguno ha llegado, el estado es «desconocido».
+  // `rawKeys`: car fields that report this function. If none has arrived, the state is «unknown».
   const SEAT_NAMES = [
     { id: 'driver', cmd: 'conductor', label: 'Conductor' },
     { id: 'passenger', cmd: 'pasajero', label: 'Copiloto' },
@@ -27,14 +27,14 @@
     vent: { driver: 'dSeatVentilateState', passenger: 'pSeatVentilateState', rear_left: 'lSeatVentilateState2', rear_right: 'rSeatVentilateState2' },
   };
 
-  // Iconos de desempañado y volante: el dibujo de la luna (parabrisas curvo / luneta rectangular) con tres
-  // ondas de calor que suben, y un volante con calor. Son los pictogramas habituales del salpicadero.
+  // Demister and steering wheel icons: the window drawing (curved windscreen / rectangular rear window) with three
+  // rising heat waves, and a heated steering wheel. They are the usual dashboard pictograms.
   const SVG = (inner) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${inner}</svg>`;
   const HEAT_WAVES = (y) => [8.5, 12, 15.5].map((x) => `<path d="M${x} ${y} q1.1 -1.2 0 -2.4 t0 -2.4"/>`).join('');
   const ICONS = {
     windshield: SVG(`<path d="M2.5 19 L5.8 6.2 Q12 3.2 18.2 6.2 L21.5 19 Z"/>${HEAT_WAVES(16)}`),
     rear: SVG(`<rect x="2.5" y="5" width="19" height="14" rx="3"/>${HEAT_WAVES(16)}`),
-    // calor (llama) y ventilación (copo): pictogramas simples, sin depender de la fuente de emojis del dispositivo
+    // heat (flame) and ventilation (snowflake): simple pictograms, not relying on the device's emoji font
     flame: SVG('<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>'),
     snow: SVG('<line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/><path d="m20 16-4-4 4-4"/><path d="m4 8 4 4-4 4"/><path d="m16 4-4 4-4-4"/><path d="m8 20 4-4 4 4"/>'),
     wheel: SVG('<circle cx="12" cy="14.5" r="7"/><circle cx="12" cy="14.5" r="1.9"/><path d="M5.2 13.3 L10.1 14 M18.8 13.3 L13.9 14 M12 16.4 V21.5"/><path d="M9 6 q1 -1.1 0 -2.2 t0 -2.2"/><path d="M15 6 q1 -1.1 0 -2.2 t0 -2.2"/>'),
@@ -65,25 +65,25 @@
       });
     }
   }
-  // Interruptores de la portada y de Energía. `titles` cambia el título del botón según el estado.
-  let alarmState = { on: null, ts: 0 };   // la alarma no viaja en la telemetría: se le pregunta al coche
+  // Switches on the home tab and in Energía. `titles` changes the button title by state.
+  let alarmState = { on: null, ts: 0 };   // the alarm is not part of the telemetry: the car is asked
   CONTROLS.push(
     { id: 'alarm', group: 'home', label: 'Alarma', source: () => ({ on: alarmState.on, level: null }),
       on: () => ['alarma_on', 'Activar alarma antirrobo', null], off: () => ['alarma_off', 'Desactivar alarma antirrobo', null] },
   );
   const BY_ID = Object.fromEntries(CONTROLS.map((c) => [c.id, c]));
-  // orden → (control, estado que deja): para fijar el estado esperado cuando el coche acepta una orden
+  // order → (control, resulting state): to set the expected state when the car accepts an order
   const BY_COMMAND = {};
   for (const c of CONTROLS) {
     BY_COMMAND[c.on()[0]] = { id: c.id, on: true };
     BY_COMMAND[c.off()[0]] = { id: c.id, on: false };
   }
 
-  const optimistic = {};      // id → { on, ts }: lo que esperamos tras una orden aceptada
-  const pending = new Set();  // ids con una orden en vuelo
+  const optimistic = {};      // id → { on, ts }: what we expect after an accepted order
+  const pending = new Set();  // ids with an order in flight
 
-  // ───────────────────────── estado ─────────────────────────
-  /** Estado según el coche: {on: true|false|null, level: 0-3|null}. null = el coche aún no ha informado. */
+  // ───────────────────────── state ─────────────────────────
+  /** State according to the car: {on: true|false|null, level: 0-3|null}. null = the car has not reported yet. */
   function readCar(control) {
     if (control.source) return control.source();
     const t = (typeof latestTelemetryData !== 'undefined' && latestTelemetryData) || null;
@@ -91,17 +91,17 @@
     const raw = t.raw_data || t.raw || {};
     if (!control.rawKeys.some((k) => k in raw)) return { on: null, level: null };
     const v = control.read(t);
-    if (v === null || v === undefined) return { on: null, level: null };   // la clave llegó pero el valor no se pudo interpretar
+    if (v === null || v === undefined) return { on: null, level: null };   // the key arrived but the value could not be parsed
     if (typeof v === 'number') return { on: v > 0, level: v };
     return { on: v === true, level: null };
   }
 
-  /** Estado que se enseña: el del coche, o el esperado si acabamos de mandar una orden y aún no lo confirma. */
+  /** State to show: the car's, or the expected one if we just sent an order and it has not confirmed yet. */
   function effective(control) {
     const car = readCar(control);
     const o = optimistic[control.id];
     if (o) {
-      if (Date.now() - o.ts > OPTIMISTIC_TTL_MS || car.on === o.on) delete optimistic[control.id];   // caducado o confirmado
+      if (Date.now() - o.ts > OPTIMISTIC_TTL_MS || car.on === o.on) delete optimistic[control.id];   // expired or confirmed
       else return { ...car, on: o.on, waiting: true };
     }
     return car;
@@ -111,7 +111,7 @@
     if (pending.has(control.id)) return '…';
     if (st.on === null) return '—';
     if (!st.on) return 'OFF';
-    return st.level ? t('ON · {p0}', {p0: st.level}) : 'ON';      // los asientos traseros informan de nivel (1-3)
+    return st.level ? t('ON · {p0}', {p0: st.level}) : 'ON';      // the rear seats report a level (1-3)
   }
   function stateKey(control, st) {
     if (pending.has(control.id)) return 'pending';
@@ -119,7 +119,7 @@
     return st.on ? (st.waiting ? 'on-waiting' : 'on') : (st.waiting ? 'off-waiting' : 'off');
   }
 
-  // ───────────────────────── pintado ─────────────────────────
+  // ───────────────────────── rendering ─────────────────────────
   function tileHtml(control, compact) {
     const text = compact
       ? `<span class="comfort-icon" aria-hidden="true">${control.icon}</span><span class="comfort-text"><strong>${control.label}</strong></span>`
@@ -145,16 +145,16 @@
     const key = stateKey(control, st);
     el.setAttribute('aria-pressed', st.on === true ? 'true' : 'false');
     el.classList.toggle('is-on', st.on === true);
-    el.classList.toggle('active', st.on === true);              // estilo del botón redondo del climatizador
+    el.classList.toggle('active', st.on === true);              // style of the round climate button
     el.disabled = pending.has(control.id);
-    const badge = el.querySelector('.comfort-state');          // el botón redondo del climatizador no lleva texto
+    const badge = el.querySelector('.comfort-state');          // the round climate button has no text
     if (badge) {
       badge.dataset.state = key;
       badge.textContent = stateText(control, st);
       badge.title = key.endsWith('waiting') ? 'Esperando a que el coche lo confirme' : '';
     }
     el.dataset.state = key;
-    if (control.titles) {                                         // p. ej. «Iniciar carga» ↔ «Detener carga»
+    if (control.titles) {                                         // e.g. «Iniciar carga» ↔ «Detener carga»
       const title = el.querySelector('.card-title');
       if (title && st.on !== null) title.textContent = st.on ? control.titles.on : control.titles.off;
     }
@@ -165,7 +165,7 @@
     document.querySelectorAll('[data-comfort-id]').forEach((el) => { const c = BY_ID[el.dataset.comfortId]; if (c) paint(el, c); });
     const ac = BY_ID.ac;
     const power = document.getElementById('btnClimatePowerToggle');
-    if (power) paint(power, ac);                                  // el botón redondo: activo + aria-pressed
+    if (power) paint(power, ac);                                  // the round button: active + aria-pressed
     const badge = document.getElementById('climateStateBadge');
     if (badge) { const st = effective(ac); badge.dataset.state = stateKey(ac, st); badge.textContent = stateText(ac, st); }
     const head = document.getElementById('climateStatusBadge');
@@ -175,19 +175,19 @@
     }
   }
 
-  // ───────────────────────── acciones ─────────────────────────
+  // ───────────────────────── actions ─────────────────────────
   async function toggleComfort(id) {
     const control = BY_ID[id];
     if (!control || pending.has(id)) return;
     if (typeof currentVin === 'undefined' || !currentVin) { showToast('No hay ningún vehículo seleccionado.', 'warning'); return; }
-    const desired = effective(control).on !== true;               // desconocido cuenta como apagado: el primer toque enciende
+    const desired = effective(control).on !== true;               // unknown counts as off: the first tap turns it on
     pending.add(id); renderComfort();
     const [key, name, params] = (desired ? control.on : control.off)();
     try { await executeCommandDirect(key, name, params); } finally { pending.delete(id); }
-    renderComfort();                                              // si el coche aceptó la orden, el evento de abajo ya fijó el estado esperado
+    renderComfort();                                              // if the car accepted the order, the event below already set the expected state
   }
 
-  // Cualquier orden aceptada (también la que pasa por el diálogo del PIN) fija el estado que esperamos ver.
+  // Any accepted order (also one that goes through the PIN dialog) sets the state we expect to see.
   window.addEventListener('evbro:command-accepted', (event) => {
     const hit = BY_COMMAND[event.detail && event.detail.key];
     if (!hit) return;
@@ -197,7 +197,7 @@
     renderComfort();
   });
 
-  /** Pregunta al coche si la alarma está activada (solo lectura, sin PIN). */
+  /** Asks the car whether the alarm is armed (read only, no PIN). */
   async function refreshAlarm() {
     if (typeof currentVin === 'undefined' || !currentVin) return;
     try {
@@ -205,7 +205,7 @@
       if (!res.ok) return;
       const data = await res.json();
       alarmState = { on: data.enabled === null ? null : !!data.enabled, ts: Date.now() };
-    } catch (e) { /* sin red: se queda como estaba */ }
+    } catch (e) { /* no network: leave it as it was */ }
     renderComfort();
   }
 
@@ -213,12 +213,12 @@
   function scheduleRefresh() {
     clearTimeout(refreshTimer);
     refreshTimer = setTimeout(async () => {
-      try { await fetch(`/api/vehicles/${currentVin}/poll`, { method: 'POST' }); } catch (e) { /* la lectura normal lo corregirá */ }
+      try { await fetch(`/api/vehicles/${currentVin}/poll`, { method: 'POST' }); } catch (e) { /* the normal reading will correct it */ }
       renderComfort();
     }, REFRESH_AFTER_MS);
   }
 
-  /** Preajuste de temperatura: es el mismo comando de clima, con otra temperatura. Enciende el climatizador. */
+  /** Temperature preset: the same climate command with another temperature. Turns the climate control on. */
   async function comfortPreset(celsius) {
     currentTargetTemp = celsius;
     syncClimateUI();
@@ -230,7 +230,7 @@
     renderComfort();
   }
 
-  /** Al soltar el deslizador: si el climatizador ya está encendido se aplica la nueva temperatura; si no, solo se elige. */
+  /** On releasing the slider: if the climate control is already on, the new temperature is applied; otherwise it is only selected. */
   function onClimateSliderChange(val) {
     currentTargetTemp = parseFloat(val);
     syncClimateUI();
@@ -239,8 +239,8 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     renderComfort();
-    setInterval(renderComfort, 5000);       // vence el estado esperado aunque no llegue telemetría
-    // La alarma se consulta al coche: al abrir la app y, mientras se ve la portada, como mucho una vez por minuto
+    setInterval(renderComfort, 5000);       // expire the expected state even if no telemetry arrives
+    // The alarm is queried from the car: when the app opens and, while the home tab is visible, at most once a minute
     setTimeout(refreshAlarm, 3000);
     setInterval(() => {
       const home = document.getElementById('tabOverview');

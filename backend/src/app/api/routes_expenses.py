@@ -1,6 +1,6 @@
-"""Gastos del coche que no son mantenimiento, repostajes ni cargas: seguro, impuestos, garaje, peajes, multas…
+"""Car expenses that are not maintenance, refuels or charges: insurance, taxes, garage, tolls, fines…
 
-Las intervenciones de taller van en Mantenimiento, los repostajes en `routes_refuels` y las cargas en Energía; el balance de todo, en Costes.
+Workshop interventions go in Mantenimiento, refuels in `routes_refuels` and charges in Energía; the balance of everything, in Costes.
 """
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ class ExpenseCreate(BaseModel):
 
 
 class ExpenseUpdate(BaseModel):
-    """Lo no enviado no se toca; `next_due_date: null` quita el aviso."""
+    """Fields not sent are left alone; `next_due_date: null` removes the reminder."""
     date: Optional[datetime.datetime] = None
     category: Optional[str] = None
     title: Optional[str] = Field(default=None, min_length=1, max_length=150)
@@ -67,7 +67,7 @@ async def expense_categories():
 async def list_expenses(vin: str, year: Optional[int] = Query(None, ge=1990, le=2100), period: Optional[str] = Query(None, max_length=12),
                         frm: Optional[str] = Query(None, alias="from", max_length=10), to: Optional[str] = Query(None, max_length=10),
                         session: AsyncSession = Depends(get_db)):
-    """Gastos del coche, los más recientes primero; `year` o bien `period`/`from`/`to` (services/periods.py) acotan por fecha."""
+    """Car expenses, most recent first; `year` or else `period`/`from`/`to` (services/periods.py) filter by date."""
     stmt = select(Expense).where(Expense.vin == vin, periods.condition(Expense.date, periods.resolve(period, frm, to))).order_by(desc(Expense.date), desc(Expense.id))
     rows = (await session.execute(stmt)).scalars().all()
     if year:

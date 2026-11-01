@@ -1,6 +1,6 @@
-"""Vencimientos con fecha: renovación del seguro (ficha del coche) y gastos con «próxima fecha» (impuesto de circulación, etc.).
+"""Dated deadlines: the insurance renewal (car sheet) and expenses with a «próxima fecha» (road tax, etc.).
 
-Solo lee la BD. Cada aviso lleva una `key` estable y `repeat_hours`: cuánto esperar antes de repetirlo (el poller lo aplica).
+Only reads the DB. Each alert carries a stable `key` and `repeat_hours`: how long to wait before repeating it (the poller applies it).
 """
 from __future__ import annotations
 
@@ -12,8 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Expense, Vehicle
 
-WARN_DAYS = 30           # desde cuándo se avisa
-URGENT_DAYS = 7          # a partir de aquí se avisa a diario
+WARN_DAYS = 30           # how early the alert starts
+URGENT_DAYS = 7          # from here on the alert is daily
 CATEGORY_LABEL = {"insurance": "el seguro", "tax": "el impuesto", "parking": "el garaje", "tolls": "los peajes", "fines": "la multa",
                   "wash": "el lavado", "accessories": "los accesorios", "other": "el gasto"}
 
@@ -41,7 +41,7 @@ async def collect_renewals(session: AsyncSession, vin: str, now: Optional[dateti
         if a:
             out.append(a)
 
-    # Un gasto con «próxima fecha» sigue vigente mientras no haya otro posterior de su misma categoría y título (el del año siguiente)
+    # an expense with a «próxima fecha» stays current until a later one with the same category and title appears (next year's)
     rows = (await session.execute(select(Expense).where(Expense.vin == vin, Expense.next_due_date.is_not(None)))).scalars().all()
     latest: Dict[tuple, Expense] = {}
     for e in rows:
@@ -49,7 +49,7 @@ async def collect_renewals(session: AsyncSession, vin: str, now: Optional[dateti
         if k not in latest or e.date > latest[k].date:
             latest[k] = e
     for e in latest.values():
-        # el seguro tiene su fecha en la ficha: no se avisa dos veces
+        # the insurance has its date on the car sheet: do not alert twice
         if e.category == "insurance" and vehicle is not None and vehicle.insurance_renewal_date:
             continue
         a = _alert(f"expense:{e.id}", f"{CATEGORY_LABEL.get(e.category, 'el gasto')} «{e.title}»" if e.category != "tax" else f"el impuesto «{e.title}»", e.next_due_date.date(), today)

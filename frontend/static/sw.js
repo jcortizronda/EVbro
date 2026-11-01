@@ -196,7 +196,7 @@ async function apiNetworkFirst(request) {
   }
 }
 
-// ---- Web Push (en Android, Chrome lo entrega a través de Google FCM) ----
+// ---- Web Push (on Android, Chrome delivers it through Google FCM) ----
 self.addEventListener('push', (event) => {
   let data = {};
   try { data = event.data ? event.data.json() : {}; } catch (e) { data = { body: event.data && event.data.text() }; }
@@ -205,7 +205,7 @@ self.addEventListener('push', (event) => {
     body: data.body || '',
     icon: '/static/icons/icon-192.png',
     badge: '/static/icons/icon-192.png',
-    tag: data.tag || data.category || 'evbro',   // el mismo tag sustituye al aviso anterior en vez de apilarlos
+    tag: data.tag || data.category || 'evbro',   // the same tag replaces the previous alert instead of stacking them
     renotify: true,
     data: { url: data.url || '/' },
   }));

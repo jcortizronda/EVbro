@@ -95,7 +95,7 @@ async def test_places_route_only_counts_closed_drives(web) -> None:
     assert len(data["places"]) == 1 and data["places"][0]["visits"] == 2 and data["places"][0]["address"] == "Trabajo"
 
 
-# ───────────────────────── Entradas y salidas ─────────────────────────
+# ───────────────────────── Arrivals and departures ─────────────────────────
 async def test_the_poller_records_every_geofence_transition_and_notifies_per_switch(web, monkeypatch) -> None:
     from app.services import poller as poller_mod
     sent = []
@@ -123,7 +123,7 @@ async def test_the_poller_records_every_geofence_transition_and_notifies_per_swi
     assert [e["kind"] for e in events] == ["exit", "enter", "exit"] and events[0]["geofence_name"] == "Trabajo"
 
 
-# ───────────────────────── Climatización programada ─────────────────────────
+# ───────────────────────── Scheduled climate ─────────────────────────
 def _sched(**kw):
     base = dict(enabled=True, days="0,1,2,3,4", time_local="07:30", last_run_on=None)
     base.update(kw)

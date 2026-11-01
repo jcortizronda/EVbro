@@ -1,8 +1,8 @@
-/* EVBro — acceso con huella (passkeys / WebAuthn).
+/* EVBro — fingerprint sign-in (passkeys / WebAuthn).
  *
- * La huella (o la cara, o el bloqueo de pantalla) se comprueba en el propio móvil: al servidor solo llega una firma hecha con una
- * clave que nunca sale del dispositivo. Aquí están las conversiones base64url ↔ bytes, el alta de este dispositivo (Ajustes → Sistema)
- * y la llamada que usa la pantalla de acceso (core/auth.js → EbroPasskeys.signIn).
+ * The fingerprint (or face, or screen lock) is checked on the phone itself: the server only receives a signature made with a
+ * key that never leaves the device. Here are the base64url ↔ bytes conversions, the registration of this device (Ajustes → Sistema)
+ * and the call the sign-in screen uses (core/auth.js → EbroPasskeys.signIn).
  */
 (function () {
   'use strict';
@@ -58,7 +58,7 @@
     };
   }
 
-  /** Mensaje en castellano para los errores del navegador. */
+  /** Spanish message for the browser errors. */
   function browserError(e, registering) {
     const name = e && e.name;
     if (name === 'NotAllowedError') return 'Se ha cancelado o se ha agotado el tiempo. Vuelve a intentarlo.';
@@ -91,8 +91,8 @@
     return `${br} en ${os}`;
   }
 
-  // ───────────────────────── entrar ─────────────────────────
-  /** Inicia sesión con la huella. Lanza Error con un mensaje listo para enseñar. */
+  // ───────────────────────── sign in ─────────────────────────
+  /** Signs in with the fingerprint. Throws an Error with a message ready to show. */
   async function signIn(username) {
     if (!supported()) throw new Error('Este navegador no admite el acceso con huella.');
     const start = await postJSON('/api/auth/passkeys/login/options', username ? { username } : {});
@@ -150,7 +150,7 @@
       const res = await fetch('/api/passkeys');
       if (!res.ok) return;
       rows = await res.json();
-    } catch (e) { return; }                     // sin red: la lista queda como estaba
+    } catch (e) { return; }                     // no network: the list stays as it was
     list.replaceChildren();
     for (const p of rows) {
       const li = document.createElement('li');

@@ -1,4 +1,4 @@
-"""Web Push: claves VAPID, alta/baja de dispositivos, secretos cifrados y envío (sin red)."""
+"""Web Push: VAPID keys, device subscribe/unsubscribe, encrypted secrets and sending (no network)."""
 from __future__ import annotations
 
 import base64
@@ -24,7 +24,7 @@ class _Req:
 
 
 @pytest.fixture(autouse=True)
-def _vapid_aislado(data_dir):
+def _isolated_vapid(data_dir):
     vapid.reset_cache()
     yield
     vapid.reset_cache()
@@ -41,26 +41,26 @@ async def _web():
     return c
 
 
-def test_clave_vapid_es_estable_y_tiene_formato_de_navegador(data_dir) -> None:
+def test_vapid_key_is_stable_and_in_browser_format(data_dir) -> None:
     pub = vapid.public_key_b64()
     raw = base64.urlsafe_b64decode(pub + "=" * (-len(pub) % 4))
-    assert len(raw) == 65 and raw[0] == 4               # punto P-256 sin comprimir
+    assert len(raw) == 65 and raw[0] == 4               # uncompressed P-256 point
     vapid.reset_cache()
-    assert vapid.public_key_b64() == pub                # se recarga del disco, no se regenera
+    assert vapid.public_key_b64() == pub                # reloaded from disk, not regenerated
     assert (data_dir / "vapid_private.pem").stat().st_mode & 0o777 == 0o600
 
 
-async def test_las_rutas_de_push_exigen_sesion(db) -> None:
+async def test_push_routes_require_a_session(db) -> None:
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://testserver") as c:
         for method, url in [("get", "/api/notifications/push/public-key"), ("get", "/api/notifications/push/devices"),
                             ("post", "/api/notifications/push/subscribe"), ("delete", "/api/notifications/push/devices/1")]:
             assert (await getattr(c, method)(url)).status_code == 401, url
 
 
-async def test_alta_idempotente_y_cifrada(db) -> None:
+async def test_subscribe_is_idempotent_and_encrypted(db) -> None:
     async with await _web() as c:
         assert (await c.post("/api/notifications/push/subscribe", json=SUB)).status_code == 200
-        assert (await c.post("/api/notifications/push/subscribe", json=SUB)).status_code == 200   # mismo endpoint
+        assert (await c.post("/api/notifications/push/subscribe", json=SUB)).status_code == 200   # same endpoint
         devs = (await c.get("/api/notifications/push/devices")).json()
         assert len(devs) == 1 and devs[0]["label"] == "Chrome en Android"
         assert "endpoint" not in devs[0] and "keys" not in devs[0]
@@ -70,13 +70,13 @@ async def test_alta_idempotente_y_cifrada(db) -> None:
     assert crypto.is_encrypted(raw) and "fcm.googleapis.com" not in raw
 
 
-async def test_alta_rechaza_endpoints_no_https_o_sin_claves(db) -> None:
+async def test_subscribe_rejects_non_https_endpoints_or_missing_keys(db) -> None:
     async with await _web() as c:
         assert (await c.post("/api/notifications/push/subscribe", json={**SUB, "endpoint": "http://x/y"})).status_code == 422
         assert (await c.post("/api/notifications/push/subscribe", json={**SUB, "keys": {}})).status_code == 422
 
 
-async def test_baja_por_endpoint_y_por_id(db) -> None:
+async def test_unsubscribe_by_endpoint_and_by_id(db) -> None:
     async with await _web() as c:
         await c.post("/api/notifications/push/subscribe", json=SUB)
         await c.post("/api/notifications/push/unsubscribe", json={"endpoint": SUB["endpoint"]})
@@ -87,40 +87,40 @@ async def test_baja_por_endpoint_y_por_id(db) -> None:
         assert (await c.get("/api/notifications/push/devices")).json() == []
 
 
-async def test_prueba_sin_dispositivos_da_un_error_claro(db) -> None:
+async def test_a_test_without_devices_gives_a_clear_error(db) -> None:
     async with await _web() as c:
         r = await c.post("/api/notifications/test", json={"channel": "webpush"})
         assert r.status_code == 400 and "suscrito" in r.json()["detail"]
 
 
-async def test_despacho_envia_registra_y_retira_las_suscripciones_caducadas(db, monkeypatch) -> None:
-    enviados = []
+async def test_dispatch_sends_logs_and_removes_expired_subscriptions(db, monkeypatch) -> None:
+    sent = []
 
-    def falso(cls, subscription, payload):
-        enviados.append((subscription["endpoint"], payload))
+    def fake_webpush(cls, subscription, payload):
+        sent.append((subscription["endpoint"], payload))
         if subscription["endpoint"].endswith("muerta"):
             return False, "HTTP 410: Gone", True
         return True, None, False
 
-    monkeypatch.setattr(NotificationService, "_webpush_blocking", classmethod(falso))
+    monkeypatch.setattr(NotificationService, "_webpush_blocking", classmethod(fake_webpush))
     async with await _web() as c:
         await c.post("/api/notifications/push/subscribe", json=SUB)
         await c.post("/api/notifications/push/subscribe", json={**SUB, "endpoint": "https://push.example/muerta"})
 
     res = await NotificationService.dispatch("security", "Alarma", "Puerta abierta", user_id=1)
     assert sorted(r["success"] for r in res if r["channel"] == "webpush") == [False, True]
-    assert {e for e, _ in enviados} == {SUB["endpoint"], "https://push.example/muerta"}
-    assert enviados[0][1]["title"] == "Alarma" and enviados[0][1]["body"] == "Puerta abierta"
+    assert {e for e, _ in sent} == {SUB["endpoint"], "https://push.example/muerta"}
+    assert sent[0][1]["title"] == "Alarma" and sent[0][1]["body"] == "Puerta abierta"
 
     async with async_session_factory() as s:
-        quedan = (await s.execute(select(PushSubscription))).scalars().all()
-        assert [q.subscription["endpoint"] for q in quedan] == [SUB["endpoint"]]   # la caducada se borró
-        assert quedan[0].last_success is not None
+        remaining = (await s.execute(select(PushSubscription))).scalars().all()
+        assert [q.subscription["endpoint"] for q in remaining] == [SUB["endpoint"]]   # the expired one was deleted
+        assert remaining[0].last_success is not None
         logs = (await s.execute(select(NotificationLog).where(NotificationLog.channel == "webpush"))).scalars().all()
         assert len(logs) == 2
 
 
-async def test_un_fallo_que_no_es_de_caducidad_se_anota_pero_no_borra(db, monkeypatch) -> None:
+async def test_a_non_expiry_failure_is_recorded_but_does_not_delete(db, monkeypatch) -> None:
     monkeypatch.setattr(NotificationService, "_webpush_blocking",
                         classmethod(lambda cls, s, p: (False, "HTTP 500: boom", False)))
     async with await _web() as c:
@@ -131,6 +131,6 @@ async def test_un_fallo_que_no_es_de_caducidad_se_anota_pero_no_borra(db, monkey
         assert "500" in sub.last_error
 
 
-def test_ntfy_ha_desaparecido() -> None:
+def test_ntfy_is_gone() -> None:
     for f in [*SRC.rglob("*.py"), *FRONTEND.rglob("*.js"), FRONTEND / "templates" / "index.html"]:
         assert "ntfy" not in f.read_text(encoding="utf-8").lower(), f

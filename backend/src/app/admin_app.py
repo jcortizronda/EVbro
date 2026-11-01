@@ -87,14 +87,14 @@ class AdminConsole:
 
     async def start(self) -> None:
         if not settings.ADMIN_PORT:
-            _LOGGER.info("Consola de administración desactivada (ADMIN_PORT=0).")
+            _LOGGER.info("Admin console disabled (ADMIN_PORT=0).")
             return
         config = uvicorn.Config(admin_app, host=settings.ADMIN_BIND, port=settings.ADMIN_PORT, log_level="warning", access_log=False,
                                 proxy_headers=False)
         self._server = uvicorn.Server(config)
         self._server.install_signal_handlers = lambda: None          # the main server owns the signals
         self._task = asyncio.create_task(self._server.serve())
-        _LOGGER.info("Consola de administración en %s:%s (solo red local: no la publiques en el proxy).", settings.ADMIN_BIND, settings.ADMIN_PORT)
+        _LOGGER.info("Admin console at %s:%s (local network only: do not publish it on the proxy).", settings.ADMIN_BIND, settings.ADMIN_PORT)
 
     async def stop(self) -> None:
         if self._server is not None:

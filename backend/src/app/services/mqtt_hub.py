@@ -116,7 +116,7 @@ class MqttLinkClient:
             self._client.loop_start()
         except Exception as e:                                 # noqa: BLE001
             self.last_error = str(e)[:200]
-            _LOGGER.warning(f"No se pudo iniciar el cliente MQTT de {self.config.host}: {e}")
+            _LOGGER.warning(f"Could not start the MQTT client for {self.config.host}: {e}")
 
     def _on_connect(self, client, userdata, flags, rc, properties=None):
         code = getattr(rc, "value", rc)
@@ -127,12 +127,12 @@ class MqttLinkClient:
             if self.config.ha_discovery:
                 client.subscribe(f"{self.config.topic_prefix}/cars/+/cmd/#", qos=1)
                 client.subscribe(self.birth_topic, qos=1)
-            _LOGGER.info(f"Conectado al broker MQTT en {self.config.host}:{self.config.port}")
+            _LOGGER.info(f"Connected to the MQTT broker at {self.config.host}:{self.config.port}")
         else:
             self._connected = False
             self.last_error = {4: "Usuario o contraseña incorrectos", 5: "No autorizado"}.get(int(code) if str(code).isdigit() else -1,
                                                                                                   f"El broker rechazó la conexión ({rc})")
-            _LOGGER.warning(f"Error conectando a MQTT {self.config.host}: {self.last_error}")
+            _LOGGER.warning(f"Error connecting to MQTT {self.config.host}: {self.last_error}")
 
     def _on_disconnect(self, client, *args, **kwargs):
         self._connected = False
@@ -146,7 +146,7 @@ class MqttLinkClient:
                 return
             self._on_command(msg.topic, payload)
         except Exception as ex:                                # noqa: BLE001 — the MQTT thread must survive
-            _LOGGER.warning(f"Orden MQTT no procesada ({msg.topic}): {ex}")
+            _LOGGER.warning(f"MQTT command not processed ({msg.topic}): {ex}")
 
     async def stop(self) -> None:
         if self._client:
@@ -174,7 +174,7 @@ class MqttLinkClient:
         for topic, payload in ha_discovery.discovery_messages(self.config.topic_prefix, self.config.ha_prefix, vin, name, brand, model):
             self._client.publish(topic, json.dumps(payload), qos=1, retain=True)
         self._announced.add(vin)
-        _LOGGER.info(f"Descubrimiento de Home Assistant publicado para {vin[-6:]} en {self.config.host}")
+        _LOGGER.info(f"Home Assistant discovery published for {vin[-6:]} on {self.config.host}")
 
     def reannounce(self) -> None:
         """Publishes the discovery again for every car seen on this connection (Home Assistant restarted, or a device was deleted there)."""
@@ -213,7 +213,7 @@ class MqttLinkClient:
             return
         vin, command, params = parsed
         if vin not in self._published:
-            _LOGGER.warning(f"Orden MQTT para un coche que no se publica ({vin[-6:]}): ignorada")
+            _LOGGER.warning(f"MQTT command for a car that is not published ({vin[-6:]}): ignored")
             return
         if command == "clima_on" and params and topic.endswith("climatizacion_modo"):
             params = {"temperature": f"{self._last_target_temp.get(vin, 21.0):.1f}"}

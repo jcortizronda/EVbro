@@ -1,4 +1,4 @@
-"""Navegación según el dispositivo: táctil → dock inferior; ratón ancho → barra lateral. Ver tools/e2e/README.md."""
+"""Navigation by device: touch → bottom dock; wide mouse → sidebar. See tools/e2e/README.md."""
 import os
 import sys
 import tempfile
@@ -17,7 +17,7 @@ def ok(c, m):
         fails.append(m)
 
 
-# (nombre, ancho, alto, táctil, dock esperado, barra lateral esperada)
+# (name, width, height, touch, expected dock, expected sidebar)
 CASES = [
     ("móvil 390 (táctil)", 390, 844, True, True, False),
     ("móvil en «sitio de escritorio» 980 (táctil)", 980, 1800, True, True, False),
@@ -36,21 +36,21 @@ with sync_playwright() as p:
         pg.wait_for_timeout(800)
         coarse = pg.evaluate("matchMedia('(hover: none) and (pointer: coarse)').matches")
         vis = lambda sel: pg.evaluate(f"(() => {{ const e=document.querySelector('{sel}'); return !!e && getComputedStyle(e).display!=='none' && e.getBoundingClientRect().height>0; }})()")
-        ok(coarse == touch, f"{name}: detectado como {'táctil' if coarse else 'ratón'}")
-        ok(vis(".native-bottom-dock") == dock, f"{name}: dock inferior {'visible' if dock else 'oculto'}")
-        ok(vis(".desktop-sidebar") == top, f"{name}: barra lateral {'visible' if top else 'oculta'}")
-        ok(not vis(".navbar-subnav-strip") and not vis(".desktop-nav-links"), f"{name}: sin barra superior de pestañas")
+        ok(coarse == touch, f"{name}: detected as {'touch' if coarse else 'mouse'}")
+        ok(vis(".native-bottom-dock") == dock, f"{name}: bottom dock {'visible' if dock else 'hidden'}")
+        ok(vis(".desktop-sidebar") == top, f"{name}: sidebar {'visible' if top else 'hidden'}")
+        ok(not vis(".navbar-subnav-strip") and not vis(".desktop-nav-links"), f"{name}: no top tab bar")
         over = pg.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
-        ok(over <= 0, f"{name}: sin desbordamiento horizontal ({over} px)")
+        ok(over <= 0, f"{name}: no horizontal overflow ({over} px)")
         if dock:
             box = pg.evaluate("(() => { const d=document.querySelector('.native-bottom-dock').getBoundingClientRect(); return [Math.round(d.bottom), innerHeight]; })()")
-            ok(abs(box[0] - box[1]) <= 1, f"{name}: el dock está pegado al borde inferior ({box})")
+            ok(abs(box[0] - box[1]) <= 1, f"{name}: the dock sits on the bottom edge ({box})")
         pg.screenshot(path=f"{OUT}/nav-{w}-{'touch' if touch else 'mouse'}.png")
         ctx.close()
     meta = b.new_context().new_page()
     meta.goto(BASE)
     content = meta.get_attribute('meta[name="viewport"]', "content")
-    ok("user-scalable=no" in content and "maximum-scale=1" in content, f"viewport sin zoom: {content}")
+    ok("user-scalable=no" in content and "maximum-scale=1" in content, f"viewport without zoom: {content}")
     b.close()
-print("FALLOS:", fails if fails else "ninguno")
+print("FAILURES:", fails if fails else "none")
 sys.exit(1 if fails else 0)

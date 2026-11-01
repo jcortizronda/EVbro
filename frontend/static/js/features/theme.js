@@ -1,5 +1,5 @@
-/* EVBro — Tema claro/oscuro/automático.
- * (Script clásico: comparte el ámbito global con los demás ficheros; ver el orden de carga en templates/index.html.)
+/* EVBro — Light/dark/automatic theme.
+ * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
 function getSavedThemePreference() {
@@ -52,13 +52,13 @@ function applyTheme(preference) {
   const effective = resolveEffectiveTheme(preference);
   document.documentElement.setAttribute('data-theme', effective);
 
-  // Actualizar meta theme-color para navegadores móviles (Apple HIG)
+  // Update the theme-color meta for mobile browsers (Apple HIG)
   const metaTheme = document.querySelector('meta[name="theme-color"]');
   if (metaTheme) {
     metaTheme.setAttribute('content', effective === 'light' ? '#f5f5f7' : '#000000');
   }
 
-  // Actualizar icono en el botón rápido del navbar
+  // Update the icon of the quick button in the navbar
   const iconSpan = document.getElementById('quickThemeIcon');
   if (iconSpan) {
     iconSpan.innerHTML = icon(effective === 'light' ? 'sun' : 'moon', 20);
@@ -68,7 +68,7 @@ function applyTheme(preference) {
     btnToggle.title = effective === 'light' ? 'Cambiar a Modo Oscuro' : 'Cambiar a Modo Claro';
   }
 
-  // Actualizar UI en la pestaña de Ajustes
+  // Update the UI in the Ajustes tab
   updateThemeSettingsUI(preference, effective);
 }
 
@@ -88,7 +88,7 @@ function updateThemeSettingsUI(pref, eff) {
   const preference = pref || getSavedThemePreference();
   const effective = eff || resolveEffectiveTheme(preference);
 
-  // Tarjetas activas
+  // Active cards
   const cardDark = document.getElementById('themeCardDark');
   const cardLight = document.getElementById('themeCardLight');
   const cardAuto = document.getElementById('themeCardAuto');
@@ -126,7 +126,7 @@ function initTheme() {
   applyTheme(pref);
   applyAccent(getSavedAccent());
 
-  // Escuchar cambios de preferencia del sistema si está en 'auto'
+  // Listen for system preference changes when set to 'auto'
   if (window.matchMedia) {
     window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
       if (getSavedThemePreference() === 'auto') {

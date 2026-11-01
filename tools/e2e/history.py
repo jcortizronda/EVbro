@@ -1,7 +1,7 @@
-"""Prueba de navegador (Playwright) contra un servidor de demostración: ver tools/e2e/README.md.
+"""Browser test (Playwright) against a demo server: see tools/e2e/README.md.
 
-Historial de viajes y de cargas en filas: se despliegan al tocarlas, separadores de mes con totales y «Ver más» por páginas.
-Las respuestas de la API se simulan para tener un historial largo (65 viajes, 40 cargas).
+Trip and charge history as rows: they unfold when tapped, month separators with totals and «Ver más» by pages.
+The API responses are mocked to get a long history (65 trips, 40 charges).
 """
 import os, sys, tempfile  # noqa: E401
 import json
@@ -68,48 +68,48 @@ with sync_playwright() as p:
         pg.route("**/api/vehicles/**", handle)
         pg.goto(BASE); pg.wait_for_load_state("networkidle"); pg.wait_for_timeout(700)
 
-        # ── Viajes ──
+        # ── Trips ──
         pg.evaluate("switchTab('drives')"); pg.wait_for_selector("#drivesList .hist-row")
         rows=lambda: pg.locator("#drivesList .hist-row").count()
-        ok(rows()==30 and pg.is_visible("#drivesMore"),"viajes: primera página de 30 filas y botón «Ver más viajes»")
+        ok(rows()==30 and pg.is_visible("#drivesMore"),"trips: first page of 30 rows and a «Ver más viajes» button")
         heads=pg.locator("#drivesList .hist-month").all_inner_texts()
-        ok(len(heads)==2 and "Octubre 2026" in heads[0].title() and "28 viajes" in heads[0] and "344,4 km" in heads[0],f"viajes: separadores de mes con los totales del servidor ({heads})")
+        ok(len(heads)==2 and "Octubre 2026" in heads[0].title() and "28 viajes" in heads[0] and "344,4 km" in heads[0],f"trips: month separators with the server's totals ({heads})")
         first=pg.locator("#drivesList .hist-row").first
         second=pg.locator("#drivesList .hist-row").nth(1)
-        ok("−18 % · 0,4 L" in first.inner_text() and "−18 % · 3,1 kWh" in second.inner_text() and "80 %" not in first.inner_text(),"viajes: la fila muestra lo gastado (batería y gasolina o energía), no el inicio y el fin")
-        ok(pg.locator("#drivesList .hist-place b").count()==0 and "<b>Mayor</b>" in first.inner_text(),"viajes: las direcciones se escapan")
-        ok(not first.locator(".hist-detail").is_visible(),"viajes: el detalle empieza plegado")
+        ok("−18 % · 0,4 L" in first.inner_text() and "−18 % · 3,1 kWh" in second.inner_text() and "80 %" not in first.inner_text(),"trips: the row shows what was used (battery and petrol or energy), not the start and the end")
+        ok(pg.locator("#drivesList .hist-place b").count()==0 and "<b>Mayor</b>" in first.inner_text(),"trips: the addresses are escaped")
+        ok(not first.locator(".hist-detail").is_visible(),"trips: the detail starts collapsed")
         first.locator("summary").click(); pg.wait_for_timeout(200)
         det=first.locator(".hist-detail").inner_text()
-        ok(first.locator(".hist-detail").is_visible() and "80 % → 62 %" in det and "25,2 kWh/100 km" in det and "Eficiencia" not in det,"viajes: al tocar se ve el detalle con consumo y sin «eficiencia»")
-        ok(first.get_by_role("button",name="Ver trazado").is_visible() and first.get_by_role("button",name="Editar").is_visible(),"viajes: acciones en el detalle")
+        ok(first.locator(".hist-detail").is_visible() and "80 % → 62 %" in det and "25,2 kWh/100 km" in det and "Eficiencia" not in det,"trips: tapping shows the detail with consumption and without «eficiencia»")
+        ok(first.get_by_role("button",name="Ver trazado").is_visible() and first.get_by_role("button",name="Editar").is_visible(),"trips: actions in the detail")
         if theme=="dark": pg.screenshot(path=f"{OUT}/historial-viajes-{theme}.png",full_page=False)
         pg.click("#drivesMore"); pg.wait_for_function("document.querySelectorAll('#drivesList .hist-row').length===60")
         pg.click("#drivesMore"); pg.wait_for_function("document.querySelectorAll('#drivesList .hist-row').length===65")
-        ok(pg.is_hidden("#drivesMore"),"viajes: tras la última página desaparece «Ver más»")
-        ok(pg.locator("#drivesList .hist-month").count()==3,"viajes: cada mes aparece una sola vez al ir cargando páginas")
-        ok(not overflow(pg),"viajes: nada se sale a 390 px")
+        ok(pg.is_hidden("#drivesMore"),"trips: after the last page «Ver más» disappears")
+        ok(pg.locator("#drivesList .hist-month").count()==3,"trips: each month shows up only once while loading pages")
+        ok(not overflow(pg),"trips: nothing overflows at 390 px")
         pg.screenshot(path=f"{OUT}/historial-viajes-{theme}-full.png",full_page=True)
 
-        # ── Cargas ──
+        # ── Charges ──
         pg.evaluate("switchTab('charges')"); pg.evaluate("switchChargesSubTab('history')"); pg.evaluate("loadCharges()")
         pg.wait_for_selector("#chargesList .hist-row")
-        ok(pg.inner_text("#chargesTotalCount")=="40" and "380,0 kWh" in pg.inner_text("#chargesTotalKwh"),"cargas: los totales salen de todas las cargas (servidor)")
+        ok(pg.inner_text("#chargesTotalCount")=="40" and "380,0 kWh" in pg.inner_text("#chargesTotalKwh"),"charges: the totals come from every charge (server)")
         crows=lambda: pg.locator("#chargesList .hist-row").count()
-        ok(crows()==30 and pg.is_visible("#chargesMore"),"cargas: primera página de 30 filas y «Ver más cargas»")
+        ok(crows()==30 and pg.is_visible("#chargesMore"),"charges: first page of 30 rows and «Ver más cargas»")
         c0=pg.locator("#chargesList .hist-row").first
-        ok("+9,5 kWh" in c0.inner_text() and "+50 %" in c0.inner_text() and "1,42 €" in c0.inner_text(),"cargas: la fila muestra energía, % ganado y coste")
+        ok("+9,5 kWh" in c0.inner_text() and "+50 %" in c0.inner_text() and "1,42 €" in c0.inner_text(),"charges: the row shows energy, % gained and cost")
         c0.locator("summary").click(); pg.wait_for_timeout(200)
         cd=c0.locator(".hist-detail").inner_text()
-        ok("30 % → 80 %" in cd and "10,6 kWh" in cd and "PVPC" in cd,"cargas: el detalle muestra batería, energía de la red y tarifa")
+        ok("30 % → 80 %" in cd and "10,6 kWh" in cd and "PVPC" in cd,"charges: the detail shows battery, grid energy and tariff")
         if theme=="dark": pg.screenshot(path=f"{OUT}/historial-cargas-{theme}.png",full_page=False)
         pg.click("#chargesMore"); pg.wait_for_function("document.querySelectorAll('#chargesList .hist-row').length===40")
-        ok(pg.is_hidden("#chargesMore"),"cargas: tras la última página desaparece «Ver más»")
-        ok(not overflow(pg),"cargas: nada se sale a 390 px")
+        ok(pg.is_hidden("#chargesMore"),"charges: after the last page «Ver más» disappears")
+        ok(not overflow(pg),"charges: nothing overflows at 390 px")
         c0.get_by_role("button",name="Ver detalle y gráfica").click(); pg.wait_for_timeout(400)
-        ok(pg.evaluate("document.getElementById('chargesSubTabDetails')?.classList.contains('active') ?? true"),"cargas: «Ver detalle y gráfica» abre la sesión")
-        ok(not errs,f"sin errores de JavaScript {errs}")
+        ok(pg.evaluate("document.getElementById('chargesSubTabDetails')?.classList.contains('active') ?? true"),"charges: «Ver detalle y gráfica» opens the session")
+        ok(not errs,f"no JavaScript errors {errs}")
         ctx.close()
     b.close()
-print("FALLOS:", fails or "ninguno")
+print("FAILURES:", fails or "none")
 sys.exit(1 if fails else 0)

@@ -1,4 +1,4 @@
-"""EVBro — Telemetría, analítica y control autoalojado para vehículos Ebro."""
+"""EVBro — self-hosted telemetry, analytics and control for Ebro vehicles."""
 import os
 
 __version__ = "0.1.0"                       # keep in step with backend/pyproject.toml (a test checks it)

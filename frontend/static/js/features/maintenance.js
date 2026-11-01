@@ -1,9 +1,9 @@
-/* EVBro — Mantenimiento: interruptor de plan (oficial / personalizado), tareas propias e historial.
- * La vista oficial (próxima revisión, plan completo, registrar escalón) está en maintenance-official.js.
- * (Script clásico: comparte el ámbito global con los demás ficheros; ver el orden de carga en templates/index.html.)
+/* EVBro — Maintenance: plan switch (official / custom), custom tasks and history.
+ * The official view (next service, full plan, log a step) is in maintenance-official.js.
+ * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
-let maintenancePlan = null;          // última respuesta de GET /maintenance/plan
+let maintenancePlan = null;          // last response of GET /maintenance/plan
 const MAINT_STATUS = { ok: 'Al día', warning: 'Próximo', due: 'Vencido' };
 
 async function loadMaintenance() {
@@ -56,7 +56,7 @@ async function setMaintenanceMode(mode) {
   }
 }
 
-// ───────────────────────── Plan personalizado: tareas propias ─────────────────────────
+// ───────────────────────── Custom plan: own tasks ─────────────────────────
 function remainingText(item) {
   const parts = [];
   if (item.remaining_km !== null && item.remaining_km !== undefined) {
@@ -289,7 +289,7 @@ function closeItemMaintModal() {
   document.getElementById('itemMaintModal').classList.remove('open');
 }
 
-/** Crea una tarea propia o, si el formulario trae un id, guarda los cambios de una existente. */
+/** Creates a custom task or, if the form carries an id, saves the changes to an existing one. */
 async function saveMaintItem() {
   if (!currentVin) return;
   const name = document.getElementById('itemMaintName').value.trim();
@@ -332,7 +332,7 @@ async function deleteMaintItem(itemId) {
 }
 
 
-// ───────────────────────── ITV (se cuenta desde la fecha de matriculación) ─────────────────────────
+// ───────────────────────── ITV (counted from the registration date) ─────────────────────────
 function renderItv(itv) {
   const card = document.getElementById('maintItvCard');
   if (!card || !itv) return;
@@ -394,7 +394,7 @@ async function submitItv() {
   }
 }
 
-// ───────────────────────── Intervenciones puntuales ─────────────────────────
+// ───────────────────────── One-off interventions ─────────────────────────
 // [what was done, part category it usually involves]
 const EVENT_IDEAS = [['Pastillas de freno', 'brake_pads'], ['Discos de freno', 'brake_discs'], ['Reparación de rueda', null], ['Neumáticos nuevos', 'tyres'],
   ['Batería de 12 V', 'battery_12v'], ['Escobillas', 'wiper_blades'], ['Amortiguadores', null], ['Alineación', null]];

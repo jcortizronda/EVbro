@@ -1,8 +1,8 @@
-/* EVBro — Avisos y hojas de acción reutilizables (toasts, action sheets).
- * (Script clásico: comparte el ámbito global con los demás ficheros; ver el orden de carga en templates/index.html.)
+/* EVBro — Reusable toasts and action sheets.
+ * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
-// Helper para notificaciones Toast flotantes (estilo Dynamic Island / iOS)
+// Helper for floating toast notifications (Dynamic Island / iOS style)
 function showToast(message, type = 'info', duration = 3500) {
   let container = document.getElementById('appToastContainer');
   if (!container) {
@@ -154,7 +154,7 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === 'Enter' && e.target && e.target.id === 'appDialogInput') { e.preventDefault(); appDialogAnswer(true); }
 });
 
-// Action Sheets nativos para comandos directos en móvil
+// Native-style action sheets for direct commands on a phone
 function openActionSheet(title, subtitle, actions) {
   const modal = document.getElementById('nativeActionSheetModal');
   const titleEl = document.getElementById('actionSheetTitle');
@@ -183,7 +183,7 @@ function closeActionSheet() {
   if (modal) modal.classList.remove('open');
 }
 
-/** Escapa texto del servidor antes de meterlo en un toast (que usa innerHTML). */
+/** Escapes server text before putting it in a toast (which uses innerHTML). */
 /**
  * A Date from a value the server sent. The server stores and serialises times in UTC WITHOUT a zone ("2026-10-29T20:49:45"), and a
  * browser reads such a string as local time, which showed every history in UTC. A date-only value ("2026-10-29") stays a calendar day,

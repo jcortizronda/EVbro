@@ -1,4 +1,4 @@
-"""Rutas de historial y telemetría de sesiones de recarga."""
+"""Routes for the history and telemetry of charging sessions."""
 from __future__ import annotations
 
 import datetime
@@ -46,7 +46,7 @@ COST_SOURCES = {"manual": "Introducida por ti", "default": "Sin tarifa: 0 €/kW
 
 
 def _serialize_session_details(charge: ChargingSession, points: List[ChargePoint], capacity_kwh: Optional[float] = None) -> Dict[str, Any]:
-    """Calcula KPIs agregados y genera la respuesta enriquecida."""
+    """Computes aggregated KPIs and builds the enriched response."""
     curve = [
         {
             "ts": p.timestamp.isoformat(),
@@ -64,12 +64,12 @@ def _serialize_session_details(charge: ChargingSession, points: List[ChargePoint
         dur_sec = max(0, int((charge.end_time - charge.start_time).total_seconds()))
 
     kwh_add = charge.kwh_added or 0.0
-    # Energía de la red: SOLO la que indica el usuario (kWh de su contador). Antes se inventaba como añadida/0,95 y la
-    # «eficiencia» salía siempre 95 %: sin contador no se puede medir y se muestra como desconocida.
+    # grid energy: ONLY what the user enters (kWh from their meter). It used to be made up as added/0.95 and the
+    # "efficiency" always came out as 95 %: without a meter it cannot be measured and is shown as unknown.
     kwh_use = charge.kwh_used if charge.kwh_used and charge.kwh_used > 0 else None
     efficiency = round(kwh_add / kwh_use * 100.0, 1) if kwh_use and kwh_add > 0 else None
 
-    # Potencia media y pico (kW)
+    # average and peak power (kW)
     valid_powers = [p.power_kw for p in points if p.power_kw and p.power_kw > 0.1]
     if valid_powers:
         avg_power = round(sum(valid_powers) / len(valid_powers), 1)
@@ -81,7 +81,7 @@ def _serialize_session_details(charge: ChargingSession, points: List[ChargePoint
         avg_power = charge.max_charge_power_kw or 0.0
         max_power = charge.max_charge_power_kw or 0.0
 
-    # Baterías y Rangos
+    # battery and range
     start_pct = charge.start_battery_pct if charge.start_battery_pct is not None else (points[0].battery_pct if points else 0.0)
     end_pct = charge.end_battery_pct if charge.end_battery_pct is not None else (points[-1].battery_pct if points else start_pct)
     added_pct = max(0.0, round(end_pct - start_pct, 1))
@@ -116,9 +116,9 @@ def _serialize_session_details(charge: ChargingSession, points: List[ChargePoint
             "end_range_km": end_rng,
             "added_range_km": added_rng,
             "kwh_added": kwh_add,
-            "kwh_used": kwh_use,                      # None = sin contador (desconocida)
-            "efficiency_pct": efficiency,             # None = no se puede calcular
-            "battery_capacity_kwh": capacity_kwh,     # con ella se estima kwh_added a partir del % de batería
+            "kwh_used": kwh_use,                      # None = no meter (unknown)
+            "efficiency_pct": efficiency,             # None = cannot be computed
+            "battery_capacity_kwh": capacity_kwh,     # used to estimate kwh_added from the battery %
             "duration_seconds": dur_sec,
             "max_charge_power_kw": max_power,
             "avg_charge_power_kw": avg_power,
@@ -138,15 +138,15 @@ async def _capacity(session: AsyncSession, vin: str) -> Optional[float]:
 
 
 class ChargeCostUpdate(BaseModel):
-    """Coste y/o energía de una carga indicados a mano (cuando no hay geocerca con tarifa). Se manda uno o varios campos."""
+    """Cost and/or energy of a charge entered by hand (when there is no geofence with a tariff). One or more fields are sent."""
     price_per_kwh: Optional[float] = Field(default=None, ge=0, le=5)      # €/kWh
-    total_cost: Optional[float] = Field(default=None, ge=0, le=10000)     # € de la factura/recibo
-    kwh_meter: Optional[float] = Field(default=None, gt=0, le=500)        # kWh que marcó tu contador/cargador (red)
+    total_cost: Optional[float] = Field(default=None, ge=0, le=10000)     # € on the invoice/receipt
+    kwh_meter: Optional[float] = Field(default=None, gt=0, le=500)        # kWh shown by your meter/charger (grid)
 
 
 @router.put("/charges/{charge_id}/cost")
 async def update_charge_cost(charge_id: int, req: ChargeCostUpdate, session: AsyncSession = Depends(get_db)):
-    """Fija el coste de una carga: €/kWh o total en €, y opcionalmente los kWh del contador (con ellos se calcula la eficiencia real)."""
+    """Sets the cost of a charge: €/kWh or total in €, and optionally the meter kWh (used to compute the real efficiency)."""
     if req.price_per_kwh is None and req.total_cost is None and req.kwh_meter is None:
         raise HTTPException(status_code=422, detail="Indica el precio por kWh, el coste total o los kWh del contador.")
     if req.price_per_kwh is not None and req.total_cost is not None:
@@ -157,7 +157,7 @@ async def update_charge_cost(charge_id: int, req: ChargeCostUpdate, session: Asy
 
     if req.kwh_meter is not None:
         charge.kwh_used = round(req.kwh_meter, 2)
-    energy = charge.kwh_used or charge.kwh_added or 0.0            # lo que se paga es la energía de la red si se conoce
+    energy = charge.kwh_used or charge.kwh_added or 0.0            # what is paid for is the grid energy, if known
     if req.total_cost is not None:
         charge.charge_cost = round(req.total_cost, 2)
         charge.effective_cost_per_kwh = round(req.total_cost / energy, 4) if energy > 0 else None
@@ -166,7 +166,7 @@ async def update_charge_cost(charge_id: int, req: ChargeCostUpdate, session: Asy
         charge.effective_cost_per_kwh = req.price_per_kwh
         charge.charge_cost = round(req.price_per_kwh * energy, 2)
         charge.cost_mode = "manual"
-    elif charge.cost_mode == "manual" and charge.effective_cost_per_kwh:        # solo cambian los kWh: se recalcula el coste
+    elif charge.cost_mode == "manual" and charge.effective_cost_per_kwh:        # only the kWh change: the cost is recomputed
         charge.charge_cost = round(charge.effective_cost_per_kwh * energy, 2)
     await session.commit()
     return _serialize_session_details(charge, [], await _capacity(session, charge.vin))["charge"]
@@ -197,7 +197,7 @@ async def list_vehicle_charges(
     to: Optional[str] = Query(None, max_length=10),
     session: AsyncSession = Depends(get_db),
 ):
-    """Lista las sesiones de carga de un vehículo (`period` o `from`/`to` acotan por fecha de inicio; services/periods.py)."""
+    """Lists a vehicle's charging sessions (`period` or `from`/`to` filter by start date; services/periods.py)."""
     stmt = (
         select(ChargingSession)
         .where(ChargingSession.vin == vin, periods.condition(ChargingSession.start_time, periods.resolve(period, frm, to)))
@@ -240,7 +240,7 @@ async def charges_summary(vin: str, session: AsyncSession = Depends(get_db)):
 
 @router.get("/vehicles/{vin}/charges/latest")
 async def get_latest_charge(vin: str, session: AsyncSession = Depends(get_db)):
-    """Obtiene la sesión de carga más reciente (activa o última completada) junto a sesiones previas."""
+    """Gets the most recent charging session (active or last completed) together with previous sessions."""
     stmt_recent = (
         select(ChargingSession)
         .where(ChargingSession.vin == vin)
@@ -278,7 +278,7 @@ async def get_latest_charge(vin: str, session: AsyncSession = Depends(get_db)):
 
 @router.get("/charges/{charge_id}")
 async def get_charge_details(charge_id: int, session: AsyncSession = Depends(get_db)):
-    """Obtiene los detalles de una sesión de carga con su curva temporal y estadísticas."""
+    """Gets the details of a charging session with its time curve and statistics."""
     charge = await session.get(ChargingSession, charge_id)
     if not charge:
         raise HTTPException(status_code=404, detail="Sesión de recarga no encontrada.")

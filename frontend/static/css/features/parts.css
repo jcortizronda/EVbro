@@ -1,5 +1,5 @@
-/* EVBro — Consumibles y referencias (ficha del coche) y selector de piezas de las intervenciones.
-   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+/* EVBro — Consumables and part numbers (car sheet) and the parts picker of interventions.
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
 .vp-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 5px; margin-bottom: 12px; background: var(--surface-secondary); border: 1px solid var(--border-color); border-radius: 16px; }
 .vp-seg-btn { min-height: 44px; font: inherit; font-weight: 600; font-size: 0.9rem; color: var(--text-secondary); background: transparent; border: 0; border-radius: 12px; cursor: pointer; }
@@ -21,7 +21,7 @@
 .part-item-main small { font-size: 0.76rem; color: var(--text-muted); overflow-wrap: anywhere; }
 .part-item-main .part-when { color: var(--text-secondary); }
 
-/* Editor de una pieza (modal de la ficha y selector de las intervenciones) */
+/* Part editor (car sheet modal and intervention picker) */
 .part-row { position: relative; padding: 12px 0; border-top: 1px solid var(--border-color); }
 .part-row:first-child { border-top: 0; padding-top: 0; }
 .part-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -40,7 +40,7 @@
 .parts-update input { width: 20px; height: 20px; }
 .maint-parts { display: block; margin-top: 4px; font-size: 0.78rem; color: var(--text-secondary); }
 
-/* Catálogo compartido: estado de mis propuestas y sugerencias al añadir una pieza */
+/* Shared catalogue: status of my proposals and suggestions when adding a part */
 .part-tag { display: inline-block; vertical-align: middle; margin-left: 6px; padding: 1px 7px; border-radius: 999px; font-size: 0.64rem; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; border: 1px solid currentColor; }
 .part-tag-pending { color: var(--accent-amber, #ff9f0a); }
 .part-tag-approved { color: var(--accent-green, #30d158); }

@@ -1,5 +1,5 @@
-"""Estadísticas (Más → Estadísticas): las tarjetas se pintan con los datos de la demo, el periodo cambia y nada desborda.
-    tools/e2e/demo_server.sh start && python tools/e2e/stats.py [carpeta_capturas]
+"""Statistics (Más → Estadísticas): the cards are drawn with the demo data, the period changes and nothing overflows.
+    tools/e2e/demo_server.sh start && python tools/e2e/stats.py [screenshot_dir]
 """
 import os, sys, tempfile
 from playwright.sync_api import sync_playwright
@@ -26,16 +26,16 @@ with sync_playwright() as p:
         pg.goto(BASE); pg.wait_for_load_state("load"); pg.wait_for_timeout(1200)
         print("==", theme)
         pg.evaluate("switchTab('stats')"); pg.wait_for_timeout(1500)
-        ok(pg.locator("#tabStats canvas").count() == 10, "diez gráficas")
+        ok(pg.locator("#tabStats canvas").count() == 10, "ten charts")
         drawn = pg.eval_on_selector_all("#tabStats canvas", "els => els.filter(c => c.width > 0 && c.height > 0).length")
-        ok(drawn == 10, f"todas las gráficas se han pintado ({drawn})")
-        ok("Km" in pg.text_content("#stTotals") and "--" not in pg.text_content("#stTotals").split("Km")[1][:12], f"el resumen tiene kilómetros ({pg.text_content('#stTotals')[:60]!r})")
+        ok(drawn == 10, f"every chart has been drawn ({drawn})")
+        ok("Km" in pg.text_content("#stTotals") and "--" not in pg.text_content("#stTotals").split("Km")[1][:12], f"the summary has kilometres ({pg.text_content('#stTotals')[:60]!r})")
         pg.screenshot(path=f"{OUT}/stats-{theme}.png", full_page=True)
         pg.click("#tabStats [data-period='all']"); pg.wait_for_timeout(1000)
-        ok("is-active" in pg.get_attribute("#tabStats [data-period='all']", "class"), "el periodo «Todo» se marca")
-        ok(pg.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), "sin desbordamiento horizontal")
-        ok(not errs, f"sin errores JS {errs}")
+        ok("is-active" in pg.get_attribute("#tabStats [data-period='all']", "class"), "the «Todo» period is marked")
+        ok(pg.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), "no horizontal overflow")
+        ok(not errs, f"no JS errors {errs}")
         ctx.close()
     b.close()
-print("FALLOS:", fails or "ninguno")
+print("FAILURES:", fails or "none")
 sys.exit(1 if fails else 0)

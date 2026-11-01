@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
-"""El taskId: cómo se consigue, y por qué hay que tener cuidado al pedirlo.
+"""The taskId: how it is obtained, and why asking for it needs care.
 
-Ningún comando parte sin un `taskId` validado por `checkPassword`, y `checkPassword` verifica
-el PIN de comandos contra el backend de Chery. **Cada verificación fallida incrementa un
-contador de errores del lado de Chery**, y superado el umbral la cuenta se bloquea — un bloqueo
-que no se puede deshacer desde EVBro. De ahí que este módulo haga tres cosas antes de
-preguntar:
+No command goes out without a `taskId` validated by `checkPassword`, and `checkPassword` verifies
+the command PIN against Chery's backend. **Every failed verification increments an
+error counter on the Chery side**, and past the threshold the account gets locked — a lock
+that cannot be undone from EVBro. Hence this module does three things before
+asking:
 
-1. si el PIN está vacío, falla ANTES de tocar el backend: un PIN no configurado no es un
-   intento erróneo y no debe consumir umbral;
-2. reutiliza el taskId en caché mientras siga vivo, porque generarlo es la parte lenta de cada
-   comando — así la mayoría se convierten en una sola POST firmada;
-3. serializa el intento entero (guarda + llamada de red + actualización del contador) dentro de
-   `PinLockout.attempt()`, de modo que la condición de carrera no es expresable.
+1. if the PIN is empty, it fails BEFORE touching the backend: an unconfigured PIN is not a
+   wrong attempt and must not use up the threshold;
+2. it reuses the cached taskId while it is still alive, because minting it is the slow part of every
+   command — so most of them turn into a single signed POST;
+3. it serialises the whole attempt (guard + network call + counter update) inside
+   `PinLockout.attempt()`, so the race condition cannot be expressed.
 
-Era la mitad de `commands.py`, mezclado con el catálogo y con el envío. Aquí tiene archivo
-propio porque es lo que más cuidado merece del componente entero.
+It used to be half of `commands.py`, mixed with the catalogue and the sending. It has its own file
+here because it is what deserves the most care in the whole component.
 """
 import hashlib
 import logging
@@ -30,40 +30,40 @@ from .pin_lockout import PinLockedError
 
 _LOGGER = logging.getLogger(__name__)
 
-# anti-bloqueo: para tras N checkPassword fallidos consecutivos dentro de una ventana, para no
-# hacer saltar el bloqueo del PIN de la CUENTA Chery (cada PIN erróneo incrementa los errores
-# de su lado, y ese bloqueo no se puede deshacer desde EVBro).
+# lockout: stops after N consecutive failed checkPassword calls within a window, so as not to
+# trip the PIN lock of the Chery ACCOUNT (every wrong PIN increments the errors on
+# their side, and that lock cannot be undone from EVBro).
 #
-# El estado y su lock viven ahora dentro de `PinLockout` (core/pin_lockout.py): la única forma
-# de generar es `attempt()`, que serializa guarda + POST + actualización del contador.
-# El contador vive en `ctx.lockout` — uno por vehículo. De lo contrario, con dos coches
-# configurados los errores de PIN de uno bloquearían los comandos del otro.
+# The state and its lock now live inside `PinLockout` (core/pin_lockout.py): the only way
+# to mint is `attempt()`, which serialises guard + POST + counter update.
+# The counter lives in `ctx.lockout` — one per vehicle. Otherwise, with two cars
+# configured, one car's PIN errors would block the other's commands.
 #
-# Las generaciones SOLAPADAS se cuentan en `ctx.state` (ver context.py): es estado por
-# vehículo, no de proceso.
-# la clasificación de checkPassword POR CÓDIGO vive ahora en `routing.py` (tabla única). Antes
-# era «todo lo que no da un taskId = PIN erróneo», que es falso y hace dos daños: propone el
-# remedio equivocado al usuario y cuenta hacia el anti-bloqueo un error que con el PIN no tiene
-# nada que ver.
+# OVERLAPPING mints are counted in `ctx.state` (see context.py): it is per-vehicle
+# state, not per-process.
+# checkPassword's classification BY CODE now lives in `routing.py` (single table). It used
+# to be «anything that does not yield a taskId = wrong PIN», which is false and does two kinds of harm: it offers the
+# user the wrong remedy and counts towards the lockout an error that has nothing to do
+# with the PIN.
 
 
 def reset_pin_lockout(ctx) -> None:
-    """Pone a cero el contador anti-bloqueo de los PIN erróneos (y el taskId en caché).
+    """Reset the wrong-PIN lockout counter (and the cached taskId).
 
-    El estado vive en memoria y solo se pone a cero al reiniciar el servidor, así que sin
-    esta llamada los comandos quedarían bloqueados hasta que venza la ventana tras corregir el
-    PIN. Se invoca en cada reconfiguración del PIN (ajustes de la cuenta Ebro)."""
+    The state lives in memory and is only reset when the server restarts, so without
+    this call commands would stay blocked until the window expires after fixing the
+    PIN. Invoked on every PIN reconfiguration (Ebro account settings)."""
     ctx.reset_pin_lockout()
 
 
 def _mint_taskid(ctx, tuid):
-    """Genera un taskId. Con el monitor apagado es un paso directo a `_mint_taskid_impl`.
+    """Mint a taskId. With the monitor off it is a straight pass-through to `_mint_taskid_impl`.
 
-    Con el monitor encendido observa DOS cosas que en el log no se ven: las generaciones
-    concurrentes (`pin_fail_concurrent`, la carrera que acerca el bloqueo de la cuenta) y el
-    resultado real de checkPassword con el código EN CRUDO del backend — la única forma de
-    distinguir un PIN realmente erróneo de un rechazo por permisos/parámetros. El PIN nunca se
-    registra, en ninguna forma."""
+    With the monitor on it observes TWO things the log does not show: concurrent
+    mints (`pin_fail_concurrent`, the race that brings the account lockout closer) and the
+    real checkPassword outcome with the backend's RAW code — the only way to
+    tell a genuinely wrong PIN from a rejection due to permissions/parameters. The PIN is never
+    logged, in any form."""
     if ctx.diag_hook is None:
         return _mint_taskid_impl(ctx, tuid)
     with ctx.state.mint_inflight_lock:
@@ -76,11 +76,11 @@ def _mint_taskid(ctx, tuid):
         ctx.diag("pin_event", outcome="ok", pin_fail_n=ctx.lockout.failed_attempts)
         return tid
     except CommandError as err:
-        # "fail" = el backend respondió y rechazó; "empty" = PIN no configurado;
-        # "blocked" = anti-bloqueo saltado. Los dos últimos NO han interrogado al backend:
-        # distinguirlos importa, porque solo "fail" acerca el bloqueo de la cuenta. Se clasifica
-        # por el marcador del mensaje, no por la presencia del código: un rechazo puede llegar
-        # también sin código, y acabaría confundido con un bloqueo.
+        # "fail" = the backend answered and rejected; "empty" = PIN not configured;
+        # "blocked" = lockout tripped. The last two have NOT queried the backend:
+        # telling them apart matters, because only "fail" brings the account lockout closer. It is classified
+        # by the message marker, not by the presence of a code: a rejection can also arrive
+        # without a code, and would end up confused with a lockout.
         code = getattr(err, "code", None)
         if "checkPassword" in str(err):
             outcome = "fail"
@@ -101,24 +101,24 @@ def _mint_taskid(ctx, tuid):
 
 
 def _mint_taskid_impl(ctx, tuid):
-    """Genera un taskId con la cadena BFF de la app (queryList→setVecDefault→checkPassword).
-       FIX (2026-06-20): scene=0 (NO 2) → el taskId generado es aceptado por tspconsole
-       (airControl A00079). scene=2 daba A00089; scene=1 A00089; scene>=3 A00546.
+    """Mint a taskId with the app's BFF chain (queryList→setVecDefault→checkPassword).
+       FIX (2026-06-20): scene=0 (NOT 2) → the minted taskId is accepted by tspconsole
+       (airControl A00079). scene=2 gave A00089; scene=1 A00089; scene>=3 A00546.
 
-       Rechaza la generación si el PIN está vacío (NO llama a checkPassword en vacío) y se
-       auto-bloquea tras demasiados PIN erróneos consecutivos para evitar el bloqueo de la cuenta.
+       Refuses to mint if the PIN is empty (does NOT call checkPassword with nothing) and
+       locks itself after too many consecutive wrong PINs to avoid the account lockout.
 
-       En caso de fallo lanza SIEMPRE CommandError con `reason` ("pin" o "reauth") para que el
-       la interfaz pueda enrutar el remedio correcto (reconfig PIN vs reautenticación)."""
-    # PIN ausente: se falla ANTES de entrar en el anti-bloqueo. Un PIN no configurado no es un
-    # intento erróneo — no debe consumir el umbral ni tocar el backend.
+       On failure it ALWAYS raises CommandError with a `reason` ("pin" or "reauth") so that
+       the interface can route the right remedy (reconfigure PIN vs re-authenticate)."""
+    # Missing PIN: fail BEFORE entering the lockout. An unconfigured PIN is not a
+    # wrong attempt — it must not use up the threshold or touch the backend.
     if not (ctx.pin or "").strip():
         raise CommandError(
             "PIN de comandos no configurado — configúralo en los ajustes de la cuenta Ebro",
             reason="pin")
 
-    # `attempt()` toma el lock, aplica la guarda y lo mantiene durante toda la llamada de red.
-    # Es la única forma de generar: la condición de carrera ya no es expresable.
+    # `attempt()` takes the lock, applies the guard and holds it for the whole network call.
+    # It is the only way to mint: the race condition can no longer be expressed.
     try:
         with ctx.lockout.attempt() as attempt:
             return _checkpassword(ctx, tuid, attempt)
@@ -130,8 +130,8 @@ def _mint_taskid_impl(ctx, tuid):
 
 
 def _checkpassword(ctx, tuid, attempt):
-    """La cadena BFF propiamente dicha. Corre con el lock del anti-bloqueo ya tomado; declara
-    el resultado en `intento` SOLO cuando es realmente atribuible al PIN."""
+    """The BFF chain proper. Runs with the lockout lock already held; declares
+    the outcome on `attempt` ONLY when it is really attributable to the PIN."""
     from . import vehicles
 
     access = wake._access_token(ctx)
@@ -142,49 +142,49 @@ def _checkpassword(ctx, tuid, attempt):
     def bff(path, body):
         return bff_post(ctx, path, body, headers=A.headers_post(path, extra=extra, ctx=ctx))
 
-    # La cadena exacta de la app: listar los vehículos, fijar el nuestro como predeterminado y
-    # solo entonces verificar el PIN. Saltarse los dos primeros pasos hace que checkPassword
-    # responda sin taskId.
+    # The app's exact chain: list the vehicles, set ours as the default and
+    # only then verify the PIN. Skipping the first two steps makes checkPassword
+    # answer without a taskId.
     vehicles.query_list(ctx)
     bff("/tsp/v1/app/vmc/setVecDefault", {"vin": ctx.vin})
     plain = hashlib.md5(ctx.pin.encode()).hexdigest()
     password = A.sm4_code(plain, "padRight32")
-    # El cuerpo PROBADO, el mismo desde el prototipo anterior al repositorio. Se probaron
-    # encima `passwordType` y los cinco campos de identificación de cliente que la app manda
-    # (deviceId, platform, source, terminalType, appVersion): el servidor contestó exactamente
-    # lo mismo, `code=1 'A07908'`, con todos y con ninguno.
+    # The PROVEN body, the same since the prototype that predates the repository. We tried
+    # adding `passwordType` and the five client-identification fields the app sends
+    # (deviceId, platform, source, terminalType, appVersion): the server answered exactly
+    # the same, `code=1 'A07908'`, with all of them and with none.
     #
-    # Se retiran en vez de dejarse «por si acaso». Esta petición es la que cierra el coche de
-    # alguien, y añadirle campos inventados que no se han visto funcionar NUNCA no es cautela:
-    # es riesgo sin contrapartida. Quedan en el historial por si algún día hay información nueva.
+    # They are removed instead of being left «just in case». This request is what locks
+    # someone's car, and adding made-up fields that have NEVER been seen working is not caution:
+    # it is risk with no upside. They remain in the history in case new information turns up one day.
     cuerpo = {"vin": ctx.vin, "tUserId": str(tuid), "channelId": ctx.channel_id,
               "password": password, "needDecode": 0, "scene": 0, "type": 0}
     j = bff("/tsp/v1/app/cpm/checkPassword", cuerpo)
     data = j.get("data") if isinstance(j.get("data"), dict) else {}
     tid = data.get("taskId") or j.get("taskId")
     if tid:
-        attempt.success()      # el PIN es correcto → el umbral vuelve a cero
+        attempt.success()      # the PIN is correct → the threshold goes back to zero
         return tid
 
-    # ningún taskId: distingo la CAUSA para enrutar el remedio correcto.
+    # no taskId: tell the CAUSE apart to route the right remedy.
     code = j.get("code")
-    # DIAGNÓSTICO (2026-07-06): el código/mensaje EN CRUDO de checkPassword es la ÚNICA forma de
-    # saber si es de verdad un PIN erróneo u otra causa (permisos del vehículo, parámetros scene/
-    # channelId, backend). Hasta ahora NO se registraba → en el log el anti-bloqueo decía solo
-    # "PIN erróneos", que es nuestra INFERENCIA. Ahora registramos code + message reales (campos
-    # no sensibles).
+    # DIAGNOSTICS (2026-07-06): checkPassword's RAW code/message is the ONLY way to
+    # know whether it is really a wrong PIN or another cause (vehicle permissions, scene/
+    # channelId parameters, backend). Until now it was NOT logged → in the log the lockout only said
+    # "wrong PINs", which is our INFERENCE. Now we log the real code + message (non-sensitive
+    # fields).
     cp_msg = str(j.get("message") or j.get("msg") or "").strip()
     detail = f"code={code}" + (f" '{cp_msg[:100]}'" if cp_msg else "")
     _LOGGER.warning("[taskId] checkPassword NO devolvió un taskId → %s "
                     "(respuesta cruda del servidor; si no es un PIN erróneo, la causa está aquí)", detail)
 
-    # una única consulta a la tabla decide el remedio Y si contar para el bloqueo. Antes eran
-    # dos `if` sobre conjuntos separados más una rama por defecto: tres puntos que mantener
-    # alineados a mano, y ahí es donde la clasificación se había torcido.
-    # Se clasifica por el dato MÁS específico. Este backend contesta `code=1` —su rechazo
-    # genérico, el mismo que devuelve un queryList mal formado— y pone el código real en el
-    # `message`. Clasificar por el `1` mandaba todo a la regla por defecto, que culpa al PIN y
-    # gasta un intento del anti-bloqueo: así se acusó durante horas a un PIN que era correcto.
+    # a single table lookup decides the remedy AND whether to count towards the lockout. They used to be
+    # two `if`s on separate sets plus a default branch: three places to keep
+    # aligned by hand, and that is where the classification had gone wrong.
+    # Classify by the MOST specific datum. This backend answers `code=1` —its generic
+    # rejection, the same one a malformed queryList returns— and puts the real code in the
+    # `message`. Classifying by the `1` sent everything to the default rule, which blames the PIN and
+    # spends a lockout attempt: that is how a correct PIN was accused for hours.
     especifico = cp_msg if re.fullmatch(r"A\d{5}", cp_msg) else code
     outcome = routing.classify(especifico, routing.CONTEXT_CHECKPASSWORD)
     if outcome.counts_for_lockout:
@@ -194,10 +194,10 @@ def _checkpassword(ctx, tuid, attempt):
 
 
 def _checkpassword_message(outcome, detail: str) -> str:
-    """Mensaje para el usuario, coherente con el remedio que se propondrá.
+    """Message for the user, consistent with the remedy that will be offered.
 
-    Separado de la decisión a propósito: el texto se puede reescribir o traducir sin tocar el
-    enrutado, y viceversa."""
+    Kept apart from the decision on purpose: the text can be rewritten or translated without touching the
+    routing, and vice versa."""
     if outcome.reason == routing.REASON_REAUTH:
         return (f"Sesión caducada [checkPassword {detail}] — vuelve a iniciar sesión con "
                 "tu cuenta Ebro")
@@ -209,30 +209,30 @@ def _checkpassword_message(outcome, detail: str) -> str:
             "configurarlo en los ajustes de la cuenta Ebro")
 
 
-# Caché en memoria del taskId. Generarlo implica hacer toda la vuelta de checkPassword (PIN):
-# es la parte LENTA de cada comando. Pero el taskId sigue siendo válido un rato → lo reutilizamos y lo
-# solo lo regeneramos cuando el coche lo rechaza (TASKID_INVALID) o vence el TTL. Así la mayoría
-# de los comandos se convierte en una sola POST firmada en vez de PIN + POST.
-# la caché vive en `ctx.estado` — el taskId está ligado al PIN y al VIN, así que no es
-# compartible entre vehículos (antes lo era, y suponía un comando hacia el coche equivocado).
+# In-memory taskId cache. Minting it means doing the whole checkPassword (PIN) round trip:
+# it is the SLOW part of every command. But the taskId stays valid for a while → we reuse it and
+# only re-mint it when the car rejects it (TASKID_INVALID) or the TTL expires. That way most
+# commands become a single signed POST instead of PIN + POST.
+# the cache lives in `ctx.state` — the taskId is bound to the PIN and the VIN, so it cannot be
+# shared between vehicles (it used to be, and that meant a command going to the wrong car).
 
-# Códigos con los que el coche dice "este taskId no vale" → se regenera y se reintenta una vez.
-# Derivado de la tabla única, ya no es una lista paralela.
+# Codes with which the car says "this taskId is no good" → re-minted and retried once.
+# Derived from the single table, no longer a parallel list.
 
-# Códigos con los que el coche dice "este taskId no vale" → se regenera y se reintenta una vez.
-# Derivado de la tabla única, ya no es una lista paralela.
+# Codes with which the car says "this taskId is no good" → re-minted and retried once.
+# Derived from the single table, no longer a parallel list.
 TASKID_INVALID = routing.TASKID_INVALID
 
 
 def invalidate_taskid(ctx):
-    """Descarta el taskId en caché (el coche lo ha rechazado como no válido/caducado)."""
+    """Drop the cached taskId (the car rejected it as invalid/expired)."""
     ctx.invalidate_taskid()
 
 
 def get_taskid(ctx, tuid, emit=lambda m: None, force_mint=False):
-    """Fuente del taskId, en orden: archivo piggyback → caché → checkPassword generado.
-    `force_mint=True` salta archivo/caché y genera uno nuevo (usado en el retry tras un rechazo:
-    reusar la misma fuente rechazada daría de nuevo el mismo error)."""
+    """taskId source, in order: piggyback file → cache → minted via checkPassword.
+    `force_mint=True` skips file/cache and mints a new one (used on the retry after a rejection:
+    reusing the same rejected source would give the same error again)."""
     if not force_mint:
         try:
             if os.path.exists(ctx.taskid_file):
@@ -249,8 +249,8 @@ def get_taskid(ctx, tuid, emit=lambda m: None, force_mint=False):
         try:
             tid = _mint_taskid(ctx, tuid)
         except CommandError as e:
-            # PIN erróneo / anti-bloqueo / sesión: publica el detalle y PROPAGA → send() lo deja
-            # subir con su `reason` para el enrutado del remedio.
+            # wrong PIN / lockout / session: publish the detail and PROPAGATE → send() lets it
+            # bubble up with its `reason` for remedy routing.
             emit(str(e))
             raise
         except Exception as e:
@@ -263,5 +263,3 @@ def get_taskid(ctx, tuid, emit=lambda m: None, force_mint=False):
             ctx.state.taskid_ts = time.time()
             return tid, "checkPassword"
     return None, "none"
-
-

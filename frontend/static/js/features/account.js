@@ -1,5 +1,5 @@
-/* EVBro — Cuenta Ebro: estado, conexión y desconexión.
- * (Script clásico: comparte el ámbito global con los demás ficheros; ver el orden de carga en templates/index.html.)
+/* EVBro — Ebro account: status, connection and disconnection.
+ * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
 let currentAccountInfo = null;
@@ -69,7 +69,7 @@ async function checkAccountStatus() {
       if (syncBtn) syncBtn.disabled = true;
     }
   } catch (err) {
-    console.warn("Fallo comprobando estado de cuenta:", err);
+    console.warn("Failed to check the account status:", err);
   }
 }
 

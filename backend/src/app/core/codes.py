@@ -1,46 +1,46 @@
 #!/usr/bin/env python3
 """
-codes.py — Mapa ÚNICO de los códigos de respuesta tspconsole/BFF Chery → texto legible.
+codes.py — The SINGLE map of Chery tspconsole/BFF response codes → readable text.
 
-Fuente de verdad para los ÚNICOS textos de diagnóstico mostrados al usuario (interfaz y log de EVBro).
-El mismo código (p. ej. A07900) tenía antes 3 significados distintos repartidos por
-commands/wake/probe/provision; este mapa los unifica. NO cambia la lógica de los comandos:
-los módulos deciden el flujo según los códigos, aquí solo está la traducción del código a
-una frase.
+Source of truth for the ONLY diagnostic texts shown to the user (EVBro's interface and log).
+The same code (e.g. A07900) used to have 3 different meanings spread across
+commands/wake/probe/provision; this map unifies them. It does NOT change the command logic:
+the modules decide the flow from the codes, this only translates a code into
+a sentence.
 
-⚠️ Algunos códigos (sobre todo A07900) son CONTEXTUALES en el backend Chery: el texto
-de aquí es el más recurrente/útil; cada llamador puede añadir contexto.
+⚠️ Some codes (A07900 above all) are CONTEXTUAL in the Chery backend: the text
+here is the most frequent/useful one; each caller can add context.
 """
 
-# Código → frase legible (castellano, para no técnicos).
+# Code → readable sentence (Spanish, for non-technical users).
 CODE_MEANING = {
     "000000": "ok ✅",
     "A00079": "comando aceptado ✅",
-    # A00082: el coche está OCUPADO (procesa un comando cada vez) → el comando NO se ha
-    # ejecutado. Transitorio: reintentar en unos segundos (verificado en vivo 2026-06-21).
+    # A00082: the car is BUSY (it handles one command at a time) → the command was NOT
+    # executed. Transient: retry in a few seconds (verified live 2026-06-21).
     "A00082": "coche ocupado ⏳ (hay otro comando en curso) — reinténtalo en unos segundos",
-    # A00084 (i18n: "No vehicle control command permission"): la cuenta/vehículo no tiene
-    # permiso PARA ESE comando. Visto en vivo con remoteStart (2026-06-21): este Ebro Auto
-    # no permite el arranque remoto del motor, mientras clima/cierre/GPS sí funcionan.
+    # A00084 (i18n: "No vehicle control command permission"): the account/vehicle has no
+    # permission FOR THAT command. Seen live with remoteStart (2026-06-21): this Ebro Auto
+    # does not allow remote engine start, while climate/locking/GPS do work.
     "A00084": "comando no permitido en este coche 🚫 (permiso denegado para esta función)",
     "A00089": "taskId no válido ❌ (hace falta un taskId validado por checkPassword)",
     "A00546": "taskId no válido ❌ (scene incorrecto en checkPassword)",
     "A00567": "parámetros de checkPassword incompletos ❌",
     "A00000": "token caducado/no válido ❌ (vuelve a iniciar sesión)",
     "A07312": "límite de despertar 🚫 (el coche rechaza más despertares ahora, reinténtalo más tarde)",
-    # A07900 es contextual: en poll/probe = coche en reposo; con los comandos = firma o
-    # car_token no válidos. Texto neutro que cubre el caso más frecuente.
+    # A07900 is contextual: on poll/probe = car asleep; on commands = invalid signature or
+    # car_token. Neutral text covering the most frequent case.
     "A07900": "coche en reposo / no accesible (o firma/car_token no válidos) ⌛",
-    # A07908/A07909: `message` de un checkPassword con `code=1` → PIN de comandos incorrecto.
-    # Confirmado en campo el 2026-10-01 probando el PIN correcto en la misma cuenta.
+    # A07908/A07909: `message` of a checkPassword with `code=1` → wrong command PIN.
+    # Confirmed in the field on 2026-10-01 by trying the correct PIN on the same account.
     "A07908": "PIN de comandos incorrecto ❌",
     "A07909": "PIN de comandos incorrecto ❌",
 }
 
 
 def meaning(code, default=None):
-    """Devuelve la frase legible para `code`. Si es desconocido devuelve `default`
-    (o una cadena genérica con el código en crudo). Acepta también code=None/no-str."""
+    """Return the readable sentence for `code`. If unknown, return `default`
+    (or a generic string with the raw code). Also accepts code=None/non-str."""
     if code is None:
         return default if default is not None else "sin código"
     key = str(code)

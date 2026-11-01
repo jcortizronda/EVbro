@@ -1,4 +1,4 @@
-"""Tests de `core/routing.py` — la tabla única de enrutado de códigos del backend."""
+"""Tests for `core/routing.py` — the single routing table for backend codes."""
 
 from __future__ import annotations
 
@@ -11,14 +11,14 @@ from app.core import routing
 
 
 def test_matriz_completa(snapshot: SnapshotAssertion) -> None:
-    """Snapshot de TODA la matriz código × contexto.
+    """Snapshot of the WHOLE code × context matrix.
 
-    `clasifica()` es determinista y sin reloj, así que la matriz entera cabe en un snapshot.
-    Es el test de más valor del módulo: cualquier cambio en `_TABLA`, en los overrides o en
-    los defaults sale como un diff legible en vez de como un remedio equivocado en producción.
+    `classify()` is deterministic and clock-free, so the whole matrix fits in a snapshot.
+    It is the module's most valuable test: any change to `_TABLE`, the overrides or
+    the defaults shows up as a readable diff instead of as a wrong remedy in production.
     """
     codigos = sorted(set(routing._TABLE) | set(routing._OVERRIDE_CHECKPASSWORD))
-    # códigos que la tabla NO conoce: la rama por defecto, que es asimétrica por contexto
+    # codes the table does NOT know: the default branch, which is asymmetric per context
     codigos += ["A99999", "", "123"]
 
     matriz = {}
@@ -35,11 +35,11 @@ def test_matriz_completa(snapshot: SnapshotAssertion) -> None:
     assert matriz == snapshot
 
 
-def test_default_asimetrico_por_contexto() -> None:
-    """Un código desconocido es PIN+bloqueante en checkPassword y no bloqueante en comando.
+def test_default_is_asymmetric_per_context() -> None:
+    """An unknown code is PIN+blocking in checkPassword and non-blocking on a command.
 
-    La asimetría es deliberada (ver el docstring del módulo) y fácil de romper sin darse
-    cuenta al tocar los defaults, así que se afirma explícitamente además del snapshot.
+    The asymmetry is deliberate (see the module docstring) and easy to break without
+    noticing when touching the defaults, so it is asserted explicitly on top of the snapshot.
     """
     cp = routing.classify("A99999", routing.CONTEXT_CHECKPASSWORD)
     assert cp.reason == routing.REASON_PIN
@@ -53,11 +53,11 @@ def test_default_asimetrico_por_contexto() -> None:
     assert cmd.action == routing.ACTION_NOTICE
 
 
-def test_a00567_cambia_de_significado_segun_contexto() -> None:
-    """El caso que motivó pasar el contexto a `clasifica()`.
+def test_a00567_changes_meaning_by_context() -> None:
+    """The case that led to passing the context to `classify()`.
 
-    En checkPassword `A00567` es una petición incompleta (el PIN puede estar bien); en
-    respuesta a un comando es un taskId caducado que hay que regenerar.
+    In checkPassword `A00567` is an incomplete request (the PIN may be fine); in
+    response to a command it is an expired taskId that must be re-minted.
     """
     cp = routing.classify("A00567", routing.CONTEXT_CHECKPASSWORD)
     assert cp.reason == routing.REASON_CONFIG
@@ -78,19 +78,19 @@ def test_a00567_cambia_de_significado_segun_contexto() -> None:
         ("A00082", "A00082"),
     ],
 )
-def test_code_normalizado(code, esperado) -> None:
-    """`code` puede llegar como None o no-cadena (respuesta ilegible del backend)."""
+def test_code_normalised(code, esperado) -> None:
+    """`code` may arrive as None or a non-string (unreadable backend response)."""
     assert routing.classify(code, routing.CONTEXT_COMMAND).code == esperado
 
 
-def test_solo_los_codigos_de_pin_cuentan_para_el_bloqueo() -> None:
-    """Contar errores de permisos/config acercaría el bloqueo real de la cuenta por una causa
-    que con el PIN no tiene nada que ver — es el bug P1-2 que documenta el módulo.
+def test_only_pin_codes_count_towards_the_lockout() -> None:
+    """Counting permission/config errors would bring the real account lockout closer for a cause
+    that has nothing to do with the PIN — it is bug P1-2 documented by the module.
 
-    La lista es EXHAUSTIVA a propósito: añadir un código aquí significa decidir que puede gastar
-    intentos de la cuenta del usuario, y eso merece pasar por este test y no colarse por la regla
-    por defecto. A07908/A07909 entraron el 2026-10-01 tras confirmarse en campo que son un PIN
-    erróneo de verdad."""
+    The list is EXHAUSTIVE on purpose: adding a code here means deciding it may spend
+    attempts of the user's account, and that deserves to go through this test rather than slip in via the
+    default rule. A07908/A07909 were added on 2026-10-01 after being confirmed in the field as a genuinely
+    wrong PIN."""
     bloqueantes = {
         code
         for code in set(routing._TABLE) | set(routing._OVERRIDE_CHECKPASSWORD)
@@ -109,31 +109,31 @@ def test_solo_los_codigos_de_pin_cuentan_para_el_bloqueo() -> None:
         ("un-reason-que-no-existe", routing.ACTION_NOTICE),
     ],
 )
-def test_accion_por_reason(reason, action) -> None:
-    """Un `reason` desconocido degrada a aviso: nunca a reauth ni a un Repair inaccionable."""
+def test_action_for_reason(reason, action) -> None:
+    """An unknown `reason` degrades to a notice: never to reauth or to an unactionable Repair."""
     assert routing.action_for_reason(reason) == action
 
 
-def test_vistas_derivadas_coinciden_con_la_tabla() -> None:
-    """Los frozenset públicos se derivan de `_TABLA`; antes eran listas paralelas que podían
-    divergir en silencio."""
+def test_derived_views_match_the_table() -> None:
+    """The public frozensets are derived from `_TABLE`; they used to be parallel lists that could
+    silently drift."""
     assert {"000000", "A00079"} == routing.SUCCESS_CODES
     assert {"A00082"} == routing.RETRYABLE_CODES
     assert {"A00089", "A00546", "A00567"} == routing.TASKID_INVALID
     assert routing.SUCCESS_CODES.isdisjoint(routing.FAILURE_CODES)
 
 
-def test_la_familia_a079_de_checkpassword_SI_es_el_pin() -> None:
-    """Confirmado en campo el 2026-10-01: con el PIN correcto el mismo comando salió a la
-    primera, en la misma cuenta y tras toda una mañana dando A07908/A07909.
+def test_checkpassword_a079_family_is_the_pin() -> None:
+    """Confirmed in the field on 2026-10-01: with the correct PIN the same command went through first
+    time, on the same account and after a whole morning returning A07908/A07909.
 
-    Durante unas horas estuvieron clasificados al revés, con un razonamiento que parecía sólido
-    —la app aceptaba el PIN que a nosotros nos fallaba— y una premisa falsa: la app estaba
-    aceptando el PIN NUEVO de otra cuenta.
+    For a few hours they were classified the other way round, on reasoning that looked solid
+    —the app accepted the PIN that failed for us— and a false premise: the app was
+    accepting the NEW PIN of another account.
 
-    Esta prueba existe porque equivocarse aquí no lo paga el software, lo paga la cuenta del
-    usuario: sin `counts_for_lockout` el anti-bloqueo deja de frenar un PIN realmente erróneo y
-    Chery acaba bloqueando la cuenta."""
+    This test exists because being wrong here is not paid for by the software, it is paid for by the
+    user's account: without `counts_for_lockout` the lockout stops braking a genuinely wrong PIN and
+    Chery ends up locking the account."""
     for code in ("A07908", "A07909"):
         resultado = routing.classify(code, routing.CONTEXT_CHECKPASSWORD)
 
@@ -141,9 +141,9 @@ def test_la_familia_a079_de_checkpassword_SI_es_el_pin() -> None:
         assert resultado.reason == routing.REASON_PIN, code
 
 
-def test_los_permisos_del_vehiculo_no_cuentan_para_el_bloqueo() -> None:
-    """La otra mitad, que sigue en pie: un rechazo por permisos o por petición malformada no
-    debe acercar el bloqueo de la cuenta por una causa ajena al PIN."""
+def test_vehicle_permissions_do_not_count_towards_the_lockout() -> None:
+    """The other half, which still stands: a rejection due to permissions or a malformed request must
+    not bring the account lockout closer for a cause unrelated to the PIN."""
     for code in ("A00374", "A00554", "A00757"):
         resultado = routing.classify(code, routing.CONTEXT_CHECKPASSWORD)
 

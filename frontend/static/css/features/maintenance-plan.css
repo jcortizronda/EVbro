@@ -1,7 +1,7 @@
-/* EVBro — Mantenimiento: interruptor de plan, próxima revisión oficial, escalones y tareas propias.
-   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies. */
+/* EVBro — Maintenance: plan switch, next official service, steps and custom tasks.
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
-/* Interruptor Oficial / Personalizado */
+/* Official / custom switch */
 .maint-mode-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 5px; margin: 14px 0; background: var(--surface-secondary); border: 1px solid var(--border-color); border-radius: 18px; }
 .maint-mode-switch[hidden] { display: none; }
 .maint-mode-btn { display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 56px; padding: 8px 6px; font: inherit; color: var(--text-secondary); background: transparent; border: 0; border-radius: 14px; cursor: pointer; text-align: center; }
@@ -9,7 +9,7 @@
 .maint-mode-btn small { font-size: 0.72rem; }
 .maint-mode-btn.is-active { background: var(--surface); box-shadow: var(--shadow-pill); outline: 2px solid var(--accent-bright); outline-offset: -2px; }
 
-/* Fecha de entrega */
+/* Delivery date */
 .maint-baseline { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 14px; margin-bottom: 12px; }
 .maint-baseline.needs-setup { border-color: var(--accent-amber, #ff9f0a); }
 .maint-baseline-text { flex: 1 1 240px; display: flex; flex-direction: column; gap: 2px; }
@@ -18,7 +18,7 @@
 .maint-baseline-form input { min-height: 44px; }
 .maint-baseline-form button { min-height: 44px; }
 
-/* Próxima revisión */
+/* Next service */
 .maint-next { --st: var(--accent-green, #30d158); padding: 16px; margin-bottom: 12px; border-left: 4px solid var(--st); }
 .maint-next[data-status="warning"] { --st: var(--accent-amber, #ff9f0a); }
 .maint-next[data-status="due"] { --st: var(--accent-red, #ff453a); }
@@ -43,7 +43,7 @@
 .maint-ops-empty { font-size: 0.82rem; color: var(--text-muted); }
 .maint-register-btn { width: 100%; min-height: 48px; }
 
-/* Plan completo */
+/* Full plan */
 .maint-steps-card { padding: 16px; margin-bottom: 12px; }
 .maint-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; margin-bottom: 12px; }
 .maint-step { display: flex; flex-direction: column; gap: 1px; padding: 9px 10px; border: 1px solid var(--border-color); border-radius: 12px; background: var(--surface-secondary); font-size: 0.85rem; }
@@ -55,7 +55,7 @@
 .maint-matrix-details summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-weight: 600; font-size: 0.88rem; }
 .ebro-matrix-table .col-done { background: rgba(48, 209, 88, 0.1); }
 
-/* Plan personalizado */
+/* Custom plan */
 .maint-custom-bar { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 4px 0 12px; }
 .maint-custom-bar h3 { margin: 0; font-size: 1.1rem; }
 .maint-custom-bar button { min-height: 44px; }
@@ -69,7 +69,7 @@
 .maint-chip { min-height: 44px; padding: 0 14px; font: inherit; font-size: 0.85rem; font-weight: 600; color: var(--text-primary); background: var(--surface-secondary); border: 1px solid var(--border-color); border-radius: 999px; cursor: pointer; }
 .maint-chip:hover { border-color: var(--accent-bright); }
 
-/* Tabla de la marca en móvil: que quepan las 6 columnas sin desplazar (los nombres largos pasan a varias líneas) */
+/* Brand table on a phone: fit the 6 columns without scrolling (long names wrap onto several lines) */
 @media (max-width: 700px) {
   .maint-matrix-details .ebro-matrix-table { table-layout: fixed; font-size: 0.72rem; min-width: 0; }
   .maint-matrix-details .ebro-matrix-table th,
@@ -79,7 +79,7 @@
   .maint-matrix-details .badge-r, .maint-matrix-details .badge-i { min-width: 0; width: 20px; height: 20px; font-size: 0.68rem; }
 }
 
-/* ITV, acciones rápidas y fecha de entrega (ahora en la ficha del coche) */
+/* ITV, quick actions and delivery date (now in the car sheet) */
 .maint-itv { --st: var(--text-muted); padding: 14px 16px; margin-bottom: 12px; border-left: 4px solid var(--st); }
 .maint-itv[data-status="ok"] { --st: var(--accent-green, #30d158); }
 .maint-itv[data-status="warning"] { --st: var(--accent-amber, #ff9f0a); }

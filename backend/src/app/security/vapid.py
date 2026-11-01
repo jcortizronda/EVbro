@@ -1,8 +1,8 @@
-"""Claves VAPID del servidor para Web Push (en Android, Chrome entrega los avisos vía Google FCM).
+"""Server VAPID keys for Web Push (on Android, Chrome delivers the notices through Google FCM).
 
-La clave privada vive en `DATA_DIR/vapid_private.pem` (0600, volumen de datos, junto a `secret.key`)
-y se genera sola la primera vez. **Si se pierde, hay que volver a activar las notificaciones en
-cada dispositivo**: las suscripciones quedan ligadas a la clave pública.
+The private key lives in `DATA_DIR/vapid_private.pem` (0600, data volume, next to `secret.key`)
+and is generated automatically the first time. **If it is lost, notifications have to be turned on
+again on every device**: subscriptions are tied to the public key.
 """
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ def _key_path() -> str:
 
 
 def get_vapid() -> Vapid02:
-    """Carga (o genera) el par de claves. Se cachea en memoria."""
+    """Loads (or generates) the key pair. Cached in memory."""
     global _vapid
     with _lock:
         if _vapid is None:
@@ -42,13 +42,13 @@ def get_vapid() -> Vapid02:
                 fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
                 with os.fdopen(fd, "wb") as fh:
                     fh.write(v.private_pem())
-                _LOGGER.info("Generada la clave VAPID para Web Push en %s", path)
+                _LOGGER.info("Generated the Web Push VAPID key at %s", path)
                 _vapid = v
         return _vapid
 
 
 def public_key_b64() -> str:
-    """Clave pública en el formato que espera `pushManager.subscribe` (base64url sin relleno)."""
+    """Public key in the format `pushManager.subscribe` expects (base64url without padding)."""
     raw = get_vapid().public_key.public_bytes(
         serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint
     )
@@ -56,7 +56,7 @@ def public_key_b64() -> str:
 
 
 def reset_cache() -> None:
-    """Solo para los tests."""
+    """Tests only."""
     global _vapid
     with _lock:
         _vapid = None

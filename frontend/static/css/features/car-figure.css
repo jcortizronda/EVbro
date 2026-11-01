@@ -1,5 +1,5 @@
 /* EVBro — Car figure on the home tab, plan view (features/car-figure.js).
-   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies.
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it.
    Colour tokens: --cf-body is the car's own colour when the car sheet names one (set by car-figure.js), --cf-line its seam colour. */
 
 .car-figure {

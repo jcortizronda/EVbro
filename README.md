@@ -26,7 +26,6 @@ Tu Ebro en el móvil: datos en directo, control remoto, viajes, cargas, mantenim
 - [Instalación](#instalación)
 - [Documentación](#documentación)
 - [Idiomas](#idiomas)
-- [Qué no está probado todavía](#qué-no-está-probado-todavía)
 - [Apoya el proyecto](#apoya-el-proyecto)
 - [Licencia](#licencia)
 
@@ -82,10 +81,6 @@ La imagen es `ghcr.io/jcortizronda/evbro` (`latest` o `vX.Y.Z`); actualizar es `
 ## Idiomas
 
 La aplicación, los avisos, el libro del coche y la consola están en **español, inglés y portugués**; cada cuenta elige el suyo en Ajustes → Sistema.
-
-## Qué no está probado todavía
-
-Se ha construido contra un único coche real y hay partes que **no se han validado** con el coche o con los servicios reales: el control de la carga por programación en todas sus situaciones, las órdenes que llegan desde Home Assistant por MQTT, la alarma y el envío real de notificaciones push. Si algo no cuadra, abre un *issue* con lo que esperabas y lo que pasó.
 
 ## Apoya el proyecto
 

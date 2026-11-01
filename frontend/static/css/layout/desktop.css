@@ -1,17 +1,17 @@
-/* EVBro — Interfaz de ORDENADOR (ratón y pantalla ≥ 769 px).
-   Hoja suelta: el ORDEN de carga (templates/index.html) es el de la cascada original; no lo cambies.
+/* EVBro — DESKTOP interface (mouse and screen ≥ 769 px).
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it.
 
-   En táctil (móvil, tablet, o el móvil en «sitio de escritorio») no se aplica nada de aquí: manda el dock inferior y
-   la columna única. Con ratón la aplicación deja de ser un móvil ancho: barra lateral con TODAS las secciones (también
-   las que en el móvil viven en «Más»), contenido a dos columnas por pestaña y el mapa a tamaño de escritorio.
-   Entre 769 y 1099 px (ventana pequeña) la barra lateral se estrecha a iconos con su nombre debajo. */
+   On touch (phone, tablet, or the phone in «desktop site» mode) nothing here applies: the bottom dock and the single
+   column rule. With a mouse the app stops being a wide phone: a sidebar with ALL the sections (also the ones that live
+   in «Más» on the phone), two-column content per tab and the map at desktop size.
+   Between 769 and 1099 px (small window) the sidebar narrows to icons with their name underneath. */
 
 .desktop-sidebar { display: none; }
 
 @media (min-width: 769px) and (hover: hover) and (pointer: fine) {
   :root { --side-w: 236px; --head-h: 64px; --desk-gap: 20px; }
 
-  /* ───────── Marco: cabecera fija, barra lateral fija, contenido desplazado ───────── */
+  /* ───────── Frame: fixed header, fixed sidebar, scrolling content ───────── */
   .navbar-main { height: var(--head-h); max-width: none; padding: 0 1.5rem; }
   .native-bottom-dock { display: none; }
 
@@ -46,23 +46,23 @@
   }
   .tab-content { padding-bottom: 0; }
   .native-app-container { max-width: 1320px; margin: 0 auto; }
-  /* Bloques que algunas pestañas (Viajes) ponen fuera del contenedor: alineados con él */
+  /* Blocks some tabs (Viajes) put outside the container: aligned with it */
   .tab-content > :not(.native-app-container) { max-width: 1320px; margin-left: auto; margin-right: auto; }
 
-  /* El menú «Más» es del móvil: aquí todo está en la barra lateral */
+  /* The «Más» menu is for phones: here everything is in the sidebar */
   #tabMore { display: none; }
 
-  /* Las fichas de categoría de Gastos se deslizaban con el dedo; con ratón se reparten en varias filas */
+  /* The Gastos category chips were swiped with a finger; with a mouse they wrap onto several rows */
   .ex-chips { flex-wrap: wrap; overflow: visible; }
 
-  /* ───────── Rejillas por pestaña (dos columnas) ───────── */
+  /* ───────── Per-tab grids (two columns) ───────── */
   .desk-grid { display: grid; column-gap: var(--desk-gap); align-items: start; }
   .desk-grid > .native-section-header { grid-column: 1 / -1; }
   .desk-sticky { position: sticky; top: calc(var(--head-h) + 1.5rem); }
 }
 
 @media (min-width: 1100px) and (hover: hover) and (pointer: fine) {
-  /* Inicio: autonomía, fichas y presiones a la izquierda; mapa grande fijo a la derecha */
+  /* Inicio: range, tiles and pressures on the left; large fixed map on the right */
   #tabOverview .native-app-container {
     display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); column-gap: var(--desk-gap); align-items: start;
     grid-template-areas: "banner banner" "range map" "figure map" "actions map" "kpi map" "tpms map" "sensors map";
@@ -77,7 +77,7 @@
   #liveMapCard { grid-area: map; position: sticky; top: calc(var(--head-h) + 1.5rem); margin-bottom: 1rem; }
   .map-card:not(.map-expanded) .live-map-wrap { height: 460px; }
 
-  /* Energía: carga y control a la izquierda; datos de la batería e historial a la derecha */
+  /* Energía: charge and control on the left; battery data and history on the right */
   #tabCharges .native-app-container {
     display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: var(--desk-gap); align-items: start;
     grid-template-areas: "banner banner" "energy acc" "kpi acc" "control acc" "sched acc" ". acc";
@@ -88,10 +88,10 @@
   #chargeControl { grid-area: control; }
   #chargeSchedulePanel { grid-area: sched; }
   #accBatteryTelemetry { grid-area: acc; }
-  /* El detalle de una carga se diseñó para el ancho completo; en su columna va en una sola pila */
+  /* A charge's detail was designed for full width; in its column it goes in a single stack */
   #accBatteryTelemetry .charge-main-grid { grid-template-columns: 1fr; }
 
-  /* Confort: temperatura a la izquierda; lunas, asientos y ayuda a la derecha */
+  /* Confort: temperature on the left; windows, seats and help on the right */
   #tabClimate .native-app-container {
     display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: var(--desk-gap); align-items: start;
     grid-template-areas: "banner banner" "temp defrost" "temp seats" "sched .";
@@ -102,7 +102,7 @@
   #tabClimate .comfort-section:has(#comfortDefrost) { grid-area: defrost; }
   #tabClimate .comfort-section:has(#comfortSeats) { grid-area: seats; }
 
-  /* Mantenimiento: plan a la izquierda; ITV e historial de intervenciones a la derecha */
+  /* Mantenimiento: plan on the left; ITV and intervention history on the right */
   #tabMaintenance .native-app-container {
     display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: var(--desk-gap); align-items: start;
   }
@@ -112,13 +112,13 @@
   #tabMaintenance .table-card { grid-column: 2; grid-row: 4; }
   #directInvoiceUploadInput { grid-column: 1; }
 
-  /* Gastos: gastos a la izquierda, repostajes a la derecha */
+  /* Gastos: expenses on the left, refuels on the right */
   #tabExpenses .native-app-container {
     display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: var(--desk-gap); align-items: start;
   }
   #tabExpenses .native-section-header, #exDueCard { grid-column: 1 / -1; }
 
-  /* Costes: total y reparto a la izquierda; gráfica y lista a la derecha */
+  /* Costes: total and breakdown on the left; chart and list on the right */
   #tabCosts .native-app-container {
     display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: var(--desk-gap); align-items: start;
   }
@@ -132,7 +132,7 @@
   #tabCosts .costs-list-card { grid-column: 2; grid-row: 4 / span 3; }
   #tabCosts .costs-goto { grid-column: 1 / -1; grid-row: 7; }
 
-  /* Repostajes: consumo y litros por mes a la izquierda; lista a la derecha */
+  /* Repostajes: consumption and litres per month on the left; list on the right */
   #tabRefuels .native-app-container {
     display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: var(--desk-gap); align-items: start;
   }
@@ -141,7 +141,7 @@
   #tabRefuels .costs-hero, #tabRefuels .costs-chart-card { grid-column: 1; }
   #rfListCard { grid-column: 2; grid-row: 3 / span 2; }
 
-  /* Geocercas: mapa fijo a la izquierda, lista a la derecha */
+  /* Geocercas: fixed map on the left, list on the right */
   #tabGeofences .native-app-container {
     display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: var(--desk-gap); align-items: start;
   }
@@ -149,11 +149,11 @@
   #tabGeofences .native-app-container > .glass:first-of-type { position: sticky; top: calc(var(--head-h) + 1.5rem); }
   #geofencesOverviewMap { height: 520px !important; }
 
-  /* Coches: foto a la izquierda, ficha a la derecha */
+  /* Coches: photo on the left, sheet on the right */
   #vpPaneData { display: grid; grid-template-columns: 320px minmax(0, 1fr); column-gap: var(--desk-gap); align-items: start; }
   #vpPaneData .vp-photo-card { position: sticky; top: calc(var(--head-h) + 1.5rem); }
 
-  /* Ajustes: submenú vertical a la izquierda, panel a la derecha */
+  /* Ajustes: vertical submenu on the left, panel on the right */
   #tabSettings .native-app-container {
     display: grid; grid-template-columns: 220px minmax(0, 1fr); column-gap: 24px; align-items: start;
   }
@@ -165,11 +165,11 @@
   #tabSettings .settings-sub-nav .sub-nav-btn { justify-content: flex-start; flex: 0 0 auto; text-align: left; }
   #tabSettings .sub-tab-panel { grid-column: 2; grid-row: 2; }
 
-  /* Las filas-tarjeta de las tablas tienen sitio para más columnas */
+  /* Table card rows have room for more columns */
   table.data-table tr { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
 }
 
-/* Ventana pequeña con ratón (769–1099 px): barra lateral estrecha, icono con el nombre debajo */
+/* Small window with a mouse (769–1099 px): narrow sidebar, icon with its name underneath */
 @media (min-width: 769px) and (max-width: 1099px) and (hover: hover) and (pointer: fine) {
   :root { --side-w: 94px; }
   .desktop-sidebar { padding: 10px 6px 12px; }
