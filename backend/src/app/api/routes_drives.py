@@ -14,6 +14,7 @@ from app.config import get_timezone
 from app.db.models import Drive, DrivePosition
 from app.db.session import get_db
 from app.services import gpx, periods, places
+from app.services.stats import MIN_DRIVE_KM
 
 router = APIRouter(tags=["Drives"])
 
@@ -145,6 +146,8 @@ async def list_vehicle_drives(
     total_fuel_l = 0.0
     total_duration_sec = 0
     total_distance_km = 0.0
+    eff_km = 0.0          # km and kWh of the drives that enter the average consumption: the same rule as services/stats.py,
+    eff_kwh = 0.0         # so the «Resumen del periodo» and the Energía / Estadísticas figures agree for the same period
 
     for d in all_drives:
         fmt = format_drive_dict(d)
@@ -156,9 +159,14 @@ async def list_vehicle_drives(
             total_fuel_l += (d.fuel_used_l or 0.0)
             total_duration_sec += (d.duration_seconds or 0)
             total_distance_km += (d.distance_km or 0.0)
+            if (d.distance_km or 0.0) >= MIN_DRIVE_KM and d.energy_consumed_kwh:
+                eff_km += d.distance_km
+                eff_kwh += d.energy_consumed_kwh
 
-    # averages for the period summary banner
-    avg_wh_km = round((total_energy_kwh * 1000.0) / total_distance_km, 1) if total_distance_km > 0 else 0.0
+    # averages for the period summary banner. Electric consumption only over drives of ≥ MIN_DRIVE_KM with measured energy:
+    # a drive without kWh would add km and no energy, and in a very short one a single battery point and the odometer's
+    # whole-km rounding give meaningless figures.
+    avg_wh_km = round((eff_kwh * 1000.0) / eff_km, 1) if eff_km >= MIN_DRIVE_KM else 0.0
     avg_fuel_l_100 = round((total_fuel_l * 100.0) / total_distance_km, 2) if total_distance_km > 0 else 0.0
 
     # pagination over the complete drives

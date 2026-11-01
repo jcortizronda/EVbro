@@ -68,6 +68,21 @@ async def test_a_trip_reports_consumption_and_no_invented_efficiency(web) -> Non
     assert d["consumption_wh_km"] == 200.0 and d["consumption_kwh_100km"] == 20.0 and d["battery_used_pct"] == 10.0
 
 
+async def test_period_summary_consumption_matches_stats_and_ignores_short_or_unmeasured_trips(web) -> None:
+    """The «Resumen del periodo» average must be the same figure the Energía and Estadísticas screens show for the
+    same period: only drives of ≥ 3 km with measured energy count (a 7 km drive without kWh and a 2 km one do not)."""
+    await _drives()
+    async with async_session_factory() as s:
+        s.add(Drive(vin=VIN, start_time=D(2026, 10, 6, 8), end_time=D(2026, 10, 6, 8, 10), distance_km=2.0, energy_consumed_kwh=0.9))
+        s.add(Drive(vin=VIN, start_time=D(2026, 10, 7, 8), end_time=D(2026, 10, 7, 8, 5), distance_km=0.0, energy_consumed_kwh=0.2))
+        await s.commit()
+    summary = (await web.get(f"/api/vehicles/{VIN}/drives?period=all&limit=50")).json()["summary"]
+    assert summary["total_distance_km"] == 54.0 and summary["total_energy_kwh"] == 8.1            # every complete drive still adds up
+    assert summary["avg_consumption_wh_km"] == 155.6                                           # 7 kWh over 45 km, not 8.1 over 54
+    totals = (await web.get(f"/api/vehicles/{VIN}/stats?period=all")).json()["totals"]
+    assert totals["kwh_per_100km"] == round(summary["avg_consumption_wh_km"] / 10, 1) == 15.6
+
+
 async def test_charge_summary_adds_up_every_charge_by_month(web) -> None:
     async with async_session_factory() as s:
         for i in range(35):                                                      # more than one page of the list

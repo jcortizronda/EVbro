@@ -32,7 +32,8 @@ velocidad > 1 km/h o `engineState` = `driving`. El sondeo trata `ready` como «e
   ruta, la reproducción y las geocercas, donde un hueco de cobertura se ve, pero no para medir. Hasta la migración `0016_odometer_distance` se
   sumaban los decimales del GPS cuando su parte entera coincidía con el odómetro; como el coche cuenta esos decimales en el kilómetro siguiente, la
   suma de los viajes crecía por encima del odómetro real (decisión del dueño, 2026-10-31; la migración truncó los viajes antiguos). Un trayecto muy
-  corto puede salir como 0 km, igual que en el salpicadero; las gráficas de consumo ya ignoran los viajes de menos de 3 km. Los viajes construidos
+  corto puede salir como 0 km, igual que en el salpicadero; las gráficas de consumo, la ficha «Consumo EV» de Energía y el consumo medio del
+  resumen de Viajes ignoran los viajes de menos de 3 km y los que no tienen energía medida (`MIN_DRIVE_KM` en `services/stats.py`). Los viajes construidos
   solo por GPS ([traccar.md](traccar.md)) no tienen odómetro y conservan la distancia de sus puntos.
 - **Viaje abierto tras un reinicio:** se retoma si su última actividad fue hace menos de 30 min (y se cierra con las reglas de arriba); si es más
   antiguo se deja como estaba («Viajes incompletos»).
