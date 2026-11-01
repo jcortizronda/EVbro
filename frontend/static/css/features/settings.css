@@ -11,7 +11,7 @@
   .notif-trigger-desc { font-size: 0.76rem; }
 }
 
-/* Ajustes submenu: the 5 sections fit the phone width (icon above text) */
+/* Ajustes submenu: the 6 sections fit the phone width (icon above text) */
 @media (max-width: 600px) {
   .settings-sub-nav { gap: 2px; overflow-x: visible; }
   .settings-sub-nav .sub-nav-btn {
@@ -21,6 +21,13 @@
   .settings-sub-nav .sub-nav-btn svg { width: 20px; height: 20px; }
 }
 #carChannelDetail { font-size: 0.78rem; font-weight: 600; line-height: 1.35; }
+
+/* Ajustes sections fold like the car sheet's (.vp-section in vehicle-profile.css); a status badge sits before the chevron */
+#tabSettings .set-section { margin: 0; padding: 6px 16px 12px; }
+#tabSettings .set-section:not([open]) { padding-bottom: 6px; }
+#tabSettings .set-section > .vp-section-title .status-badge { margin-left: auto; flex: none; }
+#tabSettings .set-section > .vp-section-title .status-badge + .vp-chev { margin-left: 6px; }
+@media (max-width: 600px) { #tabSettings .set-section { padding: 6px 14px 12px; } #tabSettings .set-section:not([open]) { padding-bottom: 6px; } }
 
 /* Position from the phone (Ajustes → Sistema) */
 .pt-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--border-color); }

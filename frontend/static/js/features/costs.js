@@ -30,26 +30,26 @@ async function loadCosts() {
 function renderCosts() {
   const d = costsData;
   if (!d) return;
-  const t = d.totals;
+  const tot = d.totals;   // not `t`: that name is the translation function
   const label = costsPickerOf().isEverything() ? 'Total desde la compra' : t('Total · {p0}', {p0: costsPickerOf().label().toLowerCase()});
   cEl('costsHeroLabel').textContent = label;
-  cEl('costsTotal').textContent = money(t.all);
-  cEl('costsHeroSub').textContent = t.purchase ? t('Compra {p0} + uso {p1}', {p0: moneyShort(t.purchase), p1: moneyShort(t.running)}) : 'Cargas, repostajes, mantenimiento y gastos';
-  cEl('costsRunning').textContent = money(t.running);
+  cEl('costsTotal').textContent = money(tot.all);
+  cEl('costsHeroSub').textContent = tot.purchase ? t('Compra {p0} + uso {p1}', {p0: moneyShort(tot.purchase), p1: moneyShort(tot.running)}) : 'Cargas, repostajes, mantenimiento y gastos';
+  cEl('costsRunning').textContent = money(tot.running);
   cEl('costsPer100').textContent = d.per_100km !== null ? money(d.per_100km) : '--';
   cEl('costsKm').textContent = d.km ? `${Math.round(d.km).toLocaleString(I18n.locale)} km` : '--';
 
   const v = d.vehicle;
-  cEl('costsPurchase').textContent = t.purchase ? money(t.purchase) : '--';
+  cEl('costsPurchase').textContent = tot.purchase ? money(tot.purchase) : '--';
   cEl('costsPurchaseSub').textContent = v.purchase_price ? (v.purchase_date ? t('Entrega: {p0}', {p0: serverDate(v.purchase_date).toLocaleDateString(I18n.locale)}) : '')
     : 'Indícala en la ficha del coche';
-  cEl('costsCharges').textContent = money(t.charges);
+  cEl('costsCharges').textContent = money(tot.charges);
   cEl('costsChargesSub').textContent = t('{p0} kWh a la batería', {p0: String(d.energy.kwh).replace('.', ',')});
-  cEl('costsRefuels').textContent = money(t.refuels);
+  cEl('costsRefuels').textContent = money(tot.refuels);
   cEl('costsRefuelsSub').textContent = `${String(d.energy.liters).replace('.', ',')} L`;
-  cEl('costsMaint').textContent = money(t.maintenance);
+  cEl('costsMaint').textContent = money(tot.maintenance);
   cEl('costsMaintSub').textContent = 'Revisiones, ITV y arreglos';
-  cEl('costsExpenses').textContent = money(t.expenses);
+  cEl('costsExpenses').textContent = money(tot.expenses);
   cEl('costsExpensesSub').textContent = 'Seguro, impuestos, garaje y más';
 
   const pend = cEl('costsPending');
@@ -60,7 +60,7 @@ function renderCosts() {
   if (parts.length) pend.innerHTML = `<strong>${t('{p0} sin precio.', {p0: parts.join(' y ')})}</strong> No cuentan en los totales hasta que los valores (las cargas en Energía, «Editar coste»; los repostajes en Repostajes).`;
 
   renderCostBars(d.monthly);
-  renderCostCategories(d.by_category, t.expenses);
+  renderCostCategories(d.by_category, tot.expenses);
   cEl('costsRecent').innerHTML = d.recent.length ? d.recent.map((x) => `
     <div class="costs-row">
       <div class="costs-row-main"><strong>${escapeHtml(x.title)}</strong><small>${serverDate(x.date).toLocaleDateString(I18n.locale)} · ${escapeHtml(x.detail)}</small></div>

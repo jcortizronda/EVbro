@@ -9,7 +9,7 @@
 - **Un WebSocket por servidor** (`TraccarHub`): varios coches en el mismo Traccar comparten la conexión; cada posición se enruta por `deviceId`.
 - Alternativa no usada: Traccar también puede reenviar posiciones a una URL (`forward.url`), pero exige tocar la configuración del servidor; el token no.
 
-## Configuración (Ajustes → Sistema → «Posición por GPS (Traccar)»; la tarjeta tiene su propio selector de coche, con el de la cabecera preseleccionado; solo el dueño)
+## Configuración (Ajustes → Conexiones → «Posición por GPS (Traccar)»; la tarjeta tiene su propio selector de coche, con el de la cabecera preseleccionado; solo el dueño)
 
 Servidor (nombre o URL completa), puerto (8082 por defecto), HTTPS, aceptar certificado autofirmado, token, **«Probar conexión»** (devuelve versión y la lista de dispositivos para elegir el del coche), **«Construir los viajes con estas posiciones»**, minutos parado para cerrar un viaje (5 por defecto) y Activo. Rutas: `GET/PUT/DELETE /api/vehicles/{vin}/traccar`, `POST …/traccar/test` (nivel `owner`), `GET /api/vehicles/{vin}/gps/latest` (`view`, para el mapa).
 

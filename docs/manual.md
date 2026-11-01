@@ -72,12 +72,13 @@ El menú con el resto de secciones, agrupadas en **Historial** y **Gestión**.
 
 **Geocercas.** Zonas en el mapa (casa, trabajo, cargador…) con radio. Sirven para tres cosas: **avisar** al entrar o salir, **poner precio** a las cargas hechas dentro (tarifa fija, gratis, 2.0TD con sus tres precios o PVPC regulado) y clasificar los viajes. La tarjeta **Entradas y salidas** es el registro de cada paso por ellas.
 
-**Ajustes.**
-- *Cuenta*: tu usuario de EVBro (cambiar contraseña, cerrar sesión), **acceso con huella** (añade este dispositivo y entra sin contraseña; exige HTTPS), la **cuenta de Ebro** (conectar, sincronizar coches, guardar o cambiar el PIN) y **cuándo pedir el PIN**: solo al abrir el coche (por defecto), siempre o nunca. **Tus datos**: descargar todo en un ZIP e importar un ZIP en otro servidor. Enlace a qué datos guarda este servidor. Conexión con el broker **MQTT de Home Assistant** para que tus coches aparezcan allí.
+**Ajustes.** Cada apartado es una sección desplegable; el móvil recuerda cuáles dejaste abiertas.
+- *Cuenta*: tu usuario de EVBro (cambiar contraseña, cerrar sesión), **acceso con huella** (añade este dispositivo y entra sin contraseña; exige HTTPS), la **cuenta de Ebro** (conectar, sincronizar coches, guardar o cambiar el PIN) y **cuándo pedir el PIN**: solo al abrir el coche (por defecto), siempre o nunca. **Tus datos**: descargar todo en un ZIP e importar un ZIP en otro servidor. Enlace a qué datos guarda este servidor.
 - *Compartir*: cuentas asociadas (pareja, familia) y qué puede hacer cada una con cada coche: ver; ver y editar; ver y controlar; ver, editar y controlar.
 - *Avisos*: notificaciones en este dispositivo (Web Push), Telegram, Pushover o webhook, y qué eventos avisan: entrada y salida de geocercas, reserva de combustible, fallos, ventanas abiertas, batería baja, carga completada o interrumpida, mantenimiento, alarma, presión de neumáticos y vencimientos, con sus umbrales. Historial de avisos enviados.
+- *Conexiones*: el broker **MQTT de Home Assistant**, para que tus coches aparezcan allí, y la posición por GPS desde un servidor **Traccar**.
 - *Tema*: claro, oscuro o automático y color de acento (azul, rosa, violeta, verde, ámbar, rojo). Se guarda en el dispositivo.
-- *Sistema*: posición por GPS con **Traccar**, **canal del coche** (la conexión en directo con la nube: estado, mensajes recibidos, botón Reconectar), **idioma** de la cuenta y versión instalada.
+- *Sistema*: **canal del coche** (la conexión en directo con la nube: estado, mensajes recibidos, botón Reconectar), **idioma** de la cuenta y versión instalada.
 
 **Sensores y cables.** Todos los datos que envía el coche tal cual llegan, con su nombre y explicación, por categorías (cables y carga, batería, neumáticos, carrocería, climatización, motor y diagnóstico) y un buscador. Útil para entender qué significa cada señal.
 

@@ -17,7 +17,7 @@ import sys
 from playwright.sync_api import sync_playwright
 
 TABS = ["overview", "charges", "climate", "drives", "timeline", "stats", "refuels", "maintenance", "expenses", "costs", "vehicle", "geofences", "settings"]
-SETTINGS = ["account", "accounts", "notifs", "theme", "system"]
+SETTINGS = ["account", "accounts", "notifs", "connections", "theme", "system"]
 WIDTHS = [1024, 1366, 1920]
 
 FIND_OVERFLOW = """(width) => {

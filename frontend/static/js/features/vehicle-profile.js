@@ -42,18 +42,18 @@ function vpOpenSections() {
   return ['identity'];
 }
 function vpSaveSections() {
-  const open = [...document.querySelectorAll('.vp-section[open]')].map((d) => d.dataset.key);
+  const open = [...document.querySelectorAll('#tabVehicle .vp-section[open]')].map((d) => d.dataset.key);   // Ajustes reuses the look, not this memory
   try { localStorage.setItem(VP_FOLD_KEY, JSON.stringify(open)); } catch (e) { /* does not matter */ }
 }
 function initVehicleFolds() {
   const saved = vpOpenSections();
-  document.querySelectorAll('.vp-section').forEach((d) => {
+  document.querySelectorAll('#tabVehicle .vp-section').forEach((d) => {
     d.open = saved.includes(d.dataset.key);
     d.addEventListener('toggle', vpSaveSections);
   });
 }
 function foldVehicleSections(open) {
-  document.querySelectorAll('.vp-section').forEach((d) => { d.open = open; });
+  document.querySelectorAll('#tabVehicle .vp-section').forEach((d) => { d.open = open; });
   vpSaveSections();
 }
 /** Opens the section that holds a field (before focusing it after a validation error). */

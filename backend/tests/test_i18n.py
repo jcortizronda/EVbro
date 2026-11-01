@@ -171,3 +171,27 @@ def test_the_dictionaries_keep_the_placeholders_of_their_keys() -> None:
     for path in [*(FRONTEND / "static" / "i18n").glob("*.json"), *(SRC / "locales").glob("*.json")]:
         for key, value in json.loads(path.read_text(encoding="utf-8")).items():
             assert set(re.findall(r"\{(\w+)\}", key)) == set(re.findall(r"\{(\w+)\}", value)), (path.name, key, value)
+
+
+def test_no_local_variable_named_t_hides_the_translation_function() -> None:
+    """`t()` is the global translation function. A `const t = …` in a function that also calls `t('…')` makes that call
+    throw (TypeError: t is not a function) and the whole screen stays empty: it happened to Costes (2026-11-01)."""
+    from tests.paths import FRONTEND
+
+    files = [*(FRONTEND / "static" / "js").rglob("*.js"), FRONTEND / "admin" / "assets" / "admin.js"]
+    hits = []
+    for path in files:
+        src = path.read_text(encoding="utf-8")
+        for m in re.finditer(r"\b(?:const|let|var)\s+t\s*=", src):
+            depth, end = 0, len(src)
+            for i in range(m.end(), len(src)):          # up to the end of the enclosing block
+                if src[i] == "{":
+                    depth += 1
+                elif src[i] == "}":
+                    depth -= 1
+                    if depth < 0:
+                        end = i
+                        break
+            if re.search(r"(?<![\w.$])t\(", src[m.end():end]):
+                hits.append(f"{path.name}:{src.count(chr(10), 0, m.start()) + 1}")
+    assert not hits, hits

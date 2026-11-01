@@ -26,6 +26,7 @@ def authenticated(pg):
 
 def open_account(pg):
     pg.evaluate("switchTab('settings'); switchSettingsSubTab('account')")
+    pg.evaluate("document.getElementById('passkeyCard').open = true")   # Ajustes sections start folded
     pg.wait_for_timeout(600)
 
 

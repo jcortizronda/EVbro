@@ -16,8 +16,8 @@ def visible_html() -> str:
 
 
 def test_the_interface_does_not_mention_home_assistant() -> None:
-    """The only place that may name Home Assistant is the card that connects to it (Ajustes → Cuenta → Home Assistant (MQTT))."""
-    text = re.sub(r'<div class="glass details-card needs-root u-margin-bottom-1rem" id="mqttCard">.*?</div>\s*</div>\s*</div>', "", visible_html(), flags=re.S)
+    """The only place that may name Home Assistant is the card that connects to it (Ajustes → Conexiones → Home Assistant (MQTT))."""
+    text = re.sub(r'<details class="[^"]*" id="mqttCard"[^>]*>.*?</details>', "", visible_html(), flags=re.S)
     assert "mqttCard" not in text
     for forbidden in ("Home Assistant", "(HA)", "Sensores HA"):
         assert forbidden not in text, forbidden

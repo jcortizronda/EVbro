@@ -81,11 +81,11 @@ function switchTab(tabName) {
 /**
  * Sub-tab navigation inside the Ajustes (settings) module.
  * Each section is decoupled and lazy-loaded on demand.
- * @param {'account'|'accounts'|'notifs'|'theme'|'system'} subTabName
+ * @param {'account'|'accounts'|'notifs'|'connections'|'theme'|'system'} subTabName
  */
 function switchSettingsSubTab(subTabName) {
   window.currentSettingsSubTab = subTabName;
-  const validSubTabs = ['account', 'accounts', 'notifs', 'theme', 'system'];
+  const validSubTabs = ['account', 'accounts', 'notifs', 'connections', 'theme', 'system'];
   if (!validSubTabs.includes(subTabName)) {
     console.warn(`[Ajustes] Unknown sub-tab: ${subTabName}`);
     return;
@@ -115,19 +115,37 @@ function switchSettingsSubTab(subTabName) {
     if (typeof checkAccountStatus === 'function') checkAccountStatus();
     if (window.EbroPasskeys) EbroPasskeys.refresh();        // «Acceso con huella» lives here
     if (typeof loadStorageUsage === 'function') loadStorageUsage();   // «Espacio usado» for documents, invoices and photos
-    if (window.MqttHa) MqttHa.load();                        // the manager's own broker for Home Assistant
   } else if (subTabName === 'accounts') {
     if (typeof loadAccounts === 'function') loadAccounts();
   } else if (subTabName === 'notifs') {
     if (typeof loadNotificationConfig === 'function') loadNotificationConfig();
+  } else if (subTabName === 'connections') {
+    if (window.MqttHa) MqttHa.load();                   // the manager's own broker for Home Assistant
+    if (window.Traccar) Traccar.load();                 // «Posición por GPS (Traccar)» of the chosen car
   } else if (subTabName === 'theme') {
     if (typeof updateThemeSettingsUI === 'function') updateThemeSettingsUI();
   } else if (subTabName === 'system') {
     if (typeof loadCarChannelStatus === 'function') loadCarChannelStatus();
-    if (window.Traccar) Traccar.load();                 // «Posición por GPS (Traccar)» of the chosen car
     loadAppVersion();
   }
 }
+
+/* Ajustes sections (<details class="set-section">): every card folds like the car sheet's, and which ones are open is
+ * remembered on this device. By default only «Cuenta de Ebro» is open; the rest show just their title (and status badge). */
+const SETTINGS_FOLD_KEY = 'evbro_settings_open';
+function initSettingsFolds() {
+  let open = ['ebro'];
+  try { const v = JSON.parse(localStorage.getItem(SETTINGS_FOLD_KEY)); if (Array.isArray(v)) open = v; } catch (e) { /* no storage */ }
+  const sections = document.querySelectorAll('#tabSettings .set-section');
+  sections.forEach((d) => {
+    d.open = open.includes(d.dataset.key);
+    d.addEventListener('toggle', () => {
+      const now = [...document.querySelectorAll('#tabSettings .set-section[open]')].map((s) => s.dataset.key);
+      try { localStorage.setItem(SETTINGS_FOLD_KEY, JSON.stringify(now)); } catch (e) { /* does not matter */ }
+    });
+  });
+}
+document.addEventListener('DOMContentLoaded', initSettingsFolds);
 
 /** Ajustes → Sistema: the running version and, when the image was built with it, the commit. Asked once. */
 let appVersionLoaded = false;

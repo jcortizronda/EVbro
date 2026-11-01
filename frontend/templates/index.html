@@ -1762,6 +1762,10 @@
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
             <span>Avisos</span>
           </button>
+          <button class="sub-nav-btn needs-owner" id="btnSettingsSubConnections" data-on-click="switchSettingsSubTab('connections')">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 0 1 0 10h-2"/><path d="M8 12h8"/></svg>
+            <span>Conexiones</span>
+          </button>
           <button class="sub-nav-btn" id="btnSettingsSubTheme" data-on-click="switchSettingsSubTab('theme')">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
             <span>Tema</span>
@@ -1774,45 +1778,10 @@
 
         <!-- Sub-panel 1: official Ebro account -->
         <div id="settingsSubTabAccount" class="sub-tab-panel active">
-          <!-- Your data: export everything and import (manager only) -->
-          <div class="glass details-card needs-root" id="accountDataCard">
-            <div class="card-title">Tus datos</div>
-            <p class="setting-hint">Un ZIP con todo lo tuyo (coches, historial, documentos y fotos; sin contraseñas), que sirve de copia y para llevarlo a otro servidor de EVBro.</p>
-            <div class="ad-actions">
-              <button type="button" class="btn-primary" id="adExport" data-on-click="AccountData.download()">Descargar todo (ZIP)</button>
-              <button type="button" class="btn-secondary" data-on-click="AccountData.pick()">Importar un ZIP</button>
-              <input type="file" id="adImportFile" accept=".zip,application/zip" class="u-display-none" data-on-change="AccountData.importFile(this)">
-            </div>
-            <pre class="ad-report" id="adImportReport" hidden></pre>
-            <p class="setting-hint"><a href="/legal" target="_blank" rel="noopener">Qué datos guarda este servidor y qué puedes pedir</a>.</p>
-          </div>
-          <!-- Home Assistant: the manager's own MQTT broker (features/account.js, MqttHa) -->
-          <div class="glass details-card needs-root u-margin-bottom-1rem" id="mqttCard">
-            <div class="card-title">Home Assistant (MQTT)</div>
-            <p class="setting-hint">Conecta el broker MQTT de tu Home Assistant (Mosquitto): tus coches aparecen allí solos, con las mismas entidades que la integración <code>ebro</code>, y Home Assistant puede mandarles órdenes con el PIN guardado. Quita antes esa integración o las entidades nuevas saldrán con <code>_2</code>.</p>
-            <p class="vp-status" id="mqStatus" data-tone="neutral"></p>
-            <div class="vp-grid">
-              <label class="vp-field vp-wide"><span>Broker (IP o nombre)</span><input type="text" id="mqHost" class="form-control" maxlength="255" placeholder="192.168.1.10" autocomplete="off" /></label>
-              <label class="vp-field"><span>Puerto</span><input type="number" id="mqPort" class="form-control" min="1" max="65535" placeholder="1883" /></label>
-              <label class="vp-field"><span>Usuario</span><input type="text" id="mqUser" class="form-control" maxlength="120" autocomplete="off" /></label>
-              <label class="vp-field"><span>Contraseña</span><input type="password" id="mqPass" class="form-control" maxlength="200" autocomplete="new-password" /></label>
-              <label class="vp-check"><input type="checkbox" id="mqTls" /> Conexión cifrada (TLS, puerto 8883)</label>
-              <label class="vp-check"><input type="checkbox" id="mqDiscovery" checked /> Descubrimiento de Home Assistant</label>
-              <label class="vp-check"><input type="checkbox" id="mqEnabled" checked /> Activo</label>
-            </div>
-            <div class="vp-actions">
-              <button type="button" class="btn-secondary" id="mqTest" data-on-click="MqttHa.test()">Probar conexión</button>
-              <button type="button" class="btn-primary" data-on-click="MqttHa.save()">Guardar</button>
-              <button type="button" class="btn-secondary is-danger" id="mqDelete" data-on-click="MqttHa.remove()" hidden>Quitar</button>
-            </div>
-          </div>
-
-          <!-- EVBro sign-in (own user, separate from the Ebro account) -->
-          <div class="glass details-card u-margin-bottom-1rem">
-            <div class="card-title">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-              Acceso a EVBro
-            </div>
+          <div class="vp-form">
+          <!-- Every card is a collapsible section; which ones are open is remembered on the device (core/navigation.js) -->
+          <details class="glass details-card vp-section set-section" data-tone="blue" data-key="access">
+            <summary class="vp-section-title"><span class="vp-section-icon"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>Acceso a EVBro<span class="vp-chev" aria-hidden="true"></span></summary>
             <p class="u-color-var-text-secondary_font-size-0p9rem_margin-bottom-1rem">
               Sesión iniciada como <strong id="authCurrentUser">—</strong>.
             </p>
@@ -1821,29 +1790,19 @@
               <button class="btn-secondary" data-on-click="EbroAuth.openPasswordModal()">Cambiar contraseña</button>
               <button class="btn-secondary u-color-var-accent-red_border-color-rgba-255-61-0-0p3" data-on-click="EbroAuth.logout()">Cerrar sesión</button>
             </div>
-          </div>
+          </details>
 
-          <!-- Fingerprint sign-in (passkeys): features/passkeys.js -->
-          <div class="glass details-card passkey-card u-margin-bottom-1rem" id="passkeyCard">
-            <div class="card-title">
-              <svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/><path d="M14 13.12c0 2.38 0 6.38-1 8.88"/><path d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/><path d="M2 12a10 10 0 0 1 18-6"/><path d="M2 16h.01"/><path d="M21.8 16c.2-2 .131-5.354 0-6"/><path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2"/><path d="M8.65 22c.21-.66.45-1.32.57-2"/><path d="M9 6.8a6 6 0 0 1 9 5.2v2"/></svg>
-              Acceso con huella
-            </div>
+          <details class="glass details-card vp-section set-section passkey-card" id="passkeyCard" data-tone="violet" data-key="passkeys">
+            <summary class="vp-section-title"><span class="vp-section-icon"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/><path d="M14 13.12c0 2.38 0 6.38-1 8.88"/><path d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/><path d="M2 12a10 10 0 0 1 18-6"/><path d="M2 16h.01"/><path d="M21.8 16c.2-2 .131-5.354 0-6"/><path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2"/><path d="M8.65 22c.21-.66.45-1.32.57-2"/><path d="M9 6.8a6 6 0 0 1 9 5.2v2"/></svg></span>Acceso con huella<span class="vp-chev" aria-hidden="true"></span></summary>
             <p class="setting-hint">Entra sin escribir la contraseña. La huella nunca sale del móvil: EVBro solo guarda una clave pública.</p>
             <p class="setting-hint passkey-unsupported" id="passkeyUnsupported" hidden>Este navegador no admite el acceso con huella.</p>
             <ul id="passkeyList" class="passkey-list"></ul>
             <p class="passkey-empty" id="passkeyEmpty">Aún no hay dispositivos registrados.</p>
             <button type="button" class="btn-primary passkey-add" id="btnPasskeyAdd">Añadir este dispositivo</button>
-          </div>
+          </details>
 
-          <div class="glass details-card">
-            <div class="card-title u-justify-content-space-between">
-              <div class="u-display-flex_align-items-center_gap-0p5rem">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                Cuenta de Ebro
-              </div>
-              <span id="settingsAccountBadge" class="status-badge parked">Comprobando...</span>
-            </div>
+          <details class="glass details-card vp-section set-section" data-tone="green" data-key="ebro">
+            <summary class="vp-section-title"><span class="vp-section-icon"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>Cuenta de Ebro<span id="settingsAccountBadge" class="status-badge parked">Comprobando...</span><span class="vp-chev" aria-hidden="true"></span></summary>
             <p class="u-color-var-text-secondary_font-size-0p9rem_margin-bottom-1p25rem">
               La cuenta de la app oficial de Ebro (teléfono y contraseña): con ella se ve el coche y se le mandan órdenes.
             </p>
@@ -1882,8 +1841,20 @@
               <button type="button" class="btn-primary" id="btnSettingsConnect" data-on-click="openAccountModal()">Conectar</button>
               <button type="button" class="btn-secondary" id="btnSettingsSync" data-on-click="triggerVehicleDiscovery()" disabled title="Conecta la cuenta de Ebro para sincronizar sus coches">Sincronizar</button>
             </div>
+          </details>
+          <!-- Your data: export everything and import (manager only) -->
+          <details class="glass details-card vp-section set-section needs-root" id="accountDataCard" data-tone="amber" data-key="data">
+            <summary class="vp-section-title"><span class="vp-section-icon"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></span>Tus datos<span class="vp-chev" aria-hidden="true"></span></summary>
+            <p class="setting-hint">Un ZIP con todo lo tuyo (coches, historial, documentos y fotos; sin contraseñas), que sirve de copia y para llevarlo a otro servidor de EVBro.</p>
+            <div class="ad-actions">
+              <button type="button" class="btn-primary" id="adExport" data-on-click="AccountData.download()">Descargar todo (ZIP)</button>
+              <button type="button" class="btn-secondary" data-on-click="AccountData.pick()">Importar un ZIP</button>
+              <input type="file" id="adImportFile" accept=".zip,application/zip" class="u-display-none" data-on-change="AccountData.importFile(this)">
+            </div>
+            <pre class="ad-report" id="adImportReport" hidden></pre>
+            <p class="setting-hint"><a href="/legal" target="_blank" rel="noopener">Qué datos guarda este servidor y qué puedes pedir</a>.</p>
+          </details>
           </div>
-
         </div>
 
         <!-- Sub-panel: linked accounts -->
@@ -2206,39 +2177,60 @@
           </div>
         </div>
 
+        <!-- Sub-panel: connections to other systems (Home Assistant over MQTT, Traccar) -->
+        <div id="settingsSubTabConnections" class="sub-tab-panel">
+          <div class="vp-form">
+          <!-- Home Assistant: the manager's own MQTT broker (features/account.js, MqttHa) -->
+          <details class="glass details-card vp-section set-section needs-root" id="mqttCard" data-tone="cyan" data-key="mqtt">
+            <summary class="vp-section-title"><span class="vp-section-icon"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M10 21v-6h4v6"/></svg></span>Home Assistant (MQTT)<span class="vp-chev" aria-hidden="true"></span></summary>
+            <p class="setting-hint">Conecta el broker MQTT de tu Home Assistant (Mosquitto): tus coches aparecen allí solos, con las mismas entidades que la integración <code>ebro</code>, y Home Assistant puede mandarles órdenes con el PIN guardado. Quita antes esa integración o las entidades nuevas saldrán con <code>_2</code>.</p>
+            <p class="vp-status" id="mqStatus" data-tone="neutral"></p>
+            <div class="vp-grid">
+              <label class="vp-field vp-wide"><span>Broker (IP o nombre)</span><input type="text" id="mqHost" class="form-control" maxlength="255" placeholder="192.168.1.10" autocomplete="off" /></label>
+              <label class="vp-field"><span>Puerto</span><input type="number" id="mqPort" class="form-control" min="1" max="65535" placeholder="1883" /></label>
+              <label class="vp-field"><span>Usuario</span><input type="text" id="mqUser" class="form-control" maxlength="120" autocomplete="off" /></label>
+              <label class="vp-field"><span>Contraseña</span><input type="password" id="mqPass" class="form-control" maxlength="200" autocomplete="new-password" /></label>
+              <label class="vp-check"><input type="checkbox" id="mqTls" /> Conexión cifrada (TLS, puerto 8883)</label>
+              <label class="vp-check"><input type="checkbox" id="mqDiscovery" checked /> Descubrimiento de Home Assistant</label>
+              <label class="vp-check"><input type="checkbox" id="mqEnabled" checked /> Activo</label>
+            </div>
+            <div class="vp-actions">
+              <button type="button" class="btn-secondary" id="mqTest" data-on-click="MqttHa.test()">Probar conexión</button>
+              <button type="button" class="btn-primary" data-on-click="MqttHa.save()">Guardar</button>
+              <button type="button" class="btn-secondary is-danger" id="mqDelete" data-on-click="MqttHa.remove()" hidden>Quitar</button>
+            </div>
+          </details>
+          <!-- GPS position from a Traccar server (per car: the one chosen in the header; features/traccar.js) -->
+          <details class="glass details-card vp-section set-section needs-owner tr-card" id="vpTraccarSection" data-tone="green" data-key="traccar">
+            <summary class="vp-section-title"><span class="vp-section-icon"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s7-6.2 7-11a7 7 0 0 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></span>Posición por GPS (Traccar)<span class="vp-chev" aria-hidden="true"></span></summary>
+            <label class="vp-field tr-car"><span>Coche</span><select id="trCar" class="form-control" data-on-change="Traccar.pickCar(this.value)"></select></label>
+            <p class="vp-hint">Si el coche lleva su propio localizador GPS que reporta a un servidor Traccar, EVBro recibe sus posiciones en directo; en un coche sin cuenta de Ebro construye los viajes con ellas.</p>
+            <p class="vp-status" id="trStatus" data-tone="neutral"></p>
+            <div class="vp-grid">
+              <label class="vp-field vp-wide"><span>Servidor Traccar</span><input type="text" id="trHost" class="form-control" data-on-change="Traccar.onCredentialsChange()" maxlength="255" placeholder="traccar.midominio.es o https://…" autocomplete="off" /></label>
+              <label class="vp-field"><span>Puerto</span><input type="number" id="trPort" class="form-control" min="1" max="65535" placeholder="8082" /></label>
+              <label class="vp-field"><span>Token de la API</span><input type="password" id="trToken" class="form-control" data-on-change="Traccar.onCredentialsChange()" maxlength="200" autocomplete="new-password" /><small class="vp-hint">En Traccar: tu usuario (arriba a la derecha) → Preferencias → Token. Se guarda cifrado y no se vuelve a mostrar.</small></label>
+              <label class="vp-check"><input type="checkbox" id="trSsl" /> El servidor usa HTTPS</label>
+              <label class="vp-check"><input type="checkbox" id="trNoVerify" /> Aceptar certificado no verificable (autofirmado)</label>
+              <div class="vp-field vp-wide"><span>Dispositivo del coche</span><span class="vp-phone-row"><select id="trDevice" class="form-control"><option value="">Se rellena al escribir el servidor y el token</option></select><button type="button" class="btn-secondary" id="trTest" data-on-click="Traccar.test()">Probar conexión</button></span></div>
+              <label class="vp-check"><input type="checkbox" id="trBuildTrips" /> Construir los viajes con estas posiciones (coche sin cuenta de Ebro)</label>
+              <label class="vp-field"><span>Minutos parado para cerrar un viaje</span><input type="number" id="trStopMinutes" class="form-control" min="1" max="120" value="5" /></label>
+              <label class="vp-check"><input type="checkbox" id="trEnabled" checked /> Activo</label>
+            </div>
+            <div class="vp-actions">
+              <button type="button" class="btn-primary" data-on-click="Traccar.save()">Guardar Traccar</button>
+              <button type="button" class="btn-secondary is-danger" id="trDelete" data-on-click="Traccar.remove()" hidden>Quitar</button>
+            </div>
+          </details>
+          </div>
+        </div>
+
         <!-- Sub-panel 5: server & system -->
         <div id="settingsSubTabSystem" class="sub-tab-panel">
-          <!-- GPS position from a Traccar server (per car: the one chosen in the header; features/traccar.js) -->
-            <div class="glass details-card needs-owner tr-card u-margin-bottom-1rem" id="vpTraccarSection">
-              <div class="card-title">Posición por GPS (Traccar)</div>
-              <label class="vp-field tr-car"><span>Coche</span><select id="trCar" class="form-control" data-on-change="Traccar.pickCar(this.value)"></select></label>
-              <p class="vp-hint">Si el coche lleva su propio localizador GPS que reporta a un servidor Traccar, EVBro recibe sus posiciones en directo; en un coche sin cuenta de Ebro construye los viajes con ellas.</p>
-              <p class="vp-status" id="trStatus" data-tone="neutral"></p>
-              <div class="vp-grid">
-                <label class="vp-field vp-wide"><span>Servidor Traccar</span><input type="text" id="trHost" class="form-control" data-on-change="Traccar.onCredentialsChange()" maxlength="255" placeholder="traccar.midominio.es o https://…" autocomplete="off" /></label>
-                <label class="vp-field"><span>Puerto</span><input type="number" id="trPort" class="form-control" min="1" max="65535" placeholder="8082" /></label>
-                <label class="vp-field"><span>Token de la API</span><input type="password" id="trToken" class="form-control" data-on-change="Traccar.onCredentialsChange()" maxlength="200" autocomplete="new-password" /><small class="vp-hint">En Traccar: tu usuario (arriba a la derecha) → Preferencias → Token. Se guarda cifrado y no se vuelve a mostrar.</small></label>
-                <label class="vp-check"><input type="checkbox" id="trSsl" /> El servidor usa HTTPS</label>
-                <label class="vp-check"><input type="checkbox" id="trNoVerify" /> Aceptar certificado no verificable (autofirmado)</label>
-                <div class="vp-field vp-wide"><span>Dispositivo del coche</span><span class="vp-phone-row"><select id="trDevice" class="form-control"><option value="">Se rellena al escribir el servidor y el token</option></select><button type="button" class="btn-secondary" id="trTest" data-on-click="Traccar.test()">Probar conexión</button></span></div>
-                <label class="vp-check"><input type="checkbox" id="trBuildTrips" /> Construir los viajes con estas posiciones (coche sin cuenta de Ebro)</label>
-                <label class="vp-field"><span>Minutos parado para cerrar un viaje</span><input type="number" id="trStopMinutes" class="form-control" min="1" max="120" value="5" /></label>
-                <label class="vp-check"><input type="checkbox" id="trEnabled" checked /> Activo</label>
-              </div>
-              <div class="vp-actions">
-                <button type="button" class="btn-primary" data-on-click="Traccar.save()">Guardar Traccar</button>
-                <button type="button" class="btn-secondary is-danger" id="trDelete" data-on-click="Traccar.remove()" hidden>Quitar</button>
-              </div>
-            </div>
+          <div class="vp-form">
           <!-- Car MQTT channel: instant alerts and command confirmation -->
-          <div class="glass details-card u-margin-bottom-1rem" id="carChannelCard">
-            <div class="card-title u-justify-content-space-between">
-              <div class="u-display-flex_align-items-center_gap-0p5rem">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0"></path><path d="M1.42 9a16 16 0 0 1 21.16 0"></path><path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path><line x1="12" y1="20" x2="12.01" y2="20"></line></svg>
-                Canal del coche
-              </div>
-              <span id="carChannelBadge" class="status-badge asleep">—</span>
-            </div>
+          <details class="glass details-card vp-section set-section" id="carChannelCard" data-tone="cyan" data-key="channel">
+            <summary class="vp-section-title"><span class="vp-section-icon"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><path d="M12 20h.01"/></svg></span>Canal del coche<span id="carChannelBadge" class="status-badge asleep">—</span><span class="vp-chev" aria-hidden="true"></span></summary>
             <p class="setting-hint">El coche avisa al momento de puertas, cierre, cable y motor, y confirma cada orden que le mandas. Solo funciona con la cuenta del propietario del coche.</p>
             <dl class="kv-list">
               <div><dt>Estado</dt><dd id="carChannelDetail">—</dd></div>
@@ -2247,25 +2239,19 @@
               <div><dt>Coche</dt><dd id="carChannelAwake">—</dd></div>
             </dl>
             <button class="btn-secondary" id="btnCarReconnect" data-on-click="reconnectCarChannel()">Reconectar</button>
-          </div>
-
+          </details>
           <!-- Account language (core/i18n.js): the page reloads in the chosen language -->
-          <div class="glass details-card u-margin-bottom-1rem" id="languageCard">
-            <div class="card-title">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
-              Idioma
-            </div>
+          <details class="glass details-card vp-section set-section" id="languageCard" data-tone="blue" data-key="language">
+            <summary class="vp-section-title"><span class="vp-section-icon"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>Idioma<span class="vp-chev" aria-hidden="true"></span></summary>
             <p class="setting-hint">Textos de la aplicación y de los avisos. Se guarda en tu cuenta y vale en todos tus dispositivos.</p>
             <label class="vp-field"><span>Idioma</span><select id="languageSelect" class="form-control" data-i18n-skip data-on-change="I18n.setLanguage(this.value)"><option value="es">Español</option><option value="en">English</option><option value="pt">Português</option></select></label>
-          </div>
+          </details>
 
-          <div class="glass details-card" id="versionCard">
-            <div class="card-title">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-              Versión
-            </div>
+          <details class="glass details-card vp-section set-section" id="versionCard" data-tone="violet" data-key="version">
+            <summary class="vp-section-title"><span class="vp-section-icon"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></span>Versión<span class="vp-chev" aria-hidden="true"></span></summary>
             <p class="setting-hint"><a href="/legal" target="_blank" rel="noopener">Aviso legal y privacidad de este servidor</a></p>
             <p class="setting-hint u-margin-0"><strong id="appVersion">EVBro</strong><span id="appCommit" hidden> · compilación <code id="appCommitHash"></code></span></p>
+          </details>
           </div>
         </div>
 

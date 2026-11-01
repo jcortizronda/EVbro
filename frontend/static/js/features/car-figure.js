@@ -100,9 +100,11 @@
 
     // One line: what is open, or «Todo cerrado», or «Sin datos» when the car has not reported anything yet.
     // When some parts are closed and others never reported, it names the missing ones instead of assuming they are closed.
+    // The hood is left out of that list: many cars never report it, and «sin dato de capó» on every reading was noise
+    // (owner, 2026-11-01). It still shows open when the car says so, and stays dashed grey in the drawing without data.
     const values = Object.values(states);
     const open = Object.entries(states).filter(([, v]) => known(v) && Boolean(v)).map(([k]) => PART_LABELS[k]);   // the car sends 0/1
-    const pending = Object.entries(states).filter(([, v]) => !known(v)).map(([k]) => PART_LABELS[k]);
+    const pending = Object.entries(states).filter(([k, v]) => !known(v) && k !== 'hood').map(([k]) => PART_LABELS[k]);
     const summary = $('carFigureSummary');
     if (summary) {
       if (values.every((v) => !known(v))) { summary.textContent = 'Sin datos del coche'; summary.dataset.state = 'unknown'; }

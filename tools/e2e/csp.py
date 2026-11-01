@@ -12,7 +12,7 @@ BASE = os.environ.get("EVBRO_URL", "http://127.0.0.1:8099")
 USER = os.environ.get("EVBRO_USER", "juan")
 PASSWORD = os.environ.get("EVBRO_PASSWORD", "una-contraseña-larga-1")
 TABS = ["overview", "charges", "climate", "drives", "more", "maintenance", "geofences", "settings"]
-SETTINGS = ["account", "polling", "notifs", "theme", "system"]
+SETTINGS = ["account", "accounts", "notifs", "connections", "theme", "system"]
 fails = []
 
 

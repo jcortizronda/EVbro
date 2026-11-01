@@ -20,7 +20,7 @@ import sys
 from playwright.sync_api import sync_playwright
 
 TABS = ["overview", "charges", "climate", "drives", "refuels", "more", "vehicle", "maintenance", "geofences", "settings"]
-SETTINGS = ["account", "polling", "notifs", "theme", "system"]
+SETTINGS = ["account", "accounts", "notifs", "connections", "theme", "system"]
 WIDTHS = [360, 390, 430]
 
 # Visible elements whose right edge goes past the viewport, except those that scroll on purpose
