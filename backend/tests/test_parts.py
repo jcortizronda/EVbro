@@ -73,9 +73,9 @@ async def test_one_part_per_category_and_position_but_bulbs_can_repeat(web) -> N
     assert len((await web.get(f"/api/vehicles/{VIN}/parts")).json()) == 4
 
 
-async def test_tyres_accept_season_and_dot_and_reject_bad_values(web) -> None:
+async def test_tyres_keep_their_season_on_the_sheet_but_not_the_dot_and_bad_values_are_rejected(web) -> None:
     t = await add(web, category="tyres", position="front", name="Michelin Primacy", spec="235/55 R19", attrs={"season": "summer", "dot": "2324", "junk": "x"})
-    assert t["attrs"] == {"season": "summer", "dot": "2324"}                                  # unknown keys are dropped
+    assert t["attrs"] == {"season": "summer"}                 # unknown keys are dropped; the DOT is one tyre's, the sheet keeps the consumable
     for attrs in ({"dot": "23"}, {"dot": "abcd"}, {"season": "monsoon"}):
         r = await web.post(f"/api/vehicles/{VIN}/parts", json={"category": "tyres", "position": "rear", "attrs": attrs})
         assert r.status_code == 422, attrs
@@ -123,6 +123,7 @@ async def test_an_event_keeps_its_parts_and_updates_the_car_sheet(web) -> None:
     (part,) = (await web.get(f"/api/vehicles/{VIN}/parts")).json()
     assert part["category"] == "tyres" and part["installed_at"].startswith("2026-09-10") and part["installed_odometer"] == 14800
     assert part["source_log_id"] == log_id
+    assert part["attrs"] == {"season": "summer"}                                              # the DOT stays in the intervention
 
 
 async def test_the_sheet_is_not_touched_when_update_parts_is_false(web) -> None:

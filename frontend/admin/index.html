@@ -216,7 +216,8 @@
       <h2 id="catTitle">Editar propuesta</h2>
       <p class="hint" id="catHint">Completa o corrige lo que haga falta; el tipo de pieza no cambia. Lo que dejes vacío se borra.</p>
       <label><span>Coches a los que vale (uno por línea: marca | modelo | años | ref. fabricante)</span><textarea id="catFits" rows="3" placeholder="Ebro | S900 PHEV | 2024-2026 | 1012345678&#10;Ebro | S800 | 2024-2026" required></textarea><small>La misma referencia suele valer para varios modelos; el primero es el principal. La ref. fabricante es el número de pieza de esa marca (el de Ebro en un Ebro) y puede faltar.</small></label>
-      <label><span>Nombre de la pieza</span><input id="catName" maxlength="150" required></label>
+      <label><span>Nombre o modelo</span><input id="catName" maxlength="150" required></label>
+      <label id="catPositionWrap" hidden><span>Posición</span><select id="catPosition"></select></label>
       <label><span>Marca de la pieza</span><input id="catBrand" maxlength="80"></label>
       <label><span>Ref. marca</span><input id="catRef" maxlength="120"></label>
       <label><span id="catSpecLabel">Especificación</span><input id="catSpec" maxlength="120"></label>

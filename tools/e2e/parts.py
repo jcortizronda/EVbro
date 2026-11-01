@@ -86,7 +86,10 @@ with sync_playwright() as p:
         hist = pg.eval_on_selector_all("#maintLogsTableBody tr", "e=>e.map(r=>r.innerText)")
         ok(any("Michelin" in r and "DOT 1224" in r for r in hist), f"{tag}: the history shows the fitted parts")
         parts = pg.evaluate("fetch('/api/vehicles/'+currentVin+'/parts').then(r=>r.json())")
-        ok(any(x["category"] == "tyres" and x["attrs"].get("dot") == "1224" and x["position"] == "front" for x in parts), f"{tag}: the sheet is updated with the tyres")
+        ok(any(x["category"] == "tyres" and "dot" not in x["attrs"] and x["position"] == "front" for x in parts), f"{tag}: the sheet is updated with the tyres, without the DOT")
+        pg.evaluate("openPartModal(null, 'tyres')"); pg.wait_for_timeout(400)
+        ok(pg.is_visible("#partModalFields [data-f=season]") and not pg.is_visible("#partModalFields [data-f=dot]"), f"{tag}: the sheet form asks for the tyre type but not the DOT")
+        pg.evaluate("closePartModal()")
 
         # an invalid DOT is not sent
         pg.evaluate("showMaintEventModal()")

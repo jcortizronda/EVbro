@@ -25,6 +25,8 @@ POSITIONS: Dict[str, str] = {"front": "Delantero", "rear": "Trasero", "spare": "
 TYRE_SEASONS: Dict[str, str] = {"summer": "Verano", "winter": "Invierno", "all_season": "Todo tiempo"}
 
 # `multiple`: several parts of the same category/position can coexist (bulbs, "other"). `attrs`: extra keys allowed for the category.
+# The DOT (week and year a tyre was made) belongs to one tyre, not to the consumable: interventions record it, the car sheet does not.
+SHEET_DROPS = ("dot",)
 PART_CATEGORIES: List[Dict[str, Any]] = [
     {"key": "engine_oil", "label": "Aceite de motor", "group": "engine", "positions": [], "spec_label": "Viscosidad", "spec_hint": "0W-20", "qty_label": "Litros"},
     {"key": "coolant", "label": "Líquido refrigerante", "group": "engine", "positions": [], "spec_label": "Tipo", "spec_hint": "G12 / G13", "qty_label": "Litros"},
@@ -97,7 +99,7 @@ def serialize_part(p: VehiclePart) -> Dict[str, Any]:
     return {
         "id": p.id, "category": p.category, "category_label": cat.get("label", p.category), "group": cat.get("group", "other"),
         "position": p.position, "position_label": POSITIONS.get(p.position or "", None), "name": p.name, "brand": p.brand,
-        "reference": p.reference, "oem_reference": p.oem_reference, "spec": p.spec, "quantity": p.quantity, "attrs": p.attrs or {}, "notes": p.notes,
+        "reference": p.reference, "oem_reference": p.oem_reference, "spec": p.spec, "quantity": p.quantity, "attrs": _sheet_attrs(p.attrs) or {}, "notes": p.notes,
         "installed_at": p.installed_at.isoformat() if p.installed_at else None, "installed_odometer": p.installed_odometer,
         "source_log_id": p.source_log_id, "catalog_id": p.catalog_id,
     }
@@ -122,6 +124,11 @@ async def find_existing(session: AsyncSession, vin: str, part: PartIn) -> Option
     return None
 
 
+def _sheet_attrs(attrs: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    kept = {k: v for k, v in (attrs or {}).items() if k not in SHEET_DROPS}
+    return kept or None
+
+
 def _numbers(p: Any) -> tuple:
     return tuple((getattr(p, k) or "").strip().lower() for k in ("brand", "reference", "oem_reference"))
 
@@ -129,7 +136,7 @@ def _numbers(p: Any) -> tuple:
 def apply_fields(row: VehiclePart, part: PartIn) -> None:
     """Copies the editable fields. `catalog_id` only changes when the part comes from the catalogue: editing a part never unlinks it."""
     row.name, row.brand, row.reference, row.oem_reference, row.spec = part.name, part.brand, part.reference, part.oem_reference, part.spec
-    row.quantity, row.notes, row.attrs = part.quantity, part.notes, part.attrs
+    row.quantity, row.notes, row.attrs = part.quantity, part.notes, _sheet_attrs(part.attrs)
     if part.catalog_id is not None:
         row.catalog_id = part.catalog_id
 

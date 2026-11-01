@@ -1,7 +1,8 @@
 """Shared catalogue of consumables: proposals from the managers' own parts, the administrator's review, and the public (approved) list.
 
 Rules: a part can be proposed once while its proposal is pending or approved (a rejected one can be sent again, corrected); the
-proposal copies the part's fields and the car's model at that moment (editing the part later does not change the proposal);
+proposal copies the part's fields and the car's model at that moment (editing the part later does not change the proposal), but
+never its notes, which are the owner's own;
 only `approved` entries are visible to everybody, matched by model (case-insensitive) and category. Approving an entry that
 duplicates an approved one (same category, brand and reference; without a reference, the same maker's number for the same model)
 adds a confirmation to the existing entry instead. The maker's own number («Ref. fabricante») belongs to each fitment: the same
@@ -38,7 +39,7 @@ def serialize(e: CatalogEntry, proposer: Optional[str] = None, fitments: Optiona
     fits = [_fit(f) for f in (fitments if fitments is not None else [])] or [{"id": None, "make": e.make, "model": e.model, "years": e.years, "oem_reference": e.oem_reference}]
     return {"id": e.id, "model": e.model, "make": e.make, "fitments": fits, "years": e.years, "category": e.category, "category_label": cat.get("label", e.category),
             "spec_label": cat.get("spec_label") or "Especificación", "qty_label": cat.get("qty_label") or "Cantidad",
-            "position": e.position, "position_label": POSITIONS.get(e.position or "", None), "name": e.name, "brand": e.brand, "reference": e.reference, "oem_reference": e.oem_reference, "spec": e.spec, "quantity": e.quantity,
+            "position": e.position, "position_label": POSITIONS.get(e.position or "", None), "positions": [{"key": k, "label": POSITIONS[k]} for k in cat.get("positions", [])], "name": e.name, "brand": e.brand, "reference": e.reference, "oem_reference": e.oem_reference, "spec": e.spec, "quantity": e.quantity,
             "notes": e.notes, "source": e.source, "status": e.status, "reject_reason": e.reject_reason, "confirmations": e.confirmations or 0,
             "proposed_by": proposer, "proposed_at": e.proposed_at.isoformat() if e.proposed_at else None,
             "reviewed_at": e.reviewed_at.isoformat() if e.reviewed_at else None,
@@ -60,7 +61,7 @@ async def propose_from_part(session: AsyncSession, part: VehiclePart, user_id: i
             raise CatalogError(409, "Esta pieza ya está propuesta al catálogo." if current.status == "pending" else "Esta pieza ya está en el catálogo.")
     entry = CatalogEntry(model=model, make=(vehicle.brand or "").strip() or None, years=(years or "").strip() or (str(vehicle.model_year) if vehicle.model_year else None), category=part.category,
                          position=part.position, name=part.name, brand=part.brand, reference=part.reference, oem_reference=part.oem_reference, spec=part.spec,
-                         quantity=part.quantity, notes=part.notes, source=source if source in ("manual", "invoice", "photo") else "manual",
+                         quantity=part.quantity, notes=None, source=source if source in ("manual", "invoice", "photo") else "manual",
                          status="pending", proposed_by=user_id, proposed_at=datetime.datetime.utcnow())
     session.add(entry)
     await session.flush()
@@ -191,8 +192,8 @@ async def edit(session: AsyncSession, entry_id: int, changes: Dict[str, Any]) ->
             value = value.strip() or None
         if field in ("model", "name") and not value:
             raise CatalogError(422, "El modelo y el nombre no pueden quedar vacíos.")
-        if field == "position" and value is not None and value not in POSITIONS:
-            raise CatalogError(422, "Posición desconocida.")
+        if field == "position" and value is not None and value not in CATEGORY_BY_KEY.get(e.category, {}).get("positions", []):
+            raise CatalogError(422, "Esa posición no vale para este tipo de pieza.")
         setattr(e, field, value)
     await session.commit()
     return e
@@ -207,4 +208,4 @@ async def export_approved(session: AsyncSession) -> Dict[str, Any]:
 
 
 def _export_key(k: str) -> bool:
-    return k not in ("status", "reject_reason", "proposed_by", "proposed_at", "reviewed_at", "origin", "remote_note", "forwarded_at")
+    return k not in ("positions", "status", "reject_reason", "proposed_by", "proposed_at", "reviewed_at", "origin", "remote_note", "forwarded_at")

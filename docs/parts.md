@@ -9,6 +9,7 @@ Una pieza del coche puede apuntar a una entrada del catálogo compartido (`catal
 - Las categorías (`services/parts.py`, `PART_CATEGORIES`) llevan sus etiquetas: cada una dice cómo se llama su «especificación» y su «cantidad». Son **sugerencias vacías**: no hay referencias de fábrica precargadas porque no se conocen las reales del S700/S800/S900; las rellena el dueño.
 - **Una pieza por categoría y posición** (una pastilla delantera, una trasera): al anotar otra se **sustituye**, como pasa en el coche. Las categorías `multiple` (bombillas, «otro consumible») admiten varias, distinguidas por nombre.
 - `attrs` está en lista blanca: solo `season` (`summer`/`winter`/`all_season`) y `dot` (4 cifras: semana y año, p. ej. `2324`), y solo para neumáticos. Todo el texto se guarda tal cual y se pinta escapado.
+- **La ficha guarda el consumible, no una unidad concreta.** El DOT es la fecha de fabricación de unos neumáticos en particular: se anota en la **intervención** que los monta (queda en su historial) y la ficha no lo guarda ni lo muestra (`SHEET_DROPS` en `services/parts.py`; un DOT antiguo de la ficha tampoco se devuelve). El tipo de neumático (verano, invierno, todo tiempo) sí se queda en la ficha.
 
 ## API (todas bajo `protected`)
 
@@ -29,6 +30,8 @@ Lo que lleva cada modelo, compartido entre dueños: `catalog_entries` (`services
 
 **Ref. fabricante en el catálogo (2026-11-01).** El número de pieza de la marca del coche va **en cada fitment** (`catalog_fitments.oem_reference`), porque el mismo filtro tiene un número en Ebro y otro en otra marca. `catalog_entries.oem_reference` copia el del primer fitment, como marca, modelo y años. La propuesta lo toma de la pieza, y basta con él para proponer (cuenta como «una referencia»). En la consola cada línea de coches es `marca | modelo | años | ref. fabricante`, y la última columna puede faltar. Una propuesta **sin referencia** es duplicada de una aprobada si tiene la misma ref. fabricante para el mismo modelo. Una confirmación desde otro modelo añade su fitment con su ref. fabricante, y desde el mismo modelo la rellena si faltaba. La exportación y el catálogo en línea siguen en `evbro-catalog/2`: el campo es nuevo y los servidores anteriores lo ignoran.
 
+**Lo que no se publica.** Las **notas** de la pieza son del dueño y nunca pasan a la propuesta: el administrador escribe las del catálogo en la consola. Una propuesta que llega de otro servidor tampoco guarda sus notas, por si viene de una versión anterior que aún las enviaba. En la consola el administrador puede corregir la **posición** (solo las que admite el tipo de pieza: las pastillas, delantera o trasera; el aceite, ninguna).
+
 ## Ver catálogo online (Consumibles)
 
 El interruptor **Ver catálogo online** (se recuerda en el dispositivo, `evbro_parts_catalog`) carga `GET /api/catalog?model=<modelo de la ficha>&limit=100` y lo mezcla con las piezas del coche, por grupos:
@@ -43,4 +46,4 @@ La búsqueda filtra también las entradas del catálogo.
 ## Pendiente
 
 - Referencias precargadas por modelo: dependen del catálogo compartido y de una fuente fiable (manual).
-- Aviso por antigüedad del neumático (DOT) o por kilómetros desde el montaje.
+- Aviso por antigüedad del neumático (con el DOT de la última intervención que los montó) o por kilómetros desde el montaje.

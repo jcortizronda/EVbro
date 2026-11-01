@@ -133,6 +133,7 @@ async def test_the_admin_can_complete_or_correct_a_proposal_but_not_a_rejected_o
     assert d["years"] == "2024-2026" and d["reference"] == "Edge 0W-20 LL" and d["notes"] is None and d["quantity"] == 4.3 and d["brand"] == "Castrol"
     assert (await console.patch(f"/api/admin/catalog/{eid}", json={"model": " "})).status_code == 422
     assert (await console.patch(f"/api/admin/catalog/{eid}", json={"position": "sideways"})).status_code == 422
+    assert (await console.patch(f"/api/admin/catalog/{eid}", json={"position": "front"})).status_code == 422       # oil has no position
     assert (await console.patch(f"/api/admin/catalog/{eid}", json={"category": "tyres", "make": "EBRO"})).json()["category"] == "engine_oil"
     assert (await console.patch("/api/admin/catalog/9999", json={"years": "x"})).status_code == 404
     await console.post(f"/api/admin/catalog/{eid}/reject", json={"reason": "no"})
@@ -212,3 +213,22 @@ async def test_without_a_reference_the_same_maker_number_for_the_same_model_is_a
     assert (await console.post(f"/api/admin/catalog/{second}/approve")).json()["status"] == "rejected"
     entry = (await bea.get("/api/catalog?model=S900%20PHEV&category=cabin_filter")).json()
     assert [e["id"] for e in entry] == [first] and entry[0]["confirmations"] == 1
+
+
+async def test_a_proposal_never_publishes_the_owner_notes_and_the_console_gets_the_valid_positions(world) -> None:
+    ana, console = world["ana"], world["console"]
+    async with async_session_factory() as s:
+        p = VehiclePart(vin=VIN_A, category="brake_pads", position="rear", name="Pastillas", brand="Brembo", reference="P85171",
+                        notes="Compradas en el taller de Paco por 30 euros")
+        s.add(p)
+        await s.commit()
+        pid = p.id
+    d = (await ana.post(f"/api/parts/{pid}/propose", json={})).json()
+    assert d["notes"] is None                                                                    # private: never copied
+    assert d["positions"] == [{"key": "front", "label": "Delantero"}, {"key": "rear", "label": "Trasero"}]
+    fixed = (await console.patch(f"/api/admin/catalog/{d['id']}", json={"position": "front"})).json()
+    assert fixed["position"] == "front"                                                          # the admin corrects it
+    assert (await console.patch(f"/api/admin/catalog/{d['id']}", json={"position": "spare"})).status_code == 422
+    assert (await console.patch(f"/api/admin/catalog/{d['id']}", json={"position": ""})).json()["position"] is None
+    await console.post(f"/api/admin/catalog/{d['id']}/approve")
+    assert "positions" not in (await console.get("/api/admin/catalog/export")).json()["entries"][0]

@@ -16,12 +16,6 @@ async function ensurePartCatalog() {
 }
 const partCat = (key) => (partCatalog?.categories || []).find((c) => c.key === key) || null;
 
-/** "2324" -> "sem. 23/2024" */
-function dotLabel(dot) {
-  if (!/^\d{4}$/.test(dot || '')) return dot || '';
-  return `sem. ${dot.slice(0, 2)}/20${dot.slice(2)}`;
-}
-
 // ───────────────────────── Row editor (shared) ─────────────────────────
 function partRowHtml(part = {}) {
   const cats = partCatalog.categories;
@@ -33,7 +27,7 @@ function partRowHtml(part = {}) {
       <label class="part-wide"><span>Tipo de pieza</span><select data-f="category" class="form-control" data-on-change="onPartCategoryChange(this)">${opt(cats, key)}</select></label>
       <label data-wrap="position"><span>Posición</span><select data-f="position" class="form-control"></select></label>
       <label class="part-wide"><span>Nombre o modelo</span><input data-f="name" class="form-control" maxlength="150" value="${escapeHtml(part.name || '')}" placeholder="Opcional" /></label>
-      <label><span>Marca</span><input data-f="brand" class="form-control" maxlength="80" value="${escapeHtml(part.brand || '')}" /></label>
+      <label><span>Marca de la pieza</span><input data-f="brand" class="form-control" maxlength="80" value="${escapeHtml(part.brand || '')}" /></label>
       <label title="${escapeHtml(t('Número de pieza que pone la marca de la pieza (Mann, Bosch…)'))}"><span>Ref. marca</span><input data-f="reference" class="form-control" maxlength="120" value="${escapeHtml(part.reference || '')}" /></label>
       <label title="${escapeHtml(t('Número de pieza de la marca del coche (el de Ebro, en un Ebro)'))}"><span>Ref. fabricante</span><input data-f="oem_reference" class="form-control" maxlength="120" value="${escapeHtml(part.oem_reference || '')}" placeholder="Opcional" /></label>
       <label><span data-lbl="spec">Especificación</span><input data-f="spec" class="form-control" maxlength="120" value="${escapeHtml(part.spec || '')}" /></label>
@@ -55,8 +49,10 @@ function syncPartRow(row, keepPosition) {
   row.querySelector('[data-f=spec]').placeholder = cat.spec_hint || '';
   row.querySelector('[data-lbl=qty]').textContent = cat.qty_label;
   const tyre = (cat.attrs || []).includes('dot');
+  // The DOT belongs to the tyres fitted in an intervention, not to the consumable on the car sheet
+  const sheet = !!row.closest('#partModalFields');
   row.querySelector('[data-wrap=season]').hidden = !tyre;
-  row.querySelector('[data-wrap=dot]').hidden = !tyre;
+  row.querySelector('[data-wrap=dot]').hidden = !tyre || sheet;
 }
 function onPartCategoryChange(sel) {
   syncPartRow(sel.closest('[data-part-row]'));
@@ -74,7 +70,8 @@ function readPartRow(row) {
   const qty = parseFloat(val('quantity').replace(',', '.'));
   part.quantity = isNaN(qty) ? null : qty;
   const attrs = {};
-  if (!row.querySelector('[data-wrap=dot]').hidden) { if (val('season')) attrs.season = val('season'); if (val('dot')) attrs.dot = val('dot'); }
+  if (!row.querySelector('[data-wrap=season]').hidden && val('season')) attrs.season = val('season');
+  if (!row.querySelector('[data-wrap=dot]').hidden && val('dot')) attrs.dot = val('dot');
   part.attrs = Object.keys(attrs).length ? attrs : null;
   part.hasData = !!(part.name || part.brand || part.reference || part.oem_reference || part.spec || part.quantity !== null || part.attrs);
   return part;
@@ -265,7 +262,7 @@ async function loadParts(withCatalog = showingCatalog()) {
 }
 
 function partMatches(p, q) {
-  const hay = [p.name, p.brand, p.reference, p.oem_reference, p.spec, p.notes, p.category_label, p.position_label, p.attrs?.dot, p.attrs?.season].filter(Boolean).join(' ').toLowerCase();
+  const hay = [p.name, p.brand, p.reference, p.oem_reference, p.spec, p.notes, p.category_label, p.position_label, p.attrs?.season].filter(Boolean).join(' ').toLowerCase();
   return hay.includes(q);
 }
 
@@ -319,7 +316,7 @@ function partItemHtml(p) {
   const line1 = [p.brand, p.name !== p.category_label ? p.name : null].filter(Boolean).join(' ') || 'Sin marca indicada';
   const cat = partCat(p.category);
   const line2 = [p.reference ? t('Ref. marca {p0}', {p0: p.reference}) : null, p.oem_reference ? t('Ref. fabricante {p0}', {p0: p.oem_reference}) : null, p.spec, p.quantity !== null && p.quantity !== undefined ? `${String(p.quantity).replace('.', ',')} ${(cat?.qty_label || '').toLowerCase()}` : null,
-    p.attrs?.season ? partCatalog.tyre_seasons.find((s) => s.key === p.attrs.season)?.label : null, p.attrs?.dot ? t('DOT {p0} ({p1})', {p0: p.attrs.dot, p1: dotLabel(p.attrs.dot)}) : null].filter(Boolean).join(' · ');
+    p.attrs?.season ? partCatalog.tyre_seasons.find((s) => s.key === p.attrs.season)?.label : null].filter(Boolean).join(' · ');
   let when = '';
   if (p.installed_at) { const d = serverDate(p.installed_at); when = `Montado ${monthsES[d.getMonth()]} ${d.getFullYear()}${p.installed_odometer ? ` · ${Math.round(p.installed_odometer).toLocaleString(I18n.locale)} km` : ''}`; }
   return `<button type="button" class="part-item" data-on-click="openPartModal(${p.id})">

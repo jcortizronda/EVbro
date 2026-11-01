@@ -135,7 +135,9 @@ async def authenticate(session: AsyncSession, bearer: Optional[str]) -> Optional
 
 
 async def receive_proposal(session: AsyncSession, key: CatalogKey, data: Dict[str, Any]) -> CatalogEntry:
-    """A proposal sent by another installation enters this server's queue, tagged with the key's note (never with a person)."""
+    """A proposal sent by another installation enters this server's queue, tagged with the key's note (never with a person).
+
+    Notes are dropped: an older installation may still send its user's private notes with the proposal."""
     category = str(data.get("category") or "")
     if category not in CATEGORY_BY_KEY:
         raise RemoteError(422, "Categoría desconocida.")
@@ -154,10 +156,10 @@ async def receive_proposal(session: AsyncSession, key: CatalogKey, data: Dict[st
     first = fits[0]
     entry = CatalogEntry(model=str(first.get("model")).strip()[:80], make=(str(first.get("make") or "").strip()[:50] or None),
                          years=(str(first.get("years") or "").strip()[:20] or None), oem_reference=(str(first.get("oem_reference") or "").strip()[:120] or None), category=category,
-                         position=position if position in POSITIONS else None, name=text("name", 150) or CATEGORY_BY_KEY[category].get("label", category),
+                         position=position if position in CATEGORY_BY_KEY[category].get("positions", []) else None, name=text("name", 150) or CATEGORY_BY_KEY[category].get("label", category),
                          brand=text("brand", 80), reference=text("reference", 120), spec=text("spec", 120),
                          quantity=float(data["quantity"]) if isinstance(data.get("quantity"), (int, float)) and 0 <= data["quantity"] <= 100000 else None,
-                         notes=text("notes", 2000), source=data.get("source") if data.get("source") in ("manual", "invoice", "photo") else "manual",
+                         notes=None, source=data.get("source") if data.get("source") in ("manual", "invoice", "photo") else "manual",
                          status="pending", proposed_by=None, proposed_at=_now(), origin="local", remote_note=key.note or f"clave {key.id}")
     session.add(entry)
     await session.flush()
@@ -305,7 +307,7 @@ async def maybe_forward(session: AsyncSession, entry: CatalogEntry) -> None:
     try:
         url, key = parse_link(c.link)
         payload = {k: v for k, v in (await catalog.serialize_one(session, entry)).items()
-                   if k in ("category", "position", "name", "brand", "reference", "spec", "quantity", "notes", "source", "fitments")}
+                   if k in ("category", "position", "name", "brand", "reference", "oem_reference", "spec", "quantity", "source", "fitments")}
         status, _ = await _http("POST", url + PROPOSE_PATH, key, payload)
         if status == 200:
             entry.forwarded_at = _now()

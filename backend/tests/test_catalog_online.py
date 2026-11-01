@@ -103,13 +103,14 @@ async def test_keys_are_issued_as_links_and_open_the_public_routes(world) -> Non
     assert r.status_code == 200 and r.json()["format"] == "evbro-catalog/2" and [e["reference"] for e in r.json()["entries"]] == ["EDGE-0W20"]
     assert "status" not in r.json()["entries"][0] and "origin" not in r.json()["entries"][0]
     # a proposal from another installation lands in the queue tagged with the key's note, with no person behind it
-    r = await anon.post("/api/catalog/online/propose", json={"category": "brake_pads", "name": "Pastillas", "brand": "Brembo", "reference": "P85020",
+    r = await anon.post("/api/catalog/online/propose", json={"category": "brake_pads", "name": "Pastillas", "brand": "Brembo", "reference": "P85020", "notes": "privado",
                                                               "fitments": [{"make": "Ebro", "model": "S800 PHEV", "years": "2025", "oem_reference": "S8-77"}]},
                         headers={"Authorization": f"Bearer {key}"})
     assert r.status_code == 200 and r.json()["status"] == "pending"
     queue = (await console.get("/api/admin/catalog?status=pending")).json()
     assert len(queue) == 1 and queue[0]["remote_note"] == "Marta" and queue[0]["proposed_by"] is None and queue[0]["fitments"][0]["model"] == "S800 PHEV"
-    assert queue[0]["fitments"][0]["oem_reference"] == "S8-77" and queue[0]["oem_reference"] == "S8-77"                  # the maker's number travels
+    assert queue[0]["fitments"][0]["oem_reference"] == "S8-77" and queue[0]["oem_reference"] == "S8-77"
+    assert queue[0]["notes"] is None                                                                                  # an older server's notes are not published                  # the maker's number travels
     assert (await anon.post("/api/catalog/online/propose", json={"category": "nope", "fitments": [{"model": "x"}]}, headers={"Authorization": f"Bearer {key}"})).status_code == 422
     keys = (await console.get("/api/admin/catalog/keys")).json()["keys"]
     marta = next(k for k in keys if k["note"] == "Marta")

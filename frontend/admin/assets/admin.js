@@ -415,6 +415,11 @@ function editCatalog(e) {
   $('catTitle').textContent = t('{p0}{p1} (propuesta de {p2})', {p0: e.category_label, p1: e.position_label ? ' · ' + e.position_label.toLowerCase() : '', p2: e.proposed_by || '—'});
   $('catFits').value = (e.fitments || []).map((f) => [f.make || '', f.model || '', f.years || '', f.oem_reference || ''].join(' | ').replace(/( \| )+$/, '')).join('\n');
   $('catName').value = e.name || ''; $('catBrand').value = e.brand || ''; $('catRef').value = e.reference || '';
+  // Position (front / rear / spare) only for the part types that have one: pads, discs, tyres, wiper blades
+  const positions = e.positions || [];
+  $('catPositionWrap').hidden = !positions.length;
+  $('catPosition').replaceChildren(h('option', { value: '' }, t('Sin indicar')), ...positions.map((p) => h('option', { value: p.key }, t(p.label))));
+  $('catPosition').value = e.position || '';
   $('catSpecLabel').textContent = e.spec_label; $('catSpec').value = e.spec || '';
   $('catQtyLabel').textContent = e.qty_label; $('catQty').value = e.quantity === null || e.quantity === undefined ? '' : e.quantity;
   $('catNotes').value = e.notes || '';
@@ -430,6 +435,7 @@ $('formCatalog').addEventListener('submit', async (ev) => {
     if (!fitments.length) { toast('Indica al menos un coche (marca | modelo | años | ref. fabricante).', true); return; }
     await api(`/api/admin/catalog/${catalogEntry.id}`, 'PATCH', {
       fitments, name: $('catName').value, brand: $('catBrand').value,
+      ...((catalogEntry.positions || []).length ? { position: $('catPosition').value } : {}),
       reference: $('catRef').value, spec: $('catSpec').value, quantity: q === '' ? null : parseFloat(q), notes: $('catNotes').value });
     $('dlgCatalog').close();
     toast('Propuesta guardada.');
