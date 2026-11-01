@@ -6,7 +6,7 @@ function getSavedThemePreference() {
   return localStorage.getItem('evbro_theme') || 'dark';
 }
 
-// ───────────────────────── Colour accent (Ajustes → Tema → Color) ─────────────────────────
+// ───────────────────────── Colour accent (Ajustes → Sistema → Apariencia) ─────────────────────────
 const THEME_ACCENTS = { blue: 'Azul', rose: 'Rosa', violet: 'Violeta', green: 'Verde', amber: 'Ámbar', red: 'Rojo' };
 
 function getSavedAccent() {

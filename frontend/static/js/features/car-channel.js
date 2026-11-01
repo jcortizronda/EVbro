@@ -1,4 +1,4 @@
-/* EVBro — Car MQTT channel (status in Ajustes → Sistema).
+/* EVBro — Car MQTT channel (status in Ajustes → Conexiones).
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 

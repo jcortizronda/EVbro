@@ -163,7 +163,7 @@ The database updates itself on start. Make the backup of section 10 before updat
 | :--- | :--- |
 | The page does not open | `docker compose ps` (are both containers there?) and `docker compose logs --tail 50 app` |
 | "Could not sign in" when connecting the Ebro account | The phone goes **without the country code**, which goes in its own field (34 for Spain). The password is the one of the official app. If the official app asked for SMS verification recently, wait a few minutes |
-| Data does not refresh | EVBro queries the cloud every hour with the car parked and every minute while driving; it does not wake the car. **Settings → System → Car channel** must say "Listening to the car". If the official app is open on the phone, the cloud keeps only one live connection: the last one in |
+| Data does not refresh | EVBro queries the cloud every hour with the car parked and every minute while driving; it does not wake the car. **Settings → Connections → Car channel** must say "Listening to the car". If the official app is open on the phone, the cloud keeps only one live connection: the last one in |
 | No alerts on the phone | HTTPS is needed (section 7) and they must be enabled on that device (section 8) |
 | I lost `ENCRYPTION_KEY` | Put a new one in `.env`, start, and connect the Ebro account again in Settings → Account. Nothing else is lost |
 | I want to start over | `docker compose down -v` deletes **everything** (database and files). Without `-v` it only stops the containers |

@@ -163,7 +163,7 @@ La base de datos se actualiza sola al arrancar. Antes de actualizar, haz la copi
 | :--- | :--- |
 | La página no abre | `docker compose ps` (¿están los dos contenedores?) y `docker compose logs --tail 50 app` |
 | «No se pudo iniciar sesión» al conectar la cuenta de Ebro | El teléfono va **sin prefijo** y el prefijo aparte (34 para España). La contraseña es la de la app oficial. Si la app oficial pidió verificación por SMS hace poco, espera unos minutos |
-| Los datos no se actualizan | EVBro consulta la nube cada hora con el coche aparcado y cada minuto en marcha; no despierta el coche. **Ajustes → Sistema → Canal del coche** debe decir «Escuchando al coche». Si la app oficial está abierta en el móvil, la nube solo mantiene una conexión en directo: la última que entra |
+| Los datos no se actualizan | EVBro consulta la nube cada hora con el coche aparcado y cada minuto en marcha; no despierta el coche. **Ajustes → Conexiones → Canal del coche** debe decir «Escuchando al coche». Si la app oficial está abierta en el móvil, la nube solo mantiene una conexión en directo: la última que entra |
 | No llegan los avisos al móvil | Hace falta HTTPS (apartado 7) y haberlos activado en ese dispositivo (apartado 8) |
 | Perdí la clave `ENCRYPTION_KEY` | Pon una nueva en `.env`, arranca y vuelve a conectar la cuenta de Ebro en Ajustes → Cuenta. El resto de datos no se pierde |
 | Quiero empezar de cero | `docker compose down -v` borra **todo** (base de datos y ficheros). Sin `-v` solo para los contenedores |

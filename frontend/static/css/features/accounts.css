@@ -49,7 +49,7 @@ body:not(.is-root) .needs-root { display: none !important; }
 /* Manual car modal: the free-text brand/model inputs sit under their select */
 .man-field-extra { margin-top: 0.4rem; }
 
-/* Colour accent swatches (Ajustes → Tema → Color) */
+/* Colour accent swatches (Ajustes → Sistema → Apariencia → Color) */
 .accent-current { margin-left: auto; font-size: 0.8rem; font-weight: 600; color: var(--accent); }
 .accent-seg { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; padding: 6px 2px; }
 .accent-dot { display: flex; align-items: center; justify-content: center; min-height: 48px; background: transparent; border: 0; cursor: pointer; border-radius: 14px; }
@@ -61,7 +61,10 @@ body:not(.is-root) .needs-root { display: none !important; }
 .accent-dot[data-accent="green"] span { background: #22c55e; }
 .accent-dot[data-accent="amber"] span { background: #f59e0b; }
 .accent-dot[data-accent="red"] span { background: #ef4444; }
-.accent-card { margin-top: 1rem; }
+.accent-current { text-transform: none; }
+/* Ajustes → Sistema → Apariencia: small titles over the theme and colour pickers */
+.appearance-label { display: flex; align-items: center; margin: 1rem 0 0.4rem; font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; }
+.appearance-label:first-of-type { margin-top: 0.25rem; }
 
 /* When orders ask for the PIN (Ajustes → Cuenta) */
 .pin-policy { margin-top: 0.9rem; padding-top: 0.75rem; border-top: 1px solid var(--border-color); }

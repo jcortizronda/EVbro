@@ -81,11 +81,12 @@ function switchTab(tabName) {
 /**
  * Sub-tab navigation inside the Ajustes (settings) module.
  * Each section is decoupled and lazy-loaded on demand.
- * @param {'account'|'accounts'|'notifs'|'connections'|'theme'|'system'} subTabName
+ * @param {'account'|'accounts'|'notifs'|'connections'|'system'} subTabName
  */
 function switchSettingsSubTab(subTabName) {
+  if (subTabName === 'theme') subTabName = 'system';      // «Tema» became the «Apariencia» section of Sistema
   window.currentSettingsSubTab = subTabName;
-  const validSubTabs = ['account', 'accounts', 'notifs', 'connections', 'theme', 'system'];
+  const validSubTabs = ['account', 'accounts', 'notifs', 'connections', 'system'];
   if (!validSubTabs.includes(subTabName)) {
     console.warn(`[Ajustes] Unknown sub-tab: ${subTabName}`);
     return;
@@ -120,12 +121,11 @@ function switchSettingsSubTab(subTabName) {
   } else if (subTabName === 'notifs') {
     if (typeof loadNotificationConfig === 'function') loadNotificationConfig();
   } else if (subTabName === 'connections') {
+    if (typeof loadCarChannelStatus === 'function') loadCarChannelStatus();   // the live channel with the car
     if (window.MqttHa) MqttHa.load();                   // the manager's own broker for Home Assistant
     if (window.Traccar) Traccar.load();                 // «Posición por GPS (Traccar)» of the chosen car
-  } else if (subTabName === 'theme') {
-    if (typeof updateThemeSettingsUI === 'function') updateThemeSettingsUI();
   } else if (subTabName === 'system') {
-    if (typeof loadCarChannelStatus === 'function') loadCarChannelStatus();
+    if (typeof updateThemeSettingsUI === 'function') updateThemeSettingsUI();   // «Apariencia»
     loadAppVersion();
   }
 }

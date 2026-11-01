@@ -1,7 +1,7 @@
 /* EVBro — fingerprint sign-in (passkeys / WebAuthn).
  *
  * The fingerprint (or face, or screen lock) is checked on the phone itself: the server only receives a signature made with a
- * key that never leaves the device. Here are the base64url ↔ bytes conversions, the registration of this device (Ajustes → Sistema)
+ * key that never leaves the device. Here are the base64url ↔ bytes conversions, the registration of this device (Ajustes → Cuenta)
  * and the call the sign-in screen uses (core/auth.js → EbroPasskeys.signIn).
  */
 (function () {
@@ -106,7 +106,7 @@
     return postJSON('/api/auth/passkeys/login/verify', { challenge_id: start.challenge_id, credential: credentialJSON(cred) });
   }
 
-  // ───────────────────────── Ajustes → Sistema ─────────────────────────
+  // ───────────────────────── Ajustes → Cuenta ─────────────────────────
   async function addThisDevice() {
     const btn = $('btnPasskeyAdd');
     if (btn) btn.disabled = true;

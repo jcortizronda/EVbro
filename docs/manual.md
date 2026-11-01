@@ -76,9 +76,8 @@ El menú con el resto de secciones, agrupadas en **Historial** y **Gestión**.
 - *Cuenta*: tu usuario de EVBro (cambiar contraseña, cerrar sesión), **acceso con huella** (añade este dispositivo y entra sin contraseña; exige HTTPS), la **cuenta de Ebro** (conectar, sincronizar coches, guardar o cambiar el PIN) y **cuándo pedir el PIN**: solo al abrir el coche (por defecto), siempre o nunca. **Tus datos**: descargar todo en un ZIP e importar un ZIP en otro servidor. Enlace a qué datos guarda este servidor.
 - *Compartir*: cuentas asociadas (pareja, familia) y qué puede hacer cada una con cada coche: ver; ver y editar; ver y controlar; ver, editar y controlar.
 - *Avisos*: notificaciones en este dispositivo (Web Push), Telegram, Pushover o webhook, y qué eventos avisan: entrada y salida de geocercas, reserva de combustible, fallos, ventanas abiertas, batería baja, carga completada o interrumpida, mantenimiento, alarma, presión de neumáticos y vencimientos, con sus umbrales. Historial de avisos enviados.
-- *Conexiones*: el broker **MQTT de Home Assistant**, para que tus coches aparezcan allí, y la posición por GPS desde un servidor **Traccar**.
-- *Tema*: claro, oscuro o automático y color de acento (azul, rosa, violeta, verde, ámbar, rojo). Se guarda en el dispositivo.
-- *Sistema*: **canal del coche** (la conexión en directo con la nube: estado, mensajes recibidos, botón Reconectar), **idioma** de la cuenta y versión instalada.
+- *Conexiones*: el **canal del coche** (la conexión en directo con la nube: estado, mensajes recibidos, botón Reconectar), el broker **MQTT de Home Assistant**, para que tus coches aparezcan allí, y la posición por GPS desde un servidor **Traccar**.
+- *Sistema*: **apariencia** (tema claro, oscuro o automático y color de acento: azul, rosa, violeta, verde, ámbar o rojo; se guarda en el dispositivo), **idioma** de la cuenta y versión instalada.
 
 **Sensores y cables.** Todos los datos que envía el coche tal cual llegan, con su nombre y explicación, por categorías (cables y carga, batería, neumáticos, carrocería, climatización, motor y diagnóstico) y un buscador. Útil para entender qué significa cada señal.
 
@@ -87,7 +86,7 @@ El menú con el resto de secciones, agrupadas en **Historial** y **Gestión**.
 ## Cómo llegan los datos
 
 - La **sonda** consulta la nube de Chery cada hora con el coche aparcado, cada 30 minutos enchufado, cada 2 cargando y cada minuto en marcha. Consultar **no despierta el coche**; los **comandos** sí.
-- El **canal del coche** (MQTT) recibe al instante puertas, cierre, cable y motor, y confirma cada orden. Solo funciona con la cuenta del propietario, y la nube mantiene **una sola conexión en directo por cuenta**: si abres la app oficial, la última que entra se queda con ella. Si el canal se para, Ajustes → Sistema → Reconectar.
+- El **canal del coche** (MQTT) recibe al instante puertas, cierre, cable y motor, y confirma cada orden. Solo funciona con la cuenta del propietario, y la nube mantiene **una sola conexión en directo por cuenta**: si abres la app oficial, la última que entra se queda con ella. Si el canal se para, Ajustes → Conexiones → Reconectar.
 - Los viajes y las cargas se **detectan solos** a partir de esos datos; los kWh de viajes y cargas son estimaciones (puntos de batería × capacidad de la ficha). Los litros de un repostaje detectado también, hasta que pones los del ticket.
 
 ## La consola de administración

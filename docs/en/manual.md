@@ -76,9 +76,8 @@ The menu with the remaining sections, grouped as **History** and **Manage**.
 - *Account*: your EVBro user (change password, sign out), **fingerprint sign-in** (add this device and sign in without a password; requires HTTPS), the **Ebro account** (connect, sync cars, save or change the PIN) and **when to ask for the PIN**: only when opening the car (default), always or never. **Your data**: download everything as a ZIP and import a ZIP on another server. A link to what data this server keeps.
 - *Sharing*: linked accounts (partner, family) and what each can do with each car: view; view and edit; view and control; view, edit and control.
 - *Alerts*: notifications on this device (Web Push), Telegram, Pushover or webhook, and which events alert: geofence arrival and departure, fuel reserve, faults, windows left open, low battery, charge completed or interrupted, maintenance, alarm, tyre pressure and due dates, with their thresholds. History of sent alerts.
-- *Connections*: Home Assistant's **MQTT** broker, so your cars appear there, and GPS position from a **Traccar** server.
-- *Theme*: light, dark or automatic and accent colour (blue, pink, violet, green, amber, red). Saved on the device.
-- *System*: **car channel** (the live connection to the cloud: status, messages received, Reconnect button), **language** of the account and installed version.
+- *Connections*: the **car channel** (the live connection to the cloud: status, messages received, Reconnect button), Home Assistant's **MQTT** broker, so your cars appear there, and GPS position from a **Traccar** server.
+- *System*: **appearance** (light, dark or automatic theme and accent colour: blue, pink, violet, green, amber or red; saved on the device), **language** of the account and installed version.
 
 **Sensors and cables.** All the data the car sends, as it arrives, with name and explanation, by category (cables and charging, battery, tyres, body, climate, engine and diagnostics) and a search box. Useful to understand what each signal means.
 
@@ -87,7 +86,7 @@ The menu with the remaining sections, grouped as **History** and **Manage**.
 ## How the data arrives
 
 - The **poller** queries the Chery cloud every hour with the car parked, every 30 minutes plugged in, every 2 while charging and every minute while driving. Querying **does not wake the car**; **commands** do.
-- The **car channel** (MQTT) receives doors, lock, cable and engine instantly, and confirms every command. It only works with the owner's account, and the cloud keeps **one live connection per account**: if you open the official app, the last one in keeps it. If the channel stops, Settings → System → Reconnect.
+- The **car channel** (MQTT) receives doors, lock, cable and engine instantly, and confirms every command. It only works with the owner's account, and the cloud keeps **one live connection per account**: if you open the official app, the last one in keeps it. If the channel stops, Settings → Connections → Reconnect.
 - Trips and charges are **detected on their own** from that data; the kWh of trips and charges are estimates (battery points × sheet capacity). The litres of a detected fuel-up are too, until you enter the ones on the receipt.
 
 ## The admin console
