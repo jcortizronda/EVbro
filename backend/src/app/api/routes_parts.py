@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import MaintenanceLog, Vehicle, VehiclePart
+from app.db.models import CatalogEntry, MaintenanceLog, Vehicle, VehiclePart
 from app.db.session import get_db
 from app.services.parts import (
     GROUPS,
@@ -15,6 +15,7 @@ from app.services.parts import (
     POSITIONS,
     TYRE_SEASONS,
     PartIn,
+    apply_fields,
     part_matches,
     record_parts_used,
     serialize_part,
@@ -37,6 +38,15 @@ def _clean(part: PartIn) -> PartIn:
         return part.normalized()
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+async def _from_catalog(session: AsyncSession, part: PartIn) -> PartIn:
+    """A part copied from the catalogue may only point at an approved entry of the same category (never at someone's proposal)."""
+    if part.catalog_id is not None:
+        entry = await session.get(CatalogEntry, part.catalog_id)
+        if entry is None or entry.status != "approved" or entry.category != part.category:
+            part.catalog_id = None
+    return part
 
 
 @router.get("/part-categories")
@@ -63,7 +73,7 @@ async def list_parts(vin: str, q: Optional[str] = Query(None, max_length=100), c
 async def create_part(vin: str, req: PartIn, session: AsyncSession = Depends(get_db)):
     if (await session.execute(select(Vehicle.id).where(Vehicle.vin == vin))).first() is None:
         raise HTTPException(status_code=404, detail="Vehículo no encontrado.")
-    row = await upsert_part(session, vin, _clean(req))
+    row = await upsert_part(session, vin, await _from_catalog(session, _clean(req)))
     await session.commit()
     return serialize_part(row)
 
@@ -73,10 +83,9 @@ async def update_part(part_id: int, req: PartIn, session: AsyncSession = Depends
     row = await session.get(VehiclePart, part_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Pieza no encontrada.")
-    part = _clean(req)
+    part = await _from_catalog(session, _clean(req))
     row.category, row.position = part.category, part.position
-    row.name, row.brand, row.reference, row.spec = part.name, part.brand, part.reference, part.spec
-    row.quantity, row.notes, row.attrs = part.quantity, part.notes, part.attrs
+    apply_fields(row, part)
     await session.commit()
     return serialize_part(row)
 

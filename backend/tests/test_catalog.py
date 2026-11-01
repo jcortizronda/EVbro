@@ -70,7 +70,7 @@ async def test_propose_review_and_the_approved_entry_is_visible_to_the_same_mode
     r = await ana.post(f"/api/parts/{ids['oil']}/propose", json={})
     assert r.status_code == 200 and r.json()["status"] == "pending" and r.json()["model"] == "S900 PHEV" and r.json()["years"] == "2025"
     assert r.json()["make"] == "Ebro" and r.json()["spec_label"] == "Viscosidad" and r.json()["qty_label"] == "Litros"
-    assert r.json()["fitments"] == [{"id": r.json()["fitments"][0]["id"], "make": "Ebro", "model": "S900 PHEV", "years": "2025"}]
+    assert r.json()["fitments"] == [{"id": r.json()["fitments"][0]["id"], "make": "Ebro", "model": "S900 PHEV", "years": "2025", "oem_reference": None}]
     entry_id = r.json()["id"]
     assert (await ana.post(f"/api/parts/{ids['oil']}/propose", json={})).status_code == 409           # already proposed
     assert (await bea.post(f"/api/parts/{ids['oil']}/propose", json={})).status_code == 404           # not her part
@@ -162,3 +162,53 @@ async def test_a_reference_can_fit_several_models_and_a_confirmation_from_anothe
     assert len(entry) == 1 and entry[0]["id"] == eid and entry[0]["confirmations"] == 1 and [f["model"] for f in entry[0]["fitments"]] == ["S900 PHEV", "S800", "S700"]
     export = (await console.get("/api/admin/catalog/export")).json()
     assert export["format"] == "evbro-catalog/2" and len(export["entries"][0]["fitments"]) == 3
+
+
+async def test_the_maker_reference_travels_with_the_part_and_belongs_to_each_fitment(world) -> None:
+    ana, bea, console, ids = world["ana"], world["bea"], world["console"], world["ids"]
+    body = {"category": "engine_oil", "name": "Aceite", "brand": "Castrol", "reference": "Edge 0W-20", "oem_reference": " 1012345678 ", "spec": "0W-20"}
+    assert (await ana.put(f"/api/parts/{ids['oil']}", json=body)).json()["oem_reference"] == "1012345678"
+    found = (await ana.get(f"/api/vehicles/{VIN_A}/parts?q=1012345678")).json()
+    assert [p["id"] for p in found] == [ids["oil"]]                                                    # searchable
+    d = (await ana.post(f"/api/parts/{ids['oil']}/propose", json={})).json()
+    assert d["oem_reference"] == "1012345678" and d["fitments"][0]["oem_reference"] == "1012345678"
+    # Ebro's number is not another make's: each fitment has its own
+    d = (await console.patch(f"/api/admin/catalog/{d['id']}", json={"fitments": [
+        {"make": "Ebro", "model": "S900 PHEV", "years": "2025", "oem_reference": "1012345678"},
+        {"make": "Chery", "model": "Tiggo 8", "years": None, "oem_reference": "T8-555"}]})).json()
+    assert [f["oem_reference"] for f in d["fitments"]] == ["1012345678", "T8-555"] and d["oem_reference"] == "1012345678"
+    await console.post(f"/api/admin/catalog/{d['id']}/approve")
+    tiggo = (await bea.get("/api/catalog?model=tiggo%208&category=engine_oil")).json()
+    assert len(tiggo) == 1 and next(f for f in tiggo[0]["fitments"] if f["model"] == "Tiggo 8")["oem_reference"] == "T8-555"
+    export = (await console.get("/api/admin/catalog/export")).json()
+    assert export["format"] == "evbro-catalog/2" and export["entries"][0]["fitments"][1]["oem_reference"] == "T8-555"
+
+
+async def test_a_part_copied_from_the_catalogue_links_only_to_an_approved_entry_of_its_category(world) -> None:
+    ana, bea, console, ids = world["ana"], world["bea"], world["console"], world["ids"]
+    eid = (await ana.post(f"/api/parts/{ids['oil']}/propose", json={})).json()["id"]
+    oil = {"category": "engine_oil", "name": "Aceite", "brand": "Castrol", "reference": "Edge 0W-20", "spec": "0W-20"}
+    assert (await bea.post(f"/api/vehicles/{VIN_B}/parts", json={**oil, "catalog_id": eid})).json()["catalog_id"] is None   # still pending
+    await console.post(f"/api/admin/catalog/{eid}/approve")
+    assert (await bea.post(f"/api/vehicles/{VIN_B}/parts", json={**oil, "category": "coolant", "catalog_id": eid})).json()["catalog_id"] is None
+    part = (await bea.post(f"/api/vehicles/{VIN_B}/parts", json={**oil, "catalog_id": eid})).json()
+    assert part["catalog_id"] == eid
+    kept = (await bea.put(f"/api/parts/{part['id']}", json={**oil, "quantity": 4.2})).json()                 # editing keeps the link
+    assert kept["catalog_id"] == eid and kept["quantity"] == 4.2
+    assert (await bea.post(f"/api/vehicles/{VIN_B}/parts", json={**oil, "catalog_id": 0})).status_code == 422
+
+
+async def test_without_a_reference_the_same_maker_number_for_the_same_model_is_a_confirmation(world) -> None:
+    ana, bea, console = world["ana"], world["bea"], world["console"]
+    async with async_session_factory() as s:
+        a = VehiclePart(vin=VIN_A, category="cabin_filter", name="Filtro de habitáculo", brand="Ebro", oem_reference="AF-1")
+        b = VehiclePart(vin=VIN_B, category="cabin_filter", name="Filtro de habitáculo", oem_reference="af-1")
+        s.add_all([a, b])
+        await s.commit()
+        aid, bid = a.id, b.id
+    first = (await ana.post(f"/api/parts/{aid}/propose", json={})).json()["id"]                      # only the maker's number is enough
+    await console.post(f"/api/admin/catalog/{first}/approve")
+    second = (await bea.post(f"/api/parts/{bid}/propose", json={})).json()["id"]
+    assert (await console.post(f"/api/admin/catalog/{second}/approve")).json()["status"] == "rejected"
+    entry = (await bea.get("/api/catalog?model=S900%20PHEV&category=cabin_filter")).json()
+    assert [e["id"] for e in entry] == [first] and entry[0]["confirmations"] == 1

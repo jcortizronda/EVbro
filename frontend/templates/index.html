@@ -1729,9 +1729,12 @@
           <div id="vpPaneParts" hidden>
             <div class="glass details-card parts-head">
               <div class="card-title">Consumibles y referencias</div>
-              <p class="vp-hint">Lo que lleva tu coche, para saber a la primera qué aceite, filtro, pastillas o neumáticos necesita. Se actualiza solo cuando registras una intervención con piezas.</p>
+              <p class="vp-hint">Lo que lleva tu coche, para saber a la primera qué aceite, filtro, pastillas o neumáticos necesita. Se actualiza solo cuando registras una intervención con piezas. La «Ref. fabricante» es el número de pieza de la marca del coche (el de Ebro, en un Ebro).</p>
               <input type="search" id="partsSearch" class="form-control" placeholder="Buscar: aceite, filtro, referencia, medida…" data-on-input="renderParts()" aria-label="Buscar en los consumibles" />
               <div id="partsSuggestWrap"><small>Sugeridas para anotar:</small><div class="maint-chips" id="partsSuggest"></div></div>
+              <!-- Shared catalogue next to my own parts (features/parts.js); the choice is remembered on this device -->
+              <label class="vp-check parts-online"><input type="checkbox" id="partsShowCatalog" data-on-change="togglePartsCatalog(this.checked)" /> Ver catálogo online</label>
+              <p class="vp-hint parts-online-note" id="partsCatalogNote" hidden></p>
               <button type="button" class="btn-primary" data-on-click="openPartModal()">Añadir pieza</button>
             </div>
             <div id="partsGroups"></div>
@@ -2573,6 +2576,7 @@
     <div class="modal-card u-max-width-520px">
       <h3 id="partModalTitle">Pieza</h3>
       <input type="hidden" id="partId" />
+      <p class="vp-hint part-replace-note" id="partReplaceNote" hidden></p>
       <div id="partModalFields"></div>
       <div id="partCatalogSuggest" class="part-suggest" hidden></div>
       <div class="form-group full u-margin-top-10px"><label for="partNotes">Notas</label><textarea id="partNotes" class="form-control" rows="2"></textarea></div>

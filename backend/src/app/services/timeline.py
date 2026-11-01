@@ -160,10 +160,10 @@ async def search(session: AsyncSession, cars: Dict[str, str], query: str, limit:
     hits: List[Dict[str, Any]] = []
 
     rows = (await session.execute(select(VehiclePart).where(VehiclePart.vin.in_(vins), or_(
-        VehiclePart.name.ilike(like), VehiclePart.brand.ilike(like), VehiclePart.reference.ilike(like), VehiclePart.spec.ilike(like),
+        VehiclePart.name.ilike(like), VehiclePart.brand.ilike(like), VehiclePart.reference.ilike(like), VehiclePart.oem_reference.ilike(like), VehiclePart.spec.ilike(like),
         VehiclePart.notes.ilike(like))).order_by(desc(VehiclePart.id)).limit(per_kind))).scalars()
     for p in rows:
-        sub = " · ".join(x for x in (p.brand, p.reference, p.spec) if x)
+        sub = " · ".join(x for x in (p.brand, p.reference, p.oem_reference, p.spec) if x)
         hits.append(_hit("part", p.vin, cars[p.vin], p.id, p.name or p.category, sub, p.installed_at))
 
     rows = (await session.execute(select(MaintenanceLog, MaintenanceItem.vin, MaintenanceItem.name)

@@ -302,6 +302,7 @@ class VehiclePart(Base):
     name = Column(String(150), nullable=False)
     brand = Column(String(80), nullable=True)
     reference = Column(String(120), nullable=True)                # part number
+    oem_reference = Column(String(120), nullable=True)            # the car maker's own part number («Ref. fabricante»)
     spec = Column(String(120), nullable=True)                     # viscosity, tyre size, capacity...
     quantity = Column(Float, nullable=True)                       # litres, units, sets
     attrs = Column(JSON, nullable=True)                           # tyres: {"season": ..., "dot": "2324"}
@@ -309,7 +310,7 @@ class VehiclePart(Base):
     installed_at = Column(DateTime, nullable=True)
     installed_odometer = Column(Float, nullable=True)
     source_log_id = Column(Integer, nullable=True)                # maintenance log that fitted it (no FK: the log may be deleted)
-    catalog_id = Column(Integer, nullable=True)                   # reserved: entry of the future shared catalogue
+    catalog_id = Column(Integer, nullable=True)                   # entry of the shared catalogue: my proposal, or the approved one it came from
 
 
 class Refuel(Base):
@@ -366,6 +367,7 @@ class CatalogEntry(Base):
     name = Column(String(150), nullable=False)
     brand = Column(String(80), nullable=True)
     reference = Column(String(120), nullable=True)
+    oem_reference = Column(String(120), nullable=True)            # the maker's part number of the first fitment
     spec = Column(String(120), nullable=True)
     quantity = Column(Float, nullable=True)
     notes = Column(Text, nullable=True)
@@ -427,6 +429,7 @@ class CatalogFitment(Base):
     make = Column(String(50), nullable=True)
     model = Column(String(80), nullable=False, index=True)
     years = Column(String(20), nullable=True)
+    oem_reference = Column(String(120), nullable=True)            # that make's own part number (Ebro's, Chery's...)
 
 
 class MqttLink(Base):

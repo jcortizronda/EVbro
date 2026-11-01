@@ -3,7 +3,9 @@
 Rules: a part can be proposed once while its proposal is pending or approved (a rejected one can be sent again, corrected); the
 proposal copies the part's fields and the car's model at that moment (editing the part later does not change the proposal);
 only `approved` entries are visible to everybody, matched by model (case-insensitive) and category. Approving an entry that
-duplicates an approved one (same model, category, brand and reference) adds a confirmation to the existing entry instead.
+duplicates an approved one (same category, brand and reference; without a reference, the same maker's number for the same model)
+adds a confirmation to the existing entry instead. The maker's own number («Ref. fabricante») belongs to each fitment: the same
+filter has one number at Ebro and another at a different make.
 """
 from __future__ import annotations
 
@@ -28,15 +30,15 @@ class CatalogError(Exception):
 
 
 def _fit(f: CatalogFitment) -> Dict[str, Any]:
-    return {"id": f.id, "make": f.make, "model": f.model, "years": f.years}
+    return {"id": f.id, "make": f.make, "model": f.model, "years": f.years, "oem_reference": f.oem_reference}
 
 
 def serialize(e: CatalogEntry, proposer: Optional[str] = None, fitments: Optional[List[CatalogFitment]] = None) -> Dict[str, Any]:
     cat = CATEGORY_BY_KEY.get(e.category, {})
-    fits = [_fit(f) for f in (fitments if fitments is not None else [])] or [{"id": None, "make": e.make, "model": e.model, "years": e.years}]
+    fits = [_fit(f) for f in (fitments if fitments is not None else [])] or [{"id": None, "make": e.make, "model": e.model, "years": e.years, "oem_reference": e.oem_reference}]
     return {"id": e.id, "model": e.model, "make": e.make, "fitments": fits, "years": e.years, "category": e.category, "category_label": cat.get("label", e.category),
             "spec_label": cat.get("spec_label") or "Especificación", "qty_label": cat.get("qty_label") or "Cantidad",
-            "position": e.position, "position_label": POSITIONS.get(e.position or "", None), "name": e.name, "brand": e.brand, "reference": e.reference, "spec": e.spec, "quantity": e.quantity,
+            "position": e.position, "position_label": POSITIONS.get(e.position or "", None), "name": e.name, "brand": e.brand, "reference": e.reference, "oem_reference": e.oem_reference, "spec": e.spec, "quantity": e.quantity,
             "notes": e.notes, "source": e.source, "status": e.status, "reject_reason": e.reject_reason, "confirmations": e.confirmations or 0,
             "proposed_by": proposer, "proposed_at": e.proposed_at.isoformat() if e.proposed_at else None,
             "reviewed_at": e.reviewed_at.isoformat() if e.reviewed_at else None,
@@ -50,19 +52,19 @@ async def propose_from_part(session: AsyncSession, part: VehiclePart, user_id: i
     model = (vehicle.model or "").strip()
     if not model:
         raise CatalogError(422, "Indica el modelo del coche en su ficha antes de proponer una pieza al catálogo.")
-    if not (part.brand or part.reference or part.spec):
-        raise CatalogError(422, "Una propuesta necesita al menos la marca, la referencia o la especificación de la pieza.")
+    if not (part.brand or part.reference or part.oem_reference or part.spec):
+        raise CatalogError(422, "Una propuesta necesita al menos la marca, una referencia o la especificación de la pieza.")
     if part.catalog_id:
         current = await session.get(CatalogEntry, part.catalog_id)
         if current is not None and current.status in ("pending", "approved"):
             raise CatalogError(409, "Esta pieza ya está propuesta al catálogo." if current.status == "pending" else "Esta pieza ya está en el catálogo.")
     entry = CatalogEntry(model=model, make=(vehicle.brand or "").strip() or None, years=(years or "").strip() or (str(vehicle.model_year) if vehicle.model_year else None), category=part.category,
-                         position=part.position, name=part.name, brand=part.brand, reference=part.reference, spec=part.spec,
+                         position=part.position, name=part.name, brand=part.brand, reference=part.reference, oem_reference=part.oem_reference, spec=part.spec,
                          quantity=part.quantity, notes=part.notes, source=source if source in ("manual", "invoice", "photo") else "manual",
                          status="pending", proposed_by=user_id, proposed_at=datetime.datetime.utcnow())
     session.add(entry)
     await session.flush()
-    session.add(CatalogFitment(entry_id=entry.id, make=entry.make, model=entry.model, years=entry.years))
+    session.add(CatalogFitment(entry_id=entry.id, make=entry.make, model=entry.model, years=entry.years, oem_reference=entry.oem_reference))
     part.catalog_id = entry.id
     await session.commit()
     return entry
@@ -116,11 +118,17 @@ async def for_review(session: AsyncSession, status: str = "pending") -> List[Dic
 
 
 async def _duplicate_of(session: AsyncSession, e: CatalogEntry) -> Optional[CatalogEntry]:
-    if not e.reference:                                        # without a reference there is nothing to match reliably
+    """The same part already approved: same brand and reference or, without a reference, the same maker's number for the same model."""
+    base = select(CatalogEntry).where(CatalogEntry.status == "approved", CatalogEntry.id != e.id, CatalogEntry.category == e.category)
+    if e.reference:
+        stmt = base.where(func.lower(func.coalesce(CatalogEntry.brand, "")) == (e.brand or "").lower(),
+                          func.lower(func.coalesce(CatalogEntry.reference, "")) == e.reference.lower())
+    elif e.oem_reference:                                      # the maker's number only means something for that make and model
+        fits = select(CatalogFitment.entry_id).where(func.lower(CatalogFitment.model) == e.model.lower(),
+                                                     func.lower(func.coalesce(CatalogFitment.oem_reference, "")) == e.oem_reference.lower())
+        stmt = base.where(func.coalesce(CatalogEntry.reference, "") == "", CatalogEntry.id.in_(fits))
+    else:                                                      # nothing to match reliably
         return None
-    stmt = select(CatalogEntry).where(CatalogEntry.status == "approved", CatalogEntry.id != e.id, CatalogEntry.category == e.category,
-                                      func.lower(func.coalesce(CatalogEntry.brand, "")) == (e.brand or "").lower(),
-                                      func.lower(func.coalesce(CatalogEntry.reference, "")) == (e.reference or "").lower())
     return (await session.execute(stmt.limit(1))).scalar_one_or_none()
 
 
@@ -135,9 +143,14 @@ async def review(session: AsyncSession, entry_id: int, admin_id: int, approve: b
         dup = await _duplicate_of(session, e)
         if dup is not None:
             dup.confirmations = (dup.confirmations or 0) + 1       # the same reference again: it confirms the existing entry
-            known = {(f.model or "").lower() for f in (await fitments_of(session, [dup.id]))[dup.id]}
-            if e.model.lower() not in known:                       # ...and, from another model, extends what the reference fits
-                session.add(CatalogFitment(entry_id=dup.id, make=e.make, model=e.model, years=e.years))
+            known = {(f.model or "").lower(): f for f in (await fitments_of(session, [dup.id]))[dup.id]}
+            same = known.get(e.model.lower())
+            if same is None:                                       # ...and, from another model, extends what the reference fits
+                session.add(CatalogFitment(entry_id=dup.id, make=e.make, model=e.model, years=e.years, oem_reference=e.oem_reference))
+            elif e.oem_reference and not same.oem_reference:       # ...or fills in the maker's number it was missing
+                same.oem_reference = e.oem_reference
+                if (dup.model or "").lower() == e.model.lower() and not dup.oem_reference:
+                    dup.oem_reference = e.oem_reference
             e.status, e.reject_reason = "rejected", f"Ya estaba en el catálogo (entrada {dup.id}); cuenta como confirmación."
             # the proposer's part now points at the entry that is public
             for part in (await session.execute(select(VehiclePart).where(VehiclePart.catalog_id == e.id))).scalars():
@@ -163,13 +176,14 @@ async def edit(session: AsyncSession, entry_id: int, changes: Dict[str, Any]) ->
         for f in fits[:MAX_FITMENTS]:
             model = (f.get("model") or "").strip()
             if model:
-                clean.append(CatalogFitment(entry_id=e.id, make=(f.get("make") or "").strip() or None, model=model, years=(f.get("years") or "").strip() or None))
+                clean.append(CatalogFitment(entry_id=e.id, make=(f.get("make") or "").strip() or None, model=model, years=(f.get("years") or "").strip() or None,
+                                            oem_reference=(f.get("oem_reference") or "").strip() or None))
         if not clean:
             raise CatalogError(422, "La pieza tiene que valer al menos para un modelo.")
         for old in (await fitments_of(session, [e.id]))[e.id]:
             await session.delete(old)
         session.add_all(clean)
-        e.make, e.model, e.years = clean[0].make, clean[0].model, clean[0].years     # the first one is the "main" car
+        e.make, e.model, e.years, e.oem_reference = clean[0].make, clean[0].model, clean[0].years, clean[0].oem_reference   # the first one is the "main" car
     for field, value in changes.items():
         if field not in EDITABLE:
             continue

@@ -45,6 +45,17 @@
 .part-tag-pending { color: var(--accent-amber, #ff9f0a); }
 .part-tag-approved { color: var(--accent-green, #30d158); }
 .part-tag-rejected { color: var(--accent-red, #ff453a); }
+.part-tag-local { color: var(--text-muted); }
+.part-tag-catalog { color: var(--accent-bright); }
+
+/* «Ver catálogo online»: approved entries of the shared catalogue for this model, listed under my own parts */
+.parts-online { min-height: 40px; }
+.parts-online-note { margin: -4px 0 0; }
+.parts-online-note[hidden], .part-replace-note[hidden] { display: none; }
+.part-item-catalog .part-item-main strong { color: var(--text-secondary); }
+.part-item-catalog .part-use { font-size: 0.76rem; font-weight: 600; color: var(--accent-bright); }
+.part-item[disabled] { cursor: default; }
+.part-replace-note { margin: 0 0 10px; padding: 8px 10px; border-radius: 10px; background: var(--surface-secondary); }
 .part-suggest { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 10px 0 2px; padding: 10px 12px; border-radius: 12px; background: var(--surface-secondary); border: 1px solid var(--border-color); }
 .part-suggest[hidden] { display: none; }
 .part-suggest-title { flex: 0 0 100%; font-size: 0.74rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.03em; }

@@ -253,3 +253,10 @@ def test_every_declarative_handler_names_a_function_that_exists() -> None:
         if not defined:
             missing.append(name)
     assert not missing, f"Declarative handlers with no function in the JavaScript: {missing}"
+
+
+def test_every_copy_of_the_logo_is_the_current_one() -> None:
+    """The app, its tab icon and the admin console show the same mark (an old copy survived the last logo change once)."""
+    current = (WEB / "static" / "icons" / "icon.svg").read_bytes()
+    for copy in (WEB / "static" / "icons" / "favicon.svg", WEB / "admin" / "assets" / "logo.svg"):
+        assert copy.read_bytes() == current, f"{copy.name} is not the current logo: copy static/icons/icon.svg over it"

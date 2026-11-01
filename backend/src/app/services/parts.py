@@ -1,7 +1,8 @@
 """Vehicle parts and consumables: the catalogue of categories, input validation and the "parts used" helper.
 
-A `VehiclePart` is what *this* car carries (oil, filters, brake pads, tyres...). It is private to the vehicle's owner. `catalog_id` is
-reserved for a future shared catalogue of references (see docs/hosted-service.md) and is unused for now.
+A `VehiclePart` is what *this* car carries (oil, filters, brake pads, tyres...). It is private to the vehicle's owner. It has two part
+numbers: `reference` (the one on the box, aftermarket or original) and `oem_reference` («Ref. fabricante»: the car maker's own number,
+e.g. Ebro's). `catalog_id` points at the shared catalogue: the owner's proposal, or the approved entry the part was copied from.
 """
 from __future__ import annotations
 
@@ -55,10 +56,12 @@ class PartIn(BaseModel):
     name: str = Field(default="", max_length=150)
     brand: Optional[str] = Field(default=None, max_length=80)
     reference: Optional[str] = Field(default=None, max_length=120)
+    oem_reference: Optional[str] = Field(default=None, max_length=120)
     spec: Optional[str] = Field(default=None, max_length=120)
     quantity: Optional[float] = Field(default=None, ge=0, le=1000)
     notes: Optional[str] = Field(default=None, max_length=1000)
     attrs: Optional[Dict[str, str]] = None
+    catalog_id: Optional[int] = Field(default=None, ge=1)          # set when the part is copied from an approved catalogue entry
 
     @field_validator("category")
     @classmethod
@@ -85,7 +88,8 @@ class PartIn(BaseModel):
             attrs[k] = v
         clean = lambda s: (s or "").strip() or None  # noqa: E731
         return PartIn(category=self.category, position=position, name=(self.name or "").strip() or cat["label"], brand=clean(self.brand),
-                      reference=clean(self.reference), spec=clean(self.spec), quantity=self.quantity, notes=clean(self.notes), attrs=attrs or None)
+                      reference=clean(self.reference), oem_reference=clean(self.oem_reference), spec=clean(self.spec), quantity=self.quantity,
+                      notes=clean(self.notes), attrs=attrs or None, catalog_id=self.catalog_id)
 
 
 def serialize_part(p: VehiclePart) -> Dict[str, Any]:
@@ -93,7 +97,7 @@ def serialize_part(p: VehiclePart) -> Dict[str, Any]:
     return {
         "id": p.id, "category": p.category, "category_label": cat.get("label", p.category), "group": cat.get("group", "other"),
         "position": p.position, "position_label": POSITIONS.get(p.position or "", None), "name": p.name, "brand": p.brand,
-        "reference": p.reference, "spec": p.spec, "quantity": p.quantity, "attrs": p.attrs or {}, "notes": p.notes,
+        "reference": p.reference, "oem_reference": p.oem_reference, "spec": p.spec, "quantity": p.quantity, "attrs": p.attrs or {}, "notes": p.notes,
         "installed_at": p.installed_at.isoformat() if p.installed_at else None, "installed_odometer": p.installed_odometer,
         "source_log_id": p.source_log_id, "catalog_id": p.catalog_id,
     }
@@ -102,7 +106,7 @@ def serialize_part(p: VehiclePart) -> Dict[str, Any]:
 def part_matches(p: Dict[str, Any], q: str) -> bool:
     """Case-insensitive search across the text fields a person would look for (name, brand, reference, spec, notes, category)."""
     needle = q.strip().lower()
-    hay = " ".join(str(p.get(k) or "") for k in ("name", "brand", "reference", "spec", "notes", "category_label", "position_label"))
+    hay = " ".join(str(p.get(k) or "") for k in ("name", "brand", "reference", "oem_reference", "spec", "notes", "category_label", "position_label"))
     return needle in hay.lower()
 
 
@@ -118,6 +122,18 @@ async def find_existing(session: AsyncSession, vin: str, part: PartIn) -> Option
     return None
 
 
+def _numbers(p: Any) -> tuple:
+    return tuple((getattr(p, k) or "").strip().lower() for k in ("brand", "reference", "oem_reference"))
+
+
+def apply_fields(row: VehiclePart, part: PartIn) -> None:
+    """Copies the editable fields. `catalog_id` only changes when the part comes from the catalogue: editing a part never unlinks it."""
+    row.name, row.brand, row.reference, row.oem_reference, row.spec = part.name, part.brand, part.reference, part.oem_reference, part.spec
+    row.quantity, row.notes, row.attrs = part.quantity, part.notes, part.attrs
+    if part.catalog_id is not None:
+        row.catalog_id = part.catalog_id
+
+
 async def upsert_part(session: AsyncSession, vin: str, part: PartIn, *, installed_at: Optional[datetime.datetime] = None,
                       installed_odometer: Optional[float] = None, source_log_id: Optional[int] = None) -> VehiclePart:
     """Creates the part or updates the one the car already has in that category/position (a new tyre replaces the old one)."""
@@ -125,8 +141,9 @@ async def upsert_part(session: AsyncSession, vin: str, part: PartIn, *, installe
     if row is None:
         row = VehiclePart(vin=vin, category=part.category, position=part.position)
         session.add(row)
-    row.name, row.brand, row.reference, row.spec = part.name, part.brand, part.reference, part.spec
-    row.quantity, row.notes, row.attrs = part.quantity, part.notes, part.attrs
+    elif part.catalog_id is None and _numbers(row) != _numbers(part):
+        row.catalog_id = None                                 # a different part replaces it: the old proposal or entry no longer applies
+    apply_fields(row, part)
     if installed_at is not None:
         row.installed_at = installed_at
     if installed_odometer is not None:
@@ -143,8 +160,10 @@ async def record_parts_used(session: AsyncSession, vin: str, log: MaintenanceLog
     if not parts:
         return
     clean = [p.normalized() for p in parts]
+    for p in clean:
+        p.catalog_id = None                                   # an intervention never links to the catalogue (the sheet does it, validated)
     await session.flush()                                     # the log needs an id before the sheet points at it
-    log.parts_used = [p.model_dump(exclude_none=True) for p in clean]
+    log.parts_used = [p.model_dump(exclude_none=True, exclude={"catalog_id"}) for p in clean]
     if update_sheet:
         for p in clean:
             await upsert_part(session, vin, p, installed_at=log.service_date, installed_odometer=log.odometer, source_log_id=log.id)

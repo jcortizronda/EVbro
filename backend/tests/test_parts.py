@@ -162,3 +162,26 @@ async def test_parts_routes_require_a_session(db) -> None:
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://testserver") as c:
         for url in (f"/api/vehicles/{VIN}/parts", "/api/part-categories"):
             assert (await c.get(url)).status_code == 401
+
+
+async def test_an_intervention_keeps_the_maker_reference_but_never_links_to_the_catalogue(web) -> None:
+    oil = {"category": "engine_oil", "brand": "Castrol", "reference": "Edge 0W-20", "oem_reference": "1012345678", "catalog_id": 1}
+    r = await web.post(f"/api/vehicles/{VIN}/maintenance/events", json={"title": "Aceite", "parts": [oil]})
+    assert r.status_code == 200, r.text
+    logs = (await web.get(f"/api/vehicles/{VIN}/maintenance/logs")).json()
+    assert logs[0]["parts_used"][0]["oem_reference"] == "1012345678" and "catalog_id" not in logs[0]["parts_used"][0]
+    (part,) = (await web.get(f"/api/vehicles/{VIN}/parts")).json()
+    assert part["oem_reference"] == "1012345678" and part["catalog_id"] is None
+
+
+async def test_replacing_a_part_with_a_different_one_drops_its_catalogue_link(web) -> None:
+    from app.db.models import VehiclePart
+    oil = {"category": "engine_oil", "brand": "Repsol", "reference": "RP-0W20"}
+    pid = (await web.post(f"/api/vehicles/{VIN}/parts", json=oil)).json()["id"]
+    async with async_session_factory() as s:
+        (await s.get(VehiclePart, pid)).catalog_id = 77                       # as if it had been proposed
+        await s.commit()
+    same = (await web.post(f"/api/vehicles/{VIN}/parts", json={**oil, "brand": "repsol", "quantity": 4})).json()
+    assert same["id"] == pid and same["catalog_id"] == 77                     # the same part, more data: still linked
+    other = (await web.post(f"/api/vehicles/{VIN}/parts", json={"category": "engine_oil", "brand": "Castrol", "reference": "Edge"})).json()
+    assert other["id"] == pid and other["catalog_id"] is None                 # another oil replaces it: the link goes

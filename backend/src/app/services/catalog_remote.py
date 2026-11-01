@@ -142,8 +142,8 @@ async def receive_proposal(session: AsyncSession, key: CatalogKey, data: Dict[st
     fits = [f for f in (data.get("fitments") or []) if isinstance(f, dict) and (f.get("model") or "").strip()][:catalog.MAX_FITMENTS]
     if not fits:
         raise RemoteError(422, "La propuesta necesita al menos un modelo de coche.")
-    if not (data.get("brand") or data.get("reference") or data.get("spec")):
-        raise RemoteError(422, "Una propuesta necesita al menos la marca, la referencia o la especificación de la pieza.")
+    if not (data.get("brand") or data.get("reference") or data.get("spec") or any((f.get("oem_reference") or "").strip() for f in fits)):
+        raise RemoteError(422, "Una propuesta necesita al menos la marca, una referencia o la especificación de la pieza.")
     since = _now() - datetime.timedelta(days=1)
     recent = (await session.execute(select(CatalogEntry.id).where(CatalogEntry.remote_note == (key.note or f"clave {key.id}"),
                                                                  CatalogEntry.proposed_at >= since))).scalars().all()
@@ -153,7 +153,7 @@ async def receive_proposal(session: AsyncSession, key: CatalogKey, data: Dict[st
     position = text("position", 10)
     first = fits[0]
     entry = CatalogEntry(model=str(first.get("model")).strip()[:80], make=(str(first.get("make") or "").strip()[:50] or None),
-                         years=(str(first.get("years") or "").strip()[:20] or None), category=category,
+                         years=(str(first.get("years") or "").strip()[:20] or None), oem_reference=(str(first.get("oem_reference") or "").strip()[:120] or None), category=category,
                          position=position if position in POSITIONS else None, name=text("name", 150) or CATEGORY_BY_KEY[category].get("label", category),
                          brand=text("brand", 80), reference=text("reference", 120), spec=text("spec", 120),
                          quantity=float(data["quantity"]) if isinstance(data.get("quantity"), (int, float)) and 0 <= data["quantity"] <= 100000 else None,
@@ -163,7 +163,7 @@ async def receive_proposal(session: AsyncSession, key: CatalogKey, data: Dict[st
     await session.flush()
     for f in fits:
         session.add(CatalogFitment(entry_id=entry.id, make=(str(f.get("make") or "").strip()[:50] or None), model=str(f.get("model")).strip()[:80],
-                                   years=(str(f.get("years") or "").strip()[:20] or None)))
+                                   years=(str(f.get("years") or "").strip()[:20] or None), oem_reference=(str(f.get("oem_reference") or "").strip()[:120] or None)))
     key.proposals = (key.proposals or 0) + 1
     key.last_used_at = _now()
     await session.commit()
@@ -267,6 +267,7 @@ async def sync(session: AsyncSession) -> Dict[str, Any]:
         if not (fits[0].get("model") or "").strip():
             continue
         e = CatalogEntry(model=str(fits[0]["model"])[:80], make=(str(fits[0].get("make") or "")[:50] or None), years=(str(fits[0].get("years") or "")[:20] or None),
+                         oem_reference=(str(fits[0].get("oem_reference") or "")[:120] or None),
                          category=d["category"], position=d.get("position") if d.get("position") in POSITIONS else None,
                          name=str(d.get("name") or CATEGORY_BY_KEY[d["category"]].get("label", d["category"]))[:150],
                          brand=(str(d.get("brand") or "")[:80] or None), reference=(str(d.get("reference") or "")[:120] or None),
@@ -278,7 +279,8 @@ async def sync(session: AsyncSession) -> Dict[str, Any]:
         session.add(e)
         await session.flush()
         for f in fits[:catalog.MAX_FITMENTS]:
-            session.add(CatalogFitment(entry_id=e.id, make=(str(f.get("make") or "")[:50] or None), model=str(f["model"])[:80], years=(str(f.get("years") or "")[:20] or None)))
+            session.add(CatalogFitment(entry_id=e.id, make=(str(f.get("make") or "")[:50] or None), model=str(f["model"])[:80], years=(str(f.get("years") or "")[:20] or None),
+                                       oem_reference=(str(f.get("oem_reference") or "")[:120] or None)))
         count += 1
     c.entries, c.last_sync_at, c.last_error = count, _now(), None
     await session.commit()

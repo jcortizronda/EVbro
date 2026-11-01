@@ -222,6 +222,7 @@ class FitmentIn(BaseModel):
     make: Optional[str] = Field(default=None, max_length=50)
     model: str = Field(min_length=1, max_length=80)
     years: Optional[str] = Field(default=None, max_length=20)
+    oem_reference: Optional[str] = Field(default=None, max_length=120)     # that make's own part number
 
 
 class CatalogEdit(BaseModel):

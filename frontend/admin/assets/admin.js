@@ -391,7 +391,7 @@ async function loadCatalog() {
       actions.append(`×${e.confirmations + 1}`);
     }
     body.append(h('tr', {},
-      h('td', {}, (e.fitments || []).map((f) => [f.make, f.model].filter(Boolean).join(' ') + (f.years ? ` (${f.years})` : '')).join(', ')),
+      h('td', {}, (e.fitments || []).map((f) => [f.make, f.model].filter(Boolean).join(' ') + (f.years ? ` (${f.years})` : '') + (f.oem_reference ? ` · ${t('ref. fab. {p0}', {p0: f.oem_reference})}` : '')).join(', ')),
       h('td', {}, `${e.category_label}${e.position_label ? ' · ' + e.position_label.toLowerCase() : ''}`, h('br'), h('small', { class: 'hint' }, e.name || '')),
       h('td', {}, [e.brand, e.reference].filter(Boolean).join(' · ') || '—'),
       h('td', {}, details || '—', e.notes ? h('br') : '', e.notes ? h('small', { class: 'hint' }, e.notes) : ''),
@@ -413,7 +413,7 @@ let catalogEntry = null;
 function editCatalog(e) {
   catalogEntry = e;
   $('catTitle').textContent = t('{p0}{p1} (propuesta de {p2})', {p0: e.category_label, p1: e.position_label ? ' · ' + e.position_label.toLowerCase() : '', p2: e.proposed_by || '—'});
-  $('catFits').value = (e.fitments || []).map((f) => [f.make || '', f.model || '', f.years || ''].join(' | ')).join('\n');
+  $('catFits').value = (e.fitments || []).map((f) => [f.make || '', f.model || '', f.years || '', f.oem_reference || ''].join(' | ').replace(/( \| )+$/, '')).join('\n');
   $('catName').value = e.name || ''; $('catBrand').value = e.brand || ''; $('catRef').value = e.reference || '';
   $('catSpecLabel').textContent = e.spec_label; $('catSpec').value = e.spec || '';
   $('catQtyLabel').textContent = e.qty_label; $('catQty').value = e.quantity === null || e.quantity === undefined ? '' : e.quantity;
@@ -426,8 +426,8 @@ $('formCatalog').addEventListener('submit', async (ev) => {
   const q = $('catQty').value.trim();
   try {
     const fitments = $('catFits').value.split('\n').map((l) => l.split('|').map((x) => x.trim())).filter((p) => p[1] || (p.length === 1 && p[0]))
-      .map((p) => (p.length === 1 ? { model: p[0] } : { make: p[0] || null, model: p[1], years: p[2] || null }));
-    if (!fitments.length) { toast('Indica al menos un coche (marca | modelo | años).', true); return; }
+      .map((p) => (p.length === 1 ? { model: p[0] } : { make: p[0] || null, model: p[1], years: p[2] || null, oem_reference: p[3] || null }));
+    if (!fitments.length) { toast('Indica al menos un coche (marca | modelo | años | ref. fabricante).', true); return; }
     await api(`/api/admin/catalog/${catalogEntry.id}`, 'PATCH', {
       fitments, name: $('catName').value, brand: $('catBrand').value,
       reference: $('catRef').value, spec: $('catSpec').value, quantity: q === '' ? null : parseFloat(q), notes: $('catNotes').value });

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
   <title>EVBro · Consola de administración</title>
+  <link rel="icon" type="image/svg+xml" href="/assets/logo.svg">
   <link rel="stylesheet" href="/assets/admin.css">
 </head>
 <body>
@@ -214,7 +215,7 @@
     <form id="formCatalog" method="dialog">
       <h2 id="catTitle">Editar propuesta</h2>
       <p class="hint" id="catHint">Completa o corrige lo que haga falta; el tipo de pieza no cambia. Lo que dejes vacío se borra.</p>
-      <label><span>Coches a los que vale (uno por línea: marca | modelo | años)</span><textarea id="catFits" rows="3" placeholder="Ebro | S900 PHEV | 2024-2026&#10;Ebro | S800 | 2024-2026" required></textarea><small>La misma referencia suele valer para varios modelos; el primero es el principal.</small></label>
+      <label><span>Coches a los que vale (uno por línea: marca | modelo | años | ref. fabricante)</span><textarea id="catFits" rows="3" placeholder="Ebro | S900 PHEV | 2024-2026 | 1012345678&#10;Ebro | S800 | 2024-2026" required></textarea><small>La misma referencia suele valer para varios modelos; el primero es el principal. La ref. fabricante es el número de pieza de esa marca (el de Ebro en un Ebro) y puede faltar.</small></label>
       <label><span>Nombre de la pieza</span><input id="catName" maxlength="150" required></label>
       <label><span>Marca de la pieza</span><input id="catBrand" maxlength="80"></label>
       <label><span>Referencia</span><input id="catRef" maxlength="120"></label>

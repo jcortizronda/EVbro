@@ -129,7 +129,7 @@ function addSuggestedTask(key) {
 /** One line per intervention listing the parts that were fitted ("Michelin 235/55 R19 DOT 1224"). */
 function partsUsedHtml(parts) {
   if (!parts || !parts.length) return '';
-  const label = (p) => [p.brand, p.name && p.name !== p.category ? p.name : null, p.reference ? `ref. ${p.reference}` : null, p.spec, p.attrs?.dot ? `DOT ${p.attrs.dot}` : null].filter(Boolean).join(' ');
+  const label = (p) => [p.brand, p.name && p.name !== p.category ? p.name : null, p.reference ? `ref. ${p.reference}` : null, p.oem_reference ? t('ref. fab. {p0}', {p0: p.oem_reference}) : null, p.spec, p.attrs?.dot ? `DOT ${p.attrs.dot}` : null].filter(Boolean).join(' ');
   return `<span class="maint-parts">Piezas: ${parts.map((p) => escapeHtml(label(p) || (partCat(p.category)?.label ?? p.category))).join(' · ')}</span>`;
 }
 
