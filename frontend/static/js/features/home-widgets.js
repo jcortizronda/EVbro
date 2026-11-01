@@ -1,13 +1,16 @@
-/* EVBro — Inicio made of widgets: each account chooses which ones it sees and in what order (drag or arrows), and can add more.
+/* EVBro — Pages made of widgets (Inicio, Energía and Confort): each account chooses which blocks it sees and in what order
+ * (drag or arrows), and can add more. One engine, one «board» per page: `HomeWidgets`, `EnergyWidgets`, `ComfortWidgets`.
  *
  * - The blocks that were already on Inicio (range, car figure, orders, figures, charging, map, tyres, all data) are widgets that
  *   live in index.html: hiding one only hides it, its ids stay in the page because other scripts fill them.
  * - The new widgets (maintenance, last trip, last charge, month's spending, scheduled charge, climate, consumption) are built here
  *   and read APIs that already exist, only while they are shown and only when Inicio is opened: they never poll the car.
- * - The layout is saved per account on the server (`/api/account/home-layout`) and copied in the device to draw it at once.
+ * - Energía and Confort: their blocks (battery and target, figures, charge control, schedule, history; climate, glass and steering
+ *   wheel, seats, scheduled climate) are widgets the same way; Energía can also take a few of the new cards.
+ * - The layout is saved per account and page on the server (`/api/account/home-layout`) and copied in the device to draw it at once.
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
-const HomeWidgets = (function () {
+const WidgetBoards = (function () {
   'use strict';
 
   const $ = (id) => document.getElementById(id);
@@ -38,100 +41,42 @@ const HomeWidgets = (function () {
     consumption: { label: 'Consumo', desc: 'Kilómetros y consumo medio de los últimos 30 días.', tab: 'stats',
       icon: ICON('<path d="M3 20h18M6 16v-4M11 16V8M16 16v-6M21 16V4"/>') },
   };
-  const DEFAULT = ['range', 'car', 'actions', 'kpis', 'charging', 'map', 'tpms', 'sensors'];
+  const ENERGY_CATALOG = {
+    energy: { label: 'Batería y objetivo', desc: 'La carga actual y el objetivo de batería, con su barra.' },
+    kpis: { label: 'Cifras de energía', desc: 'Consumo eléctrico de 30 días y potencia de la batería.' },
+    control: { label: 'Control de carga', desc: 'Parar o iniciar la carga.' },
+    schedule: { label: 'Carga programada', desc: 'El horario de carga de cada día.' },
+    history: { label: 'Datos e historial de cargas', desc: 'La curva de la sesión y el historial de recargas.' },
+    last_charge: CATALOG.last_charge,
+    month_cost: CATALOG.month_cost,
+    consumption: CATALOG.consumption,
+  };
+  const COMFORT_CATALOG = {
+    temperature: { label: 'Climatización', desc: 'Encender o apagar el clima y su temperatura.' },
+    defrost: { label: 'Lunas y volante', desc: 'Desempañado de las lunas y volante calefactado.' },
+    seats: { label: 'Asientos', desc: 'Calefacción y ventilación de cada asiento.' },
+    schedule: { label: 'Climatización programada', desc: 'Encender el clima a una hora y unos días.' },
+  };
   const LOADERS = {};                  // key → async (vin) => html; filled in below
   const RELOAD_MS = 60 * 1000;         // a widget is not asked again for the same car within a minute (unless forced)
-
-  let layout = DEFAULT.slice();
-  let serverLoaded = false;
-  let editing = false;
   let lastTelemetry = null;
-  const loaded = {};                   // key → { vin, at }
-  let saveTimer = null;
 
-  // ───────────────────────── layout: device copy, server, apply ─────────────────────────
-  const STORE_KEY = 'evbro_home_layout';      // only to draw Inicio before the server answers; the server's copy wins
-  const clean = (list) => (Array.isArray(list) ? list.filter((k, i) => CATALOG[k] && list.indexOf(k) === i) : DEFAULT.slice());
-
-  function readCached() {
-    try { const raw = localStorage.getItem(STORE_KEY); return raw ? clean(JSON.parse(raw)) : null; } catch (e) { return null; }
-  }
-  function writeCached() {
-    try { localStorage.setItem(STORE_KEY, JSON.stringify(layout)); } catch (e) { /* only a convenience */ }
-  }
-
-  async function loadServer() {
-    try {
-      const res = await fetch('/api/account/home-layout');
-      if (!res.ok) return;
-      const data = await res.json();
-      serverLoaded = true;
-      const fromServer = data.layout && Array.isArray(data.layout.widgets) ? clean(data.layout.widgets) : DEFAULT.slice();
-      if (fromServer.join() !== layout.join()) { layout = fromServer; apply(); refresh(); }
-      writeCached();
-    } catch (e) { /* offline: the device copy stays */ }
-  }
-
-  function save() {
-    writeCached();
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(async () => {
-      try {
-        const res = await fetch('/api/account/home-layout', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ widgets: layout }) });
-        if (!res.ok) throw new Error(res.status);
-      } catch (e) { showToast('No se pudo guardar la disposición del inicio; se queda en este dispositivo.', 'warning', 5000); }
-    }, 400);
-  }
-
-  /** The wrapper of a widget; the new ones are built the first time they are shown. */
-  function widgetEl(key) {
-    let el = document.querySelector(`#homeWidgets > .home-widget[data-widget="${key}"]`);
-    if (el || !LOADERS[key]) return el;
-    const w = CATALOG[key];
-    el = document.createElement('div');
-    el.className = 'home-widget';
-    el.dataset.widget = key;
-    if (w.live) el.dataset.live = '';
-    if (w.electric) el.dataset.electric = '';
-    el.innerHTML = `<div class="glass hw-card" data-on-click="switchTab('${w.tab}')">
-      <button type="button" class="hw-head" data-on-click="switchTab('${w.tab}')"><span class="hw-icon">${w.icon}</span><span class="hw-title">${escapeHtml(t(w.label))}</span><span class="hw-go" aria-hidden="true">›</span></button>
-      <div class="hw-body" data-hw-body><span class="hw-muted">${escapeHtml(t('Cargando…'))}</span></div>
-    </div>`;
-    $('homeWidgets').append(el);
-    return el;
-  }
-
-  /** Puts the shown widgets in order and hides the rest. */
-  function apply() {
-    const box = $('homeWidgets');
-    if (!box) return;
-    layout.forEach((key) => { const el = widgetEl(key); if (el) { el.hidden = false; box.append(el); } });
-    box.querySelectorAll(':scope > .home-widget').forEach((el) => { if (!layout.includes(el.dataset.widget)) el.hidden = true; });
-    if (editing) decorate();
-    fixMap();
-  }
-
-  function fixMap() {
-    setTimeout(() => { if (typeof liveMap !== 'undefined' && liveMap) liveMap.invalidateSize(); }, 120);
-  }
-
-  // ───────────────────────── data of the new widgets ─────────────────────────
-  /** Loads the new widgets that are shown. Called when Inicio opens (also after changing car) and when one is added. */
-  async function refresh(force = false) {
-    if (!serverLoaded) { await loadServer(); if (!serverLoaded) apply(); }
-    if (typeof currentVin === 'undefined' || !currentVin) return;
-    const vin = currentVin;
-    await Promise.all(layout.filter((k) => LOADERS[k]).map(async (key) => {
-      const prev = loaded[key];
-      if (!force && prev && prev.vin === vin && Date.now() - prev.at < RELOAD_MS) return;
-      const el = widgetEl(key);
-      if (!el || unavailable(el)) return;
-      loaded[key] = { vin, at: Date.now() };
-      let html;
-      try { html = await LOADERS[key](vin); } catch (e) { html = `<span class="hw-muted">${escapeHtml(t('No se pudo cargar.'))}</span>`; delete loaded[key]; }
-      if (vin === currentVin) el.querySelector('[data-hw-body]').innerHTML = html;
-    }));
-    if (typeof tagAccessElements === 'function') tagAccessElements();      // the climate buttons need the «control» permission
+  // ───────────────────────── the server copy of every page's layout (one request for all) ─────────────────────────
+  let server = null;                   // the account's layout once read: { widgets?, pages? } or null (all defaults)
+  let serverLoaded = false;
+  let serverPromise = null;
+  function loadServer() {
+    if (!serverPromise) {
+      serverPromise = (async () => {
+        try {
+          const res = await fetch('/api/account/home-layout');
+          if (!res.ok) { serverPromise = null; return; }
+          server = (await res.json()).layout || null;
+          serverLoaded = true;
+        } catch (e) { serverPromise = null; /* offline: the device copy stays */ }
+      })();
+    }
+    return serverPromise;
   }
 
   /** A widget that this car cannot show (no Ebro account, or not electric); CSS hides it. */
@@ -140,6 +85,275 @@ const HomeWidgets = (function () {
     return (el.dataset.live !== undefined && b.manual === '1') || (el.dataset.electric !== undefined && !['phev', 'ev'].includes(b.fuel || 'phev'));
   }
 
+  const boards = {};
+  let addingTo = null;                 // the board whose «Añadir widget» list is open
+
+  /** One page's board. `cfg`: name (its global), page, box/bar/customize ids, storeKey, catalog, def, resetText, onApply. */
+  function createBoard(cfg) {
+    const { catalog, def } = cfg;
+    let layout = def.slice();
+    let editing = false;
+    let saveTimer = null;
+    const loaded = {};                 // key → { vin, at }
+    const box = () => $(cfg.box);
+    const sel = (rest) => `#${cfg.box} > .home-widget${rest || ''}`;
+    const clean = (list) => (Array.isArray(list) ? list.filter((k, i) => catalog[k] && list.indexOf(k) === i) : def.slice());
+    const fromServer = () => {
+      const list = cfg.page === 'overview' ? server && server.widgets : server && server.pages && server.pages[cfg.page];
+      return Array.isArray(list) ? clean(list) : def.slice();
+    };
+
+    function readCached() {
+      try { const raw = localStorage.getItem(cfg.storeKey); return raw ? clean(JSON.parse(raw)) : null; } catch (e) { return null; }
+    }
+    function writeCached() {
+      try { localStorage.setItem(cfg.storeKey, JSON.stringify(layout)); } catch (e) { /* only a convenience */ }
+    }
+
+    let synced = false;                // this board already took the server's copy (one request is shared by every board)
+    async function syncServer() {
+      if (synced) return;
+      await loadServer();
+      if (!serverLoaded || synced) return;
+      synced = true;
+      const list = fromServer();
+      if (list.join() !== layout.join()) { layout = list; apply(); }
+      writeCached();
+    }
+
+    function save() {
+      writeCached();
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(async () => {
+        try {
+          const res = await fetch('/api/account/home-layout', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ page: cfg.page, widgets: layout }) });
+          if (!res.ok) throw new Error(res.status);
+          server = (await res.json()).layout || null;
+        } catch (e) { showToast('No se pudo guardar la disposición de la página; se queda en este dispositivo.', 'warning', 5000); }
+      }, 400);
+    }
+
+    /** The wrapper of a widget; the new ones are built the first time they are shown. */
+    function widgetEl(key) {
+      let el = document.querySelector(sel(`[data-widget="${key}"]`));
+      if (el || !LOADERS[key] || !box()) return el;
+      const w = catalog[key];
+      el = document.createElement('div');
+      el.className = 'home-widget';
+      el.dataset.widget = key;
+      if (w.live) el.dataset.live = '';
+      if (w.electric) el.dataset.electric = '';
+      el.innerHTML = `<div class="glass hw-card" data-on-click="switchTab('${w.tab}')">
+        <button type="button" class="hw-head" data-on-click="switchTab('${w.tab}')"><span class="hw-icon">${w.icon}</span><span class="hw-title">${escapeHtml(t(w.label))}</span><span class="hw-go" aria-hidden="true">›</span></button>
+        <div class="hw-body" data-hw-body><span class="hw-muted">${escapeHtml(t('Cargando…'))}</span></div>
+      </div>`;
+      box().append(el);
+      return el;
+    }
+
+    /** Puts the shown widgets in order and hides the rest. */
+    function apply() {
+      const b = box();
+      if (!b) return;
+      layout.forEach((key) => { const el = widgetEl(key); if (el) { el.hidden = false; b.append(el); } });
+      b.querySelectorAll(':scope > .home-widget').forEach((el) => { if (!layout.includes(el.dataset.widget)) el.hidden = true; });
+      if (editing) decorate();
+      if (cfg.onApply) cfg.onApply();
+    }
+
+    /** Loads the new widgets that are shown. Called when the page opens (also after changing car) and when one is added. */
+    async function refresh(force = false) {
+      await syncServer();
+      if (typeof currentVin === 'undefined' || !currentVin) return;
+      const vin = currentVin;
+      await Promise.all(layout.filter((k) => LOADERS[k]).map(async (key) => {
+        const prev = loaded[key];
+        if (!force && prev && prev.vin === vin && Date.now() - prev.at < RELOAD_MS) return;
+        const el = widgetEl(key);
+        if (!el || unavailable(el)) return;
+        loaded[key] = { vin, at: Date.now() };
+        let html;
+        try { html = await LOADERS[key](vin); } catch (e) { html = `<span class="hw-muted">${escapeHtml(t('No se pudo cargar.'))}</span>`; delete loaded[key]; }
+        if (vin === currentVin) el.querySelector('[data-hw-body]').innerHTML = html;
+      }));
+      if (typeof tagAccessElements === 'function') tagAccessElements();      // the climate buttons need the «control» permission
+    }
+
+    // ───── edit mode ─────
+    function startEditing() {
+      Object.values(boards).forEach((other) => { if (other !== api) other.stopEditing(); });
+      editing = true;
+      document.body.classList.add('home-editing');
+      $(cfg.bar).hidden = false;
+      $(cfg.customize).hidden = true;
+      decorate();
+      $(cfg.bar).scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+
+    function stopEditing() {
+      if (!editing) return;
+      editing = false;
+      document.body.classList.remove('home-editing');
+      $(cfg.bar).hidden = true;
+      $(cfg.customize).hidden = false;
+      document.querySelectorAll(`#${cfg.box} .hw-tools`).forEach((el) => el.remove());
+      if (cfg.onApply) cfg.onApply();
+    }
+
+    /** Each shown widget gets its bar: drag handle, name, up, down and remove. */
+    function decorate() {
+      document.querySelectorAll(sel()).forEach((el) => {
+        const key = el.dataset.widget;
+        let bar = el.querySelector(':scope > .hw-tools');
+        if (el.hidden) { if (bar) bar.remove(); return; }
+        if (!bar) {
+          bar = document.createElement('div');
+          bar.className = 'hw-tools';
+          const name = t(catalog[key].label);
+          bar.innerHTML = `<button type="button" class="hw-tool hw-drag" aria-label="${escapeHtml(t('Arrastrar {p0}', { p0: name }))}" title="${escapeHtml(t('Arrastrar'))}">${ICON('<circle cx="9" cy="6" r="1.2"/><circle cx="15" cy="6" r="1.2"/><circle cx="9" cy="12" r="1.2"/><circle cx="15" cy="12" r="1.2"/><circle cx="9" cy="18" r="1.2"/><circle cx="15" cy="18" r="1.2"/>')}</button>
+            <span class="hw-tools-name">${escapeHtml(name)}${unavailable(el) ? `<small>${escapeHtml(t('No disponible en este coche'))}</small>` : ''}</span>
+            <button type="button" class="hw-tool" data-on-click="${cfg.name}.move('${key}', -1)" aria-label="${escapeHtml(t('Subir {p0}', { p0: name }))}">${ICON('<path d="M6 15l6-6 6 6"/>')}</button>
+            <button type="button" class="hw-tool" data-on-click="${cfg.name}.move('${key}', 1)" aria-label="${escapeHtml(t('Bajar {p0}', { p0: name }))}">${ICON('<path d="M6 9l6 6 6-6"/>')}</button>
+            <button type="button" class="hw-tool hw-remove" data-on-click="${cfg.name}.remove('${key}')" aria-label="${escapeHtml(t('Quitar {p0}', { p0: name }))}">${ICON('<path d="M6 6l12 12M18 6L6 18"/>')}</button>`;
+          bar.querySelector('.hw-drag').addEventListener('pointerdown', (ev) => dragStart(ev, el));
+          el.prepend(bar);
+        }
+      });
+      syncArrows();
+    }
+
+    function syncArrows() {
+      document.querySelectorAll(sel(':not([hidden])')).forEach((el) => {
+        const i = layout.indexOf(el.dataset.widget);
+        const [up, down] = el.querySelectorAll('.hw-tools [data-on-click*="move"]');
+        if (up) up.disabled = i <= 0;
+        if (down) down.disabled = i >= layout.length - 1;
+      });
+    }
+
+    function move(key, dir) {
+      const i = layout.indexOf(key), j = i + dir;
+      if (i < 0 || j < 0 || j >= layout.length) return;
+      [layout[i], layout[j]] = [layout[j], layout[i]];
+      apply();
+      save();
+      const btn = document.querySelector(`${sel(`[data-widget="${key}"]`)} .hw-tools [data-on-click*="${dir < 0 ? '-1' : ', 1'}"]`);
+      if (btn && !btn.disabled) btn.focus(); else widgetEl(key).querySelector('.hw-drag').focus();
+      widgetEl(key).scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+
+    function remove(key) {
+      layout = layout.filter((k) => k !== key);
+      apply();
+      save();
+      showToast(t('«{p0}» quitado. Puedes volver a ponerlo con «Añadir widget».', { p0: t(catalog[key].label) }), 'info', 4000);
+    }
+
+    // ───── add and reset ─────
+    function openAdd() {
+      addingTo = api;
+      const free = Object.keys(catalog).filter((k) => !layout.includes(k));
+      $('homeAddList').innerHTML = free.length ? free.map((k) => {
+        const w = catalog[k];
+        const probe = document.createElement('div');
+        if (w.live) probe.dataset.live = '';
+        if (w.electric) probe.dataset.electric = '';
+        const na = unavailable(probe);
+        return `<button type="button" class="hw-add-item" data-on-click="${cfg.name}.add('${k}')">
+          <strong>${escapeHtml(t(w.label))}${na ? ` <small class="hw-na">${escapeHtml(t('No disponible en este coche'))}</small>` : ''}</strong><span>${escapeHtml(t(w.desc))}</span></button>`;
+      }).join('') : `<p class="hw-muted">${escapeHtml(t('Ya tienes todos los widgets en esta página.'))}</p>`;
+      $('homeAddModal').classList.add('open');
+    }
+
+    function add(key) {
+      if (!catalog[key] || layout.includes(key)) return;
+      layout.push(key);
+      closeAdd();
+      apply();
+      save();
+      refresh();
+      const el = widgetEl(key);
+      if (el) setTimeout(() => el.scrollIntoView({ block: 'center', behavior: 'smooth' }), 80);
+    }
+
+    async function reset() {
+      if (!await confirmDialog(t(cfg.resetText), { confirmText: t('Restablecer') })) return;
+      layout = def.slice();
+      apply();
+      writeCached();
+      clearTimeout(saveTimer);
+      try {
+        const res = await fetch(`/api/account/home-layout?page=${cfg.page}`, { method: 'DELETE' });
+        if (res.ok) server = (await res.json()).layout || null;
+      } catch (e) { /* the device copy is already the default */ }
+      refresh();
+    }
+
+    // ───── drag (mouse, finger or pen: pointer events on the handle) ─────
+    function dragStart(ev, el) {
+      if (ev.button !== undefined && ev.button !== 0) return;
+      ev.preventDefault();
+      const handle = ev.currentTarget;
+      const b = box();
+      const rect = el.getBoundingClientRect();
+      const offset = ev.clientY - rect.top;
+      const ph = document.createElement('div');
+      ph.className = 'hw-placeholder';
+      ph.style.height = `${rect.height}px`;
+      el.before(ph);
+      el.classList.add('hw-dragging');
+      Object.assign(el.style, { width: `${rect.width}px`, left: `${rect.left}px`, top: `${rect.top}px` });
+      try { handle.setPointerCapture(ev.pointerId); } catch (e) { /* older browsers: the move still works */ }
+      let lastY = ev.clientY, scroller = null;
+
+      const place = () => {
+        el.style.top = `${lastY - offset}px`;
+        const others = [...b.querySelectorAll(':scope > .home-widget:not([hidden]):not(.hw-dragging)')];
+        const before = others.find((o) => { const r = o.getBoundingClientRect(); return lastY < r.top + r.height / 2; });
+        if (before) { if (ph.nextElementSibling !== before) before.before(ph); } else if (b.lastElementChild !== ph) b.append(ph);
+      };
+      const autoScroll = () => {       // near the top or bottom edge the page scrolls by itself
+        const edge = 70, h = window.innerHeight;
+        const dy = lastY < edge ? -12 : lastY > h - edge ? 12 : 0;
+        if (dy) { window.scrollBy(0, dy); place(); }
+        scroller = requestAnimationFrame(autoScroll);
+      };
+      const onMove = (e) => { lastY = e.clientY; place(); };
+      const onUp = () => {
+        cancelAnimationFrame(scroller);
+        handle.removeEventListener('pointermove', onMove);
+        handle.removeEventListener('pointerup', onUp);
+        handle.removeEventListener('pointercancel', onUp);
+        el.classList.remove('hw-dragging');
+        el.style.width = el.style.left = el.style.top = '';
+        ph.replaceWith(el);
+        const order = [...b.querySelectorAll(':scope > .home-widget:not([hidden])')].map((x) => x.dataset.widget);
+        if (order.join() !== layout.join()) { layout = order; save(); }
+        syncArrows();
+        if (cfg.onApply) cfg.onApply();
+      };
+      handle.addEventListener('pointermove', onMove);
+      handle.addEventListener('pointerup', onUp);
+      handle.addEventListener('pointercancel', onUp);
+      scroller = requestAnimationFrame(autoScroll);
+    }
+
+    /** The device copy draws the page at once; the server's copy arrives with the first refresh (after signing in). */
+    function init() {
+      const cached = readCached();
+      if (cached) layout = cached;
+      apply();
+    }
+
+    const api = { refresh, startEditing, stopEditing, move, remove, openAdd, add, reset, init, page: cfg.page,
+      layout: () => layout.slice(), shows: (key) => layout.includes(key), box };
+    boards[cfg.page] = api;
+    return api;
+  }
+
+  function closeAdd() { $('homeAddModal').classList.remove('open'); addingTo = null; }
+
+  // ───────────────────────── data of the new widgets ─────────────────────────
   const num = (n, d = 0) => Number(n).toLocaleString(I18n.locale, { minimumFractionDigits: d, maximumFractionDigits: d });
   const money = (n) => Number(n || 0).toLocaleString(I18n.locale, { style: 'currency', currency: 'EUR' });
   const day = (iso) => serverDate(iso).toLocaleDateString(I18n.locale, { day: 'numeric', month: 'short' });
@@ -243,174 +457,39 @@ const HomeWidgets = (function () {
       + `<button type="button" class="btn-secondary needs-control" data-on-click="promptCommand('clima_off', 'Apagar Climatizador')">${escapeHtml(t('Apagar'))}</button></div>`;
   }
 
+  /** The climate card of Inicio follows the data the car just sent. */
   function onTelemetry(data) {
     lastTelemetry = data;
-    const el = layout.includes('climate') && document.querySelector('#homeWidgets > .home-widget[data-widget="climate"] [data-hw-body]');
+    const home = boards.overview;
+    const el = home && home.shows('climate') && document.querySelector('#homeWidgets > .home-widget[data-widget="climate"] [data-hw-body]');
     if (el) el.innerHTML = climateHtml(data);
   }
 
-  // ───────────────────────── edit mode ─────────────────────────
-  function startEditing() {
-    editing = true;
-    document.body.classList.add('home-editing');
-    $('homeEditBar').hidden = false;
-    $('homeCustomize').hidden = true;
-    decorate();
-    $('homeEditBar').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  /** On every tab change: the other pages stop editing and this one's widgets load. */
+  function onTab(tabName) {
+    Object.values(boards).forEach((b) => { if (b.page !== tabName) b.stopEditing(); });
+    if (boards[tabName]) boards[tabName].refresh();
   }
 
-  function stopEditing() {
-    if (!editing) return;
-    editing = false;
-    document.body.classList.remove('home-editing');
-    $('homeEditBar').hidden = true;
-    $('homeCustomize').hidden = false;
-    document.querySelectorAll('#homeWidgets .hw-tools').forEach((el) => el.remove());
-    fixMap();
-  }
+  const fixMap = () => setTimeout(() => { if (typeof liveMap !== 'undefined' && liveMap) liveMap.invalidateSize(); }, 120);
+  const fixCharts = () => setTimeout(() => { if (typeof redrawChargeCharts === 'function') redrawChargeCharts(); }, 120);
 
-  /** Each shown widget gets its bar: drag handle, name, up, down and remove. */
-  function decorate() {
-    document.querySelectorAll('#homeWidgets > .home-widget').forEach((el) => {
-      const key = el.dataset.widget;
-      let bar = el.querySelector(':scope > .hw-tools');
-      if (el.hidden) { if (bar) bar.remove(); return; }
-      if (!bar) {
-        bar = document.createElement('div');
-        bar.className = 'hw-tools';
-        const name = t(CATALOG[key].label);
-        bar.innerHTML = `<button type="button" class="hw-tool hw-drag" aria-label="${escapeHtml(t('Arrastrar {p0}', { p0: name }))}" title="${escapeHtml(t('Arrastrar'))}">${ICON('<circle cx="9" cy="6" r="1.2"/><circle cx="15" cy="6" r="1.2"/><circle cx="9" cy="12" r="1.2"/><circle cx="15" cy="12" r="1.2"/><circle cx="9" cy="18" r="1.2"/><circle cx="15" cy="18" r="1.2"/>')}</button>
-          <span class="hw-tools-name">${escapeHtml(name)}${unavailable(el) ? `<small>${escapeHtml(t('No disponible en este coche'))}</small>` : ''}</span>
-          <button type="button" class="hw-tool" data-on-click="HomeWidgets.move('${key}', -1)" aria-label="${escapeHtml(t('Subir {p0}', { p0: name }))}">${ICON('<path d="M6 15l6-6 6 6"/>')}</button>
-          <button type="button" class="hw-tool" data-on-click="HomeWidgets.move('${key}', 1)" aria-label="${escapeHtml(t('Bajar {p0}', { p0: name }))}">${ICON('<path d="M6 9l6 6 6-6"/>')}</button>
-          <button type="button" class="hw-tool hw-remove" data-on-click="HomeWidgets.remove('${key}')" aria-label="${escapeHtml(t('Quitar {p0}', { p0: name }))}">${ICON('<path d="M6 6l12 12M18 6L6 18"/>')}</button>`;
-        bar.querySelector('.hw-drag').addEventListener('pointerdown', (ev) => dragStart(ev, el));
-        el.prepend(bar);
-      }
-    });
-    syncArrows();
-  }
+  createBoard({ name: 'HomeWidgets', page: 'overview', box: 'homeWidgets', bar: 'homeEditBar', customize: 'homeCustomize', storeKey: 'evbro_home_layout',
+    catalog: CATALOG, def: ['range', 'car', 'actions', 'kpis', 'charging', 'map', 'tpms', 'sensors'], onApply: fixMap,
+    resetText: '¿Volver al inicio de siempre? Se quitan los widgets añadidos y se recupera el orden original.' });
+  createBoard({ name: 'EnergyWidgets', page: 'charges', box: 'energyWidgets', bar: 'energyEditBar', customize: 'energyCustomize', storeKey: 'evbro_energy_layout',
+    catalog: ENERGY_CATALOG, def: ['energy', 'kpis', 'control', 'schedule', 'history'], onApply: fixCharts,
+    resetText: '¿Volver a la página de siempre? Se quitan los widgets añadidos y se recupera el orden original.' });
+  createBoard({ name: 'ComfortWidgets', page: 'climate', box: 'comfortWidgets', bar: 'comfortEditBar', customize: 'comfortCustomize', storeKey: 'evbro_comfort_layout',
+    catalog: COMFORT_CATALOG, def: ['temperature', 'defrost', 'seats', 'schedule'],
+    resetText: '¿Volver a la página de siempre? Se quitan los widgets añadidos y se recupera el orden original.' });
 
-  function syncArrows() {
-    document.querySelectorAll('#homeWidgets > .home-widget:not([hidden])').forEach((el) => {
-      const i = layout.indexOf(el.dataset.widget);
-      const [up, down] = el.querySelectorAll('.hw-tools [data-on-click*="move"]');
-      if (up) up.disabled = i <= 0;
-      if (down) down.disabled = i >= layout.length - 1;
-    });
-  }
+  document.addEventListener('DOMContentLoaded', () => Object.values(boards).forEach((b) => b.init()));
 
-  function move(key, dir) {
-    const i = layout.indexOf(key), j = i + dir;
-    if (i < 0 || j < 0 || j >= layout.length) return;
-    [layout[i], layout[j]] = [layout[j], layout[i]];
-    apply();
-    save();
-    const btn = document.querySelector(`#homeWidgets > .home-widget[data-widget="${key}"] .hw-tools [data-on-click*="${dir < 0 ? "-1" : ", 1"}"]`);
-    if (btn && !btn.disabled) btn.focus(); else widgetEl(key).querySelector('.hw-drag').focus();
-    widgetEl(key).scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  }
-
-  function remove(key) {
-    layout = layout.filter((k) => k !== key);
-    apply();
-    save();
-    showToast(t('«{p0}» quitado. Puedes volver a ponerlo con «Añadir widget».', { p0: t(CATALOG[key].label) }), 'info', 4000);
-  }
-
-  // ───────────────────────── add and reset ─────────────────────────
-  function openAdd() {
-    const free = Object.keys(CATALOG).filter((k) => !layout.includes(k));
-    $('homeAddList').innerHTML = free.length ? free.map((k) => {
-      const w = CATALOG[k];
-      const probe = document.createElement('div');
-      if (w.live) probe.dataset.live = '';
-      if (w.electric) probe.dataset.electric = '';
-      const na = unavailable(probe);
-      return `<button type="button" class="hw-add-item" data-on-click="HomeWidgets.add('${k}')">
-        <strong>${escapeHtml(t(w.label))}${na ? ` <small class="hw-na">${escapeHtml(t('No disponible en este coche'))}</small>` : ''}</strong><span>${escapeHtml(t(w.desc))}</span></button>`;
-    }).join('') : `<p class="hw-muted">${escapeHtml(t('Ya tienes todos los widgets en el inicio.'))}</p>`;
-    $('homeAddModal').classList.add('open');
-  }
-  function closeAdd() { $('homeAddModal').classList.remove('open'); }
-
-  function add(key) {
-    if (!CATALOG[key] || layout.includes(key)) return;
-    layout.push(key);
-    closeAdd();
-    apply();
-    save();
-    refresh();
-    const el = widgetEl(key);
-    if (el) setTimeout(() => el.scrollIntoView({ block: 'center', behavior: 'smooth' }), 80);
-  }
-
-  async function reset() {
-    if (!await confirmDialog(t('¿Volver al inicio de siempre? Se quitan los widgets añadidos y se recupera el orden original.'), { confirmText: t('Restablecer') })) return;
-    layout = DEFAULT.slice();
-    apply();
-    writeCached();
-    clearTimeout(saveTimer);
-    try { await fetch('/api/account/home-layout', { method: 'DELETE' }); } catch (e) { /* the device copy is already the default */ }
-    refresh();
-  }
-
-  // ───────────────────────── drag (mouse, finger or pen: pointer events on the handle) ─────────────────────────
-  function dragStart(ev, el) {
-    if (ev.button !== undefined && ev.button !== 0) return;
-    ev.preventDefault();
-    const handle = ev.currentTarget;
-    const box = $('homeWidgets');
-    const rect = el.getBoundingClientRect();
-    const offset = ev.clientY - rect.top;
-    const ph = document.createElement('div');
-    ph.className = 'hw-placeholder';
-    ph.style.height = `${rect.height}px`;
-    el.before(ph);
-    el.classList.add('hw-dragging');
-    Object.assign(el.style, { width: `${rect.width}px`, left: `${rect.left}px`, top: `${rect.top}px` });
-    try { handle.setPointerCapture(ev.pointerId); } catch (e) { /* older browsers: the move still works */ }
-    let lastY = ev.clientY, scroller = null;
-
-    const place = () => {
-      el.style.top = `${lastY - offset}px`;
-      const others = [...box.querySelectorAll(':scope > .home-widget:not([hidden]):not(.hw-dragging)')];
-      const before = others.find((o) => { const r = o.getBoundingClientRect(); return lastY < r.top + r.height / 2; });
-      if (before) { if (ph.nextElementSibling !== before) before.before(ph); } else if (box.lastElementChild !== ph) box.append(ph);
-    };
-    const autoScroll = () => {       // near the top or bottom edge the page scrolls by itself
-      const edge = 70, h = window.innerHeight;
-      const dy = lastY < edge ? -12 : lastY > h - edge ? 12 : 0;
-      if (dy) { window.scrollBy(0, dy); place(); }
-      scroller = requestAnimationFrame(autoScroll);
-    };
-    const onMove = (e) => { lastY = e.clientY; place(); };
-    const onUp = () => {
-      cancelAnimationFrame(scroller);
-      handle.removeEventListener('pointermove', onMove);
-      handle.removeEventListener('pointerup', onUp);
-      handle.removeEventListener('pointercancel', onUp);
-      el.classList.remove('hw-dragging');
-      el.style.width = el.style.left = el.style.top = '';
-      ph.replaceWith(el);
-      const order = [...box.querySelectorAll(':scope > .home-widget:not([hidden])')].map((x) => x.dataset.widget);
-      if (order.join() !== layout.join()) { layout = order; save(); }
-      syncArrows();
-      fixMap();
-    };
-    handle.addEventListener('pointermove', onMove);
-    handle.addEventListener('pointerup', onUp);
-    handle.addEventListener('pointercancel', onUp);
-    scroller = requestAnimationFrame(autoScroll);
-  }
-
-  // The device copy draws Inicio at once; the server's copy arrives with the first refresh (after signing in)
-  document.addEventListener('DOMContentLoaded', () => {
-    const cached = readCached();
-    if (cached) layout = cached;
-    apply();
-  });
-
-  return { refresh, onTelemetry, startEditing, stopEditing, move, remove, openAdd, closeAdd, add, reset, layout: () => layout.slice() };
+  return { onTelemetry, onTab, closeAdd, boards };
 })();
-window.HomeWidgets = HomeWidgets;
+window.WidgetBoards = WidgetBoards;
+// One global per page board: the `data-on-click` of the edit bars and of each widget's tools call these
+window.HomeWidgets = WidgetBoards.boards.overview;
+window.EnergyWidgets = WidgetBoards.boards.charges;
+window.ComfortWidgets = WidgetBoards.boards.climate;

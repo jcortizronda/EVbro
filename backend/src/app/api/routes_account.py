@@ -5,7 +5,7 @@ import asyncio
 import datetime
 import logging
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
@@ -304,19 +304,40 @@ async def update_language(req: LanguageRequest, request: Request, response: Resp
     return {"status": "ok", "language": req.language}
 
 
+
+
 class HomeLayoutRequest(BaseModel):
     widgets: List[str] = Field(max_length=40)
+    page: Literal["overview", "charges", "climate"] = "overview"
+
+
+def _with_page(layout: Optional[dict], page: str, widgets: Optional[List[str]]) -> Optional[dict]:
+    """A new layout dict with one page set (or back to its default when `widgets` is None); None when every page is the default."""
+    out = {"widgets": list(layout["widgets"])} if layout and isinstance(layout.get("widgets"), list) else {}
+    pages = dict(layout.get("pages") or {}) if layout else {}
+    if page == "overview":
+        out.pop("widgets", None)
+        if widgets is not None:
+            out["widgets"] = widgets
+    else:
+        pages.pop(page, None)
+        if widgets is not None:
+            pages[page] = widgets
+    if pages:
+        out["pages"] = pages
+    return out or None
 
 
 @router.get("/home-layout")
 async def get_home_layout(user: AppUser = Depends(auth.require_auth)):
-    """The widgets this account shows on Inicio, in order; `null` = the default layout (features/home-widgets.js)."""
+    """The blocks this account shows, in order: `widgets` for Inicio and `pages.charges` / `pages.climate` for Energía and
+    Confort; a missing one (or `null` for all) is that page's default layout (features/home-widgets.js)."""
     return {"layout": user.home_layout}
 
 
 @router.put("/home-layout")
 async def put_home_layout(req: HomeLayoutRequest, session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)):
-    """A personal choice of every account, also of read-only ones: it changes only how its own Inicio looks."""
+    """A personal choice of every account, also of read-only ones: it changes only how its own pages look."""
     widgets: List[str] = []
     for key in req.widgets:
         if not HOME_WIDGET_KEY.fullmatch(key or ""):
@@ -324,18 +345,19 @@ async def put_home_layout(req: HomeLayoutRequest, session: AsyncSession = Depend
         if key not in widgets:
             widgets.append(key)
     db_user = await session.get(AppUser, user.id)
-    db_user.home_layout = {"widgets": widgets}
+    db_user.home_layout = _with_page(db_user.home_layout, req.page, widgets)       # a new dict: the JSON column sees the change
     await session.commit()
     return {"layout": db_user.home_layout}
 
 
 @router.delete("/home-layout")
-async def reset_home_layout(session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)):
-    """Back to the default Inicio."""
+async def reset_home_layout(page: Literal["overview", "charges", "climate"] = "overview", session: AsyncSession = Depends(get_db),
+                            user: AppUser = Depends(auth.require_auth)):
+    """One page back to its default layout; the others keep theirs."""
     db_user = await session.get(AppUser, user.id)
-    db_user.home_layout = None
+    db_user.home_layout = _with_page(db_user.home_layout, page, None)
     await session.commit()
-    return {"layout": None}
+    return {"layout": db_user.home_layout}
 
 
 class PinPolicyRequest(BaseModel):

@@ -686,6 +686,18 @@
           </div>
         </div>
 
+        <!-- Widgets of this page: the owner can hide, reorder (drag or arrows) and add them; features/home-widgets.js -->
+        <div class="home-edit-bar" id="energyEditBar" hidden>
+          <span class="home-edit-title">Personalizar energía</span>
+          <span class="home-edit-hint">Arrastra con el asa o usa las flechas; la × quita un widget.</span>
+          <div class="home-edit-actions">
+            <button type="button" class="btn-secondary" data-on-click="EnergyWidgets.openAdd()">Añadir widget</button>
+            <button type="button" class="btn-secondary" data-on-click="EnergyWidgets.reset()">Restablecer</button>
+            <button type="button" class="btn-primary" data-on-click="EnergyWidgets.stopEditing()">Hecho</button>
+          </div>
+        </div>
+        <div id="energyWidgets" class="home-widgets">
+        <div class="home-widget" data-widget="energy">
         <!-- Big charge display (26 % current charge / 80 % target) -->
         <div class="native-energy-panel">
           <div class="energy-charge-row">
@@ -710,6 +722,8 @@
           <p class="energy-remaining" id="energyRemainLine" hidden>Tiempo restante a carga completa: <strong id="energyRemainTime">—</strong></p>
         </div>
 
+        </div>
+        <div class="home-widget" data-widget="kpis">
         <!-- Charge KPIs -->
         <div class="native-kpi-row">
           <div class="native-kpi-box">
@@ -722,6 +736,8 @@
           </div>
         </div>
 
+        </div>
+        <div class="home-widget" data-widget="control">
         <!-- Charge control: everything goes through the car's schedule (Ebro does not allow starting or stopping directly) -->
         <div class="native-climate-panel charge-panel" id="chargeControl">
           <div class="climate-headline"><small>CONTROL DE CARGA</small><h3 id="chargeStatusTitle">—</h3></div>
@@ -749,6 +765,8 @@
           </details>
         </div>
 
+        </div>
+        <div class="home-widget" data-widget="schedule">
         <div class="native-climate-panel charge-panel" id="chargeSchedulePanel">
           <div class="climate-headline"><small>CARGA PROGRAMADA</small><h3>Programar carga</h3></div>
           <div class="sched-status" id="scheduleStatus" data-state="unknown" role="status">
@@ -778,6 +796,8 @@
           </form>
         </div>
 
+        </div>
+        <div class="home-widget" data-widget="history">
         <!-- Expandable action card 1: battery telemetry -->
         <div class="native-accordion-card open" id="accBatteryTelemetry">
           <div class="acc-header" data-on-click="toggleNativeAccordion('accBatteryTelemetry')">
@@ -1012,6 +1032,10 @@
           </div>
         </div>
 
+        </div>
+        </div>
+        </div><!-- the history accordion: this closing tag was missing before the page had widgets (the browser closed it at </section>) -->
+        <button type="button" class="btn-secondary home-customize" id="energyCustomize" data-on-click="EnergyWidgets.startEditing()">Personalizar energía</button>
       </div>
     </section>
 
@@ -1029,6 +1053,18 @@
           <div class="page-head-meta"><span class="page-head-note">Clima, asientos, volante y lunas</span></div>
         </div>
 
+        <!-- Widgets of this page: the owner can hide, reorder (drag or arrows) and add them; features/home-widgets.js -->
+        <div class="home-edit-bar" id="comfortEditBar" hidden>
+          <span class="home-edit-title">Personalizar confort</span>
+          <span class="home-edit-hint">Arrastra con el asa o usa las flechas; la × quita un widget.</span>
+          <div class="home-edit-actions">
+            <button type="button" class="btn-secondary" data-on-click="ComfortWidgets.openAdd()">Añadir widget</button>
+            <button type="button" class="btn-secondary" data-on-click="ComfortWidgets.reset()">Restablecer</button>
+            <button type="button" class="btn-primary" data-on-click="ComfortWidgets.stopEditing()">Hecho</button>
+          </div>
+        </div>
+        <div id="comfortWidgets" class="home-widgets">
+        <div class="home-widget" data-widget="temperature">
         <!-- Climate Control Card -->
         <div class="native-climate-panel">
           <div class="climate-top-bar">
@@ -1071,18 +1107,24 @@
           </div>
         </div>
 
+        </div>
+        <div class="home-widget" data-widget="defrost">
         <!-- Demister and steering wheel -->
         <div class="native-climate-panel comfort-section">
           <div class="climate-headline"><small>LUNAS Y VOLANTE</small><h3>Desempañado y calefacción</h3></div>
           <div class="comfort-grid" id="comfortDefrost"></div>
         </div>
 
+        </div>
+        <div class="home-widget" data-widget="seats">
         <!-- Seats -->
         <div class="native-climate-panel comfort-section">
           <div class="climate-headline"><small>ASIENTOS</small><h3>Calefacción y ventilación</h3></div>
           <div class="comfort-seats" id="comfortSeats"></div>
         </div>
 
+        </div>
+        <div class="home-widget" data-widget="schedule">
         <!-- Transparency: what each button sends to the car -->
         <div class="native-climate-panel comfort-section" id="climateSchedulePanel">
           <div class="climate-headline"><small>CLIMATIZACIÓN PROGRAMADA</small><h3>Encender a una hora</h3></div>
@@ -1101,6 +1143,9 @@
             </div>
           </div>
         </div>
+        </div>
+        </div>
+        <button type="button" class="btn-secondary home-customize" id="comfortCustomize" data-on-click="ComfortWidgets.startEditing()">Personalizar confort</button>
       </div>
     </section>
 
@@ -2606,9 +2651,9 @@
   <div id="homeAddModal" class="modal-overlay">
     <div class="modal-card u-max-width-460px">
       <h3>Añadir widget</h3>
-      <p class="vp-hint">Se añade al final del inicio; después lo puedes mover.</p>
+      <p class="vp-hint">Se añade al final de la página; después lo puedes mover.</p>
       <div id="homeAddList" class="hw-add-list"></div>
-      <div class="modal-actions"><button type="button" class="btn-secondary" data-on-click="HomeWidgets.closeAdd()">Cerrar</button></div>
+      <div class="modal-actions"><button type="button" class="btn-secondary" data-on-click="WidgetBoards.closeAdd()">Cerrar</button></div>
     </div>
   </div>
 
@@ -3251,6 +3296,7 @@
   <script src="/static/js/features/charge-control.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/home.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/home-widgets.js?v={{ asset_version }}"></script>
+  <script src="/static/js/features/app-shortcuts.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/car-figure.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/push.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/passkeys.js?v={{ asset_version }}"></script>

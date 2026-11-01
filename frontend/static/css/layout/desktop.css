@@ -71,33 +71,21 @@
   body[data-manual="1"]:not([data-gps="1"]) #homeWidgets { grid-template-columns: minmax(0, 1fr); }
   #liveMapCard { margin-bottom: 1rem; }
   .home-edit-bar { left: calc(var(--side-w) + 24px); right: 24px; bottom: 20px; }
-  #tabOverview .home-customize { width: auto; padding-left: 1.5rem; padding-right: 1.5rem; }
   .map-card:not(.map-expanded) .live-map-wrap { height: 460px; }
 
-  /* Energía: charge and control on the left; battery data and history on the right */
-  #tabCharges .native-app-container {
-    display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: var(--desk-gap); align-items: start;
-    grid-template-areas: "banner banner" "energy acc" "kpi acc" "control acc" "sched acc" ". acc";
-  }
-  #tabCharges .page-banner { grid-area: banner; }
-  #tabCharges .native-energy-panel { grid-area: energy; }
-  #tabCharges .native-kpi-row { grid-area: kpi; }
-  #chargeControl { grid-area: control; }
-  #chargeSchedulePanel { grid-area: sched; }
-  #accBatteryTelemetry { grid-area: acc; }
+  /* Energía: the widgets in the owner's order on the left; battery data and history (when shown) on the right */
+  #energyWidgets { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: var(--desk-gap); align-items: start; }
+  #energyWidgets > .home-widget { grid-column: 1; }
+  #energyWidgets > .home-widget[data-widget="history"] { grid-column: 2; grid-row: 1 / span 40; }
+  #energyWidgets:not(:has(> .home-widget[data-widget="history"]:not([hidden]))) { grid-template-columns: minmax(0, 1fr); }
   /* A charge's detail was designed for full width; in its column it goes in a single stack */
   #accBatteryTelemetry .charge-main-grid { grid-template-columns: 1fr; }
 
-  /* Confort: temperature on the left; windows, seats and help on the right */
-  #tabClimate .native-app-container {
-    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: var(--desk-gap); align-items: start;
-    grid-template-areas: "banner banner" "temp defrost" "temp seats" "sched .";
-  }
-  #tabClimate .page-banner { grid-area: banner; }
-  #climateSchedulePanel { grid-area: sched; }
-  #tabClimate .native-climate-panel:not(.comfort-section) { grid-area: temp; }
-  #tabClimate .comfort-section:has(#comfortDefrost) { grid-area: defrost; }
-  #tabClimate .comfort-section:has(#comfortSeats) { grid-area: seats; }
+  /* Confort: two columns, filled in the owner's order */
+  #comfortWidgets { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: var(--desk-gap); align-items: start; }
+  /* While arranging, one column: the order is read top to bottom and dragging follows it */
+  body.home-editing #comfortWidgets { grid-template-columns: minmax(0, 1fr); }
+  #tabOverview .home-customize, #tabCharges .home-customize, #tabClimate .home-customize { width: fit-content; padding-left: 1.5rem; padding-right: 1.5rem; }
 
   /* Mantenimiento: plan on the left; ITV and intervention history on the right */
   #tabMaintenance .native-app-container {

@@ -23,9 +23,8 @@ function switchTab(tabName) {
     if (mobMore && !mobBtn) mobMore.classList.add('active');
   }
 
-  if (tabName !== 'overview' && window.HomeWidgets) HomeWidgets.stopEditing();
+  if (window.WidgetBoards) WidgetBoards.onTab(tabName);       // other pages stop editing; this page's widgets (maintenance, last trip…) load
   if (tabName === 'overview') {
-    if (window.HomeWidgets) HomeWidgets.refresh();          // the new widgets (maintenance, last trip…) read their data now
     setTimeout(() => {
       if (liveMap) liveMap.invalidateSize();
     }, 200);

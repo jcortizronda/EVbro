@@ -20,6 +20,10 @@ The front page of the selected car (the car selector is at the top if you have s
 
 **Customise home** (button at the bottom of the page). Each block is a *widget* you can **move** (dragging by the ⠿ handle or with the arrows), **remove** (×) or **put back** with «Add widget». The header always stays at the top. Besides the usual blocks there are new widgets: **Next maintenance** (the nearest service or task and the MOT), **Last trip**, **Last charge**, **This month's spending**, **Scheduled charge** (battery target and schedule), **Climate** (temperatures and turning it on or off) and **Consumption** over the last 30 days. Tapping one opens its section. While you edit, the buttons do nothing, so no command is sent by mistake. The layout belongs to **your account**: it looks the same on the phone and the computer, and every person with access has their own. «Reset» brings back the usual home screen. Widgets your car cannot show (live data without an Ebro account, charging on a petrol car) do not appear. On a computer the map always sits in its own right-hand column.
 
+**Energy** and **Comfort** are customised the same way, with «Customise energy» and «Customise comfort» at the bottom of each page: you can reorder or remove their blocks (battery and target, figures, charge control, scheduled charge, data and history; climate control, glass and steering wheel, seats, scheduled climate) and, in Energy, add the last charge, this month's spending or consumption. Each page keeps its own order and «Reset» only affects that page.
+
+**App icon shortcuts.** With EVBro installed on the phone, press and hold its icon: **Lock the car**, **Turn on the climate**, **Energy** and **Trips** appear (each one can be dragged to the home screen as an icon of its own; their names are in Spanish). The command ones never send anything on their own: they open the app and ask first, naming the car. EVBro cannot put a widget with data on the Android home screen, because Chrome does not allow it for web apps.
+
 ## Energy
 
 Everything about the battery and charging.

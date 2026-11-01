@@ -91,7 +91,8 @@ async function loadVehicles() {
     // Update name and VIN in the main header
     updateVehicleHeaderInfo(chosen);
     applyVehicleCapabilities();                     // fuel type and «no Ebro account» decide what the interface shows
-    if (window.HomeWidgets && (!window.currentTabName || window.currentTabName === 'overview')) HomeWidgets.refresh();   // Inicio is the first screen
+    if (window.WidgetBoards) WidgetBoards.onTab(window.currentTabName || 'overview');   // the shown page's widgets, for this car (Inicio is the first screen)
+    if (window.AppShortcuts) AppShortcuts.run();     // the icon's shortcuts (manifest.json): open a page or ask before an order
 
     // Load telemetry and charge details of the chosen car
     loadLatestTelemetry(currentVin);

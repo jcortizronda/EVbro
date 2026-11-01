@@ -1,4 +1,4 @@
-/* EVBro — Inicio made of widgets (features/home-widgets.js): the new cards, the edit mode and dragging. */
+/* EVBro — Pages made of widgets: Inicio, Energía and Confort (features/home-widgets.js): the new cards, the edit mode and dragging. */
 
 .home-widget[hidden] { display: none !important; }
 /* A widget this car cannot show: live data without an Ebro account, charging on a car that is not electric */
@@ -40,7 +40,7 @@ body:not(.can-control) .hw-buttons { display: none; }
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; max-width: 760px; margin: 0 auto; padding: 12px 14px; border: 1px solid var(--accent-bright, var(--border-color)); border-radius: 16px;
   background: var(--surface); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); }
 .home-edit-bar[hidden] { display: none; }
-body.home-editing #homeWidgets { padding-bottom: 150px; }
+body.home-editing .home-widgets { padding-bottom: 150px; }
 .home-edit-title { font-weight: 800; }
 .home-edit-hint { flex: 1 1 200px; font-size: 0.8rem; color: var(--text-secondary); }
 .home-edit-actions { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }

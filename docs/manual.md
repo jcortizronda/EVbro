@@ -20,6 +20,10 @@ La portada del coche elegido (arriba, el selector de coche si tienes varios).
 
 **Personalizar inicio** (botón al final de la página). Cada bloque es un *widget* que puedes **mover** (arrastrando con el asa ⠿ o con las flechas), **quitar** (×) o **volver a poner** con «Añadir widget». La cabecera se queda siempre arriba. Además de los bloques de siempre hay widgets nuevos: **Próximo mantenimiento** (la revisión o tarea más cercana y la ITV), **Último viaje**, **Última carga**, **Gasto del mes**, **Carga programada** (objetivo de batería y horario), **Climatización** (temperaturas y encender o apagar) y **Consumo** de los últimos 30 días. Tocar uno abre su sección. Mientras editas, los botones no hacen nada, para no mandar una orden sin querer. La disposición es **de tu cuenta**: se ve igual en el móvil y en el ordenador, y cada persona con acceso tiene la suya. «Restablecer» vuelve al inicio de siempre. Los widgets que tu coche no puede mostrar (datos en directo sin cuenta de Ebro, cargas en uno de gasolina) no aparecen. En el ordenador el mapa va siempre en su columna de la derecha.
 
+**Energía** y **Confort** se personalizan igual, con «Personalizar energía» y «Personalizar confort» al final de cada página: puedes ordenar o quitar sus bloques (batería y objetivo, cifras, control de carga, carga programada, datos e historial; climatización, lunas y volante, asientos, climatización programada) y, en Energía, añadir la última carga, el gasto del mes o el consumo. Cada página guarda su orden y «Restablecer» solo afecta a esa página.
+
+**Atajos del icono.** Con EVBro instalada en el móvil, mantén pulsado su icono: salen **Cerrar el coche**, **Encender el clima**, **Energía** y **Viajes** (cada uno se puede arrastrar al escritorio como un icono propio). Los de órdenes no mandan nada solos: abren la app y te preguntan antes, con el nombre del coche. EVBro no puede poner un widget con datos en el escritorio de Android, porque Chrome no lo permite a las aplicaciones web.
+
 ## Energía
 
 Todo lo de la batería y la carga.

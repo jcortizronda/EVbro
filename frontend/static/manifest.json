@@ -39,5 +39,63 @@
       "type": "image/svg+xml",
       "purpose": "any"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "Cerrar el coche",
+      "short_name": "Cerrar",
+      "description": "Abre EVBro y pide confirmación para cerrar el coche.",
+      "url": "/?go=lock",
+      "icons": [
+        {
+          "src": "/static/icons/shortcut-lock.png",
+          "sizes": "192x192",
+          "type": "image/png",
+          "purpose": "any"
+        }
+      ]
+    },
+    {
+      "name": "Encender el clima",
+      "short_name": "Clima",
+      "description": "Abre Confort y pide confirmación para encender el clima.",
+      "url": "/?go=climate_on",
+      "icons": [
+        {
+          "src": "/static/icons/shortcut-climate.png",
+          "sizes": "192x192",
+          "type": "image/png",
+          "purpose": "any"
+        }
+      ]
+    },
+    {
+      "name": "Energía",
+      "short_name": "Energía",
+      "description": "Batería, carga y carga programada.",
+      "url": "/?go=charges",
+      "icons": [
+        {
+          "src": "/static/icons/shortcut-energy.png",
+          "sizes": "192x192",
+          "type": "image/png",
+          "purpose": "any"
+        }
+      ]
+    },
+    {
+      "name": "Viajes",
+      "short_name": "Viajes",
+      "description": "Los últimos viajes del coche.",
+      "url": "/?go=drives",
+      "icons": [
+        {
+          "src": "/static/icons/shortcut-trips.png",
+          "sizes": "192x192",
+          "type": "image/png",
+          "purpose": "any"
+        }
+      ]
+    }
   ]
 }

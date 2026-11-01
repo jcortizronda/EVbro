@@ -63,3 +63,15 @@ async def test_only_widget_keys_are_accepted(accounts, widgets) -> None:
 async def test_without_a_session_there_is_no_layout(db) -> None:
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://testserver", headers={"Origin": "http://testserver"}) as c:
         assert (await c.get("/api/account/home-layout")).status_code == 401
+
+
+async def test_energy_and_comfort_have_their_own_layout_and_reset(accounts) -> None:
+    juan, _ = accounts
+    await juan.put("/api/account/home-layout", json={"widgets": ["map", "range"]})
+    r = await juan.put("/api/account/home-layout", json={"page": "charges", "widgets": ["history", "energy"]})
+    assert r.json()["layout"] == {"widgets": ["map", "range"], "pages": {"charges": ["history", "energy"]}}
+    await juan.put("/api/account/home-layout", json={"page": "climate", "widgets": ["seats"]})
+    assert (await juan.delete("/api/account/home-layout")).json()["layout"] == {"pages": {"charges": ["history", "energy"], "climate": ["seats"]}}
+    assert (await juan.delete("/api/account/home-layout?page=charges")).json()["layout"] == {"pages": {"climate": ["seats"]}}
+    assert (await juan.delete("/api/account/home-layout?page=climate")).json()["layout"] is None
+    assert (await juan.put("/api/account/home-layout", json={"page": "settings", "widgets": []})).status_code == 422

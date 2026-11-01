@@ -111,12 +111,17 @@ const STATIC_ASSETS = [
   '/static/js/features/charge-control.js',
   '/static/js/features/home.js',
   '/static/js/features/home-widgets.js',
+  '/static/js/features/app-shortcuts.js',
   '/static/js/features/car-figure.js',
   '/static/js/features/push.js',
   '/static/js/features/passkeys.js',
   '/manifest.json',
   '/static/icons/icon-192.png',
   '/static/icons/icon-512.png',
+  '/static/icons/shortcut-lock.png',
+  '/static/icons/shortcut-climate.png',
+  '/static/icons/shortcut-energy.png',
+  '/static/icons/shortcut-trips.png',
   '/static/icons/favicon.svg',
   'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
@@ -177,7 +182,8 @@ self.addEventListener('fetch', (event) => {
         }
         return networkResponse;
       })
-      .catch(() => caches.match(event.request))
+      // Offline: a shortcut opens «/?go=…»; the page cached as «/» serves it (the query is read by the app, not the server)
+      .catch(() => caches.match(event.request, event.request.mode === 'navigate' ? { ignoreSearch: true } : undefined))
   );
 });
 
