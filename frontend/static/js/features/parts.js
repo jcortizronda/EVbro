@@ -34,7 +34,7 @@ function partRowHtml(part = {}) {
       <label data-wrap="position"><span>Posición</span><select data-f="position" class="form-control"></select></label>
       <label class="part-wide"><span>Nombre o modelo</span><input data-f="name" class="form-control" maxlength="150" value="${escapeHtml(part.name || '')}" placeholder="Opcional" /></label>
       <label><span>Marca</span><input data-f="brand" class="form-control" maxlength="80" value="${escapeHtml(part.brand || '')}" /></label>
-      <label><span>Referencia</span><input data-f="reference" class="form-control" maxlength="120" value="${escapeHtml(part.reference || '')}" /></label>
+      <label title="${escapeHtml(t('Número de pieza que pone la marca de la pieza (Mann, Bosch…)'))}"><span>Ref. marca</span><input data-f="reference" class="form-control" maxlength="120" value="${escapeHtml(part.reference || '')}" /></label>
       <label title="${escapeHtml(t('Número de pieza de la marca del coche (el de Ebro, en un Ebro)'))}"><span>Ref. fabricante</span><input data-f="oem_reference" class="form-control" maxlength="120" value="${escapeHtml(part.oem_reference || '')}" placeholder="Opcional" /></label>
       <label><span data-lbl="spec">Especificación</span><input data-f="spec" class="form-control" maxlength="120" value="${escapeHtml(part.spec || '')}" /></label>
       <label><span data-lbl="qty">Cantidad</span><input data-f="quantity" type="number" min="0" step="0.1" inputmode="decimal" class="form-control" value="${part.quantity ?? ''}" /></label>
@@ -301,7 +301,7 @@ function catalogItemHtml(e) {
   const title = e.position_label ? `${e.category_label} · ${e.position_label.toLowerCase()}` : e.category_label;
   const line1 = [e.brand, e.name !== e.category_label ? e.name : null].filter(Boolean).join(' ') || 'Sin marca indicada';
   const oem = entryOem(e);
-  const line2 = [e.reference ? t('Ref. {p0}', {p0: e.reference}) : null, oem ? t('Ref. fabricante {p0}', {p0: oem}) : null, e.spec,
+  const line2 = [e.reference ? t('Ref. marca {p0}', {p0: e.reference}) : null, oem ? t('Ref. fabricante {p0}', {p0: oem}) : null, e.spec,
     e.quantity !== null && e.quantity !== undefined ? `${String(e.quantity).replace('.', ',')} ${(e.qty_label || '').toLowerCase()}` : null].filter(Boolean).join(' · ');
   if (e._kind === 'proposal') {
     return `<button type="button" class="part-item part-item-catalog" disabled>
@@ -318,7 +318,7 @@ function partItemHtml(p) {
   const title = p.position_label ? `${p.category_label} · ${p.position_label.toLowerCase()}` : p.category_label;
   const line1 = [p.brand, p.name !== p.category_label ? p.name : null].filter(Boolean).join(' ') || 'Sin marca indicada';
   const cat = partCat(p.category);
-  const line2 = [p.reference ? t('Ref. {p0}', {p0: p.reference}) : null, p.oem_reference ? t('Ref. fabricante {p0}', {p0: p.oem_reference}) : null, p.spec, p.quantity !== null && p.quantity !== undefined ? `${String(p.quantity).replace('.', ',')} ${(cat?.qty_label || '').toLowerCase()}` : null,
+  const line2 = [p.reference ? t('Ref. marca {p0}', {p0: p.reference}) : null, p.oem_reference ? t('Ref. fabricante {p0}', {p0: p.oem_reference}) : null, p.spec, p.quantity !== null && p.quantity !== undefined ? `${String(p.quantity).replace('.', ',')} ${(cat?.qty_label || '').toLowerCase()}` : null,
     p.attrs?.season ? partCatalog.tyre_seasons.find((s) => s.key === p.attrs.season)?.label : null, p.attrs?.dot ? t('DOT {p0} ({p1})', {p0: p.attrs.dot, p1: dotLabel(p.attrs.dot)}) : null].filter(Boolean).join(' · ');
   let when = '';
   if (p.installed_at) { const d = serverDate(p.installed_at); when = `Montado ${monthsES[d.getMonth()]} ${d.getFullYear()}${p.installed_odometer ? ` · ${Math.round(p.installed_odometer).toLocaleString(I18n.locale)} km` : ''}`; }

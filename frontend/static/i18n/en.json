@@ -1324,7 +1324,7 @@
  "¿Deseas vaciar el historial de notificaciones?": "Clear the notification history?",
  "No se pudo proponer: {p0}": "Could not propose it: {p0}",
  "Lo que usan otros {p0}": "What other {p0} owners use",
- "Ref. {p0}": "Part no. {p0}",
+ "Ref. marca {p0}": "Brand ref. {p0}",
  "DOT {p0} ({p1})": "DOT {p0} ({p1})",
  "Quitar pieza": "Remove part",
  "Propuesta enviada": "Proposal sent",
@@ -1762,7 +1762,7 @@
  "Aprobadas": "Approved",
  "Rechazadas": "Rejected",
  "Exportar aprobadas (JSON)": "Export approved (JSON)",
- "Marca · referencia": "Make · part number",
+ "Marca · ref. marca": "Make · brand ref.",
  "Detalles": "Details",
  "Propuesta por": "Proposed by",
  "No hay propuestas en este estado.": "No proposals in this state.",
@@ -1915,5 +1915,8 @@
  "Sustituirá a la que tienes anotada: {p0}.": "It will replace the one you have noted: {p0}.",
  "Ref. fabricante {p0}": "OEM ref. {p0}",
  "Usar en mi coche": "Use on my car",
- "Ref. fabricante": "OEM ref."
+ "Ref. fabricante": "OEM ref.",
+ "Ref. marca": "Brand ref.",
+ "ref. marca {p0}": "brand ref. {p0}",
+ "Número de pieza que pone la marca de la pieza (Mann, Bosch…)": "Part number given by the part's own brand (Mann, Bosch…)"
 }

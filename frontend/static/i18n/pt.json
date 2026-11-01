@@ -1325,7 +1325,7 @@
  "¿Deseas vaciar el historial de notificaciones?": "Quer esvaziar o histórico de notificações?",
  "No se pudo proponer: {p0}": "Não foi possível propor: {p0}",
  "Lo que usan otros {p0}": "O que usam outros {p0}",
- "Ref. {p0}": "Ref. {p0}",
+ "Ref. marca {p0}": "Ref. marca {p0}",
  "DOT {p0} ({p1})": "DOT {p0} ({p1})",
  "Quitar pieza": "Remover peça",
  "Propuesta enviada": "Proposta enviada",
@@ -1762,7 +1762,7 @@
  "Aprobadas": "Aprovadas",
  "Rechazadas": "Rejeitadas",
  "Exportar aprobadas (JSON)": "Exportar aprovadas (JSON)",
- "Marca · referencia": "Marca · referência",
+ "Marca · ref. marca": "Marca · ref. marca",
  "Detalles": "Detalhes",
  "Propuesta por": "Proposta por",
  "No hay propuestas en este estado.": "Não há propostas neste estado.",
@@ -1915,5 +1915,8 @@
  "Sustituirá a la que tienes anotada: {p0}.": "Vai substituir a que tens anotada: {p0}.",
  "Ref. fabricante {p0}": "Ref. fabricante {p0}",
  "Usar en mi coche": "Usar no meu carro",
- "Ref. fabricante": "Ref. fabricante"
+ "Ref. fabricante": "Ref. fabricante",
+ "Ref. marca": "Ref. marca",
+ "ref. marca {p0}": "ref. marca {p0}",
+ "Número de pieza que pone la marca de la pieza (Mann, Bosch…)": "Número de peça dado pela marca da peça (Mann, Bosch…)"
 }

@@ -282,7 +282,7 @@ def _parts(d: Dict[str, Any], w: float) -> List[Any]:
         qty = f"{_(cat.get('qty_label', 'Cantidad'))}: {_n(p.quantity, 1)}" if p.quantity is not None else ""
         rows.append([f"{_(cat.get('label', p.category))}{' · ' + _(POSITIONS.get(p.position, '')).lower() if p.position else ''}", p.name if p.name != cat.get("label") else "",
                      p.brand, " · ".join(x for x in (p.reference, _("Fab. {p0}", p0=p.oem_reference) if p.oem_reference else "") if x), " · ".join(x for x in (spec, qty) if x), _d(p.installed_at) if p.installed_at else "—"])
-    return [_table(["Pieza", "Nombre", "Marca", "Referencia", "Detalles", "Montado"], rows,
+    return [_table(["Pieza", "Nombre", "Marca", "Referencias", "Detalles", "Montado"], rows,
                    [w * 0.2, w * 0.17, w * 0.13, w * 0.15, w * 0.23, w * 0.12])]
 
 
