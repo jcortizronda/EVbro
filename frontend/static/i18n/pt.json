@@ -1918,5 +1918,21 @@
  "Ref. fabricante": "Ref. fabricante",
  "Ref. marca": "Ref. marca",
  "ref. marca {p0}": "ref. marca {p0}",
- "Número de pieza que pone la marca de la pieza (Mann, Bosch…)": "Número de peça dado pela marca da peça (Mann, Bosch…)"
+ "Número de pieza que pone la marca de la pieza (Mann, Bosch…)": "Número de peça dado pela marca da peça (Mann, Bosch…)",
+ "Guarda la pieza y comparte esta referencia con los demás dueños del mismo modelo; la revisa el administrador antes de publicarla": "Guarda a peça e partilha esta referência com os outros donos do mesmo modelo; o administrador revê-a antes de a publicar",
+ "Los gestores proponen referencias (aceite, filtros, pastillas, neumáticos…) desde la ficha de su coche. Solo lo aprobado lo ven los demás dueños del mismo modelo. Una propuesta igual a una entrada aprobada (modelo, categoría, marca y referencia) cuenta como confirmación de esa entrada. Con «Añadir pieza» la publicas tú directamente, ya aprobada.": "Os gestores propõem referências (óleo, filtros, pastilhas, pneus…) a partir da ficha do seu carro. Só o que está aprovado é visto pelos outros donos do mesmo modelo. Uma proposta igual a uma entrada aprovada (modelo, categoria, marca e referência) conta como confirmação dessa entrada. Com «Adicionar peça» publica-a diretamente, já aprovada.",
+ "No hay piezas en este estado.": "Não há peças neste estado.",
+ "Coches a los que vale": "Carros a que serve",
+ "Marca del coche": "Marca do carro",
+ "Años": "Anos",
+ "Añadir coche": "Adicionar carro",
+ "Quitar este coche": "Remover este carro",
+ "La pieza tiene que valer al menos para un coche.": "A peça tem de servir pelo menos para um carro.",
+ "Añadir pieza al catálogo": "Adicionar peça ao catálogo",
+ "Se publica ya aprobada para los coches que indiques. Si la misma pieza ya está en el catálogo, edita esa entrada y añádele los coches.": "É publicada já aprovada para os carros que indicar. Se a mesma peça já estiver no catálogo, edite essa entrada e acrescente-lhe os carros.",
+ "Cada coche necesita al menos el modelo.": "Cada carro precisa pelo menos do modelo.",
+ "Pieza añadida al catálogo.": "Peça adicionada ao catálogo.",
+ "Catálogo: añadida": "Catálogo: adicionada",
+ "La pieza está guardada, pero no se pudo proponer: {p0}": "A peça está guardada, mas não foi possível propô-la: {p0}",
+ "Guardar y proponer": "Guardar e propor"
 }

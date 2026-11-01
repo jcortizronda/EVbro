@@ -81,3 +81,35 @@ dialog label.check input { margin-top: 3px; }
 #askOk.danger { background: var(--danger); color: #fff; border-color: var(--danger); }
 
 .who select.lang { font: inherit; padding: 4px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--text); }
+
+/* Catalogue entry dialog: wide, with one row of fields per car the part fits */
+dialog.dlg-wide { width: min(820px, calc(100vw - 32px)); }
+dialog select, dialog textarea { font: inherit; padding: 8px 10px; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; min-width: 0; }
+dialog textarea { resize: vertical; }
+.fits { min-width: 0; margin: 0; padding: 12px 14px 14px; border: 1px solid var(--line); border-radius: 10px; }
+.fits legend { padding: 0 6px; font-size: 0.85rem; font-weight: 700; color: var(--text); }
+.fit-head, .fit-row { display: grid; grid-template-columns: 1fr 1.3fr 0.9fr 1.3fr 36px; gap: 8px; align-items: end; }
+.fit-head span { font-size: 0.78rem; font-weight: 600; color: var(--muted); }
+#catFits { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.fit-row label { margin: 0 !important; min-width: 0; }
+.fit-row input, .dlg-grid input, .dlg-grid select, dialog.dlg-wide > form > label > * { width: 100%; }
+.fit-row .fit-label { display: none; }
+.fit-del { padding: 6px 0; font-size: 1.1rem; line-height: 1; color: var(--danger); }
+.fits-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 10px; }
+.fits-foot small { flex: 1 1 280px; }
+.dlg-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; }
+.dlg-grid label { margin: 0 !important; }
+/* Catalogue table: each car on its own line instead of one long comma-separated run */
+#tblCatalog td { white-space: normal; vertical-align: top; }
+#tblCatalog td.cell-fits { min-width: 260px; }
+.fit-line strong { white-space: nowrap; }
+.fit-years { margin-left: 6px; white-space: nowrap; color: var(--muted); }
+.fit-line + .fit-line { margin-top: 4px; padding-top: 4px; border-top: 1px dashed var(--line); }
+.fit-line small { display: block; }
+@media (max-width: 640px) {
+  .fit-head { display: none; }
+  .fit-row { grid-template-columns: 1fr 1fr; padding: 10px; background: var(--bg); border-radius: 8px; }
+  .fit-row .fit-label { display: block; }
+  .fit-del { grid-column: 1 / -1; justify-self: end; padding: 4px 12px; }
+  .dlg-grid { grid-template-columns: 1fr; }
+}

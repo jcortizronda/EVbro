@@ -183,19 +183,20 @@ function proposalTag(p) {
   return `<span class="part-tag part-tag-${e.status}" title="${escapeHtml(e.reject_reason || '')}">${PROPOSAL_LABEL[e.status] || e.status}</span>`;
 }
 
+/** «Proponer al catálogo»: saves what is in the editor first (also when adding a new part), then proposes that part. */
 async function proposePart() {
-  const id = pEl('partId').value;
-  if (!id) return;
+  const saved = await persistPart();
+  if (!saved) return;
+  closePartModal();
   try {
-    const res = await fetch(`/api/parts/${id}/propose`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    const res = await fetch(`/api/parts/${saved.id}/propose`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.detail || res.status);
     showToast('Propuesta enviada. Se publicará cuando la revise el administrador.', 'success', 6000);
-    closePartModal();
-    loadParts();
   } catch (e) {
-    showToast(t('No se pudo proponer: {p0}', {p0: e.message || e}), 'error', 6000);
+    showToast(t('La pieza está guardada, pero no se pudo proponer: {p0}', {p0: e.message || e}), 'error', 7000);
   }
+  loadParts();
 }
 
 async function loadCatalogSuggestions(category) {
@@ -230,6 +231,7 @@ function fillRowFromEntry(row, e) {
   set('name', e.name); set('brand', e.brand); set('reference', e.reference); set('oem_reference', entryOem(e)); set('spec', e.spec); set('quantity', e.quantity);
   if (e.position && row.querySelector('[data-f="position"]')) row.querySelector('[data-f="position"]').value = e.position;
   row.dataset.catalog = JSON.stringify({ id: e.id, brand: lc(e.brand), reference: lc(e.reference), oem: lc(entryOem(e)) });
+  if (row.closest('#partModalFields')) pEl('partPropose').hidden = true;      // it is already in the catalogue
 }
 
 /** «Ver catálogo online»: tapping an entry opens the editor with it filled in, ready to save on this car. */
@@ -334,14 +336,17 @@ async function openPartModal(id, category) {
   pEl('partNotes').value = p ? p.notes || '' : '';
   pEl('partDelete').hidden = !p;
   pEl('partReplaceNote').hidden = true;
+  // Proposing is offered while adding too (it saves first); not for a part already in the catalogue or with a proposal waiting
   const entry = p && p.catalog_id ? myProposals[p.catalog_id] : null;
-  pEl('partPropose').hidden = !p || (p.catalog_id && (!entry || entry.status !== 'rejected'));
+  pEl('partPropose').hidden = !!(p && p.catalog_id && (!entry || entry.status !== 'rejected'));
+  pEl('partPropose').textContent = p ? t('Proponer al catálogo') : t('Guardar y proponer');
   pEl('partModal').classList.add('open');
   loadCatalogSuggestions((p && p.category) || category || pEl('partModalFields').querySelector('[data-f="category"]')?.value);
 }
 function closePartModal() { pEl('partModal').classList.remove('open'); }
 
-async function savePart() {
+/** Saves the part in the editor; returns the saved part, or null after showing the error. */
+async function persistPart() {
   const id = pEl('partId').value;
   const row = pEl('partModalFields').firstElementChild;
   const { hasData, ...body } = readPartRow(row);
@@ -353,12 +358,18 @@ async function savePart() {
     const res = await fetch(id ? `/api/parts/${id}` : `/api/vehicles/${currentVin}/parts`, { method: id ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(Array.isArray(data.detail) ? data.detail.map((d) => d.msg).join(' · ') : (data.detail || res.status));
-    closePartModal();
-    showToast('Pieza guardada', 'success');
-    loadParts();
+    return data;
   } catch (e) {
     showToast(t('No se pudo guardar: {p0}', {p0: e.message || e}), 'error', 6000);
+    return null;
   }
+}
+
+async function savePart() {
+  if (!await persistPart()) return;
+  closePartModal();
+  showToast('Pieza guardada', 'success');
+  loadParts();
 }
 
 async function deletePart() {

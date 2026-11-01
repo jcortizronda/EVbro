@@ -164,6 +164,47 @@ async def review(session: AsyncSession, entry_id: int, admin_id: int, approve: b
     return e
 
 
+def _clean_fitments(entry_id: Optional[int], fits: List[Dict[str, Any]]) -> List[CatalogFitment]:
+    """The cars a reference fits, without empty rows; at least one model is required."""
+    clean = []
+    for f in fits[:MAX_FITMENTS]:
+        model = (f.get("model") or "").strip()
+        if model:
+            clean.append(CatalogFitment(entry_id=entry_id, make=(f.get("make") or "").strip() or None, model=model, years=(f.get("years") or "").strip() or None,
+                                        oem_reference=(f.get("oem_reference") or "").strip() or None))
+    if not clean:
+        raise CatalogError(422, "La pieza tiene que valer al menos para un modelo.")
+    return clean
+
+
+async def create(session: AsyncSession, admin_id: int, data: Dict[str, Any]) -> CatalogEntry:
+    """The administrator adds a part straight to the catalogue: it is approved at once, unless the same part is already there."""
+    cat = CATEGORY_BY_KEY.get(data.get("category") or "")
+    if cat is None:
+        raise CatalogError(422, "Categoría desconocida.")
+    text = {k: ((data.get(k) or "").strip() or None) for k in ("name", "brand", "reference", "spec", "notes", "position")}
+    if text["position"] is not None and text["position"] not in cat.get("positions", []):
+        raise CatalogError(422, "Esa posición no vale para este tipo de pieza.")
+    fits = _clean_fitments(None, data.get("fitments") or [])
+    main = fits[0]
+    if not (text["brand"] or text["reference"] or main.oem_reference or text["spec"]):
+        raise CatalogError(422, "Indica al menos la marca, una referencia o la especificación de la pieza.")
+    now = datetime.datetime.utcnow()
+    entry = CatalogEntry(model=main.model, make=main.make, years=main.years, category=cat["key"], position=text["position"], name=text["name"] or cat["label"],
+                         brand=text["brand"], reference=text["reference"], oem_reference=main.oem_reference, spec=text["spec"], quantity=data.get("quantity"),
+                         notes=text["notes"], source="manual", status="approved", proposed_by=admin_id, proposed_at=now, reviewed_by=admin_id, reviewed_at=now)
+    dup = await _duplicate_of(session, entry)
+    if dup is not None:
+        raise CatalogError(409, f"Esa pieza ya está en el catálogo (entrada {dup.id}): edítala para añadirle coches.")
+    session.add(entry)
+    await session.flush()
+    for f in fits:
+        f.entry_id = entry.id
+    session.add_all(fits)
+    await session.commit()
+    return entry
+
+
 async def edit(session: AsyncSession, entry_id: int, changes: Dict[str, Any]) -> CatalogEntry:
     """The administrator completes or corrects a proposal (pending or approved); the category never changes."""
     e = await session.get(CatalogEntry, entry_id)
@@ -173,14 +214,7 @@ async def edit(session: AsyncSession, entry_id: int, changes: Dict[str, Any]) ->
         raise CatalogError(409, "Una propuesta rechazada no se edita: que el proponente la corrija y la vuelva a enviar.")
     fits = changes.pop("fitments", None)
     if fits is not None:
-        clean = []
-        for f in fits[:MAX_FITMENTS]:
-            model = (f.get("model") or "").strip()
-            if model:
-                clean.append(CatalogFitment(entry_id=e.id, make=(f.get("make") or "").strip() or None, model=model, years=(f.get("years") or "").strip() or None,
-                                            oem_reference=(f.get("oem_reference") or "").strip() or None))
-        if not clean:
-            raise CatalogError(422, "La pieza tiene que valer al menos para un modelo.")
+        clean = _clean_fitments(e.id, fits)
         for old in (await fitments_of(session, [e.id]))[e.id]:
             await session.delete(old)
         session.add_all(clean)

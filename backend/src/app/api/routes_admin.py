@@ -15,6 +15,7 @@ from app.db.models import AppUser, EbroAccount, Invite, Vehicle
 from app.db.session import get_db
 from app.security import auth, passwords
 from app.services import admin_audit, admin_stats, catalog, catalog_remote, invites, storage, tenant
+from app.services.parts import PART_CATEGORIES, POSITIONS
 
 STORAGE_MAX_MB = 1_000_000
 
@@ -237,6 +238,38 @@ class CatalogEdit(BaseModel):
     quantity: Optional[float] = Field(default=None, ge=0, le=100000)
     position: Optional[str] = Field(default=None, max_length=10)
     notes: Optional[str] = Field(default=None, max_length=2000)
+
+
+class CatalogCreate(BaseModel):
+    category: str = Field(min_length=1, max_length=30)
+    fitments: List[FitmentIn] = Field(min_length=1, max_length=20)
+    name: Optional[str] = Field(default=None, max_length=150)
+    brand: Optional[str] = Field(default=None, max_length=80)
+    reference: Optional[str] = Field(default=None, max_length=120)
+    spec: Optional[str] = Field(default=None, max_length=120)
+    quantity: Optional[float] = Field(default=None, ge=0, le=100000)
+    position: Optional[str] = Field(default=None, max_length=10)
+    notes: Optional[str] = Field(default=None, max_length=2000)
+
+
+@router.get("/catalog/categories")
+async def catalog_categories():
+    """Part types the console can add, with the positions and field labels of each one."""
+    return [{"key": c["key"], "label": c["label"], "spec_label": c.get("spec_label") or "Especificación", "spec_hint": c.get("spec_hint") or "",
+             "qty_label": c.get("qty_label") or "Cantidad", "positions": [{"key": k, "label": POSITIONS[k]} for k in c.get("positions", [])]}
+            for c in PART_CATEGORIES]
+
+
+@router.post("/catalog")
+async def catalog_create(req: CatalogCreate, admin: AppUser = Depends(auth.require_admin), db: AsyncSession = Depends(get_db)):
+    """Add a part straight to the catalogue, already approved (in online mode it is also sent to that server's queue)."""
+    try:
+        entry = await catalog.create(db, admin.id, req.model_dump())
+    except catalog.CatalogError as ex:
+        raise HTTPException(status_code=ex.status_code, detail=ex.detail) from ex
+    await admin_audit.log(db, admin, "catalog.create", str(entry.id), f"{entry.category} {entry.brand or ''} {entry.reference or ''}".strip())
+    await catalog_remote.maybe_forward(db, entry)
+    return await catalog.serialize_one(db, entry)
 
 
 @router.patch("/catalog/{entry_id}")

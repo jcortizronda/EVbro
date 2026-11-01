@@ -391,7 +391,9 @@ async function loadCatalog() {
       actions.append(`×${e.confirmations + 1}`);
     }
     body.append(h('tr', {},
-      h('td', {}, (e.fitments || []).map((f) => [f.make, f.model].filter(Boolean).join(' ') + (f.years ? ` (${f.years})` : '') + (f.oem_reference ? ` · ${t('ref. fab. {p0}', {p0: f.oem_reference})}` : '')).join(', ')),
+      h('td', { class: 'cell-fits' }, (e.fitments || []).map((f) => h('div', { class: 'fit-line' },
+        h('strong', {}, [f.make, f.model].filter(Boolean).join(' ')), f.years ? h('span', { class: 'fit-years' }, f.years) : '',
+        f.oem_reference ? h('small', { class: 'hint' }, t('ref. fab. {p0}', {p0: f.oem_reference})) : ''))),
       h('td', {}, `${e.category_label}${e.position_label ? ' · ' + e.position_label.toLowerCase() : ''}`, h('br'), h('small', { class: 'hint' }, e.name || '')),
       h('td', {}, [e.brand, e.reference].filter(Boolean).join(' · ') || '—'),
       h('td', {}, details || '—', e.notes ? h('br') : '', e.notes ? h('small', { class: 'hint' }, e.notes) : ''),
@@ -409,36 +411,112 @@ async function reviewCatalog(id, approve) {
   }
   api(`/api/admin/catalog/${id}/${approve ? 'approve' : 'reject'}`, 'POST', body).then(loadCatalog).catch((e) => toast(e.message, true));
 }
-let catalogEntry = null;
+let catalogEntry = null;      // the entry being edited; null while adding a new one
+let catalogCategories = [];
+const FIT_FIELDS = [['make', 'Marca del coche', 50, 'Ebro'], ['model', 'Modelo', 80, 'S700'], ['years', 'Años', 20, '2024-2026'], ['oem_reference', 'Ref. fabricante', 120, 'Opcional']];
+
+/** One car the part fits: four separate fields (never one free line), so nothing gets lost or mixed up when saving. */
+function fitRow(f = {}) {
+  const row = h('div', { class: 'fit-row' });
+  for (const [key, label, max, ph] of FIT_FIELDS) {
+    row.append(h('label', {}, h('span', { class: 'fit-label' }, t(label)),
+      h('input', { 'data-f': key, maxlength: max, placeholder: t(ph), value: f[key] || '', required: key === 'model', 'aria-label': t(label) })));
+  }
+  row.append(h('button', { type: 'button', class: 'ghost fit-del', title: t('Quitar este coche'), 'aria-label': t('Quitar este coche'), onclick: () => removeFit(row) }, '×'));
+  return row;
+}
+function removeFit(row) {
+  const box = $('catFits');
+  if (box.children.length <= 1) { toast(t('La pieza tiene que valer al menos para un coche.'), true); return; }
+  row.remove();
+  syncFitButtons();
+}
+function syncFitButtons() {
+  const rows = [...$('catFits').children];
+  rows.forEach((r) => { r.querySelector('.fit-del').disabled = rows.length <= 1; });
+  $('btnFitAdd').disabled = rows.length >= 20;
+}
+function fillFits(list) {
+  $('catFits').replaceChildren(...(list.length ? list : [{}]).map(fitRow));
+  syncFitButtons();
+}
+$('btnFitAdd').addEventListener('click', () => {
+  const last = $('catFits').lastElementChild;
+  // a new car usually shares the make and years of the one above
+  const row = fitRow(last ? { make: last.querySelector('[data-f="make"]').value, years: last.querySelector('[data-f="years"]').value } : {});
+  $('catFits').append(row);
+  syncFitButtons();
+  row.querySelector('[data-f="model"]').focus();
+});
+function readFits() {
+  return [...$('catFits').children].map((r) => Object.fromEntries(FIT_FIELDS.map(([k]) => [k, r.querySelector(`[data-f="${k}"]`).value.trim() || null])))
+    .filter((f) => f.model || f.make || f.years || f.oem_reference);
+}
+
+/** Position, specification and quantity labels follow the part type. */
+function applyCategory(cat, position) {
+  const positions = (cat && cat.positions) || [];
+  $('catPositionWrap').hidden = !positions.length;
+  $('catPosition').replaceChildren(h('option', { value: '' }, t('Sin indicar')), ...positions.map((p) => h('option', { value: p.key }, t(p.label))));
+  $('catPosition').value = position || '';
+  $('catSpecLabel').textContent = t((cat && cat.spec_label) || 'Especificación');
+  $('catSpec').placeholder = (cat && cat.spec_hint) || '';
+  $('catQtyLabel').textContent = t((cat && cat.qty_label) || 'Cantidad');
+  $('catName').placeholder = cat && cat.label ? t(cat.label) : '';      // left empty, the entry takes the part type's name
+}
+
 function editCatalog(e) {
   catalogEntry = e;
   $('catTitle').textContent = t('{p0}{p1} (propuesta de {p2})', {p0: e.category_label, p1: e.position_label ? ' · ' + e.position_label.toLowerCase() : '', p2: e.proposed_by || '—'});
-  $('catFits').value = (e.fitments || []).map((f) => [f.make || '', f.model || '', f.years || '', f.oem_reference || ''].join(' | ').replace(/( \| )+$/, '')).join('\n');
+  $('catHint').textContent = t('Completa o corrige lo que haga falta; el tipo de pieza no cambia. Lo que dejes vacío se borra.');
+  $('catCategoryWrap').hidden = true;
+  fillFits(e.fitments || []);
   $('catName').value = e.name || ''; $('catBrand').value = e.brand || ''; $('catRef').value = e.reference || '';
   // Position (front / rear / spare) only for the part types that have one: pads, discs, tyres, wiper blades
-  const positions = e.positions || [];
-  $('catPositionWrap').hidden = !positions.length;
-  $('catPosition').replaceChildren(h('option', { value: '' }, t('Sin indicar')), ...positions.map((p) => h('option', { value: p.key }, t(p.label))));
-  $('catPosition').value = e.position || '';
-  $('catSpecLabel').textContent = e.spec_label; $('catSpec').value = e.spec || '';
-  $('catQtyLabel').textContent = e.qty_label; $('catQty').value = e.quantity === null || e.quantity === undefined ? '' : e.quantity;
+  applyCategory({ positions: e.positions || [], spec_label: e.spec_label, qty_label: e.qty_label }, e.position);
+  $('catSpec').value = e.spec || '';
+  $('catQty').value = e.quantity === null || e.quantity === undefined ? '' : e.quantity;
   $('catNotes').value = e.notes || '';
   $('dlgCatalog').showModal();
 }
+
+async function addCatalog() {
+  if (!catalogCategories.length) {
+    try { catalogCategories = await api('/api/admin/catalog/categories'); } catch (e) { toast(e.message, true); return; }
+  }
+  catalogEntry = null;
+  $('catTitle').textContent = t('Añadir pieza al catálogo');
+  $('catHint').textContent = t('Se publica ya aprobada para los coches que indiques. Si la misma pieza ya está en el catálogo, edita esa entrada y añádele los coches.');
+  $('catCategoryWrap').hidden = false;
+  $('catCategory').replaceChildren(...catalogCategories.map((c) => h('option', { value: c.key }, t(c.label))));
+  fillFits([{ make: 'Ebro' }]);
+  for (const id of ['catName', 'catBrand', 'catRef', 'catSpec', 'catQty', 'catNotes']) $(id).value = '';
+  applyCategory(catalogCategories[0]);
+  $('dlgCatalog').showModal();
+}
+$('btnCatalogAdd').addEventListener('click', addCatalog);
+$('catCategory').addEventListener('change', () => applyCategory(catalogCategories.find((c) => c.key === $('catCategory').value)));
+
 $('btnCatCancel').addEventListener('click', () => $('dlgCatalog').close());
 $('formCatalog').addEventListener('submit', async (ev) => {
   ev.preventDefault();
   const q = $('catQty').value.trim();
+  const fitments = readFits();
+  if (!fitments.length || fitments.some((f) => !f.model)) { toast(t('Cada coche necesita al menos el modelo.'), true); return; }
+  const body = {
+    fitments, name: $('catName').value, brand: $('catBrand').value, reference: $('catRef').value, spec: $('catSpec').value,
+    quantity: q === '' ? null : parseFloat(q), notes: $('catNotes').value };
+  if (!$('catPositionWrap').hidden) body.position = $('catPosition').value;
   try {
-    const fitments = $('catFits').value.split('\n').map((l) => l.split('|').map((x) => x.trim())).filter((p) => p[1] || (p.length === 1 && p[0]))
-      .map((p) => (p.length === 1 ? { model: p[0] } : { make: p[0] || null, model: p[1], years: p[2] || null, oem_reference: p[3] || null }));
-    if (!fitments.length) { toast('Indica al menos un coche (marca | modelo | años | ref. fabricante).', true); return; }
-    await api(`/api/admin/catalog/${catalogEntry.id}`, 'PATCH', {
-      fitments, name: $('catName').value, brand: $('catBrand').value,
-      ...((catalogEntry.positions || []).length ? { position: $('catPosition').value } : {}),
-      reference: $('catRef').value, spec: $('catSpec').value, quantity: q === '' ? null : parseFloat(q), notes: $('catNotes').value });
+    if (catalogEntry) {
+      await api(`/api/admin/catalog/${catalogEntry.id}`, 'PATCH', body);
+      toast(t('Propuesta guardada.'));
+    } else {
+      await api('/api/admin/catalog', 'POST', { ...body, category: $('catCategory').value });
+      toast(t('Pieza añadida al catálogo.'));
+      if (!['approved', 'all'].includes($('catStatus').value)) $('catStatus').value = 'approved';
+    }
     $('dlgCatalog').close();
-    toast('Propuesta guardada.');
     loadCatalog();
   } catch (e) { toast(e.message, true, 7000); }
 });
@@ -527,7 +605,7 @@ $('formCatalogKey').addEventListener('submit', async (ev) => {
 
 // ───────────────────────── Action log ─────────────────────────
 const AUDIT_LABELS = { login: 'Entrada en la consola', 'manager.create': 'Gestor creado', 'manager.delete': 'Espacio de gestor borrado', 'user.update': 'Cuenta modificada',
-  'invite.create': 'Invitación creada', 'invite.revoke': 'Invitación anulada', 'catalog.approve': 'Catálogo: aprobada', 'catalog.reject': 'Catálogo: rechazada', 'catalog.edit': 'Catálogo: editada',
+  'invite.create': 'Invitación creada', 'invite.revoke': 'Invitación anulada', 'catalog.approve': 'Catálogo: aprobada', 'catalog.create': 'Catálogo: añadida', 'catalog.reject': 'Catálogo: rechazada', 'catalog.edit': 'Catálogo: editada',
   'catalog.key.create': 'Catálogo: clave creada', 'catalog.key.revoke': 'Catálogo: clave anulada', 'catalog.public_url': 'Catálogo: URL pública', 'catalog.source': 'Catálogo: origen cambiado', 'catalog.sync': 'Catálogo: sincronizado' };
 async function loadAudit() {
   let list;

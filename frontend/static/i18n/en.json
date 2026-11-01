@@ -1918,5 +1918,21 @@
  "Ref. fabricante": "OEM ref.",
  "Ref. marca": "Brand ref.",
  "ref. marca {p0}": "brand ref. {p0}",
- "Número de pieza que pone la marca de la pieza (Mann, Bosch…)": "Part number given by the part's own brand (Mann, Bosch…)"
+ "Número de pieza que pone la marca de la pieza (Mann, Bosch…)": "Part number given by the part's own brand (Mann, Bosch…)",
+ "Guarda la pieza y comparte esta referencia con los demás dueños del mismo modelo; la revisa el administrador antes de publicarla": "Saves the part and shares this reference with the other owners of the same model; the administrator reviews it before publishing it",
+ "Los gestores proponen referencias (aceite, filtros, pastillas, neumáticos…) desde la ficha de su coche. Solo lo aprobado lo ven los demás dueños del mismo modelo. Una propuesta igual a una entrada aprobada (modelo, categoría, marca y referencia) cuenta como confirmación de esa entrada. Con «Añadir pieza» la publicas tú directamente, ya aprobada.": "Managers propose references (oil, filters, pads, tyres…) from their car's sheet. Only what is approved is seen by the other owners of the same model. A proposal equal to an approved entry (model, category, brand and reference) counts as a confirmation of that entry. With «Add part» you publish one yourself, already approved.",
+ "No hay piezas en este estado.": "No parts in this state.",
+ "Coches a los que vale": "Cars it fits",
+ "Marca del coche": "Car make",
+ "Años": "Years",
+ "Añadir coche": "Add car",
+ "Quitar este coche": "Remove this car",
+ "La pieza tiene que valer al menos para un coche.": "The part has to fit at least one car.",
+ "Añadir pieza al catálogo": "Add part to the catalogue",
+ "Se publica ya aprobada para los coches que indiques. Si la misma pieza ya está en el catálogo, edita esa entrada y añádele los coches.": "It is published already approved for the cars you list. If the same part is already in the catalogue, edit that entry and add the cars to it.",
+ "Cada coche necesita al menos el modelo.": "Each car needs at least the model.",
+ "Pieza añadida al catálogo.": "Part added to the catalogue.",
+ "Catálogo: añadida": "Catalogue: added",
+ "La pieza está guardada, pero no se pudo proponer: {p0}": "The part is saved, but it could not be proposed: {p0}",
+ "Guardar y proponer": "Save and propose"
 }

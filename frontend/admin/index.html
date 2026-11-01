@@ -139,13 +139,13 @@
       <section id="tabCatalog" class="pane" hidden>
         <div class="card">
           <h2>Catálogo compartido de consumibles</h2>
-          <p class="hint">Los gestores proponen referencias (aceite, filtros, pastillas, neumáticos…) desde la ficha de su coche. Solo lo aprobado lo ven los demás dueños del mismo modelo. Una propuesta igual a una entrada aprobada (modelo, categoría, marca y referencia) cuenta como confirmación de esa entrada.</p>
+          <p class="hint">Los gestores proponen referencias (aceite, filtros, pastillas, neumáticos…) desde la ficha de su coche. Solo lo aprobado lo ven los demás dueños del mismo modelo. Una propuesta igual a una entrada aprobada (modelo, categoría, marca y referencia) cuenta como confirmación de esa entrada. Con «Añadir pieza» la publicas tú directamente, ya aprobada.</p>
           <div class="inline-form">
             <label><span>Ver</span><select id="catStatus"><option value="pending">Pendientes</option><option value="approved">Aprobadas</option><option value="rejected">Rechazadas</option><option value="all">Todas</option></select></label>
-            <div class="actions"><a class="ghost" id="btnCatalogExport" href="/api/admin/catalog/export" download="evbro-catalogo.json">Exportar aprobadas (JSON)</a></div>
+            <div class="actions"><button type="button" class="primary" id="btnCatalogAdd">Añadir pieza</button> <a class="ghost" id="btnCatalogExport" href="/api/admin/catalog/export" download="evbro-catalogo.json">Exportar aprobadas (JSON)</a></div>
           </div>
           <div class="table-wrap"><table id="tblCatalog"><thead><tr><th>Coches</th><th>Pieza</th><th>Marca · ref. marca</th><th>Detalles</th><th>Propuesta por</th><th>Estado</th><th></th></tr></thead><tbody></tbody></table></div>
-          <p class="empty" id="emptyCatalog" hidden>No hay propuestas en este estado.</p>
+          <p class="empty" id="emptyCatalog" hidden>No hay piezas en este estado.</p>
         </div>
 
         <div class="card">
@@ -211,17 +211,26 @@
     </form>
   </dialog>
 
-  <dialog id="dlgCatalog">
+  <dialog id="dlgCatalog" class="dlg-wide">
     <form id="formCatalog" method="dialog">
       <h2 id="catTitle">Editar propuesta</h2>
       <p class="hint" id="catHint">Completa o corrige lo que haga falta; el tipo de pieza no cambia. Lo que dejes vacío se borra.</p>
-      <label><span>Coches a los que vale (uno por línea: marca | modelo | años | ref. fabricante)</span><textarea id="catFits" rows="3" placeholder="Ebro | S900 PHEV | 2024-2026 | 1012345678&#10;Ebro | S800 | 2024-2026" required></textarea><small>La misma referencia suele valer para varios modelos; el primero es el principal. La ref. fabricante es el número de pieza de esa marca (el de Ebro en un Ebro) y puede faltar.</small></label>
-      <label><span>Nombre o modelo</span><input id="catName" maxlength="150" required></label>
-      <label id="catPositionWrap" hidden><span>Posición</span><select id="catPosition"></select></label>
-      <label><span>Marca de la pieza</span><input id="catBrand" maxlength="80"></label>
-      <label><span>Ref. marca</span><input id="catRef" maxlength="120"></label>
-      <label><span id="catSpecLabel">Especificación</span><input id="catSpec" maxlength="120"></label>
-      <label><span id="catQtyLabel">Cantidad</span><input id="catQty" type="number" min="0" step="0.01"></label>
+      <label id="catCategoryWrap" hidden><span>Tipo de pieza</span><select id="catCategory"></select></label>
+      <fieldset class="fits">
+        <legend>Coches a los que vale</legend>
+        <div class="fit-head" aria-hidden="true"><span>Marca del coche</span><span>Modelo</span><span>Años</span><span>Ref. fabricante</span><span></span></div>
+        <div id="catFits"></div>
+        <div class="fits-foot"><button type="button" class="ghost" id="btnFitAdd">Añadir coche</button>
+          <small>La misma referencia suele valer para varios modelos; el primero es el principal. La ref. fabricante es el número de pieza de esa marca (el de Ebro en un Ebro) y puede faltar.</small></div>
+      </fieldset>
+      <div class="dlg-grid">
+        <label><span>Nombre o modelo</span><input id="catName" maxlength="150"></label>
+        <label id="catPositionWrap" hidden><span>Posición</span><select id="catPosition"></select></label>
+        <label><span>Marca de la pieza</span><input id="catBrand" maxlength="80"></label>
+        <label><span>Ref. marca</span><input id="catRef" maxlength="120"></label>
+        <label><span id="catSpecLabel">Especificación</span><input id="catSpec" maxlength="120"></label>
+        <label><span id="catQtyLabel">Cantidad</span><input id="catQty" type="number" min="0" step="0.01"></label>
+      </div>
       <label><span>Notas</span><textarea id="catNotes" rows="3" maxlength="2000"></textarea></label>
       <div class="actions"><button type="submit" class="primary">Guardar</button><button type="button" class="ghost" id="btnCatCancel">Cancelar</button></div>
     </form>

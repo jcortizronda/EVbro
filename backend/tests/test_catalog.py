@@ -232,3 +232,26 @@ async def test_a_proposal_never_publishes_the_owner_notes_and_the_console_gets_t
     assert (await console.patch(f"/api/admin/catalog/{d['id']}", json={"position": ""})).json()["position"] is None
     await console.post(f"/api/admin/catalog/{d['id']}/approve")
     assert "positions" not in (await console.get("/api/admin/catalog/export")).json()["entries"][0]
+
+
+async def test_the_admin_adds_a_part_straight_to_the_catalogue_already_approved(world) -> None:
+    ana, console = world["ana"], world["console"]
+    cats = (await console.get("/api/admin/catalog/categories")).json()
+    pads = next(c for c in cats if c["key"] == "brake_pads")
+    assert pads["positions"] == [{"key": "front", "label": "Delantero"}, {"key": "rear", "label": "Trasero"}]
+    body = {"category": "brake_pads", "position": "front", "brand": "Brembo", "reference": "P85999", "spec": "Cerámica",
+            "fitments": [{"make": "Ebro", "model": "S900 PHEV", "years": "2024-2026", "oem_reference": "EB-123"}, {"make": "Ebro", "model": "S800"}]}
+    d = (await console.post("/api/admin/catalog", json=body)).json()
+    assert d["status"] == "approved" and d["name"] == "Pastillas de freno"                         # the name defaults to the part type
+    assert [f["model"] for f in d["fitments"]] == ["S900 PHEV", "S800"] and d["fitments"][0]["oem_reference"] == "EB-123"
+    assert d["model"] == "S900 PHEV" and d["oem_reference"] == "EB-123"                           # the first car is the main one
+    seen = (await ana.get("/api/catalog?model=s800")).json()                                       # public at once, for every car listed
+    assert [e["id"] for e in seen] == [d["id"]]
+    assert (await console.post("/api/admin/catalog", json=body)).status_code == 409                # the same part twice: edit the one there
+    assert (await console.post("/api/admin/catalog", json={**body, "reference": "X", "position": "spare"})).status_code == 422
+    assert (await console.post("/api/admin/catalog", json={**body, "category": "nope"})).status_code == 422
+    assert (await console.post("/api/admin/catalog", json={"category": "air_filter", "fitments": [{"model": "S700"}]})).status_code == 422   # nothing to identify it
+    assert (await console.post("/api/admin/catalog", json={**body, "reference": "Y", "fitments": [{"model": " "}]})).status_code == 422     # no car
+    assert (await ana.post("/api/admin/catalog", json=body)).status_code in (403, 404)            # never from the app
+    audit = (await console.get("/api/admin/audit")).json()
+    assert any(a["action"] == "catalog.create" for a in (audit if isinstance(audit, list) else audit.get("rows", [])))
