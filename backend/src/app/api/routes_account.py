@@ -4,7 +4,8 @@ from __future__ import annotations
 import asyncio
 import datetime
 import logging
-from typing import Any, Dict, Optional
+import re
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
@@ -27,6 +28,7 @@ from app.services.poller import VehiclePoller
 
 _LOGGER = logging.getLogger("app.api.account")
 router = APIRouter(prefix="/account", tags=["Account"])
+HOME_WIDGET_KEY = re.compile(r"[a-z][a-z_]{0,23}")
 
 
 class EbroLoginRequest(BaseModel):
@@ -300,6 +302,40 @@ async def update_language(req: LanguageRequest, request: Request, response: Resp
     await session.commit()
     auth.set_language_cookie(response, request, req.language)
     return {"status": "ok", "language": req.language}
+
+
+class HomeLayoutRequest(BaseModel):
+    widgets: List[str] = Field(max_length=40)
+
+
+@router.get("/home-layout")
+async def get_home_layout(user: AppUser = Depends(auth.require_auth)):
+    """The widgets this account shows on Inicio, in order; `null` = the default layout (features/home-widgets.js)."""
+    return {"layout": user.home_layout}
+
+
+@router.put("/home-layout")
+async def put_home_layout(req: HomeLayoutRequest, session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)):
+    """A personal choice of every account, also of read-only ones: it changes only how its own Inicio looks."""
+    widgets: List[str] = []
+    for key in req.widgets:
+        if not HOME_WIDGET_KEY.fullmatch(key or ""):
+            raise HTTPException(status_code=422, detail="Widget no válido.")
+        if key not in widgets:
+            widgets.append(key)
+    db_user = await session.get(AppUser, user.id)
+    db_user.home_layout = {"widgets": widgets}
+    await session.commit()
+    return {"layout": db_user.home_layout}
+
+
+@router.delete("/home-layout")
+async def reset_home_layout(session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)):
+    """Back to the default Inicio."""
+    db_user = await session.get(AppUser, user.id)
+    db_user.home_layout = None
+    await session.commit()
+    return {"layout": None}
 
 
 class PinPolicyRequest(BaseModel):

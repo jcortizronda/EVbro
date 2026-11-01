@@ -18,6 +18,8 @@ The front page of the selected car (the car selector is at the top if you have s
 - **Tyres (TPMS)**: pressure and temperature of each wheel.
 - **Refresh** button (top right): queries the cloud now. It does not wake the car.
 
+**Customise home** (button at the bottom of the page). Each block is a *widget* you can **move** (dragging by the ⠿ handle or with the arrows), **remove** (×) or **put back** with «Add widget». The header always stays at the top. Besides the usual blocks there are new widgets: **Next maintenance** (the nearest service or task and the MOT), **Last trip**, **Last charge**, **This month's spending**, **Scheduled charge** (battery target and schedule), **Climate** (temperatures and turning it on or off) and **Consumption** over the last 30 days. Tapping one opens its section. While you edit, the buttons do nothing, so no command is sent by mistake. The layout belongs to **your account**: it looks the same on the phone and the computer, and every person with access has their own. «Reset» brings back the usual home screen. Widgets your car cannot show (live data without an Ebro account, charging on a petrol car) do not appear. On a computer the map always sits in its own right-hand column.
+
 ## Energy
 
 Everything about the battery and charging.

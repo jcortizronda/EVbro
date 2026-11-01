@@ -18,6 +18,8 @@ La portada del coche elegido (arriba, el selector de coche si tienes varios).
 - **Neumáticos (TPMS)**: presión y temperatura de cada rueda.
 - Botón **Actualizar** (arriba a la derecha): consulta la nube ahora. No despierta el coche.
 
+**Personalizar inicio** (botón al final de la página). Cada bloque es un *widget* que puedes **mover** (arrastrando con el asa ⠿ o con las flechas), **quitar** (×) o **volver a poner** con «Añadir widget». La cabecera se queda siempre arriba. Además de los bloques de siempre hay widgets nuevos: **Próximo mantenimiento** (la revisión o tarea más cercana y la ITV), **Último viaje**, **Última carga**, **Gasto del mes**, **Carga programada** (objetivo de batería y horario), **Climatización** (temperaturas y encender o apagar) y **Consumo** de los últimos 30 días. Tocar uno abre su sección. Mientras editas, los botones no hacen nada, para no mandar una orden sin querer. La disposición es **de tu cuenta**: se ve igual en el móvil y en el ordenador, y cada persona con acceso tiene la suya. «Restablecer» vuelve al inicio de siempre. Los widgets que tu coche no puede mostrar (datos en directo sin cuenta de Ebro, cargas en uno de gasolina) no aparecen. En el ordenador el mapa va siempre en su columna de la derecha.
+
 ## Energía
 
 Todo lo de la batería y la carga.

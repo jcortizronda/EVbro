@@ -1,0 +1,70 @@
+/* EVBro — Inicio made of widgets (features/home-widgets.js): the new cards, the edit mode and dragging. */
+
+.home-widget[hidden] { display: none !important; }
+/* A widget this car cannot show: live data without an Ebro account, charging on a car that is not electric */
+body[data-manual="1"] .home-widget[data-live],
+body:is([data-fuel="gasoline"], [data-fuel="diesel"]) .home-widget[data-electric] { display: none !important; }
+body[data-manual="1"]:not([data-gps="1"]) .home-widget[data-widget="map"] { display: none !important; }
+
+/* ───────── New widgets ───────── */
+.hw-card { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; padding: 14px 16px; border-radius: 20px; cursor: pointer; }
+.hw-head { display: flex; align-items: center; gap: 8px; width: 100%; padding: 0; color: var(--text-secondary); font: inherit; font-size: 0.78rem;
+  font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; text-align: left; background: none; border: 0; cursor: pointer; }
+.hw-icon { display: inline-flex; color: var(--accent-bright, var(--primary)); }
+.hw-title { flex: 1; min-width: 0; }
+.hw-go { font-size: 1.2rem; line-height: 1; color: var(--text-muted); }
+.hw-body { display: flex; flex-direction: column; gap: 6px; min-width: 0; color: var(--text-primary); }
+.hw-big { font-size: 1.6rem; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.hw-big small { font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); }
+.hw-line { display: flex; flex-direction: column; gap: 1px; min-width: 0; padding-left: 10px; border-left: 3px solid var(--border-color); }
+.hw-line > span { font-weight: 600; overflow-wrap: anywhere; }
+.hw-line small, .hw-foot { font-size: 0.82rem; color: var(--text-secondary); }
+.hw-line[data-state="ok"] { border-left-color: var(--accent-green); }
+.hw-line[data-state="warn"] { border-left-color: var(--accent-amber, #ff9f0a); }
+.hw-line[data-state="bad"] { border-left-color: var(--accent-red); }
+.hw-muted { font-size: 0.88rem; color: var(--text-muted); }
+.hw-temps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.hw-temps > span { display: flex; flex-direction: column; font-size: 1.1rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.hw-temps small { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); }
+.hw-temps b { font-size: 0.95rem; }
+.hw-temps b[data-state="on"] { color: var(--accent-green); }
+.hw-temps b[data-state="unknown"] { color: var(--text-muted); }
+.hw-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.hw-buttons button { padding: 0.55rem 0.75rem; }
+body:not(.can-control) .hw-buttons { display: none; }
+
+/* ───────── «Personalizar inicio» ───────── */
+.home-customize { display: flex; align-items: center; justify-content: center; width: 100%; margin: 0 0 1.5rem; padding: 0.7rem; border-radius: 16px; font-size: 0.85rem; }
+/* Fixed just above the bottom dock (html/body hide horizontal overflow, which rules out `sticky`); the list leaves room for it */
+.home-edit-bar { position: fixed; left: 12px; right: 12px; bottom: calc(62px + env(safe-area-inset-bottom, 0px) + 8px); z-index: 900;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; max-width: 760px; margin: 0 auto; padding: 12px 14px; border: 1px solid var(--accent-bright, var(--border-color)); border-radius: 16px;
+  background: var(--surface); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); }
+.home-edit-bar[hidden] { display: none; }
+body.home-editing #homeWidgets { padding-bottom: 150px; }
+.home-edit-title { font-weight: 800; }
+.home-edit-hint { flex: 1 1 200px; font-size: 0.8rem; color: var(--text-secondary); }
+.home-edit-actions { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
+.home-edit-actions button { flex: 1 1 auto; padding: 0.5rem 0.75rem; font-size: 0.85rem; }
+
+/* Each widget in edit mode: a bar on top and its content frozen (no orders by mistake) */
+.home-editing .home-widget:not([hidden]) { position: relative; margin-bottom: 12px; padding: 0 6px 6px; border: 1.5px dashed var(--border-color); border-radius: 22px; }
+.home-editing .home-widget > :not(.hw-tools) { pointer-events: none; user-select: none; opacity: 0.85; }
+.hw-tools { display: flex; align-items: center; gap: 4px; padding: 6px 0; }
+.hw-tools-name { flex: 1; min-width: 0; font-size: 0.85rem; font-weight: 700; }
+.hw-tools-name small { display: block; font-weight: 500; color: var(--text-muted); }
+.hw-tool { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; padding: 0; color: var(--text-primary);
+  background: var(--surface-secondary); border: 1px solid var(--border-color); border-radius: 12px; cursor: pointer; }
+.hw-tool:disabled { opacity: 0.35; cursor: default; }
+.hw-drag { cursor: grab; touch-action: none; }
+.hw-remove { color: var(--accent-red); }
+.hw-dragging { position: fixed !important; z-index: 1000; margin: 0 !important; pointer-events: none; opacity: 0.95;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3); background: var(--surface); }
+.hw-dragging .hw-drag { cursor: grabbing; }
+.hw-placeholder { margin-bottom: 12px; border: 2px dashed var(--accent-bright, var(--border-color)); border-radius: 22px; background: var(--surface-secondary); }
+
+/* «Añadir widget» */
+.hw-add-list { display: flex; flex-direction: column; gap: 8px; max-height: 60vh; overflow-y: auto; }
+.hw-add-item { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; text-align: left; font: inherit; color: var(--text-primary);
+  background: var(--surface-secondary); border: 1px solid var(--border-color); border-radius: 14px; cursor: pointer; }
+.hw-add-item span { font-size: 0.82rem; color: var(--text-secondary); }
+.hw-add-item .hw-na { font-weight: 500; color: var(--text-muted); }

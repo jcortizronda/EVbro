@@ -718,6 +718,7 @@ class AppUser(Base):
     pin_policy = Column(String(10), nullable=False, default="open", server_default="open")
     invited_by = Column(Integer, nullable=True)                                          # admin who issued the invitation used to register
     language = Column(String(5), nullable=False, default="es", server_default="es")       # es | en | pt (app.i18n): texts of the app and of the notices
+    home_layout = Column(JSON, nullable=True)       # {"widgets": [keys in order]}: the widgets shown on Inicio (None = the default ones)
 
 
 class Invite(Base):

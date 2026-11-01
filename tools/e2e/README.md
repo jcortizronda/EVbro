@@ -22,6 +22,7 @@ python tools/e2e/history.py                                # historial de viajes
 python tools/e2e/csp.py                                    # recorre todas las pestañas y falla si el navegador registra una violación de la Content-Security-Policy
 python tools/e2e/climate_schedule.py                       # climatización programada: crear, pausar y borrar una programación desde Confort
 python tools/e2e/catalog.py                                # catálogo compartido: proponer una pieza, aprobarla en la consola y verla sugerida
+python tools/e2e/home_widgets.py                           # Inicio por widgets: mover (flechas y arrastrar), quitar, añadir, guardar en el servidor y restablecer
 python tools/e2e/comfort.py                                # Confort: estado ON/OFF leído del coche, iconos de estado
 python tools/e2e/timeline.py                               # cronología del coche (todos los tipos mezclados, chips) y buscador global
 python tools/e2e/stats.py                                  # estadísticas: diez gráficas pintadas con la demo, periodo, sin desbordes

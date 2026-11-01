@@ -69,6 +69,7 @@
   <link rel="stylesheet" href="/static/css/features/charge-control.css?v={{ asset_version }}">
   <link rel="stylesheet" href="/static/css/components/tables-cards.css?v={{ asset_version }}">
   <link rel="stylesheet" href="/static/css/features/home-tiles.css?v={{ asset_version }}">
+  <link rel="stylesheet" href="/static/css/features/home-widgets.css?v={{ asset_version }}">
   <link rel="stylesheet" href="/static/css/features/car-figure.css?v={{ asset_version }}">
   <link rel="stylesheet" href="/static/css/layout/page-head.css?v={{ asset_version }}">
   <link rel="stylesheet" href="/static/css/features/push.css?v={{ asset_version }}">
@@ -202,6 +203,18 @@
         <!-- Car without an Ebro account: no live data; what remains is the history, the sheet and, with Traccar, the map -->
         <div class="glass details-card manual-note" id="manualNote">Este coche no tiene cuenta de Ebro: no hay datos en directo ni órdenes. Su historial, su ficha, gastos, mantenimiento y piezas funcionan igual; con un servidor Traccar (Ajustes → Sistema) se ve además su posición.</div>
 
+        <!-- Home widgets: the owner can hide, reorder (drag or arrows) and add them; features/home-widgets.js -->
+        <div class="home-edit-bar" id="homeEditBar" hidden>
+          <span class="home-edit-title">Personalizar inicio</span>
+          <span class="home-edit-hint">Arrastra con el asa o usa las flechas; la × quita un widget.</span>
+          <div class="home-edit-actions">
+            <button type="button" class="btn-secondary" data-on-click="HomeWidgets.openAdd()">Añadir widget</button>
+            <button type="button" class="btn-secondary" data-on-click="HomeWidgets.reset()">Restablecer</button>
+            <button type="button" class="btn-primary" data-on-click="HomeWidgets.stopEditing()">Hecho</button>
+          </div>
+        </div>
+        <div id="homeWidgets" class="home-widgets">
+        <div class="home-widget" data-widget="range" data-live>
         <!-- Dual range display (battery 29 km / petrol 374 km) -->
         <div class="native-dual-range">
           <!-- Battery -->
@@ -240,7 +253,9 @@
             </div>
           </div>
         </div>
+        </div>
 
+        <div class="home-widget" data-widget="car" data-live>
         <!-- Car figure: doors, hood, trunk, windows, sunroof, lock, cable and pressures, as last reported by the car -->
         <div class="car-figure" id="carFigure" aria-label="Estado de la carrocería">
           <!-- Plan view, nose to the left: the top edge is the car's RIGHT side, the bottom edge its LEFT side.
@@ -308,7 +323,9 @@
           </svg>
           <div class="car-figure-summary" id="carFigureSummary" data-state="unknown">Sin datos del coche</div>
         </div>
+        </div>
 
+        <div class="home-widget" data-widget="actions" data-live>
         <!-- Asymmetric Action Cards -->
         <div class="native-action-grid">
           <!-- Top row: 2 wide cards -->
@@ -391,7 +408,9 @@
             </button>
           </div>
         </div>
+        </div>
 
+        <div class="home-widget" data-widget="kpis" data-live>
         <!-- Combined strip: odometer, speed, total range -->
         <div class="native-kpi-row">
           <div class="native-kpi-box">
@@ -407,7 +426,9 @@
             <div class="kpi-val" id="speed">0 km/h</div>
           </div>
         </div>
+        </div>
 
+        <div class="home-widget" data-widget="charging" data-live>
         <!-- Cable and active charging status (dynamic banner) -->
         <div id="chargeActiveBar" class="charge-active-bar u-display-none_flex-direction-column_gap-0p35rem_padding-0p75rem-1rem_margin-bottom-12px_border-radius-18px">
           <div class="u-display-flex_justify-content-space-between_align-items-center_width-100pct">
@@ -428,7 +449,9 @@
             </button>
           </div>
         </div>
+        </div>
 
+        <div class="home-widget" data-widget="map">
         <!-- Live map: expands on tap; «Centrar» and «Ir a» (opens the browser/Maps towards the car) -->
         <div class="glass map-card u-margin-bottom-12px_border-radius-20px_overflow-hidden" id="liveMapCard">
           <div class="live-map-wrap">
@@ -451,7 +474,9 @@
             <div class="u-color-var-text-muted" id="mapCoordinatesText">---</div>
           </div>
         </div>
+        </div>
 
+        <div class="home-widget" data-widget="tpms" data-live>
         <!-- TPMS tyres -->
         <div class="glass details-card u-border-radius-20px_margin-bottom-12px">
           <div class="card-title">
@@ -481,12 +506,17 @@
             </div>
           </div>
         </div>
+        </div>
 
+        <div class="home-widget" data-widget="sensors" data-live>
         <!-- Quick access button to the Home Assistant sensors -->
         <button class="btn-secondary u-width-100pct_font-size-0p85rem_display-flex_align-items-center_justify-content-center_gap-0p5rem_padding-0p75rem_border-radius-16px_margin-bottom-1p5rem" data-on-click="openAllSensorsModal()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
           <span>Ver todos los datos del coche</span>
         </button>
+        </div>
+        </div>
+        <button type="button" class="btn-secondary home-customize" id="homeCustomize" data-on-click="HomeWidgets.startEditing()">Personalizar inicio</button>
 
         <!-- Hidden elements for backward compatibility of IDs used by JS -->
         <div class="u-display-none">
@@ -2572,6 +2602,16 @@
   </div>
 
   <!-- Modal: part or consumable -->
+  <!-- Inicio: add a widget (features/home-widgets.js) -->
+  <div id="homeAddModal" class="modal-overlay">
+    <div class="modal-card u-max-width-460px">
+      <h3>Añadir widget</h3>
+      <p class="vp-hint">Se añade al final del inicio; después lo puedes mover.</p>
+      <div id="homeAddList" class="hw-add-list"></div>
+      <div class="modal-actions"><button type="button" class="btn-secondary" data-on-click="HomeWidgets.closeAdd()">Cerrar</button></div>
+    </div>
+  </div>
+
   <div id="partModal" class="modal-overlay">
     <div class="modal-card u-max-width-520px">
       <h3 id="partModalTitle">Pieza</h3>
@@ -3210,6 +3250,7 @@
   <script src="/static/js/features/car-book.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/charge-control.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/home.js?v={{ asset_version }}"></script>
+  <script src="/static/js/features/home-widgets.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/car-figure.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/push.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/passkeys.js?v={{ asset_version }}"></script>

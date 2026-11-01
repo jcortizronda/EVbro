@@ -62,19 +62,16 @@
 }
 
 @media (min-width: 1100px) and (hover: hover) and (pointer: fine) {
-  /* Inicio: range, tiles and pressures on the left; large fixed map on the right */
-  #tabOverview .native-app-container {
-    display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); column-gap: var(--desk-gap); align-items: start;
-    grid-template-areas: "banner banner" "range map" "figure map" "actions map" "kpi map" "tpms map" "sensors map";
-  }
-  #overviewBanner { grid-area: banner; }
-  #tabOverview .native-dual-range { grid-area: range; }
-  #carFigure { grid-area: figure; }
-  #tabOverview .native-action-grid { grid-area: actions; }
-  #tabOverview .native-kpi-row { grid-area: kpi; }
-  #tabOverview .details-card { grid-area: tpms; }
-  #tabOverview .native-app-container > .btn-secondary { grid-area: sensors; justify-self: start; }
-  #liveMapCard { grid-area: map; position: sticky; top: calc(var(--head-h) + 1.5rem); margin-bottom: 1rem; }
+  /* Inicio: the widgets in the owner's order on the left; the map (when shown) fixed on the right (features/home-widgets.js) */
+  #homeWidgets { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); column-gap: var(--desk-gap); align-items: start; }
+  #homeWidgets > .home-widget { grid-column: 1; }
+  #homeWidgets > .home-widget[data-widget="map"] { grid-column: 2; grid-row: 1 / span 40; position: sticky; top: calc(var(--head-h) + 1.5rem); }
+  #homeWidgets > .home-widget[data-widget="sensors"] { justify-self: start; }
+  #homeWidgets:not(:has(> .home-widget[data-widget="map"]:not([hidden]))),
+  body[data-manual="1"]:not([data-gps="1"]) #homeWidgets { grid-template-columns: minmax(0, 1fr); }
+  #liveMapCard { margin-bottom: 1rem; }
+  .home-edit-bar { left: calc(var(--side-w) + 24px); right: 24px; bottom: 20px; }
+  #tabOverview .home-customize { width: auto; padding-left: 1.5rem; padding-right: 1.5rem; }
   .map-card:not(.map-expanded) .live-map-wrap { height: 460px; }
 
   /* Energía: charge and control on the left; battery data and history on the right */

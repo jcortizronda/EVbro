@@ -727,7 +727,7 @@ body[data-manual="1"] .manual-note { display: block; }
 /* Scoped to the home tab on purpose: the «Más» menu is also a .native-action-grid and must stay */
 body[data-manual="1"] #carFigure, body[data-manual="1"] #tabOverview .native-dual-range, body[data-manual="1"] #tabOverview .native-action-grid,
 body[data-manual="1"] #tabOverview .native-kpi-row, body[data-manual="1"] #chargeActiveBar, body[data-manual="1"] #tabOverview .details-card:not(.manual-note),
-body[data-manual="1"] #tabOverview .native-app-container > .btn-secondary,
+body[data-manual="1"] #tabOverview .home-widget[data-widget="sensors"],
 body[data-manual="1"] #mobTabCharges, body[data-manual="1"] #mobTabClimate,
 body[data-manual="1"] .side-item[data-tab="charges"], body[data-manual="1"] .side-item[data-tab="climate"],
 body[data-manual="1"] .side-item[data-on-click="openAllSensorsModal()"],

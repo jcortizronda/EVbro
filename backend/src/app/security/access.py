@@ -101,6 +101,7 @@ ACCOUNT_RULES: Dict[Tuple[str, str], str] = {
     ("POST", "/api/account/mqtt/test"): "root",     # the manager's own MQTT broker (Home Assistant)
     ("GET", "/api/account/status"): "root",
     ("GET", "/api/account/storage"): "any",         # space of the caller's manager (a member sees its manager's numbers)
+    ("GET", "/api/account/home-layout"): "any", ("PUT", "/api/account/home-layout"): "any", ("DELETE", "/api/account/home-layout"): "any",   # each account's own Inicio
     ("PUT", "/api/account/language"): "any",        # the language of the texts is a personal choice of every account (app.i18n)
     ("GET", "/api/account/export"): "root", ("POST", "/api/account/import"): "root",    # the manager's whole space, files included
     ("POST", "/api/car-events/reconnect"): "root", ("GET", "/api/car-events/status"): "root",

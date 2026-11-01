@@ -73,6 +73,7 @@
     const open = openWindows(windows);
     tile(open === null ? null : open > 0, 'btnWindowsCard', ICONS.windows, 'cardWindowsStatus', windowsText(open), 'Cerradas');
     tile(windows.sunroof, 'btnSunroofCard', ICONS.sunroof, 'cardSunroofStatus', 'Abierto', 'Cerrado');
+    if (window.HomeWidgets) HomeWidgets.onTelemetry(data);     // the climate widget shows the temperatures the car just sent
   }
 
   window.renderHome = renderHome;
