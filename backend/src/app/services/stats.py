@@ -17,7 +17,7 @@ from app.config import get_timezone
 from app.db.models import ChargingSession, Drive, Expense, MaintenanceItem, MaintenanceLog, Refuel
 from app.services import periods
 
-MIN_DRIVE_KM = 3.0
+MIN_DRIVE_KM = 2.0     # below this, one battery point and the odometer's whole-km rounding give meaningless figures (measured 2026-11-01: 1–2 km drives averaged 52 kWh/100 km, 2–3 km ones 17.5)
 MIN_SOC_DELTA = 30.0
 IDLE_GAP_H = 6.0
 PERIODS = {"12m": 365, "all": None}

@@ -233,7 +233,7 @@ function applyTelemetry(data) {
 
 /** Text of an open/closed state; with `null`/`undefined` (the car has not reported yet) it does NOT guess. */
 /** «Consumo EV · 30 días» of the Energía tab: kWh/100 km of the last 30 days of drives (GET …/stats?period=30d, `totals.kwh_per_100km`:
- * drives of ≥ 3 km with measured energy). Fetched at most every 10 minutes per car; it is history, not live telemetry. */
+ * drives of ≥ 2 km with measured energy). Fetched at most every 10 minutes per car; it is history, not live telemetry. */
 let _evKpi = { vin: null, at: 0 };
 async function refreshEvConsumptionKpi() {
   const box = document.getElementById('energyEvConsumption');
