@@ -725,11 +725,24 @@ async function submitGeofenceModal() {
       throw new Error(err.detail || "Error del servidor");
     }
 
+    const saved = await res.json();
     closeGeofenceModal();
     await loadGeofences();
+    notifyGeofenceHistory(saved.name, saved.applied);
   } catch (err) {
     showToast(t('No se pudo guardar la geocerca: {p0}', {p0: err.message}), 'error', 6000);
   }
+}
+
+/** After saving: the past charges and drives that now carry this geofence's name (their prices never change), so the owner knows. */
+function notifyGeofenceHistory(name, applied) {
+  if (!applied || !(applied.charges || applied.drives)) return;
+  const parts = [];
+  if (applied.charges) parts.push(applied.charges === 1 ? t('1 carga') : t('{p0} cargas', { p0: applied.charges }));
+  if (applied.drives) parts.push(applied.drives === 1 ? t('1 viaje') : t('{p0} viajes', { p0: applied.drives }));
+  const text = t('«{p0}» se ha aplicado también a lo anterior: {p1}. Sus precios no cambian.', { p0: name, p1: parts.join(` ${t('y')} `) });
+  showToast(text, 'success', 7000);
+  if (typeof loadCharges === 'function' && window.currentTabName === 'charges') loadCharges();
 }
 
 // Delete geofence

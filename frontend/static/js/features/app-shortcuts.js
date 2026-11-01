@@ -1,4 +1,4 @@
-/* EVBro — App shortcuts: holding the installed app's icon offers «Cerrar el coche», «Encender el clima», «Energía» and «Viajes»
+/* EVBro — App shortcuts: holding the installed app's icon offers «Cerrar el coche», «Encender el clima», «Carga» and «Viajes»
  * (manifest.json «shortcuts»). Each one opens `/?go=<what>`; this file reads it once the cars are loaded.
  * - A page (`charges`, `drives`) is just opened.
  * - An order is never sent on its own: the app opens on the right page and asks first, naming the car; whatever needs the PIN

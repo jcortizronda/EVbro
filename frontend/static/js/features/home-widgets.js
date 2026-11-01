@@ -1,12 +1,12 @@
-/* EVBro — Pages made of widgets (Inicio, Energía and Confort): each account chooses which blocks it sees and in what order
+/* EVBro — Pages made of widgets (Inicio, Carga and Confort): each account chooses which blocks it sees and in what order
  * (drag or arrows), and can add more. One engine, one «board» per page: `HomeWidgets`, `EnergyWidgets`, `ComfortWidgets`.
  *
  * - The blocks that were already on Inicio (range, car figure, orders, figures, charging, map, tyres, all data) are widgets that
  *   live in index.html: hiding one only hides it, its ids stay in the page because other scripts fill them.
  * - The new widgets (maintenance, last trip, last charge, month's spending, scheduled charge, climate, consumption) are built here
  *   and read APIs that already exist, only while they are shown and only when Inicio is opened: they never poll the car.
- * - Energía and Confort: their blocks (battery and target, figures, charge control, schedule, history; climate, glass and steering
- *   wheel, seats, scheduled climate) are widgets the same way; Energía can also take a few of the new cards.
+ * - Carga (the `charges` tab, called Energía until 2026-11-01) and Confort: their blocks (battery and target, figures, charge control, schedule, history; climate, glass and steering
+ *   wheel, seats, scheduled climate) are widgets the same way; Carga can also take a few of the new cards.
  * - The layout is saved per account and page on the server (`/api/account/home-layout`) and copied in the device to draw it at once.
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
@@ -46,7 +46,8 @@ const WidgetBoards = (function () {
     kpis: { label: 'Cifras de energía', desc: 'Consumo eléctrico de 30 días y potencia de la batería.' },
     control: { label: 'Control de carga', desc: 'Parar o iniciar la carga.' },
     schedule: { label: 'Carga programada', desc: 'El horario de carga de cada día.' },
-    history: { label: 'Datos e historial de cargas', desc: 'La curva de la sesión y el historial de recargas.' },
+    charges: { label: 'Historial de cargas', desc: 'Todas las cargas, con su energía, lugar y coste.' },
+    session: { label: 'Detalle de la carga', desc: 'La curva, la energía, el coste y el mapa de una carga.' },
     last_charge: CATALOG.last_charge,
     month_cost: CATALOG.month_cost,
     consumption: CATALOG.consumption,
@@ -97,7 +98,9 @@ const WidgetBoards = (function () {
     const loaded = {};                 // key → { vin, at }
     const box = () => $(cfg.box);
     const sel = (rest) => `#${cfg.box} > .home-widget${rest || ''}`;
-    const clean = (list) => (Array.isArray(list) ? list.filter((k, i) => catalog[k] && list.indexOf(k) === i) : def.slice());
+    // A key that was split or renamed (e.g. Carga's `history` became `charges` + `session`) is read as its new keys
+    const expand = (list) => list.flatMap((k) => (cfg.aliases && cfg.aliases[k]) || [k]);
+    const clean = (list) => (Array.isArray(list) ? expand(list).filter((k, i, all) => catalog[k] && all.indexOf(k) === i) : def.slice());
     const fromServer = () => {
       const list = cfg.page === 'overview' ? server && server.widgets : server && server.pages && server.pages[cfg.page];
       return Array.isArray(list) ? clean(list) : def.slice();
@@ -478,7 +481,7 @@ const WidgetBoards = (function () {
     catalog: CATALOG, def: ['range', 'car', 'actions', 'kpis', 'charging', 'map', 'tpms', 'sensors'], onApply: fixMap,
     resetText: '¿Volver al inicio de siempre? Se quitan los widgets añadidos y se recupera el orden original.' });
   createBoard({ name: 'EnergyWidgets', page: 'charges', box: 'energyWidgets', bar: 'energyEditBar', customize: 'energyCustomize', storeKey: 'evbro_energy_layout',
-    catalog: ENERGY_CATALOG, def: ['energy', 'kpis', 'control', 'schedule', 'history'], onApply: fixCharts,
+    catalog: ENERGY_CATALOG, def: ['energy', 'kpis', 'control', 'charges', 'schedule', 'session'], onApply: fixCharts, aliases: { history: ['charges', 'session'] },
     resetText: '¿Volver a la página de siempre? Se quitan los widgets añadidos y se recupera el orden original.' });
   createBoard({ name: 'ComfortWidgets', page: 'climate', box: 'comfortWidgets', bar: 'comfortEditBar', customize: 'comfortCustomize', storeKey: 'evbro_comfort_layout',
     catalog: COMFORT_CATALOG, def: ['temperature', 'defrost', 'seats', 'schedule'],

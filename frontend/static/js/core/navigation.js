@@ -165,57 +165,39 @@ async function loadAppVersion() {
 }
 
 /**
- * Sub-tab navigation in the charges module (details vs history).
+ * Carga: one charge's detail and the charge history are two widgets now (they used to be sub-tabs of one accordion).
+ * Kept for older calls: it brings the asked one into view and loads what it shows.
  * @param {'details'|'history'} subTabName
  */
 function switchChargesSubTab(subTabName) {
-  const validSubTabs = ['details', 'history'];
-  if (!validSubTabs.includes(subTabName)) {
-    console.warn(`[Recargas] Unknown sub-tab: ${subTabName}`);
-    return;
-  }
-
-  // Deactivate the charges submenu buttons
-  document.querySelectorAll('.charges-sub-nav .sub-nav-btn').forEach(btn => btn.classList.remove('active'));
-
-  // Hide the sub-panels
-  validSubTabs.forEach(tab => {
-    const panelId = 'chargesSubTab' + tab.charAt(0).toUpperCase() + tab.slice(1);
-    const panel = document.getElementById(panelId);
-    if (panel) panel.classList.remove('active');
-  });
-
-  // Activate the selected button and panel
-  const btnId = 'btnChargesSub' + subTabName.charAt(0).toUpperCase() + subTabName.slice(1);
-  const panelId = 'chargesSubTab' + subTabName.charAt(0).toUpperCase() + subTabName.slice(1);
-
-  const btn = document.getElementById(btnId);
-  const panel = document.getElementById(panelId);
-  if (btn) btn.classList.add('active');
-  if (panel) panel.classList.add('active');
-
-  if (subTabName === 'details') {
-    if (!currentChargeData && typeof loadLatestCharge === 'function') {
-      loadLatestCharge(currentVin);
-    }
+  const key = subTabName === 'history' ? 'charges' : 'session';
+  const widget = document.querySelector(`#energyWidgets > .home-widget[data-widget="${key}"]`);
+  if (subTabName === 'history') {
+    if (typeof loadCharges === 'function') loadCharges();
+  } else {
+    const acc = document.getElementById('accBatteryTelemetry');
+    if (acc) acc.classList.add('open');
+    if (!currentChargeData && typeof loadLatestCharge === 'function') loadLatestCharge(currentVin);
     setTimeout(() => {
       if (chargeMiniMapInstance) chargeMiniMapInstance.invalidateSize();
       if (typeof redrawChargeCharts === 'function') redrawChargeCharts();
     }, 150);
-  } else if (subTabName === 'history') {
-    if (typeof loadCharges === 'function') {
-      loadCharges();
-    }
   }
+  if (widget && !widget.hidden) widget.scrollIntoView({ block: 'start', behavior: 'smooth' });
 }
 
 /**
- * Goes from a row of the charge history straight to that session's detail and chart.
+ * From a row of the charge history to that charge's detail and chart.
  * @param {number} chargeId - Unique id of the charging session.
  */
 function viewChargeDetails(chargeId) {
-  switchChargesSubTab('details');
+  const widget = document.querySelector('#energyWidgets > .home-widget[data-widget="session"]');
+  if (!widget || widget.hidden) {
+    showToast(t('Para ver cada carga, añade «Detalle de la carga» con «Personalizar carga».'), 'info', 6000);
+    return;
+  }
   loadLatestCharge(currentVin, chargeId);
+  switchChargesSubTab('details');
 }
 
 function toggleNativeAccordion(id) {

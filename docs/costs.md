@@ -6,7 +6,7 @@
 | :-- | :-- | :-- |
 | **Intervenciones** de mantenimiento (revisiones, ITV, pastillas, neumáticos…) | Mantenimiento | Mantenimiento |
 | **Gastos** que no son del taller: seguro, impuestos, garaje, peajes, multas, lavado, accesorios | Más → **Gastos** | Gastos |
-| **Repostajes** (detectados o a mano) y **cargas** | Repostajes (con consumo real) · Energía (cargas) | ídem |
+| **Repostajes** (detectados o a mano) y **cargas** | Repostajes (con consumo real) · Carga (cargas) | ídem |
 | **Balance** de todo (compra + cargas + repostajes + mantenimiento + gastos) | — (solo lectura) | Más → **Costes** |
 
 La **ficha del coche** (Más → Coches) recoge lo que el coche *es y lleva*; lo que cambia cada año (la prima del seguro, el impuesto) son gastos, no ficha.
@@ -49,6 +49,7 @@ Debajo de «Otros documentos» se ve el **espacio usado** del gestor («Espacio 
 
 `GET /api/vehicles/{vin}/costs?period=all|year|last_year|12m|month` (o `from`/`to` en `AAAA-MM`, ver «Periodos» en [frontend.md](frontend.md)) suma **compra + cargas + repostajes + mantenimiento + gastos** y devuelve totales, gasto por mes, desglose de gastos por categoría, euros por 100 km y los últimos movimientos. Es **solo de lectura**: no hay altas aquí. Cargas y repostajes **sin precio no suman**: se listan como «sin precio» y se avisa cuánto falta por valorar.
 
+- **Geocerca creada después** (`services/geofence_history.py`, al crear o editar una geocerca): las cargas (si es punto de carga) y los inicios y finales de viaje que ya estaban dentro y no tenían geocerca pasan a llevar su nombre. **Los precios pasados no cambian nunca**, ni fijos ni automáticos ni a mano (decisión del dueño, 2026-11-01): la tarifa de una geocerca puede cambiar con los años y no debe reescribir el gasto pasado; solo las cargas nuevas la toman. La respuesta lleva `applied` (`charges`, `drives`) y la interfaz lo avisa.
 - Precio de una carga: el de la geocerca si la hay; si no, **0 €/kWh** por defecto (modo `default`, no cuenta como «sin precio»); el precio real se introduce a mano (`PUT /api/charges/{id}/cost`, por €/kWh o total).
 - **Motor** (`Vehicle.fuel_type`: `phev` por defecto, `ev`, `gasoline`, `diesel`; en la ficha, sección Energía, y en el alta de un coche sin cuenta de Ebro, donde un Ebro es PHEV y cualquier otra marca gasolina salvo que se diga otra cosa). La interfaz lo respeta (`body[data-fuel]`, `applyFuelType()` en `core/vehicles.js`): con gasolina o diésel no hay pestaña Energía ni columna de batería en la portada; con un eléctrico no hay Repostajes ni columna de gasolina.
 - **Una carga = un enchufado** (`services/charge_detector.py`). La sesión activa vive en memoria, así que tras un **reinicio** del servidor se recupera de la BD: si el coche sigue cargando y la última lectura de la sesión abierta es de hace menos de 3 h, se continúa; si no, se cierra en su última lectura (nunca se queda abierta). Si la carga se para **con el cable puesto** y vuelve a cargar en menos de 15 min, es la misma sesión (un corte o un reinicio del poste); desenchufar o una pausa más larga (carga programada horas después) abre otra. Antes del 01-11-2026 cada despliegue con un coche cargando partía la carga en dos, y el «parar y volver a cargar» de algunos postes, en otra más.

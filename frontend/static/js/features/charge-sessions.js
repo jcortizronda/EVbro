@@ -241,7 +241,10 @@ async function loadLatestCharge(vin = currentVin, chargeId = null) {
     const cap = c.battery_capacity_kwh ? String(c.battery_capacity_kwh).replace('.', ',') : '19,27';
     document.getElementById('kpiEnergyNote').innerText = c.kwh_used
       ? `Eficiencia = energía a la batería ÷ energía de la red. La de la batería es estimada: ${Math.round(c.added_battery_pct || 0)} % ganado × ${cap} kWh de batería útil.`
-      : t('La energía a la batería es una estimación: {p0} % ganado × {p1} kWh de batería útil. La eficiencia solo se puede calcular si indicas los kWh de tu contador (Editar coste).', {p0: Math.round(c.added_battery_pct || 0), p1: cap});
+      : t('La energía a la batería es una estimación: {p0} % ganado × {p1} kWh de batería útil. La eficiencia solo se puede calcular si indicas los kWh de tu contador.', {p0: Math.round(c.added_battery_pct || 0), p1: cap});
+
+    const meterBtn = document.getElementById('btnChargeMeter');
+    if (meterBtn) meterBtn.textContent = c.kwh_used ? t('Cambiar kWh del contador') : t('Indicar kWh del contador');
 
     // Battery
     document.getElementById('kpiBatStart').innerText = `${Math.round(c.start_battery_pct || 0)}%`;
@@ -824,6 +827,28 @@ function openChargeCostModal() {
   document.getElementById('chargeCostTotal').value = manual ? c.charge_cost : '';
   document.getElementById('chargeCostMeter').value = c.kwh_used ?? '';
   document.getElementById('chargeCostModal').classList.add('open');
+}
+
+/** The grid kWh from the owner's meter or charger: the only way to know the real efficiency (the battery kWh are estimated).
+ *  Only that figure is sent; the price stays as it was (a manual price per kWh follows the new kWh on the server). */
+async function editChargeMeter() {
+  const c = window.currentChargeDetail;
+  if (!c) return;
+  const answer = await promptDialog(t('kWh que marca tu contador o cargador para esta carga. Con ellos se calcula la eficiencia real.'), {
+    title: t('Energía de la red'), confirmText: t('Guardar'), type: 'text', inputmode: 'decimal',
+    placeholder: t('p. ej. 8,4'), value: c.kwh_used != null ? String(c.kwh_used).replace('.', ',') : '' });
+  if (answer === null || answer === undefined) return;
+  const kwh = parseFloat(String(answer).replace(',', '.'));
+  if (!(kwh > 0 && kwh <= 500)) { showToast(t('Escribe los kWh como un número, por ejemplo 8,4.'), 'warning'); return; }
+  try {
+    const res = await fetch(`/api/charges/${c.id}/cost`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kwh_meter: kwh }) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || res.status);
+    showToast(t('kWh del contador guardados'), 'success');
+    loadLatestCharge(currentVin, c.id); loadCharges();
+  } catch (e) {
+    showToast(t('No se pudo guardar: {p0}', { p0: e.message || e }), 'error', 6000);
+  }
 }
 
 function closeChargeCostModal() {

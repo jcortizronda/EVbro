@@ -70,8 +70,8 @@
       ]
     },
     {
-      "name": "Energía",
-      "short_name": "Energía",
+      "name": "Carga",
+      "short_name": "Carga",
       "description": "Batería, carga y carga programada.",
       "url": "/?go=charges",
       "icons": [

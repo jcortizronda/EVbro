@@ -6,7 +6,7 @@ import datetime
 import httpx
 import pytest
 
-from app.db.models import AppUser, ChargingSession, Drive, Expense, Refuel, Vehicle
+from app.db.models import AppUser, ChargePoint, ChargingSession, Drive, Expense, Refuel, Vehicle
 from app.db.session import async_session_factory
 from app.main import app
 from app.security import auth, passwords
@@ -33,7 +33,7 @@ async def web(db):
             # month 1: two drives (cold, fast), a big charge at home, a refuel
             Drive(vin=VIN, start_time=m1, end_time=m1 + datetime.timedelta(hours=1), distance_km=50, energy_consumed_kwh=10, fuel_used_l=0,
                   outside_temp_avg=4.0, speed_avg_kmh=95, start_battery_pct=90, end_battery_pct=40),
-            ChargingSession(vin=VIN, start_time=m1 + datetime.timedelta(hours=2), end_time=m1 + datetime.timedelta(hours=6), address="Casa",
+            ChargingSession(id=1, vin=VIN, start_time=m1 + datetime.timedelta(hours=2), end_time=m1 + datetime.timedelta(hours=6), address="Casa",
                             kwh_added=10.0, charge_cost=1.5, start_battery_pct=40, end_battery_pct=90),
             Drive(vin=VIN, start_time=m1 + datetime.timedelta(days=1), end_time=m1 + datetime.timedelta(days=1, hours=1), distance_km=20,
                   energy_consumed_kwh=3, fuel_used_l=1.0, outside_temp_avg=22.0, speed_avg_kmh=35, start_battery_pct=85, end_battery_pct=70),
@@ -48,6 +48,10 @@ async def web(db):
             Drive(vin=VIN, start_time=now - datetime.timedelta(days=400), end_time=now - datetime.timedelta(days=400) + datetime.timedelta(hours=1),
                   distance_km=100, energy_consumed_kwh=15, outside_temp_avg=10, speed_avg_kmh=80),
         ])
+        await s.flush()
+        # its curve: a point every 2 min for 4 h at a steady 2.85 kW, from 40 to 90 % → 11.4 kWh into the pack for 50 points
+        for i in range(121):
+            s.add(ChargePoint(charging_session_id=1, timestamp=m1 + datetime.timedelta(hours=2, minutes=2 * i), battery_pct=40 + 50 * i / 120, power_kw=2.85))
         await s.commit()
         token = await auth.create_session(s, user, _Req())
     c = httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://testserver")
@@ -71,8 +75,10 @@ async def test_stats_summarise_months_buckets_capacity_places_and_drain(web) -> 
     assert "consumption_by_temp" not in d
     speeds = {b["label"]: b for b in d["consumption_by_speed"]}
     assert speeds["90–100 km/h"]["kwh_per_100km"] == 20.0
-    # capacity only from the 50-point charge: 10 kWh / 50 % → 20 kWh
-    assert len(d["battery_health"]) == 1 and d["battery_health"][0]["capacity_kwh"] == 20.0
+    # capacity MEASURED from the curve of the 50-point charge (not the estimated 10 kWh, which would just give the sheet's 20 back):
+    # 11.4 kWh / 50 % → 22.8 kWh, 114 % of the sheet; the 10-point charge has no curve and is too small anyway
+    assert len(d["battery_health"]) == 1 and d["battery_health"][0]["capacity_kwh"] == 22.8
+    assert d["battery_capacity"] == {"nominal_kwh": 20.0, "measured_kwh": 22.8, "charges": 1, "pct_of_nominal": 114.0}
     # places sorted by energy
     assert [p["address"] for p in d["charges_by_place"]] == ["Casa", "Trabajo"] and d["charges_by_place"][0]["count"] == 1
     # idle drain: from the end of the second drive (70 %) to the start of the month-0 drive (60 %) with no charge between

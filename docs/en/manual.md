@@ -2,7 +2,7 @@
 
 *Versión en español: [docs/manual.md](../manual.md).*
 
-EVBro is your Ebro car's companion: it shows what the car tells the Chery cloud, sends it commands, keeps its history (trips, charges, fuel-ups, garage visits, expenses) and alerts you about what matters. It is designed for the phone (bottom dock with **Home, Energy, Comfort and More**) and on a computer it turns into a sidebar with every section in view. Available in Spanish, English and Portuguese (Settings → System → Language).
+EVBro is your Ebro car's companion: it shows what the car tells the Chery cloud, sends it commands, keeps its history (trips, charges, fuel-ups, garage visits, expenses) and alerts you about what matters. It is designed for the phone (bottom dock with **Home, Charging, Comfort and More**) and on a computer it turns into a sidebar with every section in view. Available in Spanish, English and Portuguese (Settings → System → Language).
 
 One rule holds across the whole app: **what you see comes from the car**. If a value has not arrived, you see "No data", never a made-up value or a default "closed".
 
@@ -20,11 +20,13 @@ The front page of the selected car (the car selector is at the top if you have s
 
 **Customise home** (button at the bottom of the page). Each block is a *widget* you can **move** (dragging by the ⠿ handle or with the arrows), **remove** (×) or **put back** with «Add widget». The header always stays at the top. Besides the usual blocks there are new widgets: **Next maintenance** (the nearest service or task and the MOT), **Last trip**, **Last charge**, **This month's spending**, **Scheduled charge** (battery target and schedule), **Climate** (temperatures and turning it on or off) and **Consumption** over the last 30 days. Tapping one opens its section. While you edit, the buttons do nothing, so no command is sent by mistake. The layout belongs to **your account**: it looks the same on the phone and the computer, and every person with access has their own. «Reset» brings back the usual home screen. Widgets your car cannot show (live data without an Ebro account, charging on a petrol car) do not appear. On a computer the map always sits in its own right-hand column.
 
-**Energy** and **Comfort** are customised the same way, with «Customise energy» and «Customise comfort» at the bottom of each page: you can reorder or remove their blocks (battery and target, figures, charge control, scheduled charge, data and history; climate control, glass and steering wheel, seats, scheduled climate) and, in Energy, add the last charge, this month's spending or consumption. Each page keeps its own order and «Reset» only affects that page.
+**Charging** and **Comfort** are customised the same way, with «Customise charging» and «Customise comfort» at the bottom of each page: you can reorder or remove their blocks (battery and target, figures, charge control, charge history, scheduled charge, charge detail; climate control, glass and steering wheel, seats, scheduled climate) and, in Charging, add the last charge, this month's spending or consumption. Each page keeps its own order and «Reset» only affects that page.
 
-**App icon shortcuts.** With EVBro installed on the phone, press and hold its icon: **Lock the car**, **Turn on the climate**, **Energy** and **Trips** appear (each one can be dragged to the home screen as an icon of its own; their names are in Spanish). The command ones never send anything on their own: they open the app and ask first, naming the car. EVBro cannot put a widget with data on the Android home screen, because Chrome does not allow it for web apps.
+**App icon shortcuts.** With EVBro installed on the phone, press and hold its icon: **Lock the car**, **Turn on the climate**, **Charging** and **Trips** appear (each one can be dragged to the home screen as an icon of its own; their names are in Spanish). The command ones never send anything on their own: they open the app and ask first, naming the car. EVBro cannot put a widget with data on the Android home screen, because Chrome does not allow it for web apps.
 
-## Energy
+## Charging
+
+*(Called «Energy» until 01-11-2026.)*
 
 Everything about the battery and charging.
 
@@ -53,11 +55,11 @@ The menu with the remaining sections, grouped as **History** and **Manage**.
 
 ### History
 
-**Statistics.** Charts of the history with a period picker (12 months, this year, last year, all…): kilometres per month, energy per month (kWh and litres), spending per month, cost per kilometre, electric consumption per month, battery health (usable capacity worked out from each large charge), consumption by speed, where it charges and drain while parked (battery the car loses while parked).
+**Statistics.** Charts of the history with a period picker (12 months, this year, last year, all…): kilometres per month, energy per month (kWh and litres), spending per month, cost per kilometre, electric consumption per month, battery health (usable capacity **measured** from the power curve of every charge of 20 points or more, and how it compares with the sheet's capacity), consumption by speed, where it charges and drain while parked (battery the car loses while parked).
 
 **Timeline.** Everything recorded about the car in one list by date (trips, charges, fuel-ups, garage, expenses, documents, geofence arrivals and departures), with filters by type. At the top, the **global search**: a part number, a garage, an invoice or an address, across all your cars. Tapping an item takes you to its screen.
 
-**Trips.** Each detected drive with origin and destination (address), odometer kilometres, duration, battery and petrol used and speeds. **See route** opens the map with the track, which can be **replayed** and downloaded as **GPX**. Filters by geofence, place, minimum distance, speed and period. The **period summary** adds up every complete trip; its average consumption in kWh/100 km is computed only from trips of 2 km or more with measured energy, as in Energy and Statistics, so the same period gives the same figure. **Frequent places**: where the car ends up most often; a geofence can be created from there. **Journeys**: groups, between two dates, the drives, charges, fuel-ups and expenses of a holiday and tells you what it all cost and used. Trips are detected on their own from the car's data; incomplete ones (no end) can be corrected by hand.
+**Trips.** Each detected drive with origin and destination (address), odometer kilometres, duration, battery and petrol used and speeds. **See route** opens the map with the track, which can be **replayed** and downloaded as **GPX**. Filters by geofence, place, minimum distance, speed and period. The **period summary** adds up every complete trip; its average consumption in kWh/100 km is computed only from trips of 2 km or more with measured energy, as in Charging and Statistics, so the same period gives the same figure. **Frequent places**: where the car ends up most often; a geofence can be created from there. **Journeys**: groups, between two dates, the drives, charges, fuel-ups and expenses of a holiday and tells you what it all cost and used. Trips are detected on their own from the car's data; incomplete ones (no end) can be corrected by hand.
 
 **Fuel-ups.** Real petrol consumption: litres between fill-ups, cost per 100 km, price per litre, range on a full tank. Fuel-ups are detected on their own when the tank level rises (with estimated litres); add any missing ones and enter the receipt price. Tick **Full tank** when you fill up: between two fill-ups the consumption is exact.
 
@@ -76,7 +78,7 @@ The menu with the remaining sections, grouped as **History** and **Manage**.
 - **Add a car without an Ebro account**: a car of any make to keep its maintenance, expenses, costs and parts (no live data). With a GPS tracker and a Traccar server it also gets position and trips.
 - **Photo** of the car, used in the Home header.
 
-**Geofences.** Areas on the map (home, work, charger…) with a radius. They serve three purposes: **alerting** on arrival or departure, **pricing** the charges made inside (fixed tariff, free, 2.0TD with its three prices or regulated PVPC) and classifying trips. The **Arrivals and departures** card is the log of every pass through them.
+**Geofences.** Areas on the map (home, work, charger…) with a radius. They serve three purposes: **alerting** on arrival or departure, **pricing** the charges made inside (fixed tariff, free, 2.0TD with its three prices or regulated PVPC) and classifying trips. If you create a geofence where you had already been, the earlier charges and trips there take its name; **their prices do not change** (only new charges take the tariff). The **Arrivals and departures** card is the log of every pass through them.
 
 **Settings.** Each part is a collapsible section; the phone remembers which ones you left open.
 - *Account*: your EVBro user (change password, sign out), **fingerprint sign-in** (add this device and sign in without a password; requires HTTPS), the **Ebro account** (connect, sync cars, save or change the PIN) and **when to ask for the PIN**: only when opening the car (default), always or never. **Your data**: download everything as a ZIP and import a ZIP on another server. A link to what data this server keeps.

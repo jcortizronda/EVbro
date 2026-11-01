@@ -65,6 +65,18 @@
   }
 
   /** A line with points, for a trend (capacity, cost per km). `points` = [{label, value}]. */
+  /** «Ahora: 35,6 kWh útiles, el 103 % de los 34,5 kWh de la ficha (5 cargas)»: the latest charges against the sheet. */
+  function capacityNow(c) {
+    const box = el('stCapacityNow');
+    if (!box) return;
+    box.hidden = !(c && c.measured_kwh);
+    if (box.hidden) return;
+    let text = t('Ahora: {p0} kWh útiles medidos', { p0: num(c.measured_kwh, 1) });
+    if (c.pct_of_nominal) text += t(', el {p0} % de los {p1} kWh de la ficha', { p0: num(c.pct_of_nominal, 0), p1: num(c.nominal_kwh, 1) });
+    text += ' ' + (c.charges === 1 ? t('(1 carga).') : t('({p0} cargas).', { p0: c.charges }));
+    box.textContent = text;
+  }
+
   function line(canvas, points, unit, color, height = 170, decimals = 1) {
     const valid = points.filter((p) => p.value !== null && p.value !== undefined);
     if (valid.length < 2) { empty(canvas, valid.length ? 'Hace falta más de un punto' : 'Sin datos todavía'); return; }
@@ -127,7 +139,8 @@
     bars(el('stCost'), labels, [{ values: d.monthly.map((m) => m.cost_total), color: red }], '€');
     line(el('stCostKm'), d.monthly.map((m) => ({ label: monthLabel(m.month), value: m.cost_per_km })), '€/km', red, 170, 3);
     line(el('stEff'), d.monthly.map((m) => ({ label: monthLabel(m.month), value: m.kwh_per_100km })), 'kWh/100 km', accent);
-    line(el('stCapacity'), d.battery_health.map((b) => ({ label: monthLabel(b.month), value: b.capacity_kwh })), 'kWh útiles estimados', green);
+    line(el('stCapacity'), d.battery_health.map((b) => ({ label: monthLabel(b.month), value: b.capacity_kwh })), 'kWh útiles medidos', green);
+    capacityNow(d.battery_capacity);
     hbars(el('stSpeed'), d.consumption_by_speed.map((b) => ({ label: b.label, value: b.kwh_per_100km, extra: `${b.drives} viajes` })), 'kWh/100 km', accent);
     hbars(el('stPlaces'), d.charges_by_place.map((p) => ({ label: p.address, value: p.kwh, extra: `${p.count} cargas${p.cost ? ` · ${num(p.cost, 2)} €` : ''}` })), 'kWh', green);
     line(el('stDrain'), d.idle_drain.map((m) => ({ label: monthLabel(m.month), value: m.pct_per_day })), '% al día aparcado', amber, 150, 2);

@@ -73,11 +73,11 @@
   .home-edit-bar { left: calc(var(--side-w) + 24px); right: 24px; bottom: 20px; }
   .map-card:not(.map-expanded) .live-map-wrap { height: 460px; }
 
-  /* Energía: the widgets in the owner's order on the left; battery data and history (when shown) on the right */
+  /* Carga: the widgets in the owner's order on the left; one charge's detail (when shown) on the right */
   #energyWidgets { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: var(--desk-gap); align-items: start; }
   #energyWidgets > .home-widget { grid-column: 1; }
-  #energyWidgets > .home-widget[data-widget="history"] { grid-column: 2; grid-row: 1 / span 40; }
-  #energyWidgets:not(:has(> .home-widget[data-widget="history"]:not([hidden]))) { grid-template-columns: minmax(0, 1fr); }
+  #energyWidgets > .home-widget[data-widget="session"] { grid-column: 2; grid-row: 1 / span 40; }
+  #energyWidgets:not(:has(> .home-widget[data-widget="session"]:not([hidden]))) { grid-template-columns: minmax(0, 1fr); }
   /* A charge's detail was designed for full width; in its column it goes in a single stack */
   #accBatteryTelemetry .charge-main-grid { grid-template-columns: 1fr; }
 

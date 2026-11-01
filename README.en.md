@@ -47,7 +47,7 @@ EVBro is a **self-hosted** application for **Ebro** cars (S700, S800, S900 PHEVâ
 
 - **Live home screen:** battery, range, petrol, odometer, lock, doors, windows, sunroof, tyres and map, with a car figure that shows what is open.
 - **Safe remote control:** lock, boot, windows, sunroof, climate, seats, steering wheel, defrost, alarm and "find me". Whatever **opens** the car asks for the PIN on every send. **Scheduled climate** by time and days.
-- **Energy:** battery target, stop/start and schedule charging, curve and cost of each charge from the tariff of the place (fixed, free, Spanish 2.0TD or PVPC).
+- **Charging:** battery target, stop/start and schedule charging, curve and cost of each charge from the tariff of the place (fixed, free, Spanish 2.0TD or PVPC).
 - **History:** trips with route (replay, GPX), journeys, frequent places, geofences with an arrival/departure log, fuel-ups with **real consumption** between fill-ups, expenses and cost balance, monthly statistics and battery health.
 - **Maintenance:** official EBRO plan or a custom one, roadworthiness test, jobs with invoices, consumables and part numbers; car sheet with insurance and documents; **car book** as PDF.
 - **Alerts:** phone notifications, Telegram, Pushover and webhook: geofences, charging, battery, fuel, windows left open, maintenance, tyre pressure and due dates.

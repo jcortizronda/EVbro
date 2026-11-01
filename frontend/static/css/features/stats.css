@@ -6,6 +6,9 @@
 .st-card { padding: 14px 14px 10px; }
 .st-card .card-title { margin-bottom: 2px; }
 .st-card small.st-sub { display: block; margin-bottom: 8px; font-size: 0.76rem; color: var(--text-muted); line-height: 1.35; }
+/* Salud de la batería: the latest measured capacity against the sheet's */
+.st-capacity { margin: 0 0 8px; font-size: 0.88rem; font-weight: 600; color: var(--text-primary); }
+.st-capacity[hidden] { display: none; }
 .st-card canvas { display: block; width: 100%; }
 .st-totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: 8px 12px; margin-top: 10px; }
 .st-totals small { display: block; font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; }

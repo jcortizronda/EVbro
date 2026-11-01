@@ -70,6 +70,7 @@
   <link rel="stylesheet" href="/static/css/components/tables-cards.css?v={{ asset_version }}">
   <link rel="stylesheet" href="/static/css/features/home-tiles.css?v={{ asset_version }}">
   <link rel="stylesheet" href="/static/css/features/home-widgets.css?v={{ asset_version }}">
+  <link rel="stylesheet" href="/static/css/features/sensors.css?v={{ asset_version }}">
   <link rel="stylesheet" href="/static/css/features/car-figure.css?v={{ asset_version }}">
   <link rel="stylesheet" href="/static/css/layout/page-head.css?v={{ asset_version }}">
   <link rel="stylesheet" href="/static/css/features/push.css?v={{ asset_version }}">
@@ -154,7 +155,7 @@
     <div class="side-group">
       <span class="side-group-label">Coche</span>
       <button type="button" class="side-item active" data-tab="overview" data-on-click="switchTab('overview')"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg><span>Inicio</span></button>
-      <button type="button" class="side-item" data-tab="charges" data-on-click="switchTab('charges')"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg><span>Energía</span></button>
+      <button type="button" class="side-item" data-tab="charges" data-on-click="switchTab('charges')"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg><span>Carga</span></button>
       <button type="button" class="side-item" data-tab="climate" data-on-click="switchTab('climate')"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M4.93 19.07l14.14-14.14"></path></svg><span>Confort</span></button>
     </div>
     <div class="side-group">
@@ -445,7 +446,7 @@
           </div>
           <div class="u-display-flex_justify-content-flex-end_margin-top-0p2rem">
             <button type="button" class="btn-sm btn-secondary u-font-size-0p75rem_padding-0p3rem-0p65rem_border-color-rgba-0-229-255-0p35" data-on-click="switchTab('charges');">
-              Ver Pantalla de Energía &rarr;
+              Ver la pantalla de carga &rarr;
             </button>
           </div>
         </div>
@@ -675,9 +676,9 @@
         
         <!-- Hero Car Charging Banner -->
         <div class="native-section-header page-head page-banner u---banner-url-static-images-banner-chargingpjpg">
-          <span class="section-tag">ENERGÍA · EVBRO</span>
+          <span class="section-tag">CARGA · EVBRO</span>
           <div class="page-head-main">
-            <h2 class="section-title" id="energyHeroTitle">Energía</h2>
+            <h2 class="section-title" id="energyHeroTitle">Carga</h2>
             <span id="chargeHeroStateBadge" class="status-badge u-background-rgba-128-128-128-0p18_color-var-text-secondary">Desconectado</span>
           </div>
           <div class="page-head-meta">
@@ -688,7 +689,7 @@
 
         <!-- Widgets of this page: the owner can hide, reorder (drag or arrows) and add them; features/home-widgets.js -->
         <div class="home-edit-bar" id="energyEditBar" hidden>
-          <span class="home-edit-title">Personalizar energía</span>
+          <span class="home-edit-title">Personalizar carga</span>
           <span class="home-edit-hint">Arrastra con el asa o usa las flechas; la × quita un widget.</span>
           <div class="home-edit-actions">
             <button type="button" class="btn-secondary" data-on-click="EnergyWidgets.openAdd()">Añadir widget</button>
@@ -797,8 +798,8 @@
         </div>
 
         </div>
-        <div class="home-widget" data-widget="history">
-        <!-- Expandable action card 1: battery telemetry -->
+        <div class="home-widget" data-widget="session">
+        <!-- One charge's detail: curve, energy, cost and map (the history below opens any of them here) -->
         <div class="native-accordion-card open" id="accBatteryTelemetry">
           <div class="acc-header" data-on-click="toggleNativeAccordion('accBatteryTelemetry')">
             <div class="acc-left">
@@ -806,26 +807,14 @@
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
               </div>
               <div>
-                <h4 class="acc-title">Datos de la batería</h4>
-                <div class="acc-sub">Potencia, carga, capacidad y SOH estimado por EVBro</div>
+                <h4 class="acc-title">Detalle de la carga</h4>
+                <div class="acc-sub">Curva, energía, coste y mapa de una carga</div>
               </div>
             </div>
             <span class="acc-chevron">▼</span>
           </div>
           <div class="acc-content">
-            <!-- Charges navigation submenu -->
-            <div class="sub-nav-bar charges-sub-nav">
-              <button class="sub-nav-btn active" id="btnChargesSubDetails" data-on-click="switchChargesSubTab('details')">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-                <span>Curva de Sesión</span>
-              </button>
-              <button class="sub-nav-btn" id="btnChargesSubHistory" data-on-click="switchChargesSubTab('history')">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                <span>Histórico de Recargas</span>
-              </button>
-            </div>
-
-      <!-- Sub-tab 1: charge details (time chart and curve) -->
+      <!-- The selected charge (the last one by default) -->
       <div id="chargesSubTabDetails" class="sub-tab-panel active">
         <div class="charge-dashboard-card glass" id="chargeDashboardSection">
           <!-- Header bar -->
@@ -918,6 +907,7 @@
                     </div>
                   </div>
                   <p class="kpi-note" id="kpiEnergyNote"></p>
+                  <button type="button" class="btn-sm btn-secondary kpi-meter-btn needs-edit" id="btnChargeMeter" data-on-click="editChargeMeter()">Indicar kWh del contador</button>
                 </div>
 
                 <!-- Battery level -->
@@ -994,8 +984,13 @@
         </div>
       </div>
 
-      <!-- Sub-tab 2: charge history -->
-      <div id="chargesSubTabHistory" class="sub-tab-panel">
+        </div>
+
+        </div>
+        </div>
+        <div class="home-widget" data-widget="charges">
+        <!-- Charge history: its own widget (it used to hide in a sub-tab of the accordion) -->
+        <div id="chargesSubTabHistory" class="sub-tab-panel active">
         <!-- Overall charge summary cards -->
         <div class="u-display-grid_grid-template-columns-repeat-auto-fit-minmax-200px-1fr_gap-1rem_margin-bottom-1p25rem">
           <div class="glass u-padding-1rem-1p25rem_border-radius-var-radius-sm_border-1px-solid-var-border-color_background-var-bg-card">
@@ -1019,7 +1014,7 @@
           <div class="card-title u-justify-content-space-between">
             <div class="u-display-flex_align-items-center_gap-0p5rem">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-              <span>Historial de Sesiones de Recarga</span>
+              <span>Historial de cargas</span>
             </div>
             <button class="btn-sm btn-secondary u-font-size-0p78rem" data-on-click="loadCharges()">Actualizar</button>
           </div>
@@ -1031,11 +1026,8 @@
         </div>
           </div>
         </div>
-
         </div>
-        </div>
-        </div><!-- the history accordion: this closing tag was missing before the page had widgets (the browser closed it at </section>) -->
-        <button type="button" class="btn-secondary home-customize" id="energyCustomize" data-on-click="EnergyWidgets.startEditing()">Personalizar energía</button>
+        <button type="button" class="btn-secondary home-customize" id="energyCustomize" data-on-click="EnergyWidgets.startEditing()">Personalizar carga</button>
       </div>
     </section>
 
@@ -1460,7 +1452,7 @@
           <div class="glass details-card st-card"><div class="card-title">Gasto por mes</div><small class="st-sub">Cargas, gasolina, taller y otros gastos.</small><canvas id="stCost"></canvas></div>
           <div class="glass details-card st-card"><div class="card-title">Coste por kilómetro</div><small class="st-sub">Todo el gasto del mes entre sus kilómetros (meses con al menos 20 km).</small><canvas id="stCostKm"></canvas></div>
           <div class="glass details-card st-card"><div class="card-title">Consumo eléctrico por mes</div><small class="st-sub">kWh/100 km de los viajes con energía medida.</small><canvas id="stEff"></canvas></div>
-          <div class="glass details-card st-card"><div class="card-title">Salud de la batería</div><small class="st-sub">Capacidad útil que se deduce de cada carga grande: kWh añadidos entre puntos de batería ganados.</small><canvas id="stCapacity"></canvas></div>
+          <div class="glass details-card st-card"><div class="card-title">Salud de la batería</div><small class="st-sub">Capacidad útil medida en cada carga de al menos 20 puntos: la energía que entró en la batería (su curva de potencia) entre los puntos ganados.</small><p class="st-capacity" id="stCapacityNow" hidden></p><canvas id="stCapacity"></canvas></div>
           <div class="glass details-card st-card"><div class="card-title">Consumo según la velocidad</div><small class="st-sub">Velocidad media del viaje, en tramos de 10 km/h.</small><canvas id="stSpeed"></canvas></div>
           <div class="glass details-card st-card"><div class="card-title">Dónde se carga</div><small class="st-sub">Lugares con más energía cargada.</small><canvas id="stPlaces"></canvas></div>
           <div class="glass details-card st-card"><div class="card-title">Gasto en reposo</div><small class="st-sub">Batería perdida al día con el coche aparcado más de 6 horas sin cargar.</small><canvas id="stDrain"></canvas></div>
@@ -1600,7 +1592,7 @@
           <div id="costsByCat"></div>
         </div>
 
-        <p class="costs-hint costs-goto">Aquí solo se ve el balance. Para añadir un gasto ve a <button type="button" class="link-btn" data-on-click="switchTab('expenses')">Gastos</button> y para un repostaje a <button type="button" class="link-btn" data-on-click="switchTab('refuels')">Repostajes</button>; las cargas se valoran en Energía y las intervenciones en Mantenimiento.</p>
+        <p class="costs-hint costs-goto">Aquí solo se ve el balance. Para añadir un gasto ve a <button type="button" class="link-btn" data-on-click="switchTab('expenses')">Gastos</button> y para un repostaje a <button type="button" class="link-btn" data-on-click="switchTab('refuels')">Repostajes</button>; las cargas se valoran en Carga y las intervenciones en Mantenimiento.</p>
 
         <div class="glass costs-list-card">
           <div class="card-title">Últimos movimientos</div>
@@ -3174,7 +3166,7 @@
     </button>
     <button class="dock-item" id="mobTabCharges" data-on-click="switchTab('charges')">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-      <span>Energía</span>
+      <span>Carga</span>
     </button>
     <button class="dock-item" id="mobTabClimate" data-on-click="switchTab('climate')">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M4.93 19.07l14.14-14.14"/></svg>

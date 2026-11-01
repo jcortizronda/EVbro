@@ -2,7 +2,8 @@
 
 Everything comes from what EVBro already stores: drives, charging sessions, refuels, expenses and workshop logs. Nothing is read
 from the car here. Months follow the server's time zone. Only drives of at least `MIN_DRIVE_KM` enter the consumption figures, and the
-battery capacity is estimated only from charges that added at least `MIN_SOC_DELTA` points (short top-ups give wild numbers).
+battery capacity is MEASURED from each charge's curve (services/battery_capacity.py): the energy the pack took ÷ the points gained,
+only for charges of at least 20 points with a complete curve.
 """
 from __future__ import annotations
 
@@ -14,11 +15,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_timezone
-from app.db.models import ChargingSession, Drive, Expense, MaintenanceItem, MaintenanceLog, Refuel
-from app.services import periods
+from app.db.models import ChargePoint, ChargingSession, Drive, Expense, MaintenanceItem, MaintenanceLog, Refuel, Vehicle
+from app.services import battery_capacity, periods
 
 MIN_DRIVE_KM = 2.0     # below this, one battery point and the odometer's whole-km rounding give meaningless figures (measured 2026-11-01: 1–2 km drives averaged 52 kWh/100 km, 2–3 km ones 17.5)
-MIN_SOC_DELTA = 30.0
 IDLE_GAP_H = 6.0
 PERIODS = {"12m": 365, "all": None}
 
@@ -101,15 +101,26 @@ async def compute(session: AsyncSession, vin: str, period: str = "12m", frm: Opt
 
     by_speed = buckets(lambda d: d.speed_avg_kmh if (d.speed_avg_kmh or 0) > 0 else None, 10, lambda k, s: f"{int(k)}–{int(k + s)} km/h")
 
-    # ── usable capacity observed in big charges: kWh added / SoC gained, per month ──
+    # ── usable capacity measured in big charges (their curve), per month, and against the sheet's capacity ──
+    big = [c for c in charges if c.start_battery_pct is not None and c.end_battery_pct is not None
+           and c.end_battery_pct - c.start_battery_pct >= battery_capacity.MIN_POINTS_GAINED]
+    points: Dict[int, List[Any]] = defaultdict(list)
+    if big:
+        for p in (await session.execute(select(ChargePoint).where(ChargePoint.charging_session_id.in_([c.id for c in big])))).scalars():
+            points[p.charging_session_id].append(p)
     cap_months: Dict[str, List[float]] = defaultdict(list)
-    for c in charges:
-        if c.start_battery_pct is None or c.end_battery_pct is None or not c.kwh_added:
-            continue
-        delta = c.end_battery_pct - c.start_battery_pct
-        if delta >= MIN_SOC_DELTA:
-            cap_months[_month(c.start_time, tz)].append(c.kwh_added / delta * 100.0)
+    measured: List[float] = []
+    for c in big:
+        cap = battery_capacity.measured_capacity_kwh(points[c.id])
+        if cap is not None:
+            cap_months[_month(c.start_time, tz)].append(cap)
+            measured.append(cap)
     battery_health = [{"month": k, "capacity_kwh": _r(sum(v) / len(v), 2), "charges": len(v)} for k, v in sorted(cap_months.items())]
+    nominal = (await session.execute(select(Vehicle.battery_capacity_kwh).where(Vehicle.vin == vin))).scalar_one_or_none()
+    recent_caps = measured[-5:]                      # the latest charges say how the battery is now
+    now_kwh = sum(recent_caps) / len(recent_caps) if recent_caps else None
+    battery_capacity_summary = {"nominal_kwh": nominal, "measured_kwh": _r(now_kwh, 1), "charges": len(recent_caps),
+                                "pct_of_nominal": _r(now_kwh / nominal * 100) if now_kwh and nominal else None}
 
     # ── charges by place ──
     places: Dict[str, Dict[str, float]] = defaultdict(lambda: defaultdict(float))
@@ -144,7 +155,7 @@ async def compute(session: AsyncSession, vin: str, period: str = "12m", frm: Opt
               "cost_total": _r(cost_total, 2), "cost_per_km": _r(cost_total / km, 3) if km >= 20 else None, "drives": len(drives), "charges": len(charges),
               # electric consumption of the whole period: drives of ≥ MIN_DRIVE_KM with measured energy (the Energía tab shows the 30-day value)
               "kwh_per_100km": _r(eff_kwh / eff_km * 100) if eff_km >= MIN_DRIVE_KM else None}
-    notes = ("Los kWh de viajes y cargas se estiman a partir del porcentaje de batería y la capacidad de la ficha; la capacidad observada sale de "
-             f"cargas de al menos {int(MIN_SOC_DELTA)} puntos y el gasto en reposo de paradas de más de {int(IDLE_GAP_H)} horas sin carga.")
-    return {"period": period, "from": frm, "to": to, "monthly": monthly, "consumption_by_speed": by_speed, "battery_health": battery_health,
+    notes = ("Los kWh de viajes y cargas se estiman a partir del porcentaje de batería y la capacidad de la ficha; la capacidad de la batería se mide con la curva de "
+             f"las cargas de al menos {int(battery_capacity.MIN_POINTS_GAINED)} puntos y el gasto en reposo de paradas de más de {int(IDLE_GAP_H)} horas sin carga.")
+    return {"period": period, "from": frm, "to": to, "monthly": monthly, "consumption_by_speed": by_speed, "battery_health": battery_health, "battery_capacity": battery_capacity_summary,
             "charges_by_place": charges_by_place, "idle_drain": idle_drain, "totals": totals, "notes": notes}

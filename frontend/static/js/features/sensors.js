@@ -38,6 +38,11 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
   const seats = data.seat_heating || {};
   const seatsVent = data.seat_ventilation || {};
 
+  // A two-state reading. «Sin datos» when the car did not send it: never shown as closed or off (docs/frontend.md).
+  // Tones: '' plain, 'on' something working (charging, heating), 'warn' something open, 'alert' a warning from the car.
+  const flag = (v, yes, no, yesTone = '', noTone = '') => (v === null || v === undefined
+    ? { value: 'Sin datos', tone: 'unknown' } : { value: v ? yes : no, tone: v ? yesTone : noTone });
+
   const items = [
     // 1. Cables and charging
     {
@@ -46,8 +51,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Estado del Cable de Carga (Gun State)',
       key: 'chargeGunState',
       haEntity: 'binary_sensor.ebro_cable_conectado',
-      value: data.cable_connected ? 'Conectado' : 'Desconectado',
-      statusClass: data.cable_connected ? 'active' : 'parked',
+      ...flag(data.cable_connected, 'Conectado', 'Desconectado', 'on', ''),
       details: data.charge_gun_state_desc || (data.cable_connected ? 'Cable enchufado al vehículo' : 'Sin cable conectado')
     },
     {
@@ -57,7 +61,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       key: 'fastChargingGunStatus',
       haEntity: 'sensor.ebro_toma_carga_rapida',
       value: data.fast_charging_gun_desc || (data.fast_charging ? 'CCS2 Conectada' : 'Desconectada'),
-      statusClass: data.fast_charging ? 'driving' : 'parked',
+      tone: data.fast_charging ? 'on' : '',
       details: `Valor crudo: ${raw.fastChargingGunStatus ?? (data.fast_charging ? 2 : 0)} (0=Libre, 1=AC, 2=DC CCS2)`
     },
     {
@@ -67,7 +71,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       key: 'chargeState',
       haEntity: 'sensor.ebro_estado_de_carga',
       value: data.charge_state_desc || (data.is_charging ? 'Cargando activamente' : 'Reposo'),
-      statusClass: data.is_charging ? 'active' : 'parked',
+      tone: data.is_charging ? 'on' : '',
       details: `Valor crudo: ${raw.chargeState ?? (data.is_charging ? 1 : 0)} (0=Reposo, 1=Cargando, 2=Completada)`
     },
     {
@@ -77,7 +81,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       key: 'charge_power_kw',
       haEntity: 'sensor.ebro_potencia_carga',
       value: data.charge_power_kw ? `${data.charge_power_kw} kW` : (data.is_charging ? 'Activa' : '0.0 kW'),
-      statusClass: data.charge_power_kw > 0 ? 'active' : 'parked',
+      tone: data.charge_power_kw > 0 ? 'on' : '',
       details: 'Cálculo dinámico: (Tensión × Intensidad) / 1000'
     },
     {
@@ -86,7 +90,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Tensión Batería Alta Tensión (V)',
       key: 'totalVoltage',
       haEntity: 'sensor.ebro_voltaje_bateria_hv',
-      value: data.battery_voltage ? `${Math.round(data.battery_voltage)} V` : (raw.totalVoltage ? `${raw.totalVoltage} V` : '-- V'),
+      value: data.battery_voltage ? `${Math.round(data.battery_voltage)} V` : (raw.totalVoltage ? `${raw.totalVoltage} V` : 'Sin datos'),
       statusClass: 'parked',
       details: 'Tensión del pack de tracción PHEV'
     },
@@ -96,7 +100,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Intensidad Batería Alta Tensión (A)',
       key: 'totalCurrent',
       haEntity: 'sensor.ebro_intensidad_bateria_hv',
-      value: data.battery_current !== undefined && data.battery_current !== null ? `${data.battery_current} A` : (raw.totalCurrent !== undefined ? `${raw.totalCurrent} A` : '-- A'),
+      value: data.battery_current !== undefined && data.battery_current !== null ? `${data.battery_current} A` : (raw.totalCurrent !== undefined ? `${raw.totalCurrent} A` : 'Sin datos'),
       statusClass: 'parked',
       details: 'Corriente continua de tracción/recarga'
     },
@@ -107,7 +111,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       key: 'remainChargeTime',
       haEntity: 'sensor.ebro_tiempo_restante_carga',
       value: data.remaining_charge_time_min ? `${data.remaining_charge_time_min} min` : 'No cargando',
-      statusClass: data.remaining_charge_time_min ? 'active' : 'parked',
+      tone: data.remaining_charge_time_min ? 'on' : '',
       details: 'Estimación calculada por el BMS del vehículo'
     },
     {
@@ -138,7 +142,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Nivel Batería Tracción (SOC)',
       key: 'dumpEnergy / soc',
       haEntity: 'sensor.ebro_bateria',
-      value: data.battery_level !== null && data.battery_level !== undefined ? `${Math.round(data.battery_level)}%` : '--%',
+      value: data.battery_level !== null && data.battery_level !== undefined ? `${Math.round(data.battery_level)}%` : 'Sin datos',
       statusClass: (data.battery_level || 0) > 20 ? 'active' : 'danger',
       details: 'Capacidad útil restante de la batería de tracción'
     },
@@ -148,7 +152,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Autonomía 100% Eléctrica (EV Range)',
       key: 'pureElectricRange',
       haEntity: 'sensor.ebro_autonomia_electrica',
-      value: data.electric_range_km !== null && data.electric_range_km !== undefined ? `${Math.round(data.electric_range_km)} km` : '-- km',
+      value: data.electric_range_km !== null && data.electric_range_km !== undefined ? `${Math.round(data.electric_range_km)} km` : 'Sin datos',
       statusClass: 'active',
       details: 'Alcance estimado en modo puro eléctrico EV'
     },
@@ -158,7 +162,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Autonomía Gasolina / Térmica',
       key: 'mileageSurplus',
       haEntity: 'sensor.ebro_autonomia_gasolina',
-      value: data.fuel_range_km !== null && data.fuel_range_km !== undefined ? `${Math.round(data.fuel_range_km)} km` : '-- km',
+      value: data.fuel_range_km !== null && data.fuel_range_km !== undefined ? `${Math.round(data.fuel_range_km)} km` : 'Sin datos',
       statusClass: 'parked',
       details: 'Alcance restante del depósito de gasolina'
     },
@@ -168,7 +172,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Autonomía Total Combinada PHEV',
       key: 'pureElectricRange + mileageSurplus',
       haEntity: 'sensor.ebro_autonomia_total',
-      value: data.total_range_km !== null && data.total_range_km !== undefined ? `${Math.round(data.total_range_km)} km` : '-- km',
+      value: data.total_range_km !== null && data.total_range_km !== undefined ? `${Math.round(data.total_range_km)} km` : 'Sin datos',
       statusClass: 'active',
       details: 'Suma de autonomía eléctrica + gasolina'
     },
@@ -178,7 +182,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Nivel Depósito Gasolina (%)',
       key: 'oilSurplus',
       haEntity: 'sensor.ebro_nivel_deposito_gasolina',
-      value: data.fuel_level !== null && data.fuel_level !== undefined ? `${Math.round(data.fuel_level)}%` : (raw.oilSurplus !== undefined ? `${raw.oilSurplus}%` : '--%'),
+      value: data.fuel_level !== null && data.fuel_level !== undefined ? `${Math.round(data.fuel_level)}%` : (raw.oilSurplus !== undefined ? `${raw.oilSurplus}%` : 'Sin datos'),
       statusClass: 'parked',
       details: 'Porcentaje de volumen de combustible restante en el depósito'
     },
@@ -188,7 +192,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Odómetro Total del Vehículo',
       key: 'odometer',
       haEntity: 'sensor.ebro_odometro_total',
-      value: data.odometer_km ? `${Math.round(data.odometer_km).toLocaleString()} km` : '-- km',
+      value: data.odometer_km ? `${Math.round(data.odometer_km).toLocaleString()} km` : 'Sin datos',
       statusClass: 'parked',
       details: 'Kilómetros totales acumulados por el vehículo'
     },
@@ -198,7 +202,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Odómetro Modo 100% Eléctrico',
       key: 'electricRange',
       haEntity: 'sensor.ebro_odometro_electrico',
-      value: data.ev_odometer_km ? `${Math.round(data.ev_odometer_km).toLocaleString()} km` : (raw.electricRange ? `${Math.round(raw.electricRange).toLocaleString()} km` : '-- km'),
+      value: data.ev_odometer_km ? `${Math.round(data.ev_odometer_km).toLocaleString()} km` : (raw.electricRange ? `${Math.round(raw.electricRange).toLocaleString()} km` : 'Sin datos'),
       statusClass: 'active',
       details: 'Kilómetros circulados exclusivamente con el motor eléctrico'
     },
@@ -208,7 +212,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Odómetro Modo Híbrido',
       key: 'hybridMileage',
       haEntity: 'sensor.ebro_odometro_hibrido',
-      value: data.hybrid_odometer_km ? `${Math.round(data.hybrid_odometer_km).toLocaleString()} km` : (raw.hybridMileage ? `${Math.round(raw.hybridMileage).toLocaleString()} km` : '-- km'),
+      value: data.hybrid_odometer_km ? `${Math.round(data.hybrid_odometer_km).toLocaleString()} km` : (raw.hybridMileage ? `${Math.round(raw.hybridMileage).toLocaleString()} km` : 'Sin datos'),
       statusClass: 'parked',
       details: 'Kilómetros circulados en modo híbrido combinado'
     },
@@ -218,7 +222,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Consumo Medio de Combustible',
       key: 'averageFuel',
       haEntity: 'sensor.ebro_consumo_medio_combustible',
-      value: data.average_fuel_l100km !== null && data.average_fuel_l100km !== undefined ? `${data.average_fuel_l100km} L/100km` : (raw.averageFuel ? `${raw.averageFuel} L/100km` : '-- L/100km'),
+      value: data.average_fuel_l100km !== null && data.average_fuel_l100km !== undefined ? `${data.average_fuel_l100km} L/100km` : (raw.averageFuel ? `${raw.averageFuel} L/100km` : 'Sin datos'),
       statusClass: 'parked',
       details: 'Consumo promedio histórico de combustible'
     },
@@ -228,7 +232,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Consumo Eléctrico Medio Reciente (50 km)',
       key: 'avgHkPowerKwh50km',
       haEntity: 'sensor.ebro_consumo_electrico_50km',
-      value: data.average_power_kwh100km !== null && data.average_power_kwh100km !== undefined ? `${data.average_power_kwh100km} kWh/100km` : (raw.avgHkPowerKwh50km ? `${raw.avgHkPowerKwh50km} kWh/100km` : '-- kWh/100km'),
+      value: data.average_power_kwh100km !== null && data.average_power_kwh100km !== undefined ? `${data.average_power_kwh100km} kWh/100km` : (raw.avgHkPowerKwh50km ? `${raw.avgHkPowerKwh50km} kWh/100km` : 'Sin datos'),
       statusClass: 'parked',
       details: 'Eficiencia eléctrica en los últimos 50 km'
     },
@@ -282,8 +286,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Cierre Centralizado de Puertas',
       key: 'doorLock',
       haEntity: 'lock.ebro_cierre_centralizado',
-      value: data.is_locked ? 'Bloqueado' : 'Desbloqueado',
-      statusClass: data.is_locked ? 'active' : 'warning',
+      ...flag(data.is_locked, 'Bloqueado', 'Desbloqueado', '', 'warn'),
       details: `Valor crudo: ${raw.doorLock ?? (data.is_locked ? 0 : 1)} (0=Bloqueado, 1=Desbloqueado)`
     },
     {
@@ -292,8 +295,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Puerta Delantera Izquierda (Conductor)',
       key: 'frontLeftDoor',
       haEntity: 'binary_sensor.ebro_puerta_conductor',
-      value: doors.fl ? 'Abierta' : 'Cerrada',
-      statusClass: doors.fl ? 'warning' : 'active',
+      ...flag(doors.fl, 'Abierta', 'Cerrada', 'warn', ''),
       details: 'Sensor magnético de puerta conductor'
     },
     {
@@ -302,8 +304,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Puerta Delantera Derecha (Acompañante)',
       key: 'frontRightDoor',
       haEntity: 'binary_sensor.ebro_puerta_pasajero',
-      value: doors.fr ? 'Abierta' : 'Cerrada',
-      statusClass: doors.fr ? 'warning' : 'active',
+      ...flag(doors.fr, 'Abierta', 'Cerrada', 'warn', ''),
       details: 'Sensor magnético de puerta copiloto'
     },
     {
@@ -312,8 +313,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Puerta Trasera Izquierda',
       key: 'backLeftDoor',
       haEntity: 'binary_sensor.ebro_puerta_trasera_izquierda',
-      value: doors.rl ? 'Abierta' : 'Cerrada',
-      statusClass: doors.rl ? 'warning' : 'active',
+      ...flag(doors.rl, 'Abierta', 'Cerrada', 'warn', ''),
       details: 'Sensor de puerta trasera izquierda'
     },
     {
@@ -322,8 +322,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Puerta Trasera Derecha',
       key: 'backRightDoor',
       haEntity: 'binary_sensor.ebro_puerta_trasera_derecha',
-      value: doors.rr ? 'Abierta' : 'Cerrada',
-      statusClass: doors.rr ? 'warning' : 'active',
+      ...flag(doors.rr, 'Abierta', 'Cerrada', 'warn', ''),
       details: 'Sensor de puerta trasera derecha'
     },
     {
@@ -332,8 +331,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Portón del Maletero (Trunk)',
       key: 'trunkDoor',
       haEntity: 'binary_sensor.ebro_maletero',
-      value: doors.trunk ? 'Abierto' : 'Cerrado',
-      statusClass: doors.trunk ? 'warning' : 'active',
+      ...flag(doors.trunk, 'Abierto', 'Cerrado', 'warn', ''),
       details: 'Estado de apertura del maletero'
     },
     {
@@ -352,8 +350,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Capó del Motor (Hood)',
       key: 'hood',
       haEntity: 'binary_sensor.ebro_capo',
-      value: doors.hood ? 'Abierto' : 'Cerrado',
-      statusClass: doors.hood ? 'warning' : 'active',
+      ...flag(doors.hood, 'Abierto', 'Cerrado', 'warn', ''),
       details: 'Estado de apertura del capó delantero'
     },
     {
@@ -362,8 +359,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Ventanilla Delantera Izquierda',
       key: 'frontLeftWindowState',
       haEntity: 'cover.ebro_ventanilla_conductor',
-      value: windows.fl ? 'Abierta' : 'Cerrada',
-      statusClass: windows.fl ? 'warning' : 'active',
+      ...flag(windows.fl, 'Abierta', 'Cerrada', 'warn', ''),
       details: 'Estado de la ventanilla del conductor'
     },
     {
@@ -372,8 +368,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Ventanilla Delantera Derecha',
       key: 'frontRightWindowState',
       haEntity: 'cover.ebro_ventanilla_pasajero',
-      value: windows.fr ? 'Abierta' : 'Cerrada',
-      statusClass: windows.fr ? 'warning' : 'active',
+      ...flag(windows.fr, 'Abierta', 'Cerrada', 'warn', ''),
       details: 'Estado de la ventanilla del pasajero'
     },
     {
@@ -382,8 +377,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Ventanilla Trasera Izquierda',
       key: 'backLeftWindowState',
       haEntity: 'cover.ebro_ventanilla_trasera_izquierda',
-      value: windows.rl ? 'Abierta' : 'Cerrada',
-      statusClass: windows.rl ? 'warning' : 'active',
+      ...flag(windows.rl, 'Abierta', 'Cerrada', 'warn', ''),
       details: 'Estado de la ventanilla trasera izquierda'
     },
     {
@@ -392,8 +386,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Ventanilla Trasera Derecha',
       key: 'backRightWindowState',
       haEntity: 'cover.ebro_ventanilla_trasera_derecha',
-      value: windows.rr ? 'Abierta' : 'Cerrada',
-      statusClass: windows.rr ? 'warning' : 'active',
+      ...flag(windows.rr, 'Abierta', 'Cerrada', 'warn', ''),
       details: 'Estado de la ventanilla trasera derecha'
     },
     {
@@ -402,8 +395,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Techo Solar Panorámico',
       key: 'sunroofState',
       haEntity: 'cover.ebro_techo_solar',
-      value: windows.sunroof ? 'Abierto' : 'Cerrado',
-      statusClass: windows.sunroof ? 'warning' : 'active',
+      ...flag(windows.sunroof, 'Abierto', 'Cerrado', 'warn', ''),
       details: 'Estado del cristal del techo solar'
     },
     {
@@ -412,8 +404,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Cortinilla Parasol del Techo Solar',
       key: 'sunshadeState',
       haEntity: 'cover.ebro_cortinilla_techo',
-      value: windows.sunshade ? 'Abierta' : 'Cerrada',
-      statusClass: 'parked',
+      ...flag(windows.sunshade, 'Abierta', 'Cerrada', 'warn', ''),
       details: 'Persiana / parasol eléctrico del techo'
     },
 
@@ -424,8 +415,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Climatizador Frontal (HVAC)',
       key: 'frontHVACState',
       haEntity: 'climate.ebro_climatizador',
-      value: data.climate_on ? 'Encendido' : 'Apagado',
-      statusClass: data.climate_on ? 'active' : 'parked',
+      ...flag(data.climate_on, 'Encendido', 'Apagado', 'on', ''),
       details: 'Sistema de climatización del habitáculo'
     },
     {
@@ -434,7 +424,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Temperatura Consigna Conductor (Izq)',
       key: 'frontSetTempLeft',
       haEntity: 'sensor.ebro_temperatura_objetivo_izq',
-      value: data.target_temp_left ? `${data.target_temp_left}°C` : (data.target_temp ? `${data.target_temp}°C` : '--°C'),
+      value: data.target_temp_left ? `${data.target_temp_left}°C` : (data.target_temp ? `${data.target_temp}°C` : 'Sin datos'),
       statusClass: 'active',
       details: 'Temperatura seleccionada zona conductor'
     },
@@ -444,7 +434,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Temperatura Consigna Pasajero (Der)',
       key: 'frontSetTempRight',
       haEntity: 'sensor.ebro_temperatura_objetivo_der',
-      value: data.target_temp_right ? `${data.target_temp_right}°C` : (data.target_temp ? `${data.target_temp}°C` : '--°C'),
+      value: data.target_temp_right ? `${data.target_temp_right}°C` : (data.target_temp ? `${data.target_temp}°C` : 'Sin datos'),
       statusClass: 'active',
       details: 'Temperatura seleccionada zona copiloto'
     },
@@ -454,8 +444,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Calefacción del Volante',
       key: 'steerWheelHeating',
       haEntity: 'switch.ebro_calefaccion_volante',
-      value: data.steer_wheel_heat ? 'Activa' : 'Apagada',
-      statusClass: data.steer_wheel_heat ? 'active' : 'parked',
+      ...flag(data.steer_wheel_heat, 'Activa', 'Apagada', 'on', ''),
       details: 'Calefactor eléctrico integrado en el aro del volante'
     },
     {
@@ -464,8 +453,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Desempañado Parabrisas Delantero',
       key: 'fWinHeatingState / frontWindshieldHeat',
       haEntity: 'switch.ebro_desempanado_delantero',
-      value: data.front_windshield_heat ? 'Activo' : 'Apagado',
-      statusClass: data.front_windshield_heat ? 'active' : 'parked',
+      ...flag(data.front_windshield_heat, 'Activo', 'Apagado', 'on', ''),
       details: 'Ventilación y resistencias luna delantera'
     },
     {
@@ -474,8 +462,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Luneta Térmica Trasera',
       key: 'rWinHeatingState',
       haEntity: 'switch.ebro_luneta_termica_trasera',
-      value: data.rear_windshield_heat ? 'Activa' : 'Apagada',
-      statusClass: data.rear_windshield_heat ? 'active' : 'parked',
+      ...flag(data.rear_windshield_heat, 'Activa', 'Apagada', 'on', ''),
       details: 'Resistencias térmicas de la luneta posterior'
     },
     {
@@ -484,8 +471,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Purificador de Aire (Ionizador)',
       key: 'airPurification',
       haEntity: 'switch.ebro_purificador_aire',
-      value: data.air_purification ? 'Activo' : 'Apagado',
-      statusClass: data.air_purification ? 'active' : 'parked',
+      ...flag(data.air_purification, 'Activo', 'Apagado', 'on', ''),
       details: 'Sistema de filtrado y purificación de aire'
     },
     {
@@ -494,8 +480,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Calefacción Asiento Conductor',
       key: 'dSeatHeatingState',
       haEntity: 'sensor.ebro_asiento_calefactado_conductor',
-      value: seats.driver ? 'Activa' : 'Apagada',
-      statusClass: seats.driver ? 'active' : 'parked',
+      ...flag(seats.driver, 'Activa', 'Apagada', 'on', ''),
       details: 'Resistencias térmicas asiento conductor'
     },
     {
@@ -504,8 +489,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Calefacción Asiento Pasajero',
       key: 'pSeatHeatingState',
       haEntity: 'sensor.ebro_asiento_calefactado_pasajero',
-      value: seats.passenger ? 'Activa' : 'Apagada',
-      statusClass: seats.passenger ? 'active' : 'parked',
+      ...flag(seats.passenger, 'Activa', 'Apagada', 'on', ''),
       details: 'Resistencias térmicas asiento pasajero'
     },
     {
@@ -515,7 +499,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       key: 'lSeatHeatingState2 / rSeatHeatingState2',
       haEntity: 'sensor.ebro_asientos_traseros_calefactados',
       value: (seats.rear_left || seats.rear_right) ? t('Izq: {p0} · Der: {p1}', {p0: seats.rear_left, p1: seats.rear_right}) : 'Apagados',
-      statusClass: (seats.rear_left || seats.rear_right) ? 'active' : 'parked',
+      tone: (seats.rear_left || seats.rear_right) ? 'on' : '',
       details: 'Resistencias térmicas plazas traseras'
     },
     {
@@ -525,7 +509,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       key: 'dSeatVentilateState / pSeatVentilateState',
       haEntity: 'sensor.ebro_asientos_ventilados',
       value: (seatsVent.driver || seatsVent.passenger) ? t('Conductor: {p0} · Copiloto: {p1}', {p0: seatsVent.driver ? 'ON' : 'OFF', p1: seatsVent.passenger ? 'ON' : 'OFF'}) : 'Apagada',
-      statusClass: (seatsVent.driver || seatsVent.passenger) ? 'active' : 'parked',
+      tone: (seatsVent.driver || seatsVent.passenger) ? 'on' : '',
       details: 'Ventiladores de aire en tapicería'
     },
 
@@ -536,8 +520,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Motor Térmico de Gasolina',
       key: 'engineState',
       haEntity: 'binary_sensor.ebro_motor_termico',
-      value: data.engine_state ? 'En Marcha' : 'Apagado',
-      statusClass: data.engine_state ? 'driving' : 'parked',
+      ...flag(data.engine_state, 'En Marcha', 'Apagado', 'on', ''),
       details: 'Estado del motor de combustión interna (ICE)'
     },
     {
@@ -546,8 +529,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Conectividad Nube Oficial (Awake / Asleep)',
       key: 'onlineStatus',
       haEntity: 'binary_sensor.ebro_en_linea',
-      value: data.online_status ? 'Coche Conectado y Despierto' : 'Reposo / Datos en Nube',
-      statusClass: data.online_status ? 'active' : 'parked',
+      ...flag(data.online_status, 'Coche Conectado y Despierto', 'Reposo / Datos en Nube', 'on', ''),
       details: 'Estado de comunicación del módem 4G / T-Box'
     },
     {
@@ -557,7 +539,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       key: 'freshness',
       haEntity: 'sensor.ebro_frescura_datos',
       value: data.freshness_text || 'Desconocido',
-      statusClass: data.online_status ? 'active' : 'parked',
+      tone: data.online_status ? 'on' : '',
       details: 'Indica si los datos son en tiempo real o el coche está durmiendo'
     },
     {
@@ -567,7 +549,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       key: 'vehicleSpeed',
       haEntity: 'sensor.ebro_velocidad',
       value: `${Math.round(data.speed_kmh || 0)} km/h`,
-      statusClass: (data.speed_kmh || 0) > 0 ? 'driving' : 'parked',
+      tone: (data.speed_kmh || 0) > 0 ? 'on' : '',
       details: 'Velocidad instantánea notificada por telemetría'
     },
     {
@@ -579,16 +561,6 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       value: (data.latitude && data.longitude) ? `${data.latitude.toFixed(5)}, ${data.longitude.toFixed(5)}` : '--',
       statusClass: 'parked',
       details: t('Altitud: {p0} m | Rumbo: {p1}°', {p0: data.altitude || '--', p1: data.heading || '--'})
-    },
-    {
-      category: 'engine',
-      catName: 'Motor & Diagnóstico',
-      name: 'Ubicación Inversa / Dirección',
-      key: 'address',
-      haEntity: 'sensor.ebro_direccion',
-      value: data.address || 'Ubicación no resuelta',
-      statusClass: 'parked',
-      details: 'Geocodificación inversa OpenStreetMap'
     }
   ];
 
@@ -630,29 +602,24 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
   let html = '';
   for (const [catTitle, list] of Object.entries(grouped)) {
     html += `
-      <div class="u-margin-bottom-1p25rem">
-        <div class="u-font-size-0p8rem_font-weight-700_color-var-primary_text-transform-uppercase_letter-spacing-0p5px_margin-0p4rem-0p5rem-0p6rem_display-flex_align-items-center_justify-content-space-between">
-          <span>${catTitle}</span>
-          <span class="u-color-var-text-muted_font-size-0p72rem_font-weight-500">${list.length} sensores</span>
+      <div class="sensor-group">
+        <div class="sensor-group-head">
+          <span>${escapeHtml(t(catTitle))}</span>
+          <span class="sensor-group-count">${escapeHtml(t('{p0} sensores', { p0: list.length }))}</span>
         </div>
-        <div class="u-display-flex_flex-direction-column_gap-0p4rem">
+        <div class="sensor-list">
     `;
 
     list.forEach(s => {
+      const tone = sensorTone(s);
       html += `
-        <div class="u-display-flex_align-items-center_justify-content-space-between_padding-0p65rem-0p85rem_background-rgba-255-255-255-0p02_border-1px-solid-var-border-color_border-radius-var-radius-sm_gap-0p75rem_flex-wrap-wrap">
-          <div class="u-display-flex_align-items-center_gap-0p65rem_min-width-220px_flex-1">
-            <div>
-              <div class="u-font-weight-600_font-size-0p88rem_color-var-text-primary">${escapeHtml(s.name)}</div>
-              <div class="u-display-flex_align-items-center_gap-0p5rem_flex-wrap-wrap_margin-top-0p15rem">
-                <span class="u-font-family-monospace_font-size-0p72rem_color-var-primary_overflow-wrap-anywhere">${escapeHtml(s.key)}</span>
-              </div>
-            </div>
+        <div class="sensor-row">
+          <div class="sensor-main">
+            <div class="sensor-name">${escapeHtml(t(s.name))}</div>
+            <div class="sensor-key">${escapeHtml(s.key)}</div>
+            ${s.details ? `<div class="sensor-details">${escapeHtml(t(String(s.details)))}</div>` : ''}
           </div>
-          <div class="u-text-align-right_display-flex_flex-direction-column_align-items-flex-end_gap-0p2rem">
-            <span class="status-badge ${s.statusClass} u-font-size-0p82rem_font-weight-700">${s.value}</span>
-            <span class="u-font-size-0p72rem_color-var-text-muted">${s.details}</span>
-          </div>
+          <span class="sensor-value" data-tone="${tone}">${escapeHtml(t(String(s.value)))}</span>
         </div>
       `;
     });
@@ -664,6 +631,15 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
   }
 
   container.innerHTML = html;
+}
+
+/** The tone of a row: «Sin datos» is always muted; otherwise the reading's own tone or, for the rows that still give an old badge
+ *  class, its meaning (warning = something open, danger = a warning from the car; any other = plain). */
+function sensorTone(s) {
+  const v = String(s.value);
+  if (v === 'Sin datos' || v.startsWith('--')) return 'unknown';
+  if (s.tone !== undefined) return s.tone;
+  return { warning: 'warn', danger: 'alert' }[s.statusClass] || '';
 }
 
 /** «Actualizar» in the sensors modal: a fresh read, then the list. */

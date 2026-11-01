@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import datetime
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -13,6 +13,7 @@ from app.db.models import AppUser, Geofence, GeofenceEvent
 from app.db.session import get_db
 from app.security import auth
 from app.security.access import space_owner_id
+from app.services import geofence_history
 from app.services.electricity_tariffs import get_pvpc_hourly_price, get_time_of_use_period
 
 router = APIRouter(prefix="/geofences", tags=["Geofences"])
@@ -72,6 +73,8 @@ class GeofenceOut(BaseModel):
     cost_margin: float = 0.0
     cost_fallback: float = 0.15
     created_at: datetime.datetime
+    # After creating or editing: past charges and drives now assigned to it (services/geofence_history.py); absent when listing
+    applied: Optional[Dict[str, int]] = None
 
     class Config:
         from_attributes = True
@@ -169,8 +172,11 @@ async def create_geofence(req: GeofenceCreate, session: AsyncSession = Depends(g
         cost_fallback=req.cost_fallback,
     )
     session.add(gf)
+    await session.flush()
+    applied = await geofence_history.apply_to_history(session, gf)      # what already happened inside it gets its name and tariff
     await session.commit()
     await session.refresh(gf)
+    gf.applied = applied
     return gf
 
 
@@ -187,8 +193,11 @@ async def update_geofence(
     for field, value in update_data.items():
         setattr(gf, field, value)
 
+    await session.flush()
+    applied = await geofence_history.apply_to_history(session, gf)      # moved, widened or made a charging spot: the past follows
     await session.commit()
     await session.refresh(gf)
+    gf.applied = applied
     return gf
 
 

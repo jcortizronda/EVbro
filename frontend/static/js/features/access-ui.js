@@ -19,7 +19,7 @@ const ACCESS_SELECTORS = {
   edit: [
     '[data-on-click*="openExpenseModal"]', '[data-on-click*="openRefuelModal"]', '[data-on-click*="proposePart"]', '[data-on-click*="openPartModal"]', '[data-on-click*="showAddMaintenanceModal"]',
     '[data-on-click*="showMaintEventModal"]', '[data-on-click*="showRegisterOfficialRevisionModal"]', '[data-on-click*="showItvModal"]',
-    '#btnEditChargeCost', '#maintBaselineCard', '.maint-card-actions', '.maintenance-card button',
+    '#btnEditChargeCost', '#btnChargeMeter', '#maintBaselineCard', '.maint-card-actions', '.maintenance-card button',
   ],
   owner: ['[data-on-click*="openVehicleSettings"]', '[data-on-click*="openEditVehicleModal"]', '#btnSettingsSubVehicle'],
   root: ['#btnSettingsSubAccount', '#btnSettingsSubAccounts', '[data-on-click*="openCreateGeofenceModal"]',

@@ -57,7 +57,7 @@ function renderCosts() {
   if (d.pending.charges) parts.push(`${d.pending.charges} carga${d.pending.charges > 1 ? 's' : ''}`);
   if (d.pending.refuels) parts.push(`${d.pending.refuels} repostaje${d.pending.refuels > 1 ? 's' : ''}`);
   pend.hidden = !parts.length;
-  if (parts.length) pend.innerHTML = `<strong>${t('{p0} sin precio.', {p0: parts.join(' y ')})}</strong> No cuentan en los totales hasta que los valores (las cargas en Energía, «Editar coste»; los repostajes en Repostajes).`;
+  if (parts.length) pend.innerHTML = `<strong>${t('{p0} sin precio.', {p0: parts.join(' y ')})}</strong> No cuentan en los totales hasta que los valores (las cargas en Carga, «Editar coste»; los repostajes en Repostajes).`;
 
   renderCostBars(d.monthly);
   renderCostCategories(d.by_category, tot.expenses);

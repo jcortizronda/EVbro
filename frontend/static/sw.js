@@ -48,6 +48,7 @@ const STATIC_ASSETS = [
   '/static/css/components/tables-cards.css',
   '/static/css/features/home-tiles.css',
   '/static/css/features/home-widgets.css',
+  '/static/css/features/sensors.css',
   '/static/css/features/car-figure.css',
   '/static/css/layout/page-head.css',
   '/static/css/features/push.css',

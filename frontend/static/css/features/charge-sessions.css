@@ -422,6 +422,8 @@
 .kpi-edit-btn { margin-top: 8px; min-height: 36px; padding: 0 12px; font: inherit; font-size: 0.78rem; font-weight: 700; color: var(--accent-bright); background: transparent; border: 1px solid currentColor; border-radius: 999px; cursor: pointer; }
 .kpi-edit-btn[hidden] { display: none; }
 .kpi-note { margin: 10px 0 0; font-size: 0.74rem; line-height: 1.4; color: var(--text-muted); }
+/* «Indicar kWh del contador»: the grid energy that makes the efficiency real */
+.kpi-meter-btn { margin-top: 8px; }
 .cc-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 4px; margin-bottom: 12px; background: var(--surface-secondary); border: 1px solid var(--border-color); border-radius: 12px; }
 .cc-modes label { display: flex; align-items: center; justify-content: center; min-height: 40px; border-radius: 9px; cursor: pointer; font-size: 0.85rem; font-weight: 600; }
 .cc-modes input { position: absolute; opacity: 0; pointer-events: none; }

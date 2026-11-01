@@ -2,7 +2,7 @@
 
 *English version: [docs/en/manual.md](en/manual.md).*
 
-EVBro es el compañero de tu coche Ebro: ve lo que el coche cuenta a la nube de Chery, le manda órdenes, guarda su historia (viajes, cargas, repostajes, talleres, gastos) y te avisa de lo que importa. Está pensado para el móvil (dock inferior con **Inicio, Energía, Confort y Más**) y en el ordenador se convierte en una barra lateral con todas las secciones a la vista. Disponible en español, inglés y portugués (Ajustes → Sistema → Idioma).
+EVBro es el compañero de tu coche Ebro: ve lo que el coche cuenta a la nube de Chery, le manda órdenes, guarda su historia (viajes, cargas, repostajes, talleres, gastos) y te avisa de lo que importa. Está pensado para el móvil (dock inferior con **Inicio, Carga, Confort y Más**) y en el ordenador se convierte en una barra lateral con todas las secciones a la vista. Disponible en español, inglés y portugués (Ajustes → Sistema → Idioma).
 
 Una regla que vale para toda la app: **lo que ves sale del coche**. Si un dato no ha llegado, verás «Sin datos», nunca un valor inventado ni un «cerrado» por defecto.
 
@@ -20,11 +20,13 @@ La portada del coche elegido (arriba, el selector de coche si tienes varios).
 
 **Personalizar inicio** (botón al final de la página). Cada bloque es un *widget* que puedes **mover** (arrastrando con el asa ⠿ o con las flechas), **quitar** (×) o **volver a poner** con «Añadir widget». La cabecera se queda siempre arriba. Además de los bloques de siempre hay widgets nuevos: **Próximo mantenimiento** (la revisión o tarea más cercana y la ITV), **Último viaje**, **Última carga**, **Gasto del mes**, **Carga programada** (objetivo de batería y horario), **Climatización** (temperaturas y encender o apagar) y **Consumo** de los últimos 30 días. Tocar uno abre su sección. Mientras editas, los botones no hacen nada, para no mandar una orden sin querer. La disposición es **de tu cuenta**: se ve igual en el móvil y en el ordenador, y cada persona con acceso tiene la suya. «Restablecer» vuelve al inicio de siempre. Los widgets que tu coche no puede mostrar (datos en directo sin cuenta de Ebro, cargas en uno de gasolina) no aparecen. En el ordenador el mapa va siempre en su columna de la derecha.
 
-**Energía** y **Confort** se personalizan igual, con «Personalizar energía» y «Personalizar confort» al final de cada página: puedes ordenar o quitar sus bloques (batería y objetivo, cifras, control de carga, carga programada, datos e historial; climatización, lunas y volante, asientos, climatización programada) y, en Energía, añadir la última carga, el gasto del mes o el consumo. Cada página guarda su orden y «Restablecer» solo afecta a esa página.
+**Carga** y **Confort** se personalizan igual, con «Personalizar carga» y «Personalizar confort» al final de cada página: puedes ordenar o quitar sus bloques (batería y objetivo, cifras, control de carga, historial de cargas, carga programada, detalle de la carga; climatización, lunas y volante, asientos, climatización programada) y, en Carga, añadir la última carga, el gasto del mes o el consumo. Cada página guarda su orden y «Restablecer» solo afecta a esa página.
 
-**Atajos del icono.** Con EVBro instalada en el móvil, mantén pulsado su icono: salen **Cerrar el coche**, **Encender el clima**, **Energía** y **Viajes** (cada uno se puede arrastrar al escritorio como un icono propio). Los de órdenes no mandan nada solos: abren la app y te preguntan antes, con el nombre del coche. EVBro no puede poner un widget con datos en el escritorio de Android, porque Chrome no lo permite a las aplicaciones web.
+**Atajos del icono.** Con EVBro instalada en el móvil, mantén pulsado su icono: salen **Cerrar el coche**, **Encender el clima**, **Carga** y **Viajes** (cada uno se puede arrastrar al escritorio como un icono propio). Los de órdenes no mandan nada solos: abren la app y te preguntan antes, con el nombre del coche. EVBro no puede poner un widget con datos en el escritorio de Android, porque Chrome no lo permite a las aplicaciones web.
 
-## Energía
+## Carga
+
+*(Se llamaba «Energía» hasta el 01-11-2026.)*
 
 Todo lo de la batería y la carga.
 
@@ -32,8 +34,8 @@ Todo lo de la batería y la carga.
 - **Control de carga: Parar / Iniciar**. El coche no admite parar o iniciar la carga directamente; EVBro lo consigue con la **carga programada del propio coche** (programa una ventana que ya terminó para pararla y la quita para iniciarla). Hay un desplegable «Cómo funciona» que lo explica en la propia pantalla.
 - **Carga programada**: hora de inicio y fin (o duración) para cargar todos los días en esa franja (tarifa valle). Se escribe en el coche.
 - **Consumo EV · 30 días**: kWh/100 km de los viajes del último mes. Cuenta solo los viajes de 2 km o más con energía medida, la misma regla que el resumen de Viajes y las Estadísticas: en un trayecto muy corto, un solo punto de batería y el kilómetro redondeado del odómetro dan una cifra sin sentido.
-- **Datos de la batería**: potencia, tensión, intensidad y tiempo restante mientras carga.
-- **Historial de recargas** (pestañas *Curva de sesión* e *Histórico*): cada sesión con lugar, kWh a la batería (estimados por los puntos de batería ganados) y, si los indicas, los kWh de tu contador, la **eficiencia** real y el coste. El coste sale de la **tarifa de la geocerca** donde cargaste (fija, gratuita, 2.0TD o PVPC) o lo escribes con **Editar coste**. Se puede marcar una carga como AC o DC rápida y ver la curva de potencia minuto a minuto.
+- **Historial de cargas**: cada sesión con lugar, kWh a la batería (estimados por los puntos de batería ganados) y su coste. Tocar una abre su **detalle**.
+- **Detalle de la carga**: la curva de potencia minuto a minuto, el mapa, la energía y el coste de la carga elegida (la última, si no eliges otra). Con **Indicar kWh del contador** escribes los kWh que marcó tu contador o cargador y EVBro calcula la **eficiencia** real. El coste sale de la **tarifa de la geocerca** donde cargaste (fija, gratuita, 2.0TD o PVPC) o lo escribes con **Editar coste**. Se puede marcar una carga como AC o DC rápida y ver la curva de potencia minuto a minuto.
 
 Nota honesta: el control de carga por programación está construido siguiendo el protocolo de la app oficial, pero **no se ha podido validar en todas sus situaciones contra el coche real**. Si algo no cuadra, avísalo.
 
@@ -53,11 +55,11 @@ El menú con el resto de secciones, agrupadas en **Historial** y **Gestión**.
 
 ### Historial
 
-**Estadísticas.** Gráficas del historial con selector de periodo (12 meses, este año, el anterior, todo…): kilómetros por mes, energía por mes (kWh y litros), gasto por mes, coste por kilómetro, consumo eléctrico por mes, salud de la batería (capacidad útil deducida de cada carga grande), consumo según la velocidad, dónde se carga y gasto en reposo (batería que pierde el coche aparcado).
+**Estadísticas.** Gráficas del historial con selector de periodo (12 meses, este año, el anterior, todo…): kilómetros por mes, energía por mes (kWh y litros), gasto por mes, coste por kilómetro, consumo eléctrico por mes, salud de la batería (capacidad útil **medida** con la curva de potencia de cada carga de 20 puntos o más, y cuánto es frente a la capacidad de la ficha), consumo según la velocidad, dónde se carga y gasto en reposo (batería que pierde el coche aparcado).
 
 **Cronología.** Todo lo apuntado del coche en una sola lista por fecha (viajes, cargas, repostajes, taller, gastos, documentos, entradas y salidas de geocercas), con filtros por tipo. Arriba, el **buscador global**: una referencia de pieza, un taller, una factura o una dirección, en todos tus coches. Tocar un elemento te lleva a su pantalla.
 
-**Viajes.** Cada trayecto detectado con origen y destino (dirección), kilómetros del odómetro, duración, batería y gasolina gastadas y velocidades. **Ver trazado** abre el mapa con la ruta, se puede **reproducir** y descargar en **GPX**. Filtros por geocerca, lugar, distancia mínima, velocidad y periodo. El **resumen del periodo** suma todos los viajes completos; su consumo medio en kWh/100 km se calcula solo con los viajes de 2 km o más con energía medida, igual que en Energía y Estadísticas, así que con el mismo periodo sale la misma cifra. **Lugares frecuentes**: dónde termina más veces el coche; desde ahí se crea una geocerca. **Viajes largos**: agrupa, entre dos fechas, los trayectos, cargas, repostajes y gastos de unas vacaciones y te dice cuánto costó y consumió todo. Los viajes se detectan solos a partir de los datos del coche; los incompletos (sin fin) se pueden corregir a mano.
+**Viajes.** Cada trayecto detectado con origen y destino (dirección), kilómetros del odómetro, duración, batería y gasolina gastadas y velocidades. **Ver trazado** abre el mapa con la ruta, se puede **reproducir** y descargar en **GPX**. Filtros por geocerca, lugar, distancia mínima, velocidad y periodo. El **resumen del periodo** suma todos los viajes completos; su consumo medio en kWh/100 km se calcula solo con los viajes de 2 km o más con energía medida, igual que en Carga y Estadísticas, así que con el mismo periodo sale la misma cifra. **Lugares frecuentes**: dónde termina más veces el coche; desde ahí se crea una geocerca. **Viajes largos**: agrupa, entre dos fechas, los trayectos, cargas, repostajes y gastos de unas vacaciones y te dice cuánto costó y consumió todo. Los viajes se detectan solos a partir de los datos del coche; los incompletos (sin fin) se pueden corregir a mano.
 
 **Repostajes.** Consumo real de gasolina: litros entre llenados, coste por 100 km, precio del litro, autonomía con el depósito lleno. Los repostajes se detectan solos cuando sube el depósito (con litros estimados); añade los que falten y pon el precio del ticket. Marca **Depósito lleno** cuando llenes: entre dos llenados el consumo es exacto.
 
@@ -76,7 +78,7 @@ El menú con el resto de secciones, agrupadas en **Historial** y **Gestión**.
 - **Añadir coche sin cuenta Ebro**: un coche de cualquier marca para llevar su mantenimiento, gastos, costes y piezas (sin datos en directo). Con un localizador GPS y un servidor Traccar también tiene posición y viajes.
 - **Foto** del coche, que se usa en la cabecera de Inicio.
 
-**Geocercas.** Zonas en el mapa (casa, trabajo, cargador…) con radio. Sirven para tres cosas: **avisar** al entrar o salir, **poner precio** a las cargas hechas dentro (tarifa fija, gratis, 2.0TD con sus tres precios o PVPC regulado) y clasificar los viajes. La tarjeta **Entradas y salidas** es el registro de cada paso por ellas.
+**Geocercas.** Zonas en el mapa (casa, trabajo, cargador…) con radio. Sirven para tres cosas: **avisar** al entrar o salir, **poner precio** a las cargas hechas dentro (tarifa fija, gratis, 2.0TD con sus tres precios o PVPC regulado) y clasificar los viajes. Si creas una geocerca en un sitio donde ya habías estado, las cargas y viajes anteriores de ese sitio pasan a llevar su nombre; **sus precios no cambian** (solo las cargas nuevas toman la tarifa). La tarjeta **Entradas y salidas** es el registro de cada paso por ellas.
 
 **Ajustes.** Cada apartado es una sección desplegable; el móvil recuerda cuáles dejaste abiertas.
 - *Cuenta*: tu usuario de EVBro (cambiar contraseña, cerrar sesión), **acceso con huella** (añade este dispositivo y entra sin contraseña; exige HTTPS), la **cuenta de Ebro** (conectar, sincronizar coches, guardar o cambiar el PIN) y **cuándo pedir el PIN**: solo al abrir el coche (por defecto), siempre o nunca. **Tus datos**: descargar todo en un ZIP e importar un ZIP en otro servidor. Enlace a qué datos guarda este servidor.

@@ -47,7 +47,7 @@ EVBro es una aplicación **autoalojada** para coches **Ebro** (S700, S800, S900 
 
 - **Inicio en vivo:** batería, autonomía, gasolina, odómetro, cierre, puertas, ventanillas, techo, neumáticos y mapa, con una figura del coche que enseña lo que está abierto.
 - **Control remoto seguro:** cierre, maletero, ventanillas, techo, clima, asientos, volante, desempañado, alarma y «localizar». Lo que **abre** el coche pide el PIN en cada envío. **Climatización programada** por hora y días.
-- **Energía:** objetivo de batería, parar/iniciar y programar la carga, curva y coste de cada carga según la tarifa del sitio (fija, gratuita, 2.0TD o PVPC).
+- **Carga:** objetivo de batería, parar/iniciar y programar la carga, curva y coste de cada carga según la tarifa del sitio (fija, gratuita, 2.0TD o PVPC).
 - **Históricos:** viajes con ruta (reproducir, GPX), viajes largos, lugares frecuentes, geocercas con registro de entradas y salidas, repostajes con **consumo real** entre llenados, gastos y balance de costes, estadísticas mensuales y salud de la batería.
 - **Mantenimiento:** plan oficial de EBRO o personalizado, ITV, intervenciones con factura, consumibles y referencias; ficha del coche con seguro y documentación; **libro del coche** en PDF.
 - **Avisos:** notificaciones en el móvil, Telegram, Pushover y webhook: geocercas, carga, batería, combustible, ventanas abiertas, mantenimiento, presión de neumáticos y vencimientos.

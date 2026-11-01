@@ -1,0 +1,21 @@
+/* EVBro — «Todos los datos» (features/sensors.js): one layout for every reading.
+   Name, the car's field and its explanation on the left; the value on the right, coloured only by what it means:
+   plain for a figure or a closed/off state, accent for something working, amber for something open, red for a warning from
+   the car, muted for «Sin datos» (no data is never shown as closed). */
+.sensor-group { margin-bottom: 1.25rem; }
+.sensor-group-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0.4rem 0.5rem 0.6rem;
+  font-size: 0.8rem; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--primary); }
+.sensor-group-count { font-size: 0.72rem; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--text-muted); }
+.sensor-list { display: flex; flex-direction: column; gap: 0.4rem; }
+.sensor-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 0.75rem; padding: 0.65rem 0.85rem;
+  border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--surface-secondary, rgba(255, 255, 255, 0.02)); }
+.sensor-main { min-width: 0; }
+.sensor-name { font-size: 0.88rem; font-weight: 600; color: var(--text-primary); }
+.sensor-key { margin-top: 2px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.72rem; color: var(--primary); overflow-wrap: anywhere; }
+.sensor-details { margin-top: 3px; font-size: 0.74rem; line-height: 1.35; color: var(--text-muted); }
+.sensor-value { justify-self: end; max-width: 46vw; padding: 0.2rem 0.6rem; border-radius: 999px; border: 1px solid transparent;
+  font-size: 0.85rem; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; color: var(--text-primary); }
+.sensor-value[data-tone="on"] { color: var(--accent-bright, var(--primary)); border-color: currentColor; }
+.sensor-value[data-tone="warn"] { color: var(--accent-amber, #ff9f0a); border-color: currentColor; }
+.sensor-value[data-tone="alert"] { color: var(--accent-red, #ff453a); border-color: currentColor; }
+.sensor-value[data-tone="unknown"] { font-weight: 500; color: var(--text-muted); }
