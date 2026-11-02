@@ -119,17 +119,19 @@ async def verify_origin(request: Request) -> None:
 
 
 # ───────────────────────── cookie ─────────────────────────
+def _cookie_secure(request: Request, admin: bool = False) -> bool:
+    """The `Secure` flag of a cookie. The console is reached over plain HTTP on the local network and a "Secure" cookie sent over
+    HTTP is silently dropped by the browser, so there it follows the real scheme; COOKIE_SECURE is about the public HTTPS app."""
+    if admin or settings.COOKIE_SECURE is None:
+        return request.url.scheme == "https"
+    return settings.COOKIE_SECURE
+
+
 def set_session_cookie(response: Response, request: Request, token: str, name: str = COOKIE_NAME) -> None:
-    if name == ADMIN_COOKIE_NAME:
-        # The console is reached over plain HTTP on the local network. A "Secure" cookie sent over HTTP is silently dropped by the
-        # browser, which would make every login bounce back to the sign-in screen; COOKIE_SECURE is about the public HTTPS app.
-        secure = request.url.scheme == "https"
-    else:
-        secure = settings.COOKIE_SECURE if settings.COOKIE_SECURE is not None else request.url.scheme == "https"
     response.set_cookie(
         name, token,
         max_age=int(_session_lifetime().total_seconds()),
-        httponly=True, samesite="lax", secure=secure, path="/",
+        httponly=True, samesite="lax", secure=_cookie_secure(request, admin=name == ADMIN_COOKIE_NAME), path="/",
     )
 
 
@@ -137,11 +139,11 @@ def clear_session_cookie(response: Response, name: str = COOKIE_NAME) -> None:
     response.delete_cookie(name, path="/")
 
 
-def set_language_cookie(response: Response, request: Request, language: str) -> None:
+def set_language_cookie(response: Response, request: Request, language: str, admin: bool = False) -> None:
     """The account's language, so the page itself (served before any API call) comes out in it (app.i18n). Not a secret, so
-    the script may read it; same `Secure` rule as the session cookie."""
-    secure = settings.COOKIE_SECURE if settings.COOKIE_SECURE is not None else request.url.scheme == "https"
-    response.set_cookie(i18n.COOKIE_NAME, i18n.normalize(language), max_age=i18n.COOKIE_MAX_AGE, samesite="lax", secure=secure, path="/")
+    the script may read it; same `Secure` rule as the session cookie (`admin=True` from the console)."""
+    response.set_cookie(i18n.COOKIE_NAME, i18n.normalize(language), max_age=i18n.COOKIE_MAX_AGE, samesite="lax",
+                        secure=_cookie_secure(request, admin), path="/")
 
 
 # ───────────────────────── sessions ─────────────────────────

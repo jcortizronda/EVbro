@@ -116,7 +116,7 @@ async def login(req: Credentials, request: Request, response: Response, db: Asyn
     pair_throttle.reset(pair_key)
     token = await auth.create_session(db, user, request)
     auth.set_session_cookie(response, request, token, auth.ADMIN_COOKIE_NAME)
-    auth.set_language_cookie(response, request, user.language)          # the console reloads in the administrator's language
+    auth.set_language_cookie(response, request, user.language, admin=True)   # the console reloads in the administrator's language
     await admin_audit.log(db, user, "login", request=request)
     return {"status": "ok", "username": user.username, "language": user.language}
 
@@ -133,7 +133,7 @@ async def update_language(req: LanguageRequest, request: Request, response: Resp
         raise HTTPException(status_code=422, detail="Idioma no admitido.")
     user.language = req.language
     await db.commit()
-    auth.set_language_cookie(response, request, req.language)
+    auth.set_language_cookie(response, request, req.language, admin=True)
     return {"status": "ok", "language": req.language}
 
 

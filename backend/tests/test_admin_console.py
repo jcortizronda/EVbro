@@ -370,6 +370,10 @@ async def test_the_console_cookie_follows_the_real_scheme_not_the_global_cookie_
         assert r.status_code == 200
         cookie = r.headers["set-cookie"].lower()
         assert "evbro_admin_session" in cookie and "secure" not in cookie and "httponly" in cookie and "samesite=lax" in cookie
+        r = await c.put("/api/auth/language", json={"language": "en"})        # the language selector reloads the page in it
+        assert r.status_code == 200
+        cookies = r.headers.get_list("set-cookie")
+        assert cookies and all("secure" not in v.lower() for v in cookies)
     await make_manager_directly()
     async with the_app() as a:
         r = await a.post("/api/auth/login", json={"username": MANAGER, "password": MANAGER_PW})
