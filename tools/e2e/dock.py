@@ -47,6 +47,7 @@ with sync_playwright() as p:
         pg.wait_for_timeout(300)
         pg.locator("#dockCustomize").scroll_into_view_if_needed()
         ok(pg.is_visible("#dockCustomize"), "Más offers «Personalizar barra inferior»")
+        ok(not pg.is_visible("#tabMore .native-card-btn[data-on-click=\"switchTab('charges')\"]"), "with the usual bar, Carga and Confort are not repeated in Más")
         pg.click("#dockCustomize")
         pg.wait_for_timeout(300)
         ok(pg.locator("#dockChosen .dock-edit-row").count() == 4 and pg.locator("#dockChosen .is-fixed").count() == 2, "the editor lists Inicio and Más as fixed, and the two sections")
@@ -70,18 +71,11 @@ with sync_playwright() as p:
         shown = lambda sel: pg.is_visible(f'#tabMore .native-card-btn[data-on-click="{sel}"]')
         ok(not shown("switchTab('drives')") and not shown("switchTab('maintenance')") and not shown("openAllSensorsModal()"),
            "Viajes, Mantenimiento and Sensores left Más")
+        ok(not shown("switchTab('charges')") and shown("switchTab('climate')"), "Carga, in the bar, is not in Más; Confort, taken out of the bar, is")
         ok(shown("switchTab('stats')") and shown("switchTab('geofences')") and shown("switchTab('costs')"), "the rest of Más stays")
-        row_hidden = pg.evaluate("(() => { const b = document.querySelector(`#tabMore [data-on-click=\"switchTab('drives')\"]`); return getComputedStyle(b.parentElement).display === 'none'; })()")
-        ok(row_hidden, "the Viajes/Mantenimiento row, now empty, is gone")
-        alone = pg.evaluate("""(() => {
-          const ex = document.querySelector(`#tabMore [data-on-click="switchTab('expenses')"]`);
-          const co = document.querySelector(`#tabMore [data-on-click="switchTab('costs')"]`);
-          ex.classList.add('in-dock');
-          const r = co.getBoundingClientRect().width, g = co.parentElement.getBoundingClientRect().width;
-          ex.classList.remove('in-dock');
-          return Math.abs(r - g) < 2;
-        })()""")
-        ok(alone, "a button left alone in its row takes the whole width")
+        sizes = pg.evaluate("""[...document.querySelectorAll('#tabMore .native-card-btn')].filter(b => b.offsetParent)
+          .map(b => { const r = b.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)]; })""")
+        ok(len({tuple(x) for x in sizes}) == 1, f"every card of Más has the same size {sorted(set(map(tuple, sizes)))}")
         pg.screenshot(path=f"{OUT}/mas-sin-repetidos-{theme}.png", full_page=True)
 
         # the icons work like the Más ones, and the right one lights up
@@ -115,7 +109,7 @@ with sync_playwright() as p:
         pg.click("#dockModal >> text=Restablecer")
         pg.wait_for_timeout(500)
         ok(bar(pg) == ["mobTabOverview", "mobTabCharges", "mobTabClimate", "mobTabMore"], "«Restablecer» brings the usual bar back")
-        ok(pg.locator("#tabMore .native-card-btn.in-dock").count() == 0, "and Más gets every section back")
+        ok(pg.locator("#tabMore .native-card-btn.in-dock").count() == 2, "and Más gets every section back except Carga and Confort")
         ok(ctx.request.get(f"{BASE}/api/account/home-layout").json()["layout"] is None, "and the server forgets it")
         pg.click("#dockModal >> text=Hecho")
         ok(not errors, f"no JS errors {errors[:2]}")

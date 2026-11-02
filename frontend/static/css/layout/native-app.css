@@ -738,11 +738,15 @@ body[data-manual="1"] #mobTabCharges, body[data-manual="1"] #mobTabClimate,
 body[data-manual="1"] .side-item[data-tab="charges"], body[data-manual="1"] .side-item[data-tab="climate"],
 body[data-manual="1"] .side-item[data-on-click="openAllSensorsModal()"],
 body[data-manual="1"] #tabMore [data-on-click="openAllSensorsModal()"], body[data-manual="1"] #mobDockSensors { display: none !important; }
-/* Sections already in the bottom bar are not repeated in Más (features/dock.js marks them `in-dock`). Only where the bar
-   exists: with a mouse and a wide window there is no bar (layout/dock-desktop.css), so Más keeps them all. */
-@media not all and (min-width: 769px) and (hover: hover) and (pointer: fine) {        /* (on a computer Más is not even shown) */
+/* Más: one grid of equal cards, two per row (the rows of the markup do not count: display: contents), so hiding a
+   section just lets the next ones move up. */
+#tabMore .native-action-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 10px; }
+#tabMore .native-action-grid > div { display: contents; }
+/* Sections already in the bottom bar are not repeated in Más (features/dock.js marks them `in-dock`); Carga and Confort,
+   in the bar by default, appear here when taken out of it. Only where the bar exists (on a computer Más is not shown). */
+@media not all and (min-width: 769px) and (hover: hover) and (pointer: fine) {
   #tabMore .native-card-btn.in-dock { display: none !important; }
-  #tabMore .native-action-grid > div:has(> .native-card-btn.in-dock) { grid-template-columns: 1fr !important; }   /* beats the u-grid-… utility */
-  #tabMore .native-action-grid > div:not(:has(> .native-card-btn:not(.in-dock))) { display: none; }
 }
 body[data-manual="1"]:not([data-gps="1"]) #liveMapCard { display: none !important; }
+/* Más: the longest description sets the height of every card, so it is kept to three lines */
+#tabMore .native-card-btn .card-subtitle { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }

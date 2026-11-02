@@ -2078,5 +2078,7 @@
  "No se pudo guardar la barra; se queda en este dispositivo.": "The bar could not be saved; it stays on this device.",
  "Siempre en la barra": "Always in the bar",
  "Sensores": "Sensors",
- "Gráficas": "Charts"
+ "Gráficas": "Charts",
+  "Batería, ciclo de carga, programación e historial": "Battery, charging cycle, schedule and history",
+  "Clima, desempañado y asientos": "Climate, demisting and seats"
 }

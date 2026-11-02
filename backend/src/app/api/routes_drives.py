@@ -11,7 +11,7 @@ from sqlalchemy import and_, desc, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_timezone
-from app.db.models import Drive, DrivePosition
+from app.db.models import Drive, DrivePosition, Geofence, Vehicle
 from app.db.session import get_db
 from app.services import gpx, periods, places
 from app.services.stats import MIN_DRIVE_KM
@@ -309,6 +309,8 @@ async def get_drive_gpx(drive_id: int, session: AsyncSession = Depends(get_db)):
 
 @router.get("/vehicles/{vin}/places")
 async def get_frequent_places(vin: str, limit: int = Query(8, ge=1, le=30), session: AsyncSession = Depends(get_db)):
-    """Where the drives end most often (grouped within about 110 m), newest address first."""
+    """Where the drives end most often: by geofence, and elsewhere grouped within about 110 m (services/places.py)."""
     drives = (await session.execute(select(Drive).where(Drive.vin == vin, Drive.end_time.is_not(None)))).scalars().all()
-    return {"places": places.frequent_places(drives, limit=limit)}
+    vehicle = await session.get(Vehicle, vin)
+    geofences = (await session.execute(select(Geofence).where(Geofence.owner_id == vehicle.owner_id))).scalars().all() if vehicle else []
+    return {"places": places.frequent_places(drives, limit=limit, geofences=geofences)}

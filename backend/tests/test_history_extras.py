@@ -85,6 +85,19 @@ def test_frequent_places_group_nearby_ends_and_rank_by_visits() -> None:
     assert out[1]["geofence_id"] == 7 and abs(out[1]["latitude"] - 40.7001) < 1e-3
 
 
+def test_frequent_places_one_place_per_geofence_and_no_borrowed_geofence_names() -> None:
+    """Seen 2026-11-02: a geofence spanning two cells, and a drive whose stale end point (2 km away) was renamed «Casa» by hand."""
+    home = SimpleNamespace(id=1, name="Casa", latitude=40.0, longitude=-3.0, radius_meters=150)
+
+    def mk(i, lat, lon, addr, gf=None):
+        return SimpleNamespace(end_lat=lat, end_lon=lon, end_address=addr, end_geofence_id=gf, end_time=D(2026, 10, i), start_time=D(2026, 10, i))
+    drives = [mk(1, 40.0001, -3.0, "Casa", gf=1), mk(2, 39.9996, -2.9995, "Calle Mayor 3"),     # inside, before the geofence
+              mk(3, 40.0005, -3.0004, "Casa", gf=1),                                                     # inside, another cell
+              mk(4, 39.985, -3.0234, "Pasarela del Río"), mk(5, 39.985, -3.0233, "Casa")]     # renamed by hand, 2 km away
+    out = places.frequent_places(drives, geofences=[home])
+    assert [(p["address"], p["visits"], p["geofence_id"]) for p in out] == [("Casa", 3, 1), ("Pasarela del Río", 2, None)]
+
+
 async def test_places_route_only_counts_closed_drives(web) -> None:
     async with async_session_factory() as s:
         for day in (1, 2):

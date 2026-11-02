@@ -1151,6 +1151,27 @@
         </div>
 
         <div class="native-action-grid">
+          <div class="action-row-top u-grid-template-columns-1fr-1fr">
+            <!-- Carga and Confort: in the bottom bar by default; here only when the bar does not have them (features/dock.js) -->
+            <button class="native-card-btn" data-on-click="switchTab('charges')">
+              <div class="card-icon-wrap u-color-30d158">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+              </div>
+              <div class="card-text-block">
+                <strong class="card-title">Carga</strong>
+                <span class="card-subtitle">Batería, ciclo de carga, programación e historial</span>
+              </div>
+            </button>
+            <button class="native-card-btn" data-on-click="switchTab('climate')">
+              <div class="card-icon-wrap u-color-64d2ff">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M4.93 19.07l14.14-14.14"></path></svg>
+              </div>
+              <div class="card-text-block">
+                <strong class="card-title">Confort</strong>
+                <span class="card-subtitle">Clima, desempañado y asientos</span>
+              </div>
+            </button>
+          </div>
           <div class="action-row-single">
             <!-- Statistics -->
             <button class="native-card-btn" data-on-click="switchTab('stats')">
@@ -1283,8 +1304,8 @@
               </div>
             </button>
           </div>
-          <button type="button" class="btn-secondary home-customize dock-customize" id="dockCustomize" data-on-click="Dock.open()">Personalizar barra inferior</button>
         </div>
+        <button type="button" class="btn-secondary home-customize dock-customize" id="dockCustomize" data-on-click="Dock.open()">Personalizar barra inferior</button>
 
       </div>
     </section>
