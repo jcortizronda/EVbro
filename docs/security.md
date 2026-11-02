@@ -63,7 +63,7 @@ Documentos del coche, facturas de mantenimiento y foto del coche pasan por el mi
 ## Notificaciones Web Push
 - `security/vapid.py` genera la clave VAPID en `DATA_DIR/vapid_private.pem`; la pública se sirve en `GET /api/notifications/push/public-key`. Cada dispositivo se suscribe desde **Ajustes → Avisos** (`push.js`) con `POST /push/subscribe`; la suscripción se guarda **cifrada** y la API no devuelve endpoints ni claves.
 - El envío (`NotificationService.send_webpush`, `pywebpush` en un hilo) borra las suscripciones que responden 404/410; otros errores se anotan en `last_error` del dispositivo.
-- **Exige contexto seguro** (HTTPS o `localhost`): sin él el navegador no ofrece `PushManager`. En iPhone solo funciona con la PWA añadida a la pantalla de inicio. Probado con claves reales y cifrado `aes128gcm` sin red; **no probado contra FCM real**.
+- **Exige contexto seguro** (HTTPS o `localhost`): sin él el navegador no ofrece `PushManager`. En iPhone solo funciona con la PWA añadida a la pantalla de inicio. Probado con claves reales y cifrado `aes128gcm`, y comprobado por el dueño del proyecto en un móvil Android real (Google FCM) en noviembre de 2026. En iPhone no se ha probado.
 
 ## Tus datos: exportar, importar, consentimiento y registro del administrador
 
