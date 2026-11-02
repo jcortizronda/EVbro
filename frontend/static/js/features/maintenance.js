@@ -31,7 +31,7 @@ function renderMaintenance() {
   const sw = document.getElementById('maintModeSwitch');
   if (sw) sw.hidden = !available;
   const intro = document.getElementById('maintIntro');
-  if (intro) intro.textContent = available ? 'Sigue la pauta oficial de EBRO o define tus propias tareas.' : 'Define tus propias tareas e intervalos. La ITV se calcula igual para cualquier marca.';
+  if (intro) intro.textContent = available ? 'Plan de mantenimiento oficial de EBRO o personalizado.' : 'Plan de mantenimiento personalizado. La ITV se calcula igual para todas las marcas.';
   for (const [id, on] of [['maintModeOfficial', official], ['maintModeCustom', !official]]) {
     const b = document.getElementById(id);
     if (b) { b.setAttribute('aria-selected', String(on)); b.classList.toggle('is-active', on); }

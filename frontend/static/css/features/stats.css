@@ -2,6 +2,7 @@
    Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
 .st-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+.st-card + .st-grid { margin-top: 12px; }                         /* «Resumen» does not stick to the first chart */
 @media (min-width: 900px) { .st-grid { grid-template-columns: 1fr 1fr; } }
 .st-card { padding: 14px 14px 10px; }
 .st-card .card-title { margin-bottom: 2px; }

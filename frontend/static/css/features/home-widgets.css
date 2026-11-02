@@ -84,3 +84,5 @@ body.home-editing .home-widgets { padding-bottom: 150px; }
 .dock-edit-add:disabled { opacity: 0.45; cursor: default; }
 .dock-edit-plus { padding: 0 8px; font-size: 1.3rem; font-weight: 700; color: var(--accent-bright, var(--primary)); }
 #dockModal .modal-card { max-height: 90vh; overflow-y: auto; }
+/* Every widget is followed by 12 px (its card's margin); the charge history panel had none and stuck to the next one */
+.home-widget[data-widget="charges"] > #chargesSubTabHistory { margin-bottom: 12px; }

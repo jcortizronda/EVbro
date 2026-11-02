@@ -23,6 +23,21 @@ def dialog_open(pg):
     return pg.evaluate("document.getElementById('appDialog').classList.contains('open')")
 
 
+GAPS_JS = """(id) => { const ws = [...document.querySelectorAll('#' + id + ' > .home-widget')].filter((w) => !w.hidden && w.getBoundingClientRect().height > 0);
+  const box = (w) => { const k = [...w.children].filter((e) => getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().height > 0);
+    return k.length ? { top: Math.min(...k.map((e) => e.getBoundingClientRect().top)), bottom: Math.max(...k.map((e) => e.getBoundingClientRect().bottom)) } : w.getBoundingClientRect(); };
+  const out = {}; for (let i = 1; i < ws.length; i++) out[ws[i - 1].dataset.widget + '>' + ws[i].dataset.widget] = Math.round(box(ws[i]).top - box(ws[i - 1]).bottom);
+  return out; }"""
+
+
+def gaps_ok(pg, tab, box):
+    """No block sticks to the one before it (seen 2026-11-02: the charge history touched «Programar carga")."""
+    pg.evaluate(f"switchTab('{tab}')")
+    pg.wait_for_timeout(500)
+    gaps = pg.evaluate(GAPS_JS, box)
+    ok(gaps and all(8 <= g <= 20 for g in gaps.values()), f"{tab}: every block keeps its space from the previous one {gaps}")
+
+
 def order(pg, box):
     return pg.eval_on_selector_all(f"#{box} > .home-widget:not([hidden])", "els => els.map(e => e.dataset.widget)")
 
@@ -39,6 +54,9 @@ with sync_playwright() as p:
     pg.goto(BASE)
     pg.wait_for_load_state("networkidle")
     pg.wait_for_timeout(800)
+
+    for tab, box in (("overview", "homeWidgets"), ("charges", "energyWidgets"), ("climate", "comfortWidgets")):
+        gaps_ok(pg, tab, box)
 
     # ── Energía ──
     pg.evaluate("switchTab('charges')")
