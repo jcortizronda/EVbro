@@ -64,6 +64,26 @@ with sync_playwright() as p:
         pg.click("#dockModal >> text=Hecho")
         pg.wait_for_timeout(600)
 
+        # what is in the bar is not repeated in Más; its row partner takes the whole width
+        pg.evaluate("switchTab('more')")
+        pg.wait_for_timeout(300)
+        shown = lambda sel: pg.is_visible(f'#tabMore .native-card-btn[data-on-click="{sel}"]')
+        ok(not shown("switchTab('drives')") and not shown("switchTab('maintenance')") and not shown("openAllSensorsModal()"),
+           "Viajes, Mantenimiento and Sensores left Más")
+        ok(shown("switchTab('stats')") and shown("switchTab('geofences')") and shown("switchTab('costs')"), "the rest of Más stays")
+        row_hidden = pg.evaluate("(() => { const b = document.querySelector(`#tabMore [data-on-click=\"switchTab('drives')\"]`); return getComputedStyle(b.parentElement).display === 'none'; })()")
+        ok(row_hidden, "the Viajes/Mantenimiento row, now empty, is gone")
+        alone = pg.evaluate("""(() => {
+          const ex = document.querySelector(`#tabMore [data-on-click="switchTab('expenses')"]`);
+          const co = document.querySelector(`#tabMore [data-on-click="switchTab('costs')"]`);
+          ex.classList.add('in-dock');
+          const r = co.getBoundingClientRect().width, g = co.parentElement.getBoundingClientRect().width;
+          ex.classList.remove('in-dock');
+          return Math.abs(r - g) < 2;
+        })()""")
+        ok(alone, "a button left alone in its row takes the whole width")
+        pg.screenshot(path=f"{OUT}/mas-sin-repetidos-{theme}.png", full_page=True)
+
         # the icons work like the Más ones, and the right one lights up
         pg.click("#mobTabDrives")
         pg.wait_for_timeout(400)
@@ -95,6 +115,7 @@ with sync_playwright() as p:
         pg.click("#dockModal >> text=Restablecer")
         pg.wait_for_timeout(500)
         ok(bar(pg) == ["mobTabOverview", "mobTabCharges", "mobTabClimate", "mobTabMore"], "«Restablecer» brings the usual bar back")
+        ok(pg.locator("#tabMore .native-card-btn.in-dock").count() == 0, "and Más gets every section back")
         ok(ctx.request.get(f"{BASE}/api/account/home-layout").json()["layout"] is None, "and the server forgets it")
         pg.click("#dockModal >> text=Hecho")
         ok(not errors, f"no JS errors {errors[:2]}")

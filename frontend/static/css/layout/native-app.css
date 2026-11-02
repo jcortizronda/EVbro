@@ -738,4 +738,11 @@ body[data-manual="1"] #mobTabCharges, body[data-manual="1"] #mobTabClimate,
 body[data-manual="1"] .side-item[data-tab="charges"], body[data-manual="1"] .side-item[data-tab="climate"],
 body[data-manual="1"] .side-item[data-on-click="openAllSensorsModal()"],
 body[data-manual="1"] #tabMore [data-on-click="openAllSensorsModal()"], body[data-manual="1"] #mobDockSensors { display: none !important; }
+/* Sections already in the bottom bar are not repeated in Más (features/dock.js marks them `in-dock`). Only where the bar
+   exists: with a mouse and a wide window there is no bar (layout/dock-desktop.css), so Más keeps them all. */
+@media not all and (min-width: 769px) and (hover: hover) and (pointer: fine) {        /* (on a computer Más is not even shown) */
+  #tabMore .native-card-btn.in-dock { display: none !important; }
+  #tabMore .native-action-grid > div:has(> .native-card-btn.in-dock) { grid-template-columns: 1fr !important; }   /* beats the u-grid-… utility */
+  #tabMore .native-action-grid > div:not(:has(> .native-card-btn:not(.in-dock))) { display: none; }
+}
 body[data-manual="1"]:not([data-gps="1"]) #liveMapCard { display: none !important; }

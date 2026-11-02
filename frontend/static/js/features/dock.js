@@ -3,7 +3,9 @@
  * - The icons are taken from the Más menu itself (and the original Carga/Confort buttons), so they never drift apart.
  * - Each button keeps the `mobTab<Tab>` id: switchTab() lights it up, and lights Más only for sections not in the bar.
  * - Saved per account on the server (`/api/account/home-layout`, page `dock`) and copied in the device to draw it at once.
- * - On a computer there is no bottom bar (sidebar instead), so neither is its «Personalizar barra inferior» button.
+ * - What is in the bar disappears from Más (class `in-dock`); a row of Más left with one button gives it the whole width.
+ * - On a computer there is no bottom bar (sidebar instead), so neither is its «Personalizar barra inferior» button, and Más
+ *   keeps every section.
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 const Dock = (function () {
@@ -69,6 +71,10 @@ const Dock = (function () {
       more.before(b);
     });
     bar.dataset.count = String(chosen.length + 2);
+    // what is already in the bar is not repeated in Más (CSS hides it only where the bar exists: not on a computer)
+    document.querySelectorAll('#tabMore .native-card-btn').forEach((b) => {
+      b.classList.toggle('in-dock', chosen.some((k) => clickOf(k) === b.dataset.onClick));
+    });
     const current = window.currentTabName || 'overview';
     bar.querySelectorAll('.dock-item').forEach((b) => b.classList.remove('active'));
     const lit = $(`mobTab${cap(current)}`) || (current !== 'overview' ? more : home);
