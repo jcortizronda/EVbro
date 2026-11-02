@@ -37,6 +37,9 @@ El nombre del proyecto es fijo (`evbro`): los volúmenes (`evbro_evbro_data` con
 | `ADMIN_BIND_ADDRESS` / `ADMIN_WEB_PORT` | `127.0.0.1` / `8082` | Consola de administración (solo red local) |
 | `DEFAULT_VEHICLE_LIMIT` / `DEFAULT_MEMBER_LIMIT` / `DEFAULT_STORAGE_MB` / `INVITE_DEFAULT_DAYS` | `2` / `5` / `50` / `14` | Límites de un gestor nuevo y caducidad de las invitaciones |
 | `ALLOW_PRIVATE_WEBHOOKS` | `false` | Webhooks hacia direcciones privadas (p. ej. Home Assistant en la LAN) |
+| `CATALOG_DEFAULT_URL` | `https://catalog.evbro.app` | Servidor del catálogo en línea cuando en la consola se pega solo la clave (`ebc_…`) |
+| `TELEMETRY_URL` | `https://data.evbro.app` | Adónde van los informes anónimos **si el administrador los activa** en la consola; vacío = nunca se envían ([telemetry.md](telemetry.md)) |
+| `TELEMETRY_RECEIVER` | `false` | Solo el servidor del proyecto: recibe los informes de otras instalaciones y los muestra en la pestaña Informes de su consola |
 | `POLL_INTERVAL_PARKED_MIN` / `_PLUGGED_MIN` / `_CHARGING_MIN` / `_DRIVING_MIN` / `_DRIVING_IDLE_MIN` | `60` / `30` / `2` / `1` / `3` | Cada cuánto se consulta la nube según el estado (0 = no sondear). No despierta el coche, pero compite con la app oficial: no bajarlos sin motivo |
 | `CAR_MQTT_ENABLED` / `CAR_MQTT_HOST` / `CAR_MQTT_PORT` | `false` / nube de Ebro / `8083` | Canal en directo con el coche (puertas, cierre, cable, motor, confirmaciones). Solo la cuenta propietaria; la nube admite un cliente por cuenta |
 | `MQTT_ENABLED` / `MQTT_HOST` / `MQTT_PORT` / `MQTT_USER` / `MQTT_PASSWORD` / `MQTT_TOPIC_PREFIX` / `MQTT_PUBLISH_SCOPE` / `MQTT_HA_DISCOVERY` / `MQTT_HA_PREFIX` | `false` / `mosquitto` / `1883` / — / — / `evbro` / `owner` / `true` / `homeassistant` | Publicar los coches en tu broker MQTT (Home Assistant los descubre). Cada gestor puede conectar el suyo desde Ajustes → Cuenta |

@@ -271,5 +271,13 @@
  "Avisos": "Alerts",
  "Fab. {p0}": "OEM {p0}",
  "Referencias": "Part numbers",
- "Widget no válido.": "Invalid widget."
+ "Widget no válido.": "Invalid widget.",
+ "Activa los informes antes de enviar uno.": "Turn the reports on before sending one.",
+ "Este servidor no tiene dirección para los informes (TELEMETRY_URL vacía).": "This server has no address for the reports (TELEMETRY_URL empty).",
+ "No es JSON.": "It is not JSON.",
+ "Informe demasiado grande.": "Report too large.",
+ "Demasiado grande.": "Too large.",
+ "El informe no es JSON.": "The report is not JSON.",
+ "Este servidor no recibe informes.": "This server does not receive reports.",
+ "Error no encontrado.": "Error not found."
 }

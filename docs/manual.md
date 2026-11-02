@@ -80,7 +80,7 @@ El menú con el resto de secciones, agrupadas en **Historial** y **Gestión**.
 - **Añadir coche sin cuenta Ebro**: un coche de cualquier marca para llevar su mantenimiento, gastos, costes y piezas (sin datos en directo). Con un localizador GPS y un servidor Traccar también tiene posición y viajes.
 - **Foto** del coche, que se usa en la cabecera de Inicio.
 
-**Geocercas.** Zonas en el mapa (casa, trabajo, cargador…) con radio. Sirven para tres cosas: **avisar** al entrar o salir, **poner precio** a las cargas hechas dentro (tarifa fija, gratis, 2.0TD con sus tres precios o PVPC regulado) y clasificar los viajes. Si creas una geocerca en un sitio donde ya habías estado, las cargas y viajes anteriores de ese sitio pasan a llevar su nombre; **sus precios no cambian** (solo las cargas nuevas toman la tarifa). La tarjeta **Entradas y salidas** es el registro de cada paso por ellas.
+**Geocercas.** Zonas en el mapa (casa, trabajo, cargador…) con radio. Sirven para tres cosas: **avisar** al entrar o salir, **poner precio** a las cargas hechas dentro (tarifa fija, gratis, 2.0TD con sus tres precios o PVPC regulado) y clasificar los viajes. En la 2.0TD los tramos siguen la hora de España (la de Canarias en su zona); los sábados, los domingos y los festivos nacionales de fecha fija (1 y 6 de enero, 1 de mayo, 15 de agosto, 12 de octubre, 1 de noviembre y 6, 8 y 25 de diciembre) son valle todo el día. Los festivos autonómicos, los trasladados a lunes y el Viernes Santo no cuentan, como marca la Circular 3/2020 de la CNMC. Si creas una geocerca en un sitio donde ya habías estado, las cargas y viajes anteriores de ese sitio pasan a llevar su nombre; **sus precios no cambian** (solo las cargas nuevas toman la tarifa). La tarjeta **Entradas y salidas** es el registro de cada paso por ellas.
 
 **Ajustes.** Cada apartado es una sección desplegable; el móvil recuerda cuáles dejaste abiertas.
 - *Cuenta*: tu usuario de EVBro (cambiar contraseña, cerrar sesión), **acceso con huella** (añade este dispositivo y entra sin contraseña; exige HTTPS), la **cuenta de Ebro** (conectar, sincronizar coches, guardar o cambiar el PIN) y **cuándo pedir el PIN**: solo al abrir el coche (por defecto), siempre o nunca. **Tus datos**: descargar todo en un ZIP e importar un ZIP en otro servidor. Enlace a qué datos guarda este servidor.
@@ -103,8 +103,12 @@ El menú con el resto de secciones, agrupadas en **Historial** y **Gestión**.
 
 Es otra web, en otro puerto, solo para la red local. El administrador no tiene coches ni ve los datos de nadie: crea **gestores**, emite **invitaciones**, pone **límites** (coches, cuentas asociadas, espacio para ficheros), ajusta el **servidor** (cuánto historial se conserva, intervalos de sondeo), modera el **catálogo compartido** de consumibles (aprobar, rechazar, editar propuestas, añadir piezas ya aprobadas; conectar con el catálogo de otro servidor) y consulta un **registro** de sus acciones y cifras agregadas del servidor. También está en los tres idiomas.
 
+**Informes anónimos.** La primera vez la consola pregunta si quieres enviar al proyecto un informe anónimo al día: versión, qué funciones se usan, cómo responden la nube de Ebro y las órdenes, y los fallos registrados. Ayuda a encontrar y corregir errores. No lleva nombres, usuarios, matrículas, VIN, posiciones, viajes ni importes, y con **Ver qué se envía** lees el informe exacto antes de decidir. Se activa o desactiva cuando quieras en la pestaña Servidor.
+
+**Catálogo del proyecto.** Para usar el catálogo compartido de consumibles del proyecto basta con pegar en la pestaña Catálogo la clave que te den (`ebc_…`); el servidor la usa con `catalog.evbro.app`.
+
 ## Lo que EVBro no hace (a propósito)
 
 - No arranca el motor a distancia (el coche lo rechaza) ni para o inicia la carga «de verdad»: lo hace con la programación.
 - No guarda tu PIN en el navegador; en el servidor va cifrado y solo si tú quieres.
-- No envía tus datos a nadie: el servidor es tuyo. Las únicas salidas son la nube de Chery (para hablar con el coche), los mapas de OpenStreetMap y los canales de aviso que tú actives.
+- No envía tus datos a nadie: el servidor es tuyo. Las únicas salidas son la nube de Chery (para hablar con el coche), los mapas de OpenStreetMap, los canales de aviso que tú actives y, solo si el administrador lo activa, un informe anónimo al día para el proyecto (sin datos personales).

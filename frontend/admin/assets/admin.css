@@ -113,3 +113,16 @@ dialog textarea { resize: vertical; }
   .fit-del { grid-column: 1 / -1; justify-self: end; padding: 4px 12px; }
   .dlg-grid { grid-template-columns: 1fr; }
 }
+
+/* Anonymous reports (services/telemetry.py): the question on top, the preview and the project's «Informes» tab */
+.card.notice { border-left: 4px solid var(--accent, #7c5cff); }
+pre.json { max-height: 60vh; overflow: auto; margin: 10px 0; padding: 12px; background: var(--bg); border-radius: 8px; font-size: 0.8rem; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+.rep-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; margin-top: 16px; }
+.rep-cols h3 { margin: 0 0 6px; font-size: 0.95rem; }
+.rep-list { list-style: none; margin: 0; padding: 0; font-size: 0.88rem; }
+.rep-list li { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; border-bottom: 1px solid var(--line, rgba(127,127,127,.18)); }
+.rep-list li span:last-child { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+label.check { display: inline-flex; flex-direction: row; align-items: center; gap: 8px; font-weight: 400; }
+.err-msg { display: block; color: var(--muted); font-size: 0.82rem; word-break: break-word; }
+.err-frames { margin: 6px 0 0; padding-left: 16px; font-size: 0.78rem; color: var(--muted); }
+td.where { font-family: ui-monospace, monospace; font-size: 0.8rem; word-break: break-all; }

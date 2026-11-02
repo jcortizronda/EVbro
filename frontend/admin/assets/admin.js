@@ -133,10 +133,11 @@ document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click',
   if (tab.dataset.tab === 'stats') loadStats();
   document.querySelectorAll('.tab').forEach((t) => { const on = t === tab; t.classList.toggle('is-active', on); t.setAttribute('aria-selected', String(on)); });
   if (tab.dataset.tab === 'audit') loadAudit();
-  for (const name of ['managers', 'stats', 'invites', 'server', 'catalog', 'audit']) $('tab' + name[0].toUpperCase() + name.slice(1)).hidden = tab.dataset.tab !== name;
+  if (tab.dataset.tab === 'reports') loadReports();
+  for (const name of ['managers', 'stats', 'invites', 'server', 'catalog', 'reports', 'audit']) $('tab' + name[0].toUpperCase() + name.slice(1)).hidden = tab.dataset.tab !== name;
 }));
 
-async function loadAll() { await Promise.all([loadManagers(), loadStats(), loadInvites(), loadServer(), loadCatalog(), loadCatalogSource(), loadCatalogKeys(), loadAudit()]); }
+async function loadAll() { await Promise.all([loadManagers(), loadStats(), loadInvites(), loadServer(), loadCatalog(), loadCatalogSource(), loadCatalogKeys(), loadAudit(), loadTelemetry()]); }
 
 // ───────────────────────── managers ─────────────────────────
 async function loadManagers() {
@@ -530,8 +531,9 @@ async function loadCatalogSource() {
   try { c = await api('/api/admin/catalog/source'); } catch (e) { return; }
   $('srcMode').value = c.source;
   $('srcLink').value = '';
-  $('srcLink').placeholder = c.has_link ? `guardado: ${c.server || 'enlace'}#…  (pega otro para cambiarlo)` : 'https://servidor#ebc_…';
-  $('srcLinkInfo').textContent = c.has_link ? 'Deja el campo vacío para conservar el enlace guardado.' : '';
+  $('srcLink').placeholder = c.has_link ? `guardado: ${c.server || 'enlace'}#…  (pega otro para cambiarlo)` : 'ebc_…';
+  $('srcLinkInfo').textContent = c.has_link ? t('Deja el campo vacío para conservar la clave guardada.')
+    : (c.default_server ? t('Una clave sola se usa con {p0}.', {p0: c.default_server}) : '');
   const parts = [];
   if (c.source === 'remote') parts.push(t('Espejo: {p0} entradas', {p0: c.entries}));
   if (c.last_sync_at) parts.push(t('última sincronización {p0}', {p0: new Date(c.last_sync_at).toLocaleString(I18n.locale)}));
@@ -592,10 +594,12 @@ $('formCatalogKey').addEventListener('submit', async (ev) => {
   try {
     const k = await api('/api/admin/catalog/keys', 'POST', { note: $('keyNote').value.trim() || null, days: optionalInt('keyDays') });
     const box = $('keyResult');
+    const shown = k.key_alone ? k.key : (k.link || k.key);
     box.replaceChildren(
-      k.link ? 'Enlace para ese servidor (se enseña solo ahora): ' : 'Clave (se enseña solo ahora; pon la URL pública para obtener el enlace completo): ',
-      h('code', {}, k.link || k.key), ' ',
-      h('button', { type: 'button', class: 'ghost', onclick: () => navigator.clipboard.writeText(k.link || k.key).then(() => toast('Copiado.')) }, 'Copiar'));
+      k.key_alone ? 'Clave para ese servidor (se enseña solo ahora; basta con pegarla allí): '
+        : k.link ? 'Enlace para ese servidor (se enseña solo ahora): ' : 'Clave (se enseña solo ahora; pon la URL pública para obtener el enlace completo): ',
+      h('code', {}, shown), ' ',
+      h('button', { type: 'button', class: 'ghost', onclick: () => navigator.clipboard.writeText(shown).then(() => toast('Copiado.')) }, 'Copiar'));
     box.hidden = false;
     $('keyNote').value = ''; $('keyDays').value = '';
     loadCatalogKeys();
@@ -606,6 +610,8 @@ $('formCatalogKey').addEventListener('submit', async (ev) => {
 // ───────────────────────── Action log ─────────────────────────
 const AUDIT_LABELS = { login: 'Entrada en la consola', 'manager.create': 'Gestor creado', 'manager.delete': 'Espacio de gestor borrado', 'user.update': 'Cuenta modificada',
   'invite.create': 'Invitación creada', 'invite.revoke': 'Invitación anulada', 'catalog.approve': 'Catálogo: aprobada', 'catalog.create': 'Catálogo: añadida', 'catalog.reject': 'Catálogo: rechazada', 'catalog.edit': 'Catálogo: editada',
+  'telemetry.enabled': 'Informes activados', 'telemetry.disabled': 'Informes desactivados', 'telemetry.send': 'Informe enviado', 'telemetry.new_id': 'Informes: identificador nuevo',
+  'telemetry.resolve': 'Informes: fallo resuelto', 'telemetry.reopen': 'Informes: fallo reabierto',
   'catalog.key.create': 'Catálogo: clave creada', 'catalog.key.revoke': 'Catálogo: clave anulada', 'catalog.public_url': 'Catálogo: URL pública', 'catalog.source': 'Catálogo: origen cambiado', 'catalog.sync': 'Catálogo: sincronizado' };
 async function loadAudit() {
   let list;
@@ -618,6 +624,110 @@ async function loadAudit() {
       h('td', {}, r.username), h('td', {}, AUDIT_LABELS[r.action] || r.action), h('td', {}, r.target || '—'), h('td', {}, r.detail || '—'), h('td', {}, r.ip || '—')));
   }
 }
+
+// ───────────────────────── anonymous reports: this server's choice (services/telemetry.py, docs/telemetry.md) ─────────────────────────
+let telemetryState = null;
+async function loadTelemetry() {
+  try { telemetryState = await api('/api/admin/telemetry'); } catch (e) { return; }
+  const s = telemetryState;
+  $('telemetryAsk').hidden = s.decided || !s.available;
+  $('tabBtnReports').hidden = !s.receiver;
+  const parts = [];
+  if (!s.available) parts.push(t('Este servidor no tiene dirección para los informes (TELEMETRY_URL vacía): no se envía nada.'));
+  else parts.push(s.enabled ? t('Activados: se envían a {p0}.', {p0: s.url}) : (s.decided ? t('Desactivados.') : t('Sin decidir: no se envía nada.')));
+  if (s.last) {
+    const when = new Date(s.last.at + 'Z').toLocaleString(I18n.locale);
+    parts.push(s.last.ok ? t('Último envío: {p0}, aceptado.', {p0: when}) : t('Último intento: {p0}, falló ({p1}).', {p0: when, p1: s.last.error || s.last.status || '?'}));
+  }
+  if (s.enabled) parts.push(t('{p0} fallos esperando al próximo informe.', {p0: s.pending_errors}));
+  parts.push(t('Identificador de esta instalación: {p0}', {p0: s.install_id}));
+  $('telStatus').textContent = parts.join(' · ');
+  $('btnTelToggle').textContent = s.enabled ? t('Desactivar') : t('Activar');
+  $('btnTelToggle').className = s.enabled ? 'ghost' : 'primary';
+  $('btnTelToggle').disabled = !s.available;
+  $('btnTelSend').disabled = !s.enabled;
+}
+async function setTelemetry(enabled) {
+  try {
+    await api('/api/admin/telemetry', 'PUT', { enabled });
+    toast(enabled ? 'Informes activados. Gracias.' : 'Informes desactivados.');
+  } catch (e) { toast(e.message, true, 7000); }
+  loadTelemetry();
+}
+async function showTelemetryPreview() {
+  let r;
+  try { r = await api('/api/admin/telemetry/preview'); } catch (e) { toast(e.message, true); return; }
+  $('telPreview').textContent = JSON.stringify(r, null, 2);
+  $('dlgTelemetry').showModal();
+}
+$('btnTelYes').addEventListener('click', () => setTelemetry(true));
+$('btnTelNo').addEventListener('click', () => setTelemetry(false));
+$('btnTelPreviewAsk').addEventListener('click', showTelemetryPreview);
+$('btnTelPreview').addEventListener('click', showTelemetryPreview);
+$('btnTelToggle').addEventListener('click', () => setTelemetry(!(telemetryState && telemetryState.enabled)));
+$('btnTelSend').addEventListener('click', async () => {
+  $('btnTelSend').disabled = true;
+  try {
+    const r = await api('/api/admin/telemetry/send', 'POST');
+    if (r.ok) toast('Informe enviado.'); else toast(t('El informe no se pudo enviar: {p0}', {p0: r.error || r.status}), true, 8000);
+  } catch (e) { toast(e.message, true, 7000); }
+  loadTelemetry();
+});
+$('btnTelNewId').addEventListener('click', async () => {
+  if (!await confirmAsk('Los informes siguientes llevarán un identificador nuevo y no se podrán relacionar con los anteriores.', { title: 'Nuevo identificador', okText: 'Cambiar' })) return;
+  try { await api('/api/admin/telemetry/new-id', 'POST'); toast('Identificador cambiado.'); } catch (e) { toast(e.message, true); }
+  loadTelemetry();
+});
+
+// ───────────────────────── «Informes»: what the installations report (project's server only, TELEMETRY_RECEIVER) ─────────────────────────
+const FEATURE_LABELS = {
+  server_mqtt: 'MQTT del servidor', car_mqtt: 'Canal en directo del coche', geocoding: 'Direcciones (OpenStreetMap)', account_mqtt: 'MQTT de un gestor',
+  traccar: 'Traccar', web_push: 'Notificaciones push', telegram: 'Telegram', pushover: 'Pushover', webhook: 'Webhook', passkeys: 'Huella (passkeys)',
+  online_catalog: 'Catálogo en línea', climate_schedules: 'Clima programado', charge_plans: 'Carga programada', geofences: 'Geocercas',
+  maintenance_plans: 'Plan de mantenimiento', refuels: 'Repostajes', expenses: 'Gastos', documents: 'Documentos', parts: 'Consumibles', journeys: 'Escapadas',
+};
+let reportsData = null;
+function repList(id, rows, label) {
+  $(id).replaceChildren(...(rows.length ? rows.map((r) => h('li', {}, h('span', {}, label(r)), h('span', {}, String(r.installs)))) : [h('li', {}, h('span', {}, '—'))]));
+}
+async function loadReports() {
+  try { reportsData = await api('/api/admin/telemetry/received'); } catch (e) { return; }
+  const d = reportsData;
+  $('repTotals').replaceChildren(kpi(num(d.installs.active_7d), 'Activas (7 días)'), kpi(num(d.installs.active_30d), 'Activas (30 días)'),
+    kpi(num(d.installs.total), 'Guardadas'), kpi(num(d.errors.filter((e) => !e.resolved).length), 'Fallos abiertos'));
+  repList('repVersions', d.versions, (r) => r.value);
+  repList('repModels', d.models, (r) => r.value);
+  repList('repFeatures', d.features, (r) => t(FEATURE_LABELS[r.feature] || r.feature));
+  repList('repPlatform', [...d.databases, ...d.architectures], (r) => r.value);
+  const p = d.polls;
+  $('repPolls').textContent = t('Consultas a la nube en los últimos informes: {p0} con datos, {p1} vacías, {p2} con error.', {p0: num(p.ok), p1: num(p.empty), p2: num(p.error)});
+  const cb = $('tblRepCommands').querySelector('tbody');
+  cb.replaceChildren(...d.commands.map((c) => h('tr', {}, h('td', {}, c.command), h('td', {}, c.model), h('td', {}, num(c.ok)), h('td', {}, num(c.failed)),
+    h('td', {}, Object.entries(c.codes).map(([k, n]) => `${k} ×${n}`).join(', ') || '—'))));
+  $('emptyRepCommands').hidden = d.commands.length > 0;
+  drawReportErrors();
+}
+function drawReportErrors() {
+  if (!reportsData) return;
+  const all = $('repShowResolved').checked;
+  const rows = reportsData.errors.filter((e) => all || !e.resolved);
+  const body = $('tblRepErrors').querySelector('tbody');
+  body.replaceChildren(...rows.map((e) => h('tr', {},
+    h('td', {}, h('strong', {}, `${e.kind === 'web' ? 'Web' : 'Servidor'} · ${e.type || '?'}`), e.level === 'warning' ? h('span', { class: 'chip warn' }, 'aviso') : '',
+      h('span', { class: 'err-msg' }, e.message || ''),
+      e.frames.length ? h('details', {}, h('summary', {}, t('{p0} líneas de código', {p0: e.frames.length})), h('ol', { class: 'err-frames' }, ...e.frames.map((f) => h('li', {}, f)))) : ''),
+    h('td', { class: 'where' }, e.location || '—'),
+    h('td', {}, num(e.count)), h('td', {}, num(e.installs)), h('td', {}, e.versions.join(', ') || '—'),
+    h('td', {}, new Date(e.last_seen + 'Z').toLocaleString(I18n.locale)),
+    h('td', {}, h('button', { type: 'button', class: 'ghost', onclick: () => resolveError(e) }, e.resolved ? t('Reabrir') : t('Resuelto'))))));
+  $('emptyRepErrors').hidden = rows.length > 0;
+}
+async function resolveError(e) {
+  try { await api(`/api/admin/telemetry/errors/${e.id}/resolve`, 'POST', { resolved: !e.resolved }); } catch (ex) { toast(ex.message, true); return; }
+  loadReports();
+}
+$('repShowResolved').addEventListener('change', drawReportErrors);
+$('btnReportsReload').addEventListener('click', loadReports);
 
 // Language of the console (and of this administrator's account): saved on the server, the page reloads in it (docs/i18n.md)
 (() => {

@@ -891,3 +891,69 @@ class PasskeyCredential(Base):
     label = Column(String(120), nullable=True)                                     # «Chrome en Android», to recognise it in the list
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     last_used_at = Column(DateTime, nullable=True)
+
+
+# ───────────────────────── telemetry (services/telemetry.py, docs/telemetry.md) ─────────────────────────
+class TelemetryLocalError(Base):
+    """An error or warning of THIS installation waiting for the next report, grouped by fingerprint (type + where it happened).
+
+    Only filled while the administrator has turned the reports on. Carries no personal data: the message is scrubbed (numbers,
+    VINs, e-mails, addresses, tokens) before it is stored. Rows are deleted once a report carrying them is accepted."""
+    __tablename__ = "telemetry_local_errors"
+
+    fingerprint = Column(String(64), primary_key=True)
+    kind = Column(String(10), nullable=False)                 # server | web
+    level = Column(String(10), nullable=False)                # warning | error
+    error_type = Column(String(120), nullable=True)           # exception class, or the logger name for a plain log line
+    message = Column(Text, nullable=True)                     # scrubbed
+    location = Column(String(240), nullable=True)             # file:line:function of EVBro's own code
+    frames = Column(JSON, nullable=True)                      # ["app/services/poller.py:310 poll_vehicle", ...]
+    count = Column(Integer, default=0, nullable=False)
+    first_seen = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    last_seen = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+
+
+class TelemetryInstall(Base):
+    """Receiver side (TELEMETRY_RECEIVER): one row per anonymous installation id, with its latest report."""
+    __tablename__ = "telemetry_installs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    install_id = Column(String(40), unique=True, index=True, nullable=False)
+    first_seen = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    last_seen = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    version = Column(String(40), nullable=True)
+    commit = Column(String(40), nullable=True)
+    reports = Column(Integer, default=0, nullable=False)
+    report = Column(JSON, nullable=True)                      # the latest report without its error list
+
+
+class TelemetryErrorGroup(Base):
+    """Receiver side: one error, whatever installation reported it (same fingerprint = same place in the code)."""
+    __tablename__ = "telemetry_error_groups"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    fingerprint = Column(String(64), unique=True, index=True, nullable=False)
+    kind = Column(String(10), nullable=False)
+    level = Column(String(10), nullable=False)
+    error_type = Column(String(120), nullable=True)
+    message = Column(Text, nullable=True)
+    location = Column(String(240), nullable=True)
+    frames = Column(JSON, nullable=True)
+    total_count = Column(BigInteger, default=0, nullable=False)
+    versions = Column(JSON, nullable=True)                    # the last versions that reported it
+    first_seen = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    last_seen = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    resolved_at = Column(DateTime, nullable=True)             # marked as fixed in the console; reopened if it comes back
+
+
+class TelemetryErrorHit(Base):
+    """Receiver side: how often one installation reported one error group (to count the installations it affects)."""
+    __tablename__ = "telemetry_error_hits"
+    __table_args__ = (UniqueConstraint("group_id", "install_id", name="uq_telemetry_hit"),)
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    group_id = Column(Integer, ForeignKey("telemetry_error_groups.id", ondelete="CASCADE"), index=True, nullable=False)
+    install_id = Column(String(40), index=True, nullable=False)
+    count = Column(BigInteger, default=0, nullable=False)
+    version = Column(String(40), nullable=True)
+    last_seen = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)

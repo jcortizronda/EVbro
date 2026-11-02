@@ -21,6 +21,7 @@ from app.db.models import AppUser, CommandAudit, EbroAccount, Geofence, Geofence
 from app.db.session import async_session_factory
 from app.security.access import first_manager_id, foreign_vins, within_vehicle_limit
 from app.services import command_policy
+from app.services import telemetry as usage_reports
 from app.services.accounts import fetch_account_vehicles, vehicle_data_dir
 from app.services.car_events import CarEventHub
 from app.services.charge_detector import ChargeDetector
@@ -308,7 +309,8 @@ class VehiclePoller:
         try:
             res, raw_data = await loop.run_in_executor(None, _probe)
         except Exception as e:
-            _LOGGER.error(f"Exception polling {vin}: {e}")
+            usage_reports.count_poll("error")
+            _LOGGER.error(f"Exception polling {vin}: {e}", exc_info=True)
             return None
 
         # With no real-time data (e.g. the car is asleep), use the probe's "rich" summary.
@@ -318,7 +320,9 @@ class VehiclePoller:
             raw_data = res.get("rich", {})
 
         if not raw_data:
+            usage_reports.count_poll("empty")
             return None
+        usage_reports.count_poll("ok")
 
         # Normalise the telemetry
         # The MQTT push wins over the poll when both carry the same key: the poll sometimes returns

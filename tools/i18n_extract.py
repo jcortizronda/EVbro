@@ -150,7 +150,8 @@ BACKEND = ROOT / "backend" / "src" / "app"
 # itself (API errors, notifications: backend/src/app/locales), the PDF, Home Assistant, logs and the admin console.
 _PY_DIRS = ("services", "api", "security")
 _PY_SKIP = {"car_book.py", "notification_service.py", "ha_discovery.py", "mqtt_publisher.py", "mqtt_hub.py", "poller.py", "catalog_remote.py",
-            "account_transfer.py", "admin_stats.py", "admin_audit.py", "invites.py", "tenant.py", "storage.py", "crypto.py"}
+            "account_transfer.py", "admin_stats.py", "admin_audit.py", "invites.py", "tenant.py", "storage.py", "crypto.py",
+            "telemetry.py"}
 _PY_STRING = re.compile(r'''(?<![\w])(?:"((?:[^"\\\n]|\\.)*)"|'((?:[^'\\\n]|\\.)*)')''')
 _PY_NOT_UI = re.compile(r"(_LOGGER|logger|logging)\.\w+\(|#|detail=|raise |Exception\(|Error\(|__doc__|\.format\(|tags=|title=")
 

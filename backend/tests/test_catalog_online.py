@@ -129,7 +129,7 @@ async def test_a_self_hosted_server_mirrors_the_online_catalogue_and_forwards_pr
     await console.put("/api/admin/catalog/keys/public-url", json={"public_url": REMOTE})
     key = (await console.post("/api/admin/catalog/keys", json={"note": "Yo mismo"})).json()["key"]
     # default: own catalogue, no link
-    assert (await console.get("/api/admin/catalog/source")).json() == {"source": "own", "has_link": False, "server": None, "last_sync_at": None, "last_error": None, "entries": 0}
+    assert (await console.get("/api/admin/catalog/source")).json() == {"source": "own", "has_link": False, "server": None, "default_server": "https://catalog.evbro.app", "last_sync_at": None, "last_error": None, "entries": 0}
     assert (await console.put("/api/admin/catalog/source", json={"source": "remote"})).status_code == 422          # needs a link
     assert (await console.put("/api/admin/catalog/source", json={"source": "remote", "link": "https://x#clave-mala"})).status_code == 422
     r = await console.put("/api/admin/catalog/source", json={"source": "remote", "link": f"{REMOTE}#{key}"})
@@ -166,3 +166,32 @@ async def test_a_self_hosted_server_mirrors_the_online_catalogue_and_forwards_pr
     assert (await console.get("/api/admin/catalog/source")).json()["last_error"].startswith("La clave")
     back = (await console.put("/api/admin/catalog/source", json={"source": "own", "link": ""})).json()
     assert back["source"] == "own" and back["has_link"] is False and back["last_error"] is None and back["entries"] == 1
+
+
+async def test_a_bare_key_uses_the_default_catalogue_server(world, monkeypatch) -> None:
+    """Pasting only `ebc_…` stores it with CATALOG_DEFAULT_URL; a full link keeps its own server; no default = the link is required."""
+    console = world["console"]
+    monkeypatch.setattr(settings, "CATALOG_DEFAULT_URL", "https://catalog.evbro.app/")
+    key = "ebc_" + "a" * 30
+    r = await console.put("/api/admin/catalog/source", json={"source": "remote", "link": key})
+    assert r.status_code == 200, r.text
+    assert r.json()["server"] == "https://catalog.evbro.app" and r.json()["default_server"] == "https://catalog.evbro.app"
+    async with async_session_factory() as s:
+        assert (await catalog_remote.get_config(s)).link == f"https://catalog.evbro.app#{key}"
+
+    r = await console.put("/api/admin/catalog/source", json={"source": "remote", "link": f"{REMOTE}#{key}"})
+    assert r.json()["server"] == REMOTE
+
+    monkeypatch.setattr(settings, "CATALOG_DEFAULT_URL", "")
+    r = await console.put("/api/admin/catalog/source", json={"source": "remote", "link": key})
+    assert r.status_code == 422 and "enlace completo" in r.json()["detail"]
+
+
+async def test_the_project_server_hands_out_keys_that_work_alone(world) -> None:
+    """When this server's public URL is the default catalogue, a new key is shown alone (that is all the other side has to paste)."""
+    console = world["console"]
+    await console.put("/api/admin/catalog/keys/public-url", json={"public_url": settings.CATALOG_DEFAULT_URL})
+    k = (await console.post("/api/admin/catalog/keys", json={"note": "Luis"})).json()
+    assert k["key_alone"] is True and k["key"].startswith("ebc_")
+    await console.put("/api/admin/catalog/keys/public-url", json={"public_url": REMOTE})
+    assert (await console.post("/api/admin/catalog/keys", json={"note": "Eva"})).json()["key_alone"] is False

@@ -43,8 +43,15 @@
         <button type="button" role="tab" class="tab" data-tab="invites" aria-selected="false">Invitaciones</button>
         <button type="button" role="tab" class="tab" data-tab="server" aria-selected="false">Servidor</button>
         <button type="button" role="tab" class="tab" data-tab="catalog" aria-selected="false">Catálogo</button>
+        <button type="button" role="tab" class="tab" data-tab="reports" aria-selected="false" id="tabBtnReports" hidden>Informes</button>
         <button type="button" role="tab" class="tab" data-tab="audit" aria-selected="false">Registro</button>
       </nav>
+
+      <div class="card notice" id="telemetryAsk" hidden>
+        <h2>¿Ayudas a mejorar EVBro?</h2>
+        <p class="hint">Este servidor puede enviar una vez al día un informe anónimo al proyecto: versión, qué funciones se usan, cómo responden la nube de Ebro y las órdenes, y los fallos que haya registrado. Sirve para encontrar y corregir errores. No lleva nombres, usuarios, matrículas, VIN, posiciones, viajes ni importes. Antes de decidir puedes ver el informe exacto.</p>
+        <div class="actions"><button type="button" class="primary" id="btnTelYes">Sí, enviar informes</button> <button type="button" class="ghost" id="btnTelPreviewAsk">Ver qué se envía</button> <button type="button" class="ghost" id="btnTelNo">No, gracias</button></div>
+      </div>
 
       <section id="tabManagers" class="pane">
         <div class="card">
@@ -134,6 +141,43 @@
             <div class="actions"><button type="submit" class="primary">Guardar intervalos</button></div>
           </form>
         </div>
+        <div class="card">
+          <h2>Informes anónimos para el proyecto</h2>
+          <p class="hint">Una vez al día, si los activas: versión, tamaño del servidor por tramos, modelos de coche, qué funciones se usan, cómo responden la nube de Ebro y las órdenes, y los fallos registrados (sin datos personales: los mensajes se limpian de números, VIN, direcciones y claves). Nunca nombres, usuarios, matrículas, posiciones, viajes ni importes.</p>
+          <p class="hint" id="telStatus"></p>
+          <div class="actions">
+            <button type="button" class="primary" id="btnTelToggle">Activar</button>
+            <button type="button" class="ghost" id="btnTelPreview">Ver qué se envía</button>
+            <button type="button" class="ghost" id="btnTelSend">Enviar ahora</button>
+            <button type="button" class="ghost" id="btnTelNewId">Nuevo identificador</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="tabReports" class="pane" hidden>
+        <div class="card">
+          <div class="row-between"><h2>Instalaciones</h2><button type="button" class="ghost" id="btnReportsReload">Actualizar</button></div>
+          <p class="hint">Lo que envían las instalaciones que tienen activados los informes. Cada una es un identificador aleatorio; no se guarda su dirección IP. Las que no envían nada en 180 días se borran.</p>
+          <div class="kpis small" id="repTotals"></div>
+          <div class="rep-cols">
+            <div><h3>Versiones</h3><ul class="rep-list" id="repVersions"></ul></div>
+            <div><h3>Modelos</h3><ul class="rep-list" id="repModels"></ul></div>
+            <div><h3>Funciones en uso</h3><ul class="rep-list" id="repFeatures"></ul></div>
+            <div><h3>Base de datos y equipo</h3><ul class="rep-list" id="repPlatform"></ul></div>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Consultas a la nube y órdenes</h2>
+          <p class="hint" id="repPolls"></p>
+          <div class="table-wrap"><table id="tblRepCommands"><thead><tr><th>Orden</th><th>Modelo</th><th>Bien</th><th>Fallos</th><th>Códigos de fallo</th></tr></thead><tbody></tbody></table></div>
+          <p class="empty" id="emptyRepCommands" hidden>Ninguna orden en los últimos informes.</p>
+        </div>
+        <div class="card">
+          <div class="row-between"><h2>Fallos</h2><label class="check"><input id="repShowResolved" type="checkbox"><span>Ver también los resueltos</span></label></div>
+          <p class="hint">Agrupados por el sitio del código donde ocurren. Al marcar uno como resuelto se oculta; vuelve solo si lo envía una versión más nueva.</p>
+          <div class="table-wrap"><table id="tblRepErrors"><thead><tr><th>Error</th><th>Dónde</th><th>Veces</th><th>Instalaciones</th><th>Versiones</th><th>Última vez</th><th></th></tr></thead><tbody></tbody></table></div>
+          <p class="empty" id="emptyRepErrors" hidden>Sin fallos.</p>
+        </div>
       </section>
 
       <section id="tabCatalog" class="pane" hidden>
@@ -150,10 +194,10 @@
 
         <div class="card">
           <h2>Origen del catálogo de este servidor</h2>
-          <p class="hint">«Propio»: solo lo que apruebas aquí. «En línea»: además se descarga a diario el catálogo de otro servidor EVBro con el enlace que te hayan dado (<code>https://servidor#clave</code>; la clave se guarda cifrada y no se vuelve a mostrar), y las propuestas de tus usuarios se envían también a su cola. Sin enlace válido, el servidor sigue con su catálogo propio.</p>
+          <p class="hint">«Propio»: solo lo que apruebas aquí. «En línea»: además se descarga a diario el catálogo de otro servidor EVBro y las propuestas de tus usuarios se envían también a su cola. Basta con pegar la clave que te hayan dado (<code>ebc_…</code>) para usar el catálogo del proyecto; para otro servidor, pega el enlace completo (<code>https://servidor#clave</code>). La clave se guarda cifrada y no se vuelve a mostrar. Sin clave válida, el servidor sigue con su catálogo propio.</p>
           <form id="formCatalogSource" class="inline-form">
             <label><span>Origen</span><select id="srcMode"><option value="own">Propio</option><option value="remote">En línea</option></select></label>
-            <label class="wide"><span>Enlace del catálogo en línea</span><input id="srcLink" type="text" autocomplete="off" placeholder="https://servidor#ebc_…"><small id="srcLinkInfo"></small></label>
+            <label class="wide"><span>Clave o enlace del catálogo en línea</span><input id="srcLink" type="text" autocomplete="off" placeholder="ebc_…"><small id="srcLinkInfo"></small></label>
             <div class="actions"><button type="submit" class="primary">Guardar</button> <button type="button" class="ghost" id="btnCatalogSync">Sincronizar ahora</button></div>
           </form>
           <p class="hint" id="srcStatus"></p>
@@ -233,6 +277,15 @@
       </div>
       <label><span>Notas</span><textarea id="catNotes" rows="3" maxlength="2000"></textarea></label>
       <div class="actions"><button type="submit" class="primary">Guardar</button><button type="button" class="ghost" id="btnCatCancel">Cancelar</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="dlgTelemetry" class="dlg-wide">
+    <form method="dialog">
+      <h2 id="telDlgTitle">Informe que se enviaría ahora</h2>
+      <p class="hint">Exactamente esto, en el formato en que viaja. Las cantidades van por tramos para que no se pueda saber quién es quién.</p>
+      <pre class="json" id="telPreview"></pre>
+      <div class="actions"><button type="submit" class="primary">Cerrar</button></div>
     </form>
   </dialog>
 

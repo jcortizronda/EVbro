@@ -187,7 +187,9 @@ async def test_extra_origins_allowed_by_configuration(client, monkeypatch) -> No
 # ───────────────────────── public surface ─────────────────────────
 # /api/auth/register is public on purpose: it needs a single-use invitation token issued by the administrator
 PUBLIC = {"/api/auth/status", "/api/auth/login", "/api/auth/logout", "/api/auth/register",
-          "/api/auth/passkeys/login/options", "/api/auth/passkeys/login/verify"}
+          "/api/auth/passkeys/login/options", "/api/auth/passkeys/login/verify",
+          # anonymous by design: other installations send their daily report; off (404) unless TELEMETRY_RECEIVER (docs/telemetry.md)
+          "/api/telemetry/v1/report"}
 _METHODS = ("get", "post", "put", "patch", "delete")
 
 

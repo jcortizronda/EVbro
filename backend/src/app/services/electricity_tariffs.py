@@ -13,18 +13,36 @@ _LOGGER = logging.getLogger(__name__)
 _PVPC_CACHE: Dict[str, Dict[int, float]] = {}
 
 
-def get_time_of_use_period(dt: datetime.datetime) -> Tuple[str, str]:
+# National holidays that make the whole day off-peak under 2.0TD (CNMC Circular 3/2020): the national ones of fixed date that cannot be
+# moved, plus 6 January. Regional holidays, moved ones (a Monday after a Sunday holiday) and Good Friday (no fixed date) do not count.
+TOU_HOLIDAYS = frozenset({(1, 1), (1, 6), (5, 1), (8, 15), (10, 12), (11, 1), (12, 6), (12, 8), (12, 25)})
+
+
+def to_local(dt: datetime.datetime, zone: Optional[str] = None) -> datetime.datetime:
+    """The tariffs follow the local clock. Naive datetimes are UTC (how EVBro stores times); the Canary Islands use their own clock."""
+    from zoneinfo import ZoneInfo
+
+    from app.config import get_timezone
+    tz = ZoneInfo("Atlantic/Canary") if zone and "canaria" in zone.lower() else get_timezone()
+    aware = dt.replace(tzinfo=datetime.timezone.utc) if dt.tzinfo is None else dt
+    return aware.astimezone(tz)
+
+
+def get_time_of_use_period(dt: datetime.datetime, zone: Optional[str] = None) -> Tuple[str, str]:
     """
-    The tariff period under Spain's official 2.0TD regulation:
-    - Weekends and holidays: 24 h off-peak (Valle, P3).
+    The tariff period under Spain's official 2.0TD regulation, on the local clock (`dt` naive = UTC):
+    - Weekends and national holidays (`TOU_HOLIDAYS`): 24 h off-peak (Valle, P3).
     - Working days:
         * Valle (P3): 00:00 to 08:00
         * Llano (P2): 08:00 to 10:00, 14:00 to 18:00 and 22:00 to 24:00
         * Punta (P1): 10:00 to 14:00 and 18:00 to 22:00
     """
+    dt = to_local(dt, zone)
     # 5: Saturday, 6: Sunday
     if dt.weekday() >= 5:
         return "valle", "Valle (Fin de semana 24h)"
+    if (dt.month, dt.day) in TOU_HOLIDAYS:
+        return "valle", "Valle (Festivo nacional 24h)"
 
     hour = dt.hour
     if 0 <= hour < 8:
@@ -59,6 +77,7 @@ async def get_pvpc_hourly_price(
     The regulated-market (PVPC) price per kWh for one specific hour.
     Queries the system operator's public API and caches the 24 hours of the day.
     """
+    dt = to_local(dt, zone)                                  # the API gives the hours of the local day
     date_key = dt.strftime("%Y-%m-%d")
     cache_key = f"{date_key}_{zone}"
 

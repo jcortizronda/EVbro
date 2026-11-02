@@ -271,5 +271,13 @@
  "Avisos": "Avisos",
  "Fab. {p0}": "Fab. {p0}",
  "Referencias": "Referências",
- "Widget no válido.": "Widget inválido."
+ "Widget no válido.": "Widget inválido.",
+ "Activa los informes antes de enviar uno.": "Ative os relatórios antes de enviar um.",
+ "Este servidor no tiene dirección para los informes (TELEMETRY_URL vacía).": "Este servidor não tem endereço para os relatórios (TELEMETRY_URL vazia).",
+ "No es JSON.": "Não é JSON.",
+ "Informe demasiado grande.": "Relatório demasiado grande.",
+ "Demasiado grande.": "Demasiado grande.",
+ "El informe no es JSON.": "O relatório não é JSON.",
+ "Este servidor no recibe informes.": "Este servidor não recebe relatórios.",
+ "Error no encontrado.": "Erro não encontrado."
 }

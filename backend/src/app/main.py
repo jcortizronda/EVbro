@@ -22,6 +22,7 @@ from app.db.session import init_db
 from app.paths import frontend_dir
 from app.security.auth import announce_setup_if_needed
 from app.services.poller import VehiclePoller
+from app.services.telemetry import TelemetryService
 from app.services.traccar import TraccarHub
 
 # Every file the app creates (tokens, invoices, encryption key) is private to the user running it.
@@ -64,10 +65,14 @@ async def lifespan(app: FastAPI):
     console = AdminConsole()
     await console.start()
 
+    # 4. anonymous reports: only collected and sent if the administrator turned them on (services/telemetry.py)
+    await TelemetryService.get_instance().start()
+
     yield
 
-    # 4. stop background tasks
+    # 5. stop background tasks
     _LOGGER.info("Deteniendo EVBro...")
+    await TelemetryService.get_instance().stop()
     await console.stop()
     await TraccarHub.get_instance().stop()
     await poller.stop()

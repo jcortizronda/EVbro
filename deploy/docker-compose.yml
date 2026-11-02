@@ -48,6 +48,11 @@ services:
       - DEFAULT_STORAGE_MB=${DEFAULT_STORAGE_MB:-50}
       - INVITE_DEFAULT_DAYS=${INVITE_DEFAULT_DAYS:-14}
       - ALLOW_PRIVATE_WEBHOOKS=${ALLOW_PRIVATE_WEBHOOKS:-false}
+      # Shared consumables catalogue used when only a key is pasted in the console
+      - CATALOG_DEFAULT_URL=${CATALOG_DEFAULT_URL-https://catalog.evbro.app}
+      # Anonymous daily report to the project, ONLY if the administrator turns it on in the console (empty = never; docs/telemetry.md)
+      - TELEMETRY_URL=${TELEMETRY_URL-https://data.evbro.app}
+      - TELEMETRY_RECEIVER=${TELEMETRY_RECEIVER:-false}     # only the project's own server
       # How often the cloud is queried, in minutes, by car state (querying does not wake the car)
       - POLL_INTERVAL_PARKED_MIN=${POLL_INTERVAL_PARKED_MIN:-60}
       - POLL_INTERVAL_PLUGGED_MIN=${POLL_INTERVAL_PLUGGED_MIN:-30}

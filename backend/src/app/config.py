@@ -117,6 +117,15 @@ class Settings(BaseSettings):
     ANDROID_ASSETLINKS_JSON: str = ""      # /.well-known/assetlinks.json for the Android app (TWA); empty = not served
     NOMINATIM_ENABLED: bool = True
 
+    # Shared consumables catalogue: the server a bare key (`ebc_…`) belongs to. A full link (`https://server#key`) always wins.
+    CATALOG_DEFAULT_URL: str = "https://catalog.evbro.app"
+
+    # Anonymous usage statistics and error reports (services/telemetry.py, docs/telemetry.md). Nothing is sent until the
+    # administrator turns it on in the console; empty = never sent and the console says so.
+    TELEMETRY_URL: str = "https://data.evbro.app"
+    # This server RECEIVES the reports of other installations (only the project's own server). Off everywhere else.
+    TELEMETRY_RECEIVER: bool = False
+
 
 settings = Settings()
 

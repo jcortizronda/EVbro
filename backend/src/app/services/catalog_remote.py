@@ -23,6 +23,7 @@ import aiohttp
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.db.models import AppSetting, CatalogEntry, CatalogFitment, CatalogKey, CatalogRemote
 from app.security.auth import hash_token
 from app.services import catalog
@@ -64,13 +65,22 @@ def make_link(public_url: str, key: str) -> str:
 
 
 def parse_link(link: str) -> Tuple[str, str]:
-    """`https://server#key` → (base url, key). Raises RemoteError when the link is not one."""
+    """`https://server#key` → (base url, key). A bare key belongs to `CATALOG_DEFAULT_URL`. Raises RemoteError otherwise."""
     text = (link or "").strip()
+    if text.startswith(KEY_PREFIX) and "#" not in text:
+        default = (settings.CATALOG_DEFAULT_URL or "").strip().rstrip("/")
+        if not default:
+            raise RemoteError(422, "Este servidor no tiene catálogo en línea por defecto: pega el enlace completo (https://servidor#clave).")
+        text = f"{default}#{text}"
     url, _, key = text.partition("#")
     url, key = url.strip().rstrip("/"), key.strip()
     if not url.startswith(("http://", "https://")) or not key.startswith(KEY_PREFIX) or len(key) < 20:
-        raise RemoteError(422, "El enlace del catálogo tiene la forma https://servidor#clave (la clave empieza por ebc_).")
+        raise RemoteError(422, "Pega la clave del catálogo (empieza por ebc_) o el enlace completo (https://servidor#clave).")
     return url, key
+
+
+def default_server() -> Optional[str]:
+    return (settings.CATALOG_DEFAULT_URL or "").strip().rstrip("/") or None
 
 
 def serialize_key(k: CatalogKey) -> Dict[str, Any]:
@@ -196,7 +206,7 @@ def serialize_config(c: CatalogRemote) -> Dict[str, Any]:
             url, _ = parse_link(c.link)
         except RemoteError:
             url = None
-    return {"source": c.source, "has_link": bool(c.link), "server": url, "last_sync_at": c.last_sync_at.isoformat() if c.last_sync_at else None,
+    return {"source": c.source, "has_link": bool(c.link), "server": url, "default_server": default_server(), "last_sync_at": c.last_sync_at.isoformat() if c.last_sync_at else None,
             "last_error": c.last_error, "entries": c.entries or 0}
 
 
@@ -207,12 +217,12 @@ async def set_config(session: AsyncSession, source: str, link: Optional[str]) ->
     c = await get_config(session)
     if link is not None:
         if link.strip():
-            parse_link(link)                                   # validates
-            c.link = link.strip()
+            url, key = parse_link(link)                        # validates; a bare key is stored with the default server
+            c.link = make_link(url, key)
         else:
             c.link = None
     if source == "remote" and not c.link:
-        raise RemoteError(422, "Para usar el catálogo en línea pega el enlace que te hayan dado (https://servidor#clave).")
+        raise RemoteError(422, "Para usar el catálogo en línea pega la clave que te hayan dado (ebc_…) o el enlace completo.")
     c.source = source
     c.last_error = None
     await session.commit()

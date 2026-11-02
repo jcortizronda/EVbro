@@ -80,7 +80,7 @@ The menu with the remaining sections, grouped as **History** and **Manage**.
 - **Add a car without an Ebro account**: a car of any make to keep its maintenance, expenses, costs and parts (no live data). With a GPS tracker and a Traccar server it also gets position and trips.
 - **Photo** of the car, used in the Home header.
 
-**Geofences.** Areas on the map (home, work, charger…) with a radius. They serve three purposes: **alerting** on arrival or departure, **pricing** the charges made inside (fixed tariff, free, 2.0TD with its three prices or regulated PVPC) and classifying trips. If you create a geofence where you had already been, the earlier charges and trips there take its name; **their prices do not change** (only new charges take the tariff). The **Arrivals and departures** card is the log of every pass through them.
+**Geofences.** Areas on the map (home, work, charger…) with a radius. They serve three purposes: **alerting** on arrival or departure, **pricing** the charges made inside (fixed tariff, free, 2.0TD with its three prices or regulated PVPC) and classifying trips. With 2.0TD the periods follow Spanish time (Canary time in that zone); Saturdays, Sundays and the fixed-date national holidays (1 and 6 January, 1 May, 15 August, 12 October, 1 November and 6, 8 and 25 December) are off-peak all day. Regional holidays, holidays moved to a Monday and Good Friday do not count, as CNMC Circular 3/2020 sets out. If you create a geofence where you had already been, the earlier charges and trips there take its name; **their prices do not change** (only new charges take the tariff). The **Arrivals and departures** card is the log of every pass through them.
 
 **Settings.** Each part is a collapsible section; the phone remembers which ones you left open.
 - *Account*: your EVBro user (change password, sign out), **fingerprint sign-in** (add this device and sign in without a password; requires HTTPS), the **Ebro account** (connect, sync cars, save or change the PIN) and **when to ask for the PIN**: only when opening the car (default), always or never. **Your data**: download everything as a ZIP and import a ZIP on another server. A link to what data this server keeps.
@@ -103,8 +103,12 @@ The menu with the remaining sections, grouped as **History** and **Manage**.
 
 It is another web app, on another port, for the local network only. The administrator has no cars and sees nobody's data: it creates **managers**, issues **invitations**, sets **limits** (cars, linked accounts, file space), tunes the **server** (how much history is kept, polling intervals), moderates the shared consumables **catalogue** (approve, reject, edit proposals, add parts already approved; connect to another server's catalogue) and reads a **log** of its actions and aggregate server figures. It is also in the three languages.
 
+**Anonymous reports.** The first time, the console asks whether you want to send the project one anonymous report a day: version, which features are used, how the Ebro cloud and the commands respond, and the logged errors. It helps find and fix bugs. It carries no names, users, plates, VINs, positions, trips or amounts, and **See what is sent** shows the exact report before you decide. Turn it on or off whenever you like in the Server tab.
+
+**The project's catalogue.** To use the project's shared consumables catalogue, just paste the key you were given (`ebc_…`) in the Catalogue tab; the server uses it with `catalog.evbro.app`.
+
 ## What EVBro does not do (on purpose)
 
 - It does not start the engine remotely (the car refuses) nor "really" stop or start a charge: it uses the schedule for that.
 - It does not keep your PIN in the browser; on the server it is encrypted and only if you want.
-- It does not send your data to anyone: the server is yours. The only outbound traffic goes to the Chery cloud (to talk to the car), OpenStreetMap tiles and the alert channels you enable.
+- It does not send your data to anyone: the server is yours. The only outbound traffic goes to the Chery cloud (to talk to the car), OpenStreetMap tiles, the alert channels you enable and, only if the administrator turns them on, an anonymous daily report to the project (no personal data).

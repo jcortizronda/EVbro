@@ -14,7 +14,7 @@ from app.config import settings
 from app.db.models import AppUser, EbroAccount, Invite, Vehicle
 from app.db.session import get_db
 from app.security import auth, passwords
-from app.services import admin_audit, admin_stats, catalog, catalog_remote, invites, storage, tenant
+from app.services import admin_audit, admin_stats, catalog, catalog_remote, invites, storage, telemetry, tenant
 from app.services.parts import PART_CATEGORIES, POSITIONS
 
 STORAGE_MAX_MB = 1_000_000
@@ -328,7 +328,10 @@ async def catalog_key_create(req: CatalogKeyCreate, admin: AppUser = Depends(aut
     """A new key for one installation; the plain key and its link come back once."""
     row, key, link = await catalog_remote.create_key(db, admin.id, req.note, req.days)
     await admin_audit.log(db, admin, "catalog.key.create", str(row.id), req.note or "")
-    return {**catalog_remote.serialize_key(row), "key": key, "link": link}
+    public = await catalog_remote.get_public_url(db)
+    # This server is the default catalogue of every installation: the key alone is enough on the other side
+    is_default = bool(public) and public.rstrip("/") == catalog_remote.default_server()
+    return {**catalog_remote.serialize_key(row), "key": key, "link": link, "key_alone": is_default}
 
 
 @router.delete("/catalog/keys/{key_id}")
@@ -364,3 +367,69 @@ async def catalog_source_sync(admin: AppUser = Depends(auth.require_admin), db: 
         raise _remote_http(ex) from ex
     await admin_audit.log(db, admin, "catalog.sync", str(result["entries"]))
     return {**result, **catalog_remote.serialize_config(await catalog_remote.get_config(db))}
+
+
+# ───────────────────────── anonymous reports (services/telemetry.py, docs/telemetry.md) ─────────────────────────
+class TelemetryIn(BaseModel):
+    enabled: bool
+
+
+@router.get("/telemetry")
+async def telemetry_state(db: AsyncSession = Depends(get_db)):
+    """Whether this server sends its anonymous reports, where to, and how the last one went."""
+    return await telemetry.state(db)
+
+
+@router.put("/telemetry")
+async def telemetry_set(req: TelemetryIn, admin: AppUser = Depends(auth.require_admin), db: AsyncSession = Depends(get_db)):
+    if req.enabled and not (settings.TELEMETRY_URL or "").strip():
+        raise HTTPException(status_code=409, detail="Este servidor no tiene dirección para los informes (TELEMETRY_URL vacía).")
+    await telemetry.set_enabled(db, req.enabled)
+    await admin_audit.log(db, admin, "telemetry.enabled" if req.enabled else "telemetry.disabled")
+    return await telemetry.state(db)
+
+
+@router.get("/telemetry/preview")
+async def telemetry_preview(db: AsyncSession = Depends(get_db)):
+    """Exactly the report that would be sent now (also while the reports are off, to decide)."""
+    return await telemetry.build_report(db)
+
+
+@router.post("/telemetry/send")
+async def telemetry_send(admin: AppUser = Depends(auth.require_admin), db: AsyncSession = Depends(get_db)):
+    if not await telemetry.load_enabled(db):
+        raise HTTPException(status_code=409, detail="Activa los informes antes de enviar uno.")
+    result = await telemetry.send(db)
+    await admin_audit.log(db, admin, "telemetry.send", "ok" if result["ok"] else (result.get("error") or "error"))
+    return {**result, "state": await telemetry.state(db)}
+
+
+@router.post("/telemetry/new-id")
+async def telemetry_new_id(admin: AppUser = Depends(auth.require_admin), db: AsyncSession = Depends(get_db)):
+    """A new random installation id: the reports from now on cannot be linked to the earlier ones."""
+    await telemetry.reset_install_id(db)
+    await admin_audit.log(db, admin, "telemetry.new_id")
+    return await telemetry.state(db)
+
+
+@router.get("/telemetry/received")
+async def telemetry_received(db: AsyncSession = Depends(get_db)):
+    """The project's server only: what the installations have reported."""
+    if not settings.TELEMETRY_RECEIVER:
+        raise HTTPException(status_code=404, detail="Este servidor no recibe informes.")
+    return await telemetry.summary(db)
+
+
+class ResolveIn(BaseModel):
+    resolved: bool = True
+
+
+@router.post("/telemetry/errors/{group_id}/resolve")
+async def telemetry_resolve(group_id: int, req: ResolveIn, admin: AppUser = Depends(auth.require_admin), db: AsyncSession = Depends(get_db)):
+    """Marks an error as fixed; it reopens by itself if a newer version reports it again."""
+    if not settings.TELEMETRY_RECEIVER:
+        raise HTTPException(status_code=404, detail="Este servidor no recibe informes.")
+    if not await telemetry.resolve_group(db, group_id, req.resolved):
+        raise HTTPException(status_code=404, detail="Error no encontrado.")
+    await admin_audit.log(db, admin, "telemetry.resolve" if req.resolved else "telemetry.reopen", str(group_id))
+    return {"ok": True}

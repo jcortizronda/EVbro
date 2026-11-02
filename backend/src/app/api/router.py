@@ -34,6 +34,8 @@ from app.api.routes_passkey_login import router as passkey_login_router
 from app.api.routes_passkeys import router as passkeys_router
 from app.api.routes_refuels import router as refuels_router
 from app.api.routes_stats import router as stats_router
+from app.api.routes_telemetry import client_router as telemetry_client_router
+from app.api.routes_telemetry import router as telemetry_router
 from app.api.routes_timeline import router as timeline_router
 from app.api.routes_traccar import router as traccar_router
 from app.api.routes_vehicles import router as vehicles_router
@@ -48,6 +50,8 @@ api_router.include_router(auth_router, dependencies=[Depends(verify_origin)])
 api_router.include_router(passkey_login_router, dependencies=[Depends(verify_origin)])     # /api/auth/passkeys/login/*
 # Server to server: another installation reads this server's catalogue or sends a proposal with its key (no session, no cookies)
 api_router.include_router(catalog_online_router)
+# Server to server: the project's server receives the anonymous daily reports of other installations (only with TELEMETRY_RECEIVER)
+api_router.include_router(telemetry_router)
 
 # Protected: valid session + same origin on requests that modify data
 protected = APIRouter(dependencies=[Depends(verify_origin), Depends(require_auth), Depends(authorize)])
@@ -77,6 +81,7 @@ protected.include_router(parts_router)
 protected.include_router(costs_router)
 protected.include_router(documents_router)
 protected.include_router(passkeys_router)
+protected.include_router(telemetry_client_router)
 
 
 @protected.get("/version", tags=["System"])
