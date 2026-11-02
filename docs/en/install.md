@@ -94,7 +94,7 @@ Steps:
    docker compose logs app | grep "código de configuración"
    ```
 2. Open the console in a browser **on the server itself** or, if the server has no screen, first remove the `#` from the `ADMIN_BIND_ADDRESS` line in `.env` and put the server's IP on your network (for example `ADMIN_BIND_ADDRESS=192.168.1.50`), run `docker compose up -d` again and open `http://SERVER-IP:8082`.
-3. Create the administrator with the code, a name and a password of at least 10 characters. The administrator **has no cars**: it only runs the server.
+3. Create the administrator with the code, a name and a password of at least 10 characters. The administrator **has no cars**: it only runs the server. The same form asks two questions you can change later: whether to use the **project's consumables catalogue** (online, recommended) or only your server's, and whether to send **anonymous reports** to help improve EVBro.
 4. In the **Managers** tab press **Create manager**: that will be **your real user**, the one who owns the cars. Note the username and password.
 5. Open the application: `http://SERVER-IP:8080`, sign in with the manager.
 6. Go to **More → Settings → Account → Connect** and enter the phone, password and PIN of the official Ebro app. Your cars appear within seconds and EVBro starts collecting data.

@@ -279,5 +279,7 @@
  "Demasiado grande.": "Demasiado grande.",
  "El informe no es JSON.": "O relatório não é JSON.",
  "Este servidor no recibe informes.": "Este servidor não recebe relatórios.",
- "Error no encontrado.": "Erro não encontrado."
+ "Error no encontrado.": "Erro não encontrado.",
+ "Demasiadas altas desde esta dirección; inténtalo mañana.": "Demasiados registos a partir deste endereço; tente amanhã.",
+ "Petición no válida.": "Pedido inválido."
 }

@@ -344,18 +344,37 @@ async def catalog_key_revoke(key_id: int, admin: AppUser = Depends(auth.require_
 
 @router.get("/catalog/source")
 async def catalog_source(db: AsyncSession = Depends(get_db)):
-    return catalog_remote.serialize_config(await catalog_remote.get_config(db))
+    return await catalog_remote.config_state(db)
+
+
+@router.post("/catalog/source/connect")
+async def catalog_source_connect(admin: AppUser = Depends(auth.require_admin), db: AsyncSession = Depends(get_db)):
+    """One click: sign up to the project's catalogue and switch to online (services/catalog_remote.connect_default)."""
+    try:
+        await catalog_remote.connect_default(db)
+    except catalog_remote.RemoteError as ex:
+        raise _remote_http(ex) from ex
+    await admin_audit.log(db, admin, "catalog.connect", catalog_remote.default_server() or "")
+    return await catalog_remote.config_state(db)
+
+
+@router.post("/catalog/source/keep-own")
+async def catalog_source_keep_own(admin: AppUser = Depends(auth.require_admin), db: AsyncSession = Depends(get_db)):
+    """The administrator answered «only this server's catalogue»: stop asking."""
+    await catalog_remote.mark_decided(db)
+    await admin_audit.log(db, admin, "catalog.source", "own")
+    return await catalog_remote.config_state(db)
 
 
 @router.put("/catalog/source")
 async def catalog_source_set(req: CatalogSourceIn, admin: AppUser = Depends(auth.require_admin), db: AsyncSession = Depends(get_db)):
     """Own catalogue, or the online one behind a link (`https://servidor#clave`, stored encrypted and never returned)."""
     try:
-        c = await catalog_remote.set_config(db, req.source, req.link)
+        await catalog_remote.set_config(db, req.source, req.link)
     except catalog_remote.RemoteError as ex:
         raise _remote_http(ex) from ex
     await admin_audit.log(db, admin, "catalog.source", req.source)
-    return catalog_remote.serialize_config(c)
+    return await catalog_remote.config_state(db)
 
 
 @router.post("/catalog/source/sync")

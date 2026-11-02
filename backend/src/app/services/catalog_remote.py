@@ -5,7 +5,11 @@ Two roles, both in every installation:
 * **Online server** (the owner's): issues *catalogue keys* from its console (`create_key`; only the hash is stored and the key is shown
   once as a link `https://server#key`), serves its approved entries to a valid key (`/api/catalog/online/export`) and receives
   proposals from other installations into its own review queue (`/api/catalog/online/propose`, `receive_proposal`).
-* **Self-hosted server**: its administrator chooses in the console whether the catalogue is its own or online (`CatalogRemote`, one row).
+* **Sign-up** (only a server with `CATALOG_OPEN_SIGNUP`, the project's): an installation asks for a key of its own with one click
+  (`signup`, `/api/catalog/online/signup`). Those keys are marked `auto` and have a lower daily proposal cap; the administrator sees
+  them in the console and can revoke any of them.
+* **Self-hosted server**: its administrator chooses in the console, or when creating the first administrator, whether the catalogue is
+  its own or online (`CatalogRemote`, one row). `connect_default` signs up to `CATALOG_DEFAULT_URL` and switches to online.
   With a link, `sync` downloads the approved entries once a day and keeps them as a read-only mirror (`catalog_entries.origin = remote`),
   and every proposal of its users is also forwarded (`maybe_forward`). Without a valid link, nothing changes: the server keeps working
   with its own catalogue and the console shows the error.
@@ -35,9 +39,14 @@ KEY_PREFIX = "ebc_"
 PUBLIC_URL_SETTING = "catalog_public_url"
 EXPORT_PATH = "/api/catalog/online/export"
 PROPOSE_PATH = "/api/catalog/online/propose"
+SIGNUP_PATH = "/api/catalog/online/signup"
+SIGNUP_FORMAT = "evbro-catalog-signup/1"
+DECIDED_SETTING = "catalog_decided"     # "1" once the administrator has answered «own or online» (absent = ask in the console)
 SOURCES = ("own", "remote")
 TIMEOUT_S = 30
 MAX_PROPOSALS_PER_KEY_DAY = 200
+MAX_PROPOSALS_PER_AUTO_KEY_DAY = 20     # a key nobody handed out by hand
+MAX_SIGNUPS_PER_DAY = 100               # new self-service keys per day, all callers together
 
 
 def _now() -> datetime.datetime:
@@ -86,7 +95,7 @@ def default_server() -> Optional[str]:
 def serialize_key(k: CatalogKey) -> Dict[str, Any]:
     return {"id": k.id, "note": k.note, "state": key_state(k), "created_at": k.created_at.isoformat() if k.created_at else None,
             "expires_at": k.expires_at.isoformat() if k.expires_at else None, "last_used_at": k.last_used_at.isoformat() if k.last_used_at else None,
-            "downloads": k.downloads or 0, "proposals": k.proposals or 0}
+            "downloads": k.downloads or 0, "proposals": k.proposals or 0, "auto": bool(k.auto)}
 
 
 async def get_public_url(session: AsyncSession) -> Optional[str]:
@@ -124,6 +133,22 @@ async def create_key(session: AsyncSession, admin_id: Optional[int], note: Optio
     return row, key, make_link(public, key) if public else None
 
 
+async def signup(session: AsyncSession) -> str:
+    """A key of its own for an installation that asked with one click. Returns the plain key (the caller stores it)."""
+    since = _now() - datetime.timedelta(days=1)
+    recent = (await session.execute(select(CatalogKey.id).where(CatalogKey.auto.is_(True), CatalogKey.created_at >= since))).scalars().all()
+    if len(recent) >= MAX_SIGNUPS_PER_DAY:
+        raise RemoteError(429, "Demasiadas altas hoy; inténtalo mañana.")
+    key = KEY_PREFIX + secrets.token_urlsafe(24)
+    row = CatalogKey(key_hash=hash_token(key), auto=True)
+    session.add(row)
+    await session.flush()
+    row.note = f"Alta automática {row.id}"
+    await session.commit()
+    _LOGGER.info(f"Online catalogue: new self-service key {row.id}")
+    return key
+
+
 async def revoke_key(session: AsyncSession, key_id: int) -> bool:
     row = await session.get(CatalogKey, key_id)
     if row is None:
@@ -159,7 +184,7 @@ async def receive_proposal(session: AsyncSession, key: CatalogKey, data: Dict[st
     since = _now() - datetime.timedelta(days=1)
     recent = (await session.execute(select(CatalogEntry.id).where(CatalogEntry.remote_note == (key.note or f"clave {key.id}"),
                                                                  CatalogEntry.proposed_at >= since))).scalars().all()
-    if len(recent) >= MAX_PROPOSALS_PER_KEY_DAY:
+    if len(recent) >= (MAX_PROPOSALS_PER_AUTO_KEY_DAY if key.auto else MAX_PROPOSALS_PER_KEY_DAY):
         raise RemoteError(429, "Demasiadas propuestas desde esta instalación hoy.")
     text = lambda k, n: (str(data.get(k) or "").strip()[:n] or None)  # noqa: E731 — short field cleaner
     position = text("position", 10)
@@ -210,6 +235,25 @@ def serialize_config(c: CatalogRemote) -> Dict[str, Any]:
             "last_error": c.last_error, "entries": c.entries or 0}
 
 
+async def is_decided(session: AsyncSession) -> bool:
+    row = await session.get(AppSetting, DECIDED_SETTING)
+    return bool(row and row.value == "1")
+
+
+async def mark_decided(session: AsyncSession) -> None:
+    row = await session.get(AppSetting, DECIDED_SETTING)
+    if row is None:
+        session.add(AppSetting(key=DECIDED_SETTING, value="1"))
+    else:
+        row.value = "1"
+    await session.commit()
+
+
+async def config_state(session: AsyncSession) -> Dict[str, Any]:
+    """What the console shows: the source, plus whether to ask the «own or online» question."""
+    return {**serialize_config(await get_config(session)), "decided": await is_decided(session)}
+
+
 async def set_config(session: AsyncSession, source: str, link: Optional[str]) -> CatalogRemote:
     """`link` None keeps the stored one; "" removes it."""
     if source not in SOURCES:
@@ -226,13 +270,45 @@ async def set_config(session: AsyncSession, source: str, link: Optional[str]) ->
     c.source = source
     c.last_error = None
     await session.commit()
+    await mark_decided(session)
     return c
 
 
-async def _http(method: str, url: str, key: str, payload: Optional[Dict[str, Any]] = None) -> Tuple[int, Any]:
-    """One request to the online server. Replaced in tests."""
+async def connect_default(session: AsyncSession) -> CatalogRemote:
+    """One click: sign up to the project's catalogue (`CATALOG_DEFAULT_URL`), store the key and switch to online.
+
+    With a key already stored it just switches to online. The first download is attempted at once; if it fails, the error stays in
+    the config (the daily sync retries) and the connection is kept."""
+    c = await get_config(session)
+    if not c.link:
+        base = default_server()
+        if not base:
+            raise RemoteError(409, "Este servidor no tiene catálogo del proyecto configurado (CATALOG_DEFAULT_URL vacía).")
+        try:
+            status, body = await _http("POST", base + SIGNUP_PATH, None, {"format": SIGNUP_FORMAT})
+        except Exception as ex:                                 # noqa: BLE001 — network errors are reported, not raised
+            raise RemoteError(502, f"No se pudo conectar con el catálogo del proyecto: {str(ex)[:180]}") from ex
+        if status == 429:
+            raise RemoteError(429, "El catálogo del proyecto ha recibido demasiadas altas; inténtalo más tarde.")
+        key = body.get("key") if status == 200 and isinstance(body, dict) else None
+        if not isinstance(key, str) or not key.startswith(KEY_PREFIX):
+            raise RemoteError(502, f"El catálogo del proyecto no ha dado de alta este servidor ({status}). Puedes pedir una clave y pegarla aquí.")
+        c.link = make_link(base, key)
+    c.source = "remote"
+    c.last_error = None
+    await session.commit()
+    await mark_decided(session)
+    try:
+        await sync(session)
+    except RemoteError:
+        pass                                                    # recorded in c.last_error
+    return await get_config(session)
+
+
+async def _http(method: str, url: str, key: Optional[str], payload: Optional[Dict[str, Any]] = None) -> Tuple[int, Any]:
+    """One request to the online server (`key` None: no credentials, for the sign-up). Replaced in tests."""
     timeout = aiohttp.ClientTimeout(total=TIMEOUT_S)
-    async with aiohttp.ClientSession(timeout=timeout, headers={"Authorization": f"Bearer {key}"}) as s:
+    async with aiohttp.ClientSession(timeout=timeout, headers={"Authorization": f"Bearer {key}"} if key else {}) as s:
         async with s.request(method, url, json=payload) as r:
             try:
                 body = await r.json(content_type=None)

@@ -403,6 +403,7 @@ class CatalogKey(Base):
     last_used_at = Column(DateTime, nullable=True)
     downloads = Column(Integer, nullable=False, default=0, server_default="0")
     proposals = Column(Integer, nullable=False, default=0, server_default="0")
+    auto = Column(Boolean, default=False, nullable=False, server_default="false")   # obtained by the installation itself (sign-up)
 
 
 class CatalogRemote(Base):

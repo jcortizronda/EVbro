@@ -6,6 +6,7 @@
 const $ = (id) => document.getElementById(id);
 const STATES = { active: 'Activa', used: 'Usada', expired: 'Caducada', revoked: 'Anulada' };
 let setupRequired = false;
+let setupInfo = {};
 let managers = [];
 
 /** Builds an element: h('button', {class: 'ghost', onclick: fn}, 'text', childNode). */
@@ -82,6 +83,9 @@ function showAuth() {
     : 'Solo para el administrador del servidor.';
   $('rowCode').hidden = !setupRequired;
   $('rowPass2').hidden = !setupRequired;
+  $('rowCatalog').hidden = !setupRequired || !setupInfo.catalog_server;
+  $('rowTelemetry').hidden = !setupRequired || !setupInfo.telemetry_available;
+  if (setupInfo.catalog_server) $('setupCatalogServer').textContent = setupInfo.catalog_server.replace(/^https?:\/\//, '');
   $('authSubmit').textContent = setupRequired ? 'Crear administrador y entrar' : 'Entrar';
   $('authPass').autocomplete = setupRequired ? 'new-password' : 'current-password';
   $('authError').hidden = true;
@@ -99,6 +103,7 @@ async function init() {
   try {
     const s = await api('/api/auth/status');
     setupRequired = s.setup_required;
+    setupInfo = s;
     if (s.authenticated) showApp(s.username); else showAuth();
   } catch (e) { showAuth(); $('authError').textContent = 'No hay conexión con el servidor.'; $('authError').hidden = false; }
 }
@@ -111,11 +116,17 @@ $('authForm').addEventListener('submit', async (ev) => {
   if (!username || !password) return fail('Escribe el usuario y la contraseña.');
   if (setupRequired && password !== $('authPass2').value) return fail('Las contraseñas no coinciden.');
   try {
-    const body = setupRequired ? { username, password, setup_code: $('authCode').value.trim() } : { username, password };
-    const r = await api(setupRequired ? '/api/auth/setup' : '/api/auth/login', 'POST', body);
+    const picked = (name) => { const el = document.querySelector(`input[name="${name}"]:checked`); return el ? el.value : null; };
+    const tel = picked('setupTelemetry');
+    const body = setupRequired ? { username, password, setup_code: $('authCode').value.trim(),
+      catalog: setupInfo.catalog_server ? picked('setupCatalog') : null, telemetry: tel === null ? null : tel === 'yes' } : { username, password };
+    if (setupRequired && body.catalog === 'online') { $('authSubmit').disabled = true; $('authSubmit').textContent = t('Creando y conectando al catálogo…'); }
+    let r;
+    try { r = await api(setupRequired ? '/api/auth/setup' : '/api/auth/login', 'POST', body); } finally { $('authSubmit').disabled = false; }
     $('authPass').value = ''; $('authPass2').value = '';
     setupRequired = false;
     showApp(r.username);
+    if (r.catalog_error) toast(t('La cuenta está creada, pero no se pudo conectar al catálogo del proyecto: {p0} Puedes reintentarlo en la pestaña Catálogo.', {p0: r.catalog_error}), true, 12000);
   } catch (e) { fail(e.message); }
 });
 
@@ -541,7 +552,25 @@ async function loadCatalogSource() {
   $('srcStatus').textContent = parts.join(' · ');
   $('srcStatus').className = c.last_error ? 'hint error' : 'hint';
   $('btnCatalogSync').disabled = !c.has_link;
+  $('rowCatalogConnect').hidden = !c.default_server || c.has_link;
+  $('catalogAsk').hidden = c.decided || !c.default_server || c.has_link || c.source !== 'own';
 }
+async function connectCatalog() {
+  ['btnCatYes', 'btnCatalogConnect'].forEach((id) => { $(id).disabled = true; });
+  try {
+    const c = await api('/api/admin/catalog/source/connect', 'POST');
+    toast(c.last_error ? t('Conectado, pero la primera descarga falló: {p0}', {p0: c.last_error}) : t('Conectado al catálogo del proyecto: {p0} entradas.', {p0: c.entries}), !!c.last_error, 8000);
+    loadCatalog();
+  } catch (e) { toast(e.message, true, 9000); }
+  ['btnCatYes', 'btnCatalogConnect'].forEach((id) => { $(id).disabled = false; });
+  loadCatalogSource();
+}
+$('btnCatYes').addEventListener('click', connectCatalog);
+$('btnCatalogConnect').addEventListener('click', connectCatalog);
+$('btnCatNo').addEventListener('click', async () => {
+  try { await api('/api/admin/catalog/source/keep-own', 'POST'); toast('Catálogo propio. Puedes conectarlo cuando quieras en la pestaña Catálogo.'); } catch (e) { toast(e.message, true); }
+  loadCatalogSource();
+});
 $('formCatalogSource').addEventListener('submit', async (ev) => {
   ev.preventDefault();
   const link = $('srcLink').value.trim();
@@ -612,7 +641,8 @@ const AUDIT_LABELS = { login: 'Entrada en la consola', 'manager.create': 'Gestor
   'invite.create': 'Invitación creada', 'invite.revoke': 'Invitación anulada', 'catalog.approve': 'Catálogo: aprobada', 'catalog.create': 'Catálogo: añadida', 'catalog.reject': 'Catálogo: rechazada', 'catalog.edit': 'Catálogo: editada',
   'telemetry.enabled': 'Informes activados', 'telemetry.disabled': 'Informes desactivados', 'telemetry.send': 'Informe enviado', 'telemetry.new_id': 'Informes: identificador nuevo',
   'telemetry.resolve': 'Informes: fallo resuelto', 'telemetry.reopen': 'Informes: fallo reabierto',
-  'catalog.key.create': 'Catálogo: clave creada', 'catalog.key.revoke': 'Catálogo: clave anulada', 'catalog.public_url': 'Catálogo: URL pública', 'catalog.source': 'Catálogo: origen cambiado', 'catalog.sync': 'Catálogo: sincronizado' };
+  'catalog.key.create': 'Catálogo: clave creada', 'catalog.key.revoke': 'Catálogo: clave anulada', 'catalog.public_url': 'Catálogo: URL pública', 'catalog.source': 'Catálogo: origen cambiado', 'catalog.sync': 'Catálogo: sincronizado',
+  'catalog.connect': 'Catálogo: conectado al del proyecto' };
 async function loadAudit() {
   let list;
   try { list = await api('/api/admin/audit?limit=300'); } catch (e) { return; }

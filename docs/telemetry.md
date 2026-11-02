@@ -4,7 +4,7 @@ Sirven para que el proyecto sepa qué versiones y funciones se usan y, sobre tod
 
 ## Quién decide
 
-- **Nada se recoge ni se envía hasta que el administrador lo activa** en la consola (pestaña Servidor, o el aviso que sale arriba mientras no ha decidido). Se guarda en `app_settings.telemetry_enabled` (`"1"`, `"0"`; sin fila = sin decidir).
+- **Nada se recoge ni se envía hasta que el administrador lo activa**: en el formulario con el que se crea el administrador (respuesta opcional), en la pestaña Servidor o en el aviso que sale arriba mientras no ha decidido. Se guarda en `app_settings.telemetry_enabled` (`"1"`, `"0"`; sin fila = sin decidir).
 - Antes de decidir, **«Ver qué se envía»** enseña el informe exacto que saldría en ese momento (`GET /api/admin/telemetry/preview`).
 - `TELEMETRY_URL` vacía desactiva el envío aunque esté marcado (la consola lo indica). Por defecto es `https://data.evbro.app`.
 - Al desactivarlo se borran los fallos que esperaban envío. «Nuevo identificador» cambia el identificador aleatorio de la instalación: los informes siguientes no se pueden relacionar con los anteriores.

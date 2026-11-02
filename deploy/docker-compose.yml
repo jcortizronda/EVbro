@@ -50,6 +50,7 @@ services:
       - ALLOW_PRIVATE_WEBHOOKS=${ALLOW_PRIVATE_WEBHOOKS:-false}
       # Shared consumables catalogue used when only a key is pasted in the console
       - CATALOG_DEFAULT_URL=${CATALOG_DEFAULT_URL-https://catalog.evbro.app}
+      - CATALOG_OPEN_SIGNUP=${CATALOG_OPEN_SIGNUP:-false}   # only the project's own server
       # Anonymous daily report to the project, ONLY if the administrator turns it on in the console (empty = never; docs/telemetry.md)
       - TELEMETRY_URL=${TELEMETRY_URL-https://data.evbro.app}
       - TELEMETRY_RECEIVER=${TELEMETRY_RECEIVER:-false}     # only the project's own server

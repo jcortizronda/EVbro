@@ -126,3 +126,12 @@ label.check { display: inline-flex; flex-direction: row; align-items: center; ga
 .err-msg { display: block; color: var(--muted); font-size: 0.82rem; word-break: break-word; }
 .err-frames { margin: 6px 0 0; padding-left: 16px; font-size: 0.78rem; color: var(--muted); }
 td.where { font-family: ui-monospace, monospace; font-size: 0.8rem; word-break: break-all; }
+
+/* First-run questions in the «create the administrator» form */
+fieldset.choices { border: 1px solid var(--line, #2a2f3a); border-radius: 12px; padding: 12px 14px; margin: 14px 0 0; }
+fieldset.choices legend { font-weight: 700; padding: 0 6px; }
+fieldset.choices .hint { margin: 0 0 8px; }
+label.choice { display: flex !important; flex-direction: row !important; gap: 10px; align-items: flex-start; margin: 8px 0 0; font-weight: 400; }
+label.choice input { width: auto; margin-top: 4px; flex: 0 0 auto; }
+label.choice > span { display: block; font-weight: 400; color: var(--text); }
+label.choice > span span { display: inline; font-weight: inherit; color: inherit; margin: 0; }

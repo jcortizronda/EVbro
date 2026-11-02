@@ -103,9 +103,9 @@ The menu with the remaining sections, grouped as **History** and **Manage**.
 
 It is another web app, on another port, for the local network only. The administrator has no cars and sees nobody's data: it creates **managers**, issues **invitations**, sets **limits** (cars, linked accounts, file space), tunes the **server** (how much history is kept, polling intervals), moderates the shared consumables **catalogue** (approve, reject, edit proposals, add parts already approved; connect to another server's catalogue) and reads a **log** of its actions and aggregate server figures. It is also in the three languages.
 
-**Anonymous reports.** The first time, the console asks whether you want to send the project one anonymous report a day: version, which features are used, how the Ebro cloud and the commands respond, and the logged errors. It helps find and fix bugs. It carries no names, users, plates, VINs, positions, trips or amounts, and **See what is sent** shows the exact report before you decide. Turn it on or off whenever you like in the Server tab.
+**Anonymous reports.** When the administrator is created (or, if it was not answered, the first time you sign in) the console asks whether you want to send the project one anonymous report a day: version, which features are used, how the Ebro cloud and the commands respond, and the logged errors. It helps find and fix bugs. It carries no names, users, plates, VINs, positions, trips or amounts, and **See what is sent** shows the exact report before you decide. Turn it on or off whenever you like in the Server tab.
 
-**The project's catalogue.** To use the project's shared consumables catalogue, just paste the key you were given (`ebc_…`) in the Catalogue tab; the server uses it with `catalog.evbro.app`.
+**The project's catalogue.** When the administrator is created you choose whether to use the project's shared consumables catalogue or only your server's (if it was not answered, the console asks at the top). To connect it later, **Connect to the project's catalogue** in the Catalogue tab is enough: the server signs up by itself at `catalog.evbro.app`, with no key to ask for. Pasting a key you were given (`ebc_…`) also works. You can go back to your own catalogue whenever you like.
 
 ## What EVBro does not do (on purpose)
 

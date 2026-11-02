@@ -37,7 +37,8 @@ El nombre del proyecto es fijo (`evbro`): los volúmenes (`evbro_evbro_data` con
 | `ADMIN_BIND_ADDRESS` / `ADMIN_WEB_PORT` | `127.0.0.1` / `8082` | Consola de administración (solo red local) |
 | `DEFAULT_VEHICLE_LIMIT` / `DEFAULT_MEMBER_LIMIT` / `DEFAULT_STORAGE_MB` / `INVITE_DEFAULT_DAYS` | `2` / `5` / `50` / `14` | Límites de un gestor nuevo y caducidad de las invitaciones |
 | `ALLOW_PRIVATE_WEBHOOKS` | `false` | Webhooks hacia direcciones privadas (p. ej. Home Assistant en la LAN) |
-| `CATALOG_DEFAULT_URL` | `https://catalog.evbro.app` | Servidor del catálogo en línea cuando en la consola se pega solo la clave (`ebc_…`) |
+| `CATALOG_DEFAULT_URL` | `https://catalog.evbro.app` | Catálogo del proyecto: al que se da de alta el botón «Conectar» (y la pregunta del primer administrador) y el que se usa cuando se pega solo la clave (`ebc_…`) |
+| `CATALOG_OPEN_SIGNUP` | `false` | Solo el servidor del proyecto: deja que otras instalaciones se den de alta solas en su catálogo (`POST /api/catalog/online/signup`) |
 | `TELEMETRY_URL` | `https://data.evbro.app` | Adónde van los informes anónimos **si el administrador los activa** en la consola; vacío = nunca se envían ([telemetry.md](telemetry.md)) |
 | `TELEMETRY_RECEIVER` | `false` | Solo el servidor del proyecto: recibe los informes de otras instalaciones y los muestra en la pestaña Informes de su consola |
 | `POLL_INTERVAL_PARKED_MIN` / `_PLUGGED_MIN` / `_CHARGING_MIN` / `_DRIVING_MIN` / `_DRIVING_IDLE_MIN` | `60` / `30` / `2` / `1` / `3` | Cada cuánto se consulta la nube según el estado (0 = no sondear). No despierta el coche, pero compite con la app oficial: no bajarlos sin motivo |

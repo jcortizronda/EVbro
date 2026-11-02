@@ -42,6 +42,7 @@ PW = "una-contraseña-larga-1"
 PUBLIC = {"/api/auth/status", "/api/auth/login", "/api/auth/logout", "/api/auth/register", "/api/auth/password",
           "/api/auth/passkeys/login/options", "/api/auth/passkeys/login/verify",
           "/api/catalog/online/export", "/api/catalog/online/propose",      # server to server, authenticated by a catalogue key
+          "/api/catalog/online/signup",                                     # server to server, only with CATALOG_OPEN_SIGNUP
           "/api/telemetry/v1/report"}                                       # anonymous daily reports; 404 unless TELEMETRY_RECEIVER
 METHODS = ("get", "post", "put", "patch", "delete")
 

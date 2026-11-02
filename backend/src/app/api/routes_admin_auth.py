@@ -4,20 +4,22 @@ from __future__ import annotations
 import asyncio
 import hmac
 import logging
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import i18n
+from app.config import settings
 from app.db.models import AppUser
 from app.db.session import get_db
 from app.i18n import _
 from app.security import auth, passwords
 from app.security.throttle import LoginThrottle
-from app.services import admin_audit
+from app.services import admin_audit, catalog_remote, telemetry
 
 _LOGGER = logging.getLogger("app.api.admin_auth")
 router = APIRouter(prefix="/auth", tags=["AdminAuth"])
@@ -35,6 +37,9 @@ class Credentials(BaseModel):
 
 class SetupRequest(Credentials):
     setup_code: str
+    # The two questions of the first-run form; None = not answered (the console asks later)
+    catalog: Optional[str] = Field(default=None, pattern="^(online|own)$")
+    telemetry: Optional[bool] = None
 
 
 class PasswordChange(BaseModel):
@@ -56,8 +61,11 @@ def _check_throttle(*pairs) -> None:
 @router.get("/status")
 async def status(request: Request, db: AsyncSession = Depends(get_db)):
     user = await auth.get_session_user(db, request.cookies.get(auth.ADMIN_COOKIE_NAME), admin=True)
-    return {"authenticated": user is not None, "username": user.username if user else None,
-            "setup_required": (await auth.admin_count(db)) == 0}
+    setup_required = (await auth.admin_count(db)) == 0
+    out = {"authenticated": user is not None, "username": user.username if user else None, "setup_required": setup_required}
+    if setup_required:          # what the first-run form can offer (public addresses only)
+        out.update(catalog_server=catalog_remote.default_server(), telemetry_available=bool((settings.TELEMETRY_URL or "").strip()))
+    return out
 
 
 @router.post("/setup")
@@ -91,7 +99,25 @@ async def setup_first_admin(req: SetupRequest, request: Request, response: Respo
     token = await auth.create_session(db, user, request)
     auth.set_session_cookie(response, request, token, auth.ADMIN_COOKIE_NAME)
     _LOGGER.info("Administrator '%s' created from %s.", username, ip)
-    return {"status": "ok", "username": username}
+    return {"status": "ok", "username": username, **await _first_run_choices(db, user, req)}
+
+
+async def _first_run_choices(db: AsyncSession, user: AppUser, req: SetupRequest) -> dict:
+    """Applies the answers of the first-run form. A failure here never undoes the account: it is reported and can be retried."""
+    out: dict = {}
+    if req.telemetry is not None and (settings.TELEMETRY_URL or "").strip():
+        await telemetry.set_enabled(db, req.telemetry)
+        await admin_audit.log(db, user, "telemetry.enabled" if req.telemetry else "telemetry.disabled")
+    if req.catalog == "own":
+        await catalog_remote.mark_decided(db)
+        await admin_audit.log(db, user, "catalog.source", "own")
+    elif req.catalog == "online":
+        try:
+            await catalog_remote.connect_default(db)
+            await admin_audit.log(db, user, "catalog.connect", catalog_remote.default_server() or "")
+        except catalog_remote.RemoteError as ex:
+            out["catalog_error"] = ex.detail
+    return out
 
 
 @router.post("/login")

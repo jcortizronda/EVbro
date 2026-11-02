@@ -119,6 +119,9 @@ class Settings(BaseSettings):
 
     # Shared consumables catalogue: the server a bare key (`ebc_…`) belongs to. A full link (`https://server#key`) always wins.
     CATALOG_DEFAULT_URL: str = "https://catalog.evbro.app"
+    # This server lets other installations sign up to its catalogue with one click (a key of their own, lower proposal cap).
+    # Only the project's own server; off everywhere else.
+    CATALOG_OPEN_SIGNUP: bool = False
 
     # Anonymous usage statistics and error reports (services/telemetry.py, docs/telemetry.md). Nothing is sent until the
     # administrator turns it on in the console; empty = never sent and the console says so.

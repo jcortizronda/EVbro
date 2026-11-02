@@ -30,6 +30,18 @@
         <label><span>Usuario</span><input id="authUser" autocomplete="username" spellcheck="false"></label>
         <label><span>Contraseña</span><input id="authPass" type="password" autocomplete="current-password"></label>
         <label id="rowPass2" hidden><span>Repite la contraseña</span><input id="authPass2" type="password" autocomplete="new-password"></label>
+        <fieldset class="choices" id="rowCatalog" hidden>
+          <legend>Catálogo de consumibles</legend>
+          <p class="hint">Qué aceite, filtros, escobillas o neumáticos lleva cada coche. Lo puedes cambiar después en la pestaña Catálogo.</p>
+          <label class="choice"><input type="radio" name="setupCatalog" value="online" checked><span><strong>El del proyecto, en línea</strong> (recomendado). Se descarga a diario el catálogo que comparten los propietarios, y las piezas que propongan tus usuarios llegan también a él, sin su nombre. Este servidor se da de alta solo en <span id="setupCatalogServer">el catálogo del proyecto</span>.</span></label>
+          <label class="choice"><input type="radio" name="setupCatalog" value="own"><span><strong>Solo el de este servidor.</strong> Únicamente lo que apruebes aquí; no se conecta a nadie.</span></label>
+        </fieldset>
+        <fieldset class="choices" id="rowTelemetry" hidden>
+          <legend>¿Ayudas a mejorar EVBro?</legend>
+          <p class="hint">Este servidor puede enviar una vez al día un informe anónimo al proyecto: versión, qué funciones se usan y los fallos que haya registrado. Sirve para encontrar y corregir errores. No lleva nombres, usuarios, matrículas, VIN, posiciones, viajes ni importes. Dentro puedes ver el informe exacto y cambiarlo cuando quieras en la pestaña Servidor.</p>
+          <label class="choice"><input type="radio" name="setupTelemetry" value="yes"><span><strong>Sí, enviar informes anónimos</strong></span></label>
+          <label class="choice"><input type="radio" name="setupTelemetry" value="no"><span><strong>No, gracias</strong></span></label>
+        </fieldset>
         <p class="error" id="authError" role="alert" hidden></p>
         <button type="submit" class="primary" id="authSubmit">Entrar</button>
       </form>
@@ -46,6 +58,12 @@
         <button type="button" role="tab" class="tab" data-tab="reports" aria-selected="false" id="tabBtnReports" hidden>Informes</button>
         <button type="button" role="tab" class="tab" data-tab="audit" aria-selected="false">Registro</button>
       </nav>
+
+      <div class="card notice" id="catalogAsk" hidden>
+        <h2>¿Conectas al catálogo del proyecto?</h2>
+        <p class="hint">El catálogo de consumibles (qué aceite, filtros o escobillas lleva cada coche) puede ser solo el de este servidor o el que comparten los propietarios de EVBro. Si lo conectas, se descarga una vez al día y las piezas que propongan tus usuarios llegan también a él, sin su nombre. Este servidor se da de alta solo, con un clic, y lo puedes cambiar cuando quieras en la pestaña Catálogo.</p>
+        <div class="actions"><button type="button" class="primary" id="btnCatYes">Sí, conectar</button> <button type="button" class="ghost" id="btnCatNo">No, solo el de este servidor</button></div>
+      </div>
 
       <div class="card notice" id="telemetryAsk" hidden>
         <h2>¿Ayudas a mejorar EVBro?</h2>
@@ -194,12 +212,13 @@
 
         <div class="card">
           <h2>Origen del catálogo de este servidor</h2>
-          <p class="hint">«Propio»: solo lo que apruebas aquí. «En línea»: además se descarga a diario el catálogo de otro servidor EVBro y las propuestas de tus usuarios se envían también a su cola. Basta con pegar la clave que te hayan dado (<code>ebc_…</code>) para usar el catálogo del proyecto; para otro servidor, pega el enlace completo (<code>https://servidor#clave</code>). La clave se guarda cifrada y no se vuelve a mostrar. Sin clave válida, el servidor sigue con su catálogo propio.</p>
+          <p class="hint">«Propio»: solo lo que apruebas aquí. «En línea»: además se descarga a diario el catálogo de otro servidor EVBro y las propuestas de tus usuarios se envían también a su cola. Para el catálogo del proyecto basta con el botón «Conectar» (o con pegar la clave que te hayan dado, <code>ebc_…</code>); para otro servidor, pega el enlace completo (<code>https://servidor#clave</code>). La clave se guarda cifrada y no se vuelve a mostrar. Sin clave válida, el servidor sigue con su catálogo propio.</p>
           <form id="formCatalogSource" class="inline-form">
             <label><span>Origen</span><select id="srcMode"><option value="own">Propio</option><option value="remote">En línea</option></select></label>
             <label class="wide"><span>Clave o enlace del catálogo en línea</span><input id="srcLink" type="text" autocomplete="off" placeholder="ebc_…"><small id="srcLinkInfo"></small></label>
             <div class="actions"><button type="submit" class="primary">Guardar</button> <button type="button" class="ghost" id="btnCatalogSync">Sincronizar ahora</button></div>
           </form>
+          <p class="actions" id="rowCatalogConnect" hidden><button type="button" class="primary" id="btnCatalogConnect">Conectar con el catálogo del proyecto</button> <small class="hint">Un clic: este servidor se da de alta solo y no hace falta pedir ninguna clave.</small></p>
           <p class="hint" id="srcStatus"></p>
         </div>
 

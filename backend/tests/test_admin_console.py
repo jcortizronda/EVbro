@@ -68,7 +68,8 @@ async def make_manager(admin, name=MANAGER, **kw):
 # ───────────────────────── first administrator ─────────────────────────
 async def test_the_console_asks_for_the_first_administrator(db) -> None:
     async with console() as c:
-        assert (await c.get("/api/auth/status")).json() == {"authenticated": False, "username": None, "setup_required": True}
+        assert (await c.get("/api/auth/status")).json() == {"authenticated": False, "username": None, "setup_required": True,
+                                                             "catalog_server": "https://catalog.evbro.app", "telemetry_available": True}
 
 
 async def test_setup_needs_the_code_and_a_strong_password_and_only_works_once(db) -> None:

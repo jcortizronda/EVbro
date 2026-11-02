@@ -13,7 +13,7 @@ from app.db.models import AppUser, CatalogEntry, CatalogFitment, CatalogKey, Veh
 from app.db.session import async_session_factory
 from app.main import app
 from app.security import auth, passwords
-from app.services import catalog_remote
+from app.services import catalog_remote, telemetry
 
 VIN = "LSJA0000000000041"
 SETUP_CODE = "test-setup-code"
@@ -32,6 +32,7 @@ def _clean(monkeypatch, data_dir):
     auth.reset_setup_code()
     for t in (routes_auth.ip_throttle, routes_auth.pair_throttle, routes_admin_auth.ip_throttle, routes_admin_auth.pair_throttle, routes_catalog_online.ip_throttle):
         t._fails.clear()
+    routes_catalog_online._signups_by_ip.clear()
     yield
     auth.reset_setup_code()
 
@@ -129,7 +130,7 @@ async def test_a_self_hosted_server_mirrors_the_online_catalogue_and_forwards_pr
     await console.put("/api/admin/catalog/keys/public-url", json={"public_url": REMOTE})
     key = (await console.post("/api/admin/catalog/keys", json={"note": "Yo mismo"})).json()["key"]
     # default: own catalogue, no link
-    assert (await console.get("/api/admin/catalog/source")).json() == {"source": "own", "has_link": False, "server": None, "default_server": "https://catalog.evbro.app", "last_sync_at": None, "last_error": None, "entries": 0}
+    assert (await console.get("/api/admin/catalog/source")).json() == {"source": "own", "has_link": False, "server": None, "default_server": "https://catalog.evbro.app", "last_sync_at": None, "last_error": None, "entries": 0, "decided": False}
     assert (await console.put("/api/admin/catalog/source", json={"source": "remote"})).status_code == 422          # needs a link
     assert (await console.put("/api/admin/catalog/source", json={"source": "remote", "link": "https://x#clave-mala"})).status_code == 422
     r = await console.put("/api/admin/catalog/source", json={"source": "remote", "link": f"{REMOTE}#{key}"})
@@ -195,3 +196,92 @@ async def test_the_project_server_hands_out_keys_that_work_alone(world) -> None:
     assert k["key_alone"] is True and k["key"].startswith("ebc_")
     await console.put("/api/admin/catalog/keys/public-url", json={"public_url": REMOTE})
     assert (await console.post("/api/admin/catalog/keys", json={"note": "Eva"})).json()["key_alone"] is False
+
+
+async def test_sign_up_is_only_open_on_the_project_server_and_is_capped(world, monkeypatch) -> None:
+    console, anon = world["console"], world["anon"]
+    form = {"format": catalog_remote.SIGNUP_FORMAT}
+    assert (await anon.post("/api/catalog/online/signup", json=form)).status_code == 404                  # off by default
+    monkeypatch.setattr(settings, "CATALOG_OPEN_SIGNUP", True)
+    assert (await anon.post("/api/catalog/online/signup", json={"format": "x"})).status_code == 422
+    r = await anon.post("/api/catalog/online/signup", json=form)
+    key = r.json()["key"]
+    assert r.status_code == 200 and key.startswith("ebc_")
+    assert (await anon.get("/api/catalog/online/export", headers={"Authorization": f"Bearer {key}"})).status_code == 200
+    listed = (await console.get("/api/admin/catalog/keys")).json()["keys"]
+    assert listed[0]["auto"] is True and listed[0]["note"].startswith("Alta automática")
+    # a self-service key has a lower daily proposal cap
+    monkeypatch.setattr(catalog_remote, "MAX_PROPOSALS_PER_AUTO_KEY_DAY", 1)
+    part = {"category": "brake_pads", "brand": "Brembo", "fitments": [{"model": "S800 PHEV"}]}
+    assert (await anon.post("/api/catalog/online/propose", json=part, headers={"Authorization": f"Bearer {key}"})).status_code == 200
+    assert (await anon.post("/api/catalog/online/propose", json=part, headers={"Authorization": f"Bearer {key}"})).status_code == 429
+    # a few per IP and day, and a cap for everybody together
+    assert (await anon.post("/api/catalog/online/signup", json=form)).status_code == 200
+    assert (await anon.post("/api/catalog/online/signup", json=form)).status_code == 200
+    assert (await anon.post("/api/catalog/online/signup", json=form)).status_code == 429
+    routes_catalog_online._signups_by_ip.clear()
+    monkeypatch.setattr(catalog_remote, "MAX_SIGNUPS_PER_DAY", 3)
+    assert (await anon.post("/api/catalog/online/signup", json=form)).status_code == 429
+
+
+async def test_one_click_connects_to_the_project_catalogue(world, in_process_http, monkeypatch) -> None:
+    console = world["console"]
+    monkeypatch.setattr(settings, "CATALOG_DEFAULT_URL", REMOTE)
+    # the project's server does not take sign-ups: the error is clear and nothing changes
+    r = await console.post("/api/admin/catalog/source/connect")
+    assert r.status_code == 502 and "clave" in r.json()["detail"]
+    state = (await console.get("/api/admin/catalog/source")).json()
+    assert state["source"] == "own" and state["has_link"] is False and state["decided"] is False
+    monkeypatch.setattr(settings, "CATALOG_OPEN_SIGNUP", True)
+    r = await console.post("/api/admin/catalog/source/connect")
+    assert r.status_code == 200
+    state = r.json()
+    assert state["source"] == "remote" and state["has_link"] and state["server"] == REMOTE and state["entries"] == 1 and state["decided"] is True
+    assert "ebc_" not in r.text                                                                                        # the key stays a secret
+    keys = (await console.get("/api/admin/catalog/keys")).json()["keys"]
+    assert [k["auto"] for k in keys] == [True]
+    # connecting again reuses the stored key instead of signing up twice
+    assert (await console.post("/api/admin/catalog/source/connect")).status_code == 200
+    assert len((await console.get("/api/admin/catalog/keys")).json()["keys"]) == 1
+    audit = [a["action"] for a in (await console.get("/api/admin/audit")).json()]
+    assert "catalog.connect" in audit
+
+
+async def test_keeping_the_own_catalogue_stops_the_question(world) -> None:
+    console = world["console"]
+    assert (await console.get("/api/admin/catalog/source")).json()["decided"] is False
+    r = await console.post("/api/admin/catalog/source/keep-own")
+    assert r.status_code == 200 and r.json()["decided"] is True and r.json()["source"] == "own"
+
+
+@pytest.mark.parametrize("signup_open", [True, False])
+async def test_the_first_run_form_applies_both_answers(db, in_process_http, monkeypatch, signup_open) -> None:
+    monkeypatch.setattr(settings, "CATALOG_DEFAULT_URL", REMOTE)
+    monkeypatch.setattr(settings, "CATALOG_OPEN_SIGNUP", signup_open)
+    monkeypatch.setattr(settings, "TELEMETRY_URL", "https://data.ejemplo.es")
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=admin_app), base_url="http://testserver", headers=ORIGIN) as console:
+        status = (await console.get("/api/auth/status")).json()
+        assert status["setup_required"] and status["catalog_server"] == REMOTE and status["telemetry_available"] is True
+        r = await console.post("/api/auth/setup", json={"username": "admin", "password": "una-contraseña-larga-1", "setup_code": SETUP_CODE,
+                                                        "catalog": "online", "telemetry": True})
+        assert r.status_code == 200                                                                                    # the account exists either way
+        source = (await console.get("/api/admin/catalog/source")).json()
+        if signup_open:
+            assert "catalog_error" not in r.json() and source["source"] == "remote" and source["decided"] is True
+        else:
+            assert "clave" in r.json()["catalog_error"] and source["source"] == "own" and source["decided"] is False
+        tel = (await console.get("/api/admin/telemetry")).json()
+        assert tel["enabled"] is True and tel["decided"] is True
+        assert "catalog_server" not in (await console.get("/api/auth/status")).json()                                   # only before the setup
+    telemetry.set_enabled_cache(False)
+
+
+async def test_the_first_run_form_can_keep_everything_local(db) -> None:
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=admin_app), base_url="http://testserver", headers=ORIGIN) as console:
+        r = await console.post("/api/auth/setup", json={"username": "admin", "password": "una-contraseña-larga-1", "setup_code": SETUP_CODE,
+                                                        "catalog": "own", "telemetry": False})
+        assert r.status_code == 200
+        assert (await console.get("/api/admin/catalog/source")).json()["decided"] is True
+        tel = (await console.get("/api/admin/telemetry")).json()
+        assert tel["enabled"] is False and tel["decided"] is True
+        assert (await console.post("/api/auth/setup", json={"username": "x", "password": "y", "setup_code": SETUP_CODE, "catalog": "maybe"})).status_code in (409, 422)
