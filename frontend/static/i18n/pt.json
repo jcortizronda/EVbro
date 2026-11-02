@@ -2068,5 +2068,15 @@
  "(1 carga).": "(1 carga).",
  "({p0} cargas).": "({p0} cargas).",
  "kWh útiles medidos": "kWh úteis medidos",
- "Los kWh de viajes y cargas se estiman a partir del porcentaje de batería y la capacidad de la ficha; la capacidad de la batería se mide con la curva de": "Os kWh das viagens e carregamentos estimam-se a partir da percentagem de bateria e da capacidade da ficha; a capacidade da bateria mede-se com a curva de"
+ "Los kWh de viajes y cargas se estiman a partir del porcentaje de batería y la capacidad de la ficha; la capacidad de la batería se mide con la curva de": "Os kWh das viagens e carregamentos estimam-se a partir da percentagem de bateria e da capacidade da ficha; a capacidade da bateria mede-se com a curva de",
+ "Personalizar barra inferior": "Personalizar barra inferior",
+ "Barra inferior": "Barra inferior",
+ "Inicio y Más van siempre en los extremos. Elige hasta 4 secciones para el centro y ordénalas con las flechas.": "Início e Mais ficam sempre nas pontas. Escolha até 4 secções para o centro e ordene-as com as setas.",
+ "En la barra": "Na barra",
+ "Para añadir": "Para adicionar",
+ "La barra ya tiene 6 iconos: quita uno para añadir otro.": "A barra já tem 6 ícones: retire um para adicionar outro.",
+ "No se pudo guardar la barra; se queda en este dispositivo.": "Não foi possível guardar a barra; fica neste dispositivo.",
+ "Siempre en la barra": "Sempre na barra",
+ "Sensores": "Sensores",
+ "Gráficas": "Gráficos"
 }

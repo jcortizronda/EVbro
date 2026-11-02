@@ -708,6 +708,12 @@
   box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.8);
 }
 
+/* The bar holds 3 to 6 buttons (features/dock.js): they share the width, and a long name is cut rather than overflowing */
+.native-bottom-dock { padding-left: 6px; padding-right: 6px; }
+.native-bottom-dock .dock-item { flex: 1 1 0; min-width: 0; padding: 4px 2px; }
+.native-bottom-dock .dock-item span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.native-bottom-dock[data-count="6"] .dock-item { font-size: 9.5px; }
+
 /* Hide the old bottom nav when dock is active */
 .mobile-bottom-nav {
   display: none !important;
@@ -719,7 +725,7 @@ body[data-fuel="gasoline"] .side-item[data-tab="charges"], body[data-fuel="diese
 body[data-fuel="gasoline"] .range-col.is-battery, body[data-fuel="diesel"] .range-col.is-battery,
 body[data-fuel="gasoline"] #chargeStatusBanner, body[data-fuel="diesel"] #chargeStatusBanner { display: none !important; }
 body[data-fuel="ev"] .range-col.is-fuel, body[data-fuel="ev"] .side-item[data-tab="refuels"],
-body[data-fuel="ev"] #tabMore [data-on-click="switchTab('refuels')"] { display: none !important; }
+body[data-fuel="ev"] #tabMore [data-on-click="switchTab('refuels')"], body[data-fuel="ev"] #mobTabRefuels { display: none !important; }
 
 /* Car without an Ebro account (body[data-manual="1"]): nothing that needs live data; the map only with a GPS fix (body[data-gps]) */
 .manual-note { display: none; margin-bottom: 12px; font-size: 0.88rem; line-height: 1.45; color: var(--text-secondary); }
@@ -731,5 +737,5 @@ body[data-manual="1"] #tabOverview .home-widget[data-widget="sensors"],
 body[data-manual="1"] #mobTabCharges, body[data-manual="1"] #mobTabClimate,
 body[data-manual="1"] .side-item[data-tab="charges"], body[data-manual="1"] .side-item[data-tab="climate"],
 body[data-manual="1"] .side-item[data-on-click="openAllSensorsModal()"],
-body[data-manual="1"] #tabMore [data-on-click="openAllSensorsModal()"] { display: none !important; }
+body[data-manual="1"] #tabMore [data-on-click="openAllSensorsModal()"], body[data-manual="1"] #mobDockSensors { display: none !important; }
 body[data-manual="1"]:not([data-gps="1"]) #liveMapCard { display: none !important; }

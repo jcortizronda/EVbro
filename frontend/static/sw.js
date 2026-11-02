@@ -113,6 +113,7 @@ const STATIC_ASSETS = [
   '/static/js/features/home.js',
   '/static/js/features/home-widgets.js',
   '/static/js/features/app-shortcuts.js',
+  '/static/js/features/dock.js',
   '/static/js/features/car-figure.js',
   '/static/js/features/push.js',
   '/static/js/features/passkeys.js',

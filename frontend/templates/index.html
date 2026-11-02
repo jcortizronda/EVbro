@@ -1283,6 +1283,7 @@
               </div>
             </button>
           </div>
+          <button type="button" class="btn-secondary home-customize dock-customize" id="dockCustomize" data-on-click="Dock.open()">Personalizar barra inferior</button>
         </div>
 
       </div>
@@ -2639,6 +2640,23 @@
   </div>
 
   <!-- Modal: part or consumable -->
+  <!-- The phone's bottom bar: which sections sit between Inicio and Más (features/dock.js) -->
+  <div id="dockModal" class="modal-overlay">
+    <div class="modal-card u-max-width-460px">
+      <h3>Barra inferior</h3>
+      <p class="vp-hint">Inicio y Más van siempre en los extremos. Elige hasta 4 secciones para el centro y ordénalas con las flechas.</p>
+      <div class="dock-edit-label">En la barra</div>
+      <div id="dockChosen" class="dock-edit-list"></div>
+      <div class="dock-edit-label">Para añadir</div>
+      <p class="vp-hint dock-full" id="dockFull" hidden>La barra ya tiene 6 iconos: quita uno para añadir otro.</p>
+      <div id="dockFree" class="dock-edit-list"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" data-on-click="Dock.reset()">Restablecer</button>
+        <button type="button" class="btn-primary" data-on-click="Dock.close()">Hecho</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Inicio: add a widget (features/home-widgets.js) -->
   <div id="homeAddModal" class="modal-overlay">
     <div class="modal-card u-max-width-460px">
@@ -3158,7 +3176,7 @@
   <!-- Floating Dynamic Island Toast Container -->
   <div id="appToastContainer" class="app-toast-container"></div>
 
-  <!-- Floating native bottom navigation dock (matching the app screenshot: Inicio, Energía, Confort, Más) -->
+  <!-- Bottom bar on touch screens: Inicio and Más fixed, the sections in between chosen by the account (features/dock.js) -->
   <nav class="native-bottom-dock">
     <button class="dock-item active" id="mobTabOverview" data-on-click="switchTab('overview')">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
@@ -3289,6 +3307,7 @@
   <script src="/static/js/features/home.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/home-widgets.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/app-shortcuts.js?v={{ asset_version }}"></script>
+  <script src="/static/js/features/dock.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/car-figure.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/push.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/passkeys.js?v={{ asset_version }}"></script>

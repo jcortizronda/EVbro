@@ -308,7 +308,7 @@ async def update_language(req: LanguageRequest, request: Request, response: Resp
 
 class HomeLayoutRequest(BaseModel):
     widgets: List[str] = Field(max_length=40)
-    page: Literal["overview", "charges", "climate"] = "overview"
+    page: Literal["overview", "charges", "climate", "dock"] = "overview"      # «dock»: the phone's bottom bar (features/dock.js)
 
 
 def _with_page(layout: Optional[dict], page: str, widgets: Optional[List[str]]) -> Optional[dict]:
@@ -351,7 +351,7 @@ async def put_home_layout(req: HomeLayoutRequest, session: AsyncSession = Depend
 
 
 @router.delete("/home-layout")
-async def reset_home_layout(page: Literal["overview", "charges", "climate"] = "overview", session: AsyncSession = Depends(get_db),
+async def reset_home_layout(page: Literal["overview", "charges", "climate", "dock"] = "overview", session: AsyncSession = Depends(get_db),
                             user: AppUser = Depends(auth.require_auth)):
     """One page back to its default layout; the others keep theirs."""
     db_user = await session.get(AppUser, user.id)

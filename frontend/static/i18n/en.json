@@ -2068,5 +2068,15 @@
  "(1 carga).": "(1 charge).",
  "({p0} cargas).": "({p0} charges).",
  "kWh útiles medidos": "usable kWh, measured",
- "Los kWh de viajes y cargas se estiman a partir del porcentaje de batería y la capacidad de la ficha; la capacidad de la batería se mide con la curva de": "The kWh of trips and charges are estimated from the battery percentage and the sheet capacity; the battery capacity is measured from the curve of"
+ "Los kWh de viajes y cargas se estiman a partir del porcentaje de batería y la capacidad de la ficha; la capacidad de la batería se mide con la curva de": "The kWh of trips and charges are estimated from the battery percentage and the sheet capacity; the battery capacity is measured from the curve of",
+ "Personalizar barra inferior": "Customise bottom bar",
+ "Barra inferior": "Bottom bar",
+ "Inicio y Más van siempre en los extremos. Elige hasta 4 secciones para el centro y ordénalas con las flechas.": "Home and More always sit at the ends. Choose up to 4 sections for the middle and order them with the arrows.",
+ "En la barra": "In the bar",
+ "Para añadir": "To add",
+ "La barra ya tiene 6 iconos: quita uno para añadir otro.": "The bar already has 6 icons: remove one to add another.",
+ "No se pudo guardar la barra; se queda en este dispositivo.": "The bar could not be saved; it stays on this device.",
+ "Siempre en la barra": "Always in the bar",
+ "Sensores": "Sensors",
+ "Gráficas": "Charts"
 }

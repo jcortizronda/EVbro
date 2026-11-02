@@ -24,6 +24,8 @@ La portada del coche elegido (arriba, el selector de coche si tienes varios).
 
 **Atajos del icono.** Con EVBro instalada en el móvil, mantén pulsado su icono: salen **Cerrar el coche**, **Encender el clima**, **Carga** y **Viajes** (cada uno se puede arrastrar al escritorio como un icono propio). Los de órdenes no mandan nada solos: abren la app y te preguntan antes, con el nombre del coche. EVBro no puede poner un widget con datos en el escritorio de Android, porque Chrome no lo permite a las aplicaciones web.
 
+**Barra inferior.** En el móvil puedes elegir qué va en la barra de abajo: Inicio y Más siempre en los extremos y hasta 4 secciones en medio (6 iconos como máximo), entre Carga, Confort y cualquiera de las de Más. Se cambia con **Personalizar barra inferior**, al final de Más: añadir, quitar y ordenar con flechas. Se guarda en tu cuenta, así que sale igual en todos tus móviles; «Restablecer» vuelve a Carga y Confort. En el ordenador no hay barra inferior (todo está en la barra lateral).
+
 ## Carga
 
 *(Se llamaba «Energía» hasta el 01-11-2026.)*

@@ -68,3 +68,19 @@ body.home-editing .home-widgets { padding-bottom: 150px; }
   background: var(--surface-secondary); border: 1px solid var(--border-color); border-radius: 14px; cursor: pointer; }
 .hw-add-item span { font-size: 0.82rem; color: var(--text-secondary); }
 .hw-add-item .hw-na { font-weight: 500; color: var(--text-muted); }
+
+/* ───────── «Barra inferior» (features/dock.js) ───────── */
+.dock-customize { margin-top: 1rem; }
+.dock-edit-label { margin: 12px 0 6px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-secondary); }
+.dock-edit-list { display: flex; flex-direction: column; gap: 6px; }
+.dock-edit-row { display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 5px 6px 5px 10px; font: inherit; text-align: left;
+  color: var(--text-primary); background: var(--surface-secondary); border: 1px solid var(--border-color); border-radius: 14px; }
+.dock-edit-row.is-fixed { opacity: 0.7; }
+.dock-edit-icon { display: inline-flex; color: var(--accent-bright, var(--primary)); }
+.dock-edit-icon svg { width: 20px; height: 20px; }
+.dock-edit-name { flex: 1; min-width: 0; font-size: 0.9rem; font-weight: 600; }
+.dock-edit-name small { display: block; font-size: 0.75rem; font-weight: 500; color: var(--text-muted); }
+.dock-edit-add { width: 100%; cursor: pointer; }
+.dock-edit-add:disabled { opacity: 0.45; cursor: default; }
+.dock-edit-plus { padding: 0 8px; font-size: 1.3rem; font-weight: 700; color: var(--accent-bright, var(--primary)); }
+#dockModal .modal-card { max-height: 90vh; overflow-y: auto; }

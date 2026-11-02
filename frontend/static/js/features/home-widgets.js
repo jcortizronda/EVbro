@@ -489,7 +489,10 @@ const WidgetBoards = (function () {
 
   document.addEventListener('DOMContentLoaded', () => Object.values(boards).forEach((b) => b.init()));
 
-  return { onTelemetry, onTab, closeAdd, boards };
+  /** The account's saved layouts (one request shared with features/dock.js); null = all defaults or not read yet. */
+  async function serverLayout() { await loadServer(); return serverLoaded ? server : undefined; }
+
+  return { onTelemetry, onTab, closeAdd, boards, serverLayout };
 })();
 window.WidgetBoards = WidgetBoards;
 // One global per page board: the `data-on-click` of the edit bars and of each widget's tools call these

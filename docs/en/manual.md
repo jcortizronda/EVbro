@@ -24,6 +24,8 @@ The front page of the selected car (the car selector is at the top if you have s
 
 **App icon shortcuts.** With EVBro installed on the phone, press and hold its icon: **Lock the car**, **Turn on the climate**, **Charging** and **Trips** appear (each one can be dragged to the home screen as an icon of its own; their names are in Spanish). The command ones never send anything on their own: they open the app and ask first, naming the car. EVBro cannot put a widget with data on the Android home screen, because Chrome does not allow it for web apps.
 
+**Bottom bar.** On the phone you choose what goes in the bottom bar: Home and More always at the ends and up to 4 sections in between (6 icons at most), from Charging, Comfort and any of the sections in More. Change it with **Customise bottom bar**, at the end of More: add, remove and reorder with the arrows. It is saved in your account, so it is the same on all your phones; «Reset» goes back to Charging and Comfort. A computer has no bottom bar (everything is in the sidebar).
+
 ## Charging
 
 *(Called «Energy» until 01-11-2026.)*

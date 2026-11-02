@@ -92,6 +92,7 @@ async function loadVehicles() {
     updateVehicleHeaderInfo(chosen);
     applyVehicleCapabilities();                     // fuel type and «no Ebro account» decide what the interface shows
     if (window.WidgetBoards) WidgetBoards.onTab(window.currentTabName || 'overview');   // the shown page's widgets, for this car (Inicio is the first screen)
+    if (window.Dock) Dock.sync();                    // the account's bottom bar (features/dock.js)
     if (window.AppShortcuts) AppShortcuts.run();     // the icon's shortcuts (manifest.json): open a page or ask before an order
 
     // Load telemetry and charge details of the chosen car

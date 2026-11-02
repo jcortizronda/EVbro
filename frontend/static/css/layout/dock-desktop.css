@@ -10,4 +10,5 @@
 /* With a MOUSE and a wide window the bottom dock is not needed: the sidebar rules (desktop.css) */
 @media (min-width: 769px) and (hover: hover) and (pointer: fine) {
   .native-bottom-dock { display: none; }
+  .dock-customize { display: none !important; }        /* no bottom bar, nothing to customise */
 }

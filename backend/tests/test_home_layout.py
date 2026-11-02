@@ -75,3 +75,11 @@ async def test_energy_and_comfort_have_their_own_layout_and_reset(accounts) -> N
     assert (await juan.delete("/api/account/home-layout?page=charges")).json()["layout"] == {"pages": {"climate": ["seats"]}}
     assert (await juan.delete("/api/account/home-layout?page=climate")).json()["layout"] is None
     assert (await juan.put("/api/account/home-layout", json={"page": "settings", "widgets": []})).status_code == 422
+
+
+async def test_the_bottom_bar_is_kept_per_account_too(accounts) -> None:
+    juan, ana = accounts
+    r = await juan.put("/api/account/home-layout", json={"page": "dock", "widgets": ["drives", "charges", "settings"]})
+    assert r.json()["layout"] == {"pages": {"dock": ["drives", "charges", "settings"]}}
+    assert (await ana.put("/api/account/home-layout", json={"page": "dock", "widgets": ["stats"]})).status_code == 200    # read-only too
+    assert (await juan.delete("/api/account/home-layout?page=dock")).json()["layout"] is None
