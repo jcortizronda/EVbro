@@ -126,10 +126,26 @@ function initMap() {
   window.addEventListener('popstate', () => { if (mapExpanded) setMapExpanded(false, true); });
 }
 
-function updateMapPosition(lat, lon, address) {
-  if (!liveMap || !lat || !lon) return;
+// The marker belongs to one car: switching cars forgets the previous one's position (a car without an Ebro account used to
+// keep showing the previous car's spot, usually home, once its own GPS marker expired)
+let mapVin = null;
+function forgetOtherCarPosition() {
+  if (typeof currentVin === 'undefined' || mapVin === currentVin) return;
+  mapVin = currentVin;
+  vehicleLatLng = null;
+  mapUserMoved = false;
+  if (vehicleMarker && liveMap) { liveMap.removeLayer(vehicleMarker); vehicleMarker = null; }
+  if (gpsMarker && liveMap) { liveMap.removeLayer(gpsMarker); gpsMarker = null; }
+  const locElem = document.getElementById('mapLocationText');
+  const coordElem = document.getElementById('mapCoordinatesText');
+  if (locElem) locElem.innerText = '';
+  if (coordElem) coordElem.innerText = '';
+  updateMapButtons();
+}
 
-  const latLng = [lat, lon];
+/** Moves the car's marker (and the view, while the user has not moved it). */
+function placeVehicleMarker(latLng) {
+  forgetOtherCarPosition();
   const firstFix = !vehicleLatLng;
   vehicleLatLng = latLng;
   if (!vehicleMarker) {
@@ -147,6 +163,13 @@ function updateMapPosition(lat, lon, address) {
   // Follow the car while the user has not moved the map (it used to re-centre on every reading)
   if (firstFix || !mapUserMoved) liveMap.setView(latLng, firstFix ? MAP_DEFAULT_ZOOM : liveMap.getZoom());
   updateMapButtons();
+}
+
+function updateMapPosition(lat, lon, address) {
+  if (!liveMap || !lat || !lon) return;
+  // A car without an Ebro account: its tracker is its position, however old (the stored one is usually where it was registered)
+  if (isManualCar() && gpsLatest && gpsLatest.vin === currentVin) { refreshGpsPosition(); return; }
+  placeVehicleMarker([lat, lon]);
   if (typeof refreshGpsPosition === 'function') refreshGpsPosition();
 
   const locElem = document.getElementById('mapLocationText');
@@ -157,27 +180,57 @@ function updateMapPosition(lat, lon, address) {
 
 
 // ───────────────────────── GPS position (Traccar) ─────────────────────────
-// A car with its own tracker reports to Traccar; if that position is fresher than the cloud's (and less than 10 min old)
-// it is drawn with its own marker. Queried at most every 30 s.
+// A connected car: if the tracker's position is fresher than the cloud's (and less than 10 min old) it is drawn with its own
+// marker. A car without an Ebro account has no cloud position: the tracker's last fix IS the car's position, however old (a
+// tracker sleeps while parked). Queried at most every 30 s.
 let gpsMarker = null;
 let gpsLastFetch = 0;
+let gpsLatest = null;                 // {vin, position} of the last answer
+const isManualCar = () => document.body.dataset.manual === '1';
+
+/** «hace 4 min», «hace 3 h» or the date, for how old a fix is. */
+function gpsAgeText(ageS) {
+  const min = Math.max(0, Math.round(ageS / 60));
+  if (min < 60) return t('hace {p0} min', {p0: min});
+  if (min < 48 * 60) return t('hace {p0} h', {p0: Math.round(min / 60)});
+  return new Date(Date.now() - ageS * 1000).toLocaleString(I18n.locale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
+function showGpsAsVehicle(position) {
+  const latLng = [position.latitude, position.longitude];
+  if (gpsMarker) { liveMap.removeLayer(gpsMarker); gpsMarker = null; }
+  placeVehicleMarker(latLng);
+  const locElem = document.getElementById('mapLocationText');
+  const coordElem = document.getElementById('mapCoordinatesText');
+  if (locElem) locElem.innerText = t('Posición GPS · {p0}', {p0: gpsAgeText(position.age_s)});
+  if (coordElem) coordElem.innerText = `${position.latitude.toFixed(4)}, ${position.longitude.toFixed(4)}`;
+}
+
 async function refreshGpsPosition(force = false) {
   if (!liveMap || typeof currentVin === 'undefined' || !currentVin) return;
+  forgetOtherCarPosition();
   const now = Date.now();
-  if (!force && now - gpsLastFetch < 30000) return;
+  if (!force && now - gpsLastFetch < 30000) {
+    if (isManualCar() && gpsLatest && gpsLatest.vin === currentVin && gpsLatest.position) showGpsAsVehicle(gpsLatest.position);
+    return;
+  }
   gpsLastFetch = now;
   try {
-    const res = await fetch(`/api/vehicles/${currentVin}/gps/latest`);
+    const vin = currentVin;
+    const res = await fetch(`/api/vehicles/${vin}/gps/latest`);
     if (!res.ok) return;
     const { position } = await res.json();
+    gpsLatest = { vin, position, at: now };
+    if (vin !== currentVin) return;
+    if (isManualCar() && position) { showGpsAsVehicle(position); return; }
     const fresh = position && position.age_s < 10 * 60;
     if (!fresh) {
       if (gpsMarker) { liveMap.removeLayer(gpsMarker); gpsMarker = null; }
       return;
     }
     const latLng = [position.latitude, position.longitude];
-    const ago = Math.max(0, Math.round(position.age_s / 60));
-    const text = `GPS · hace ${ago} min${position.speed_kmh !== null && position.speed_kmh !== undefined ? ` · ${Math.round(position.speed_kmh)} km/h` : ''}`;
+    const speed = position.speed_kmh !== null && position.speed_kmh !== undefined ? ` · ${Math.round(position.speed_kmh)} km/h` : '';
+    const text = `${t('GPS · {p0}', {p0: gpsAgeText(position.age_s)})}${speed}`;
     if (!gpsMarker) {
       gpsMarker = L.circleMarker(latLng, { radius: 7, color: '#fff', weight: 2, fillColor: themeAccent(), fillOpacity: 0.95 }).addTo(liveMap);
     } else {
@@ -187,3 +240,9 @@ async function refreshGpsPosition(force = false) {
     if (!mapUserMoved && (!vehicleLatLng || liveMap.distance(latLng, vehicleLatLng) > 50)) liveMap.panTo(latLng);
   } catch (e) { /* offline: try again on the next reading */ }
 }
+
+// A car without an Ebro account gets no readings from the cloud: while Inicio is on screen its GPS position is asked every 30 s
+setInterval(() => {
+  if (document.visibilityState !== 'visible' || !isManualCar() || window.currentTabName !== 'overview') return;
+  refreshGpsPosition();
+}, 30000);

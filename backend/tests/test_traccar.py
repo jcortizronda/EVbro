@@ -18,6 +18,7 @@ from app.services.traccar import Fix, TraccarHub, parse_position
 VIN = "LSJA0000000000007"
 D = datetime.datetime
 ORIGIN = {"Origin": "http://testserver"}
+_REAL_RELOAD = TraccarHub.reload                 # the autouse fixture stubs it; the sweep test needs the real one
 
 
 class _Req:
@@ -182,3 +183,78 @@ async def test_the_hub_routes_fixes_to_the_right_car_and_survives_a_bad_one(worl
         stored = (await s.execute(select(GpsPosition).order_by(GpsPosition.timestamp))).scalars().all()
     assert [p.vin for p in stored] == [VIN, VIN]
     assert hub.status(VIN) == {"connected": False, "error": None}
+
+
+def _fix_s(second: int, lat: float, lon: float, speed: float, motion: bool) -> Fix:
+    return Fix(device_id=3, timestamp=D(2026, 11, 3, 6, 0) + datetime.timedelta(seconds=second), latitude=lat, longitude=lon,
+               speed_kmh=speed, motion=motion)
+
+
+async def test_a_tracker_that_falls_asleep_after_parking_still_closes_the_drive(world) -> None:
+    # Real case of 03/11/2026: a drive, a stop with a GPS jitter that reads as «motion», and the tracker silent 2.5 min later
+    await _setup_link(build_trips=True, stop_minutes=5)
+    async with async_session_factory() as s:
+        fixes = [_fix_s(0, 41.000, -3.000, 30.0, True), _fix_s(60, 41.010, -3.000, 50.0, True), _fix_s(120, 41.020, -3.000, 40.0, True),
+                 _fix_s(130, 41.0200, -3.0000, 0.0, False),          # stops here
+                 _fix_s(140, 41.0200, -3.0001, 1.4, True),           # jitter: «motion» at walking pace, same place
+                 _fix_s(150, 41.0201, -3.0001, 0.0, False), _fix_s(280, 41.0201, -3.0001, 0.0, False)]   # then silence
+        for f in fixes:
+            await gps_positions.handle_fix(s, VIN, f)
+        assert (await s.execute(select(Drive).where(Drive.vin == VIN))).scalar_one().end_time is None
+        # the sweep does nothing while the silence is shorter than the stop minutes...
+        assert await gps_positions.close_silent_drives(s, now=D(2026, 11, 3, 6, 8)) == 0
+        # ...and closes it afterwards, where and when the car stopped
+        assert await gps_positions.close_silent_drives(s, now=D(2026, 11, 3, 6, 10)) == 1
+        d = (await s.execute(select(Drive).where(Drive.vin == VIN))).scalar_one()
+        assert d.end_time == D(2026, 11, 3, 6, 2, 10) and d.end_address.startswith("41.020") and 2.0 < d.distance_km < 2.4
+        assert await gps_positions.close_silent_drives(s, now=D(2026, 11, 3, 7, 0)) == 0              # nothing left open
+        # the next drive opens normally when the tracker wakes up
+        await gps_positions.handle_fix(s, VIN, _fix_s(3600, 41.030, -3.000, 30.0, True))
+        drives = (await s.execute(select(Drive).where(Drive.vin == VIN).order_by(Drive.start_time))).scalars().all()
+        assert len(drives) == 2 and drives[1].end_time is None
+
+
+async def test_a_signal_lost_while_moving_ends_the_drive_at_the_last_fix(world) -> None:
+    await _setup_link(build_trips=True, stop_minutes=5)
+    async with async_session_factory() as s:
+        for f in [_fix_s(0, 41.000, -3.000, 30.0, True), _fix_s(60, 41.010, -3.000, 50.0, True), _fix_s(120, 41.020, -3.000, 45.0, True)]:
+            await gps_positions.handle_fix(s, VIN, f)
+        assert await gps_positions.close_silent_drives(s, now=D(2026, 11, 3, 6, 30)) == 1
+        d = (await s.execute(select(Drive).where(Drive.vin == VIN))).scalar_one()
+        assert d.end_time == D(2026, 11, 3, 6, 2)
+
+
+async def test_the_sweep_leaves_alone_cars_whose_trips_are_not_built_from_gps(world) -> None:
+    await _setup_link(build_trips=False)
+    async with async_session_factory() as s:
+        s.add(Drive(vin=VIN, start_time=D(2026, 11, 3, 5, 0), end_time=None))
+        await s.commit()
+        assert await gps_positions.close_silent_drives(s, now=D(2026, 11, 3, 9, 0)) == 0
+
+
+async def test_the_hub_runs_the_silent_trip_sweep_only_when_some_car_builds_trips(world, monkeypatch) -> None:
+    import asyncio
+
+    from app.services.traccar import TraccarHub as Hub
+    monkeypatch.setattr(Hub, "reload", _REAL_RELOAD)
+    calls = []
+
+    async def no_run(self, key, devices):
+        await asyncio.Event().wait()
+
+    async def fake_close(session, now=None):
+        calls.append(now)
+        return 0
+    monkeypatch.setattr(Hub, "_run", no_run)
+    monkeypatch.setattr(gps_positions, "close_silent_drives", fake_close)
+    monkeypatch.setattr(traccar, "SWEEP_EVERY_S", 0.01)
+    hub = Hub()
+    await hub.start()
+    assert hub._sweeper is None                          # no link at all
+    await _setup_link(build_trips=True)
+    await hub.reload()
+    assert hub._sweeper is not None
+    await asyncio.sleep(0.05)
+    assert calls
+    await hub.stop()
+    assert hub._sweeper is None

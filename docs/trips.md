@@ -40,6 +40,10 @@ velocidad > 1 km/h o `engineState` = `driving`. El sondeo trata `ready` como «e
 - **Inicio recuperado** (`start_estimated`): si el viaje se detecta con el coche ya en marcha, hora, posición, odómetro, batería y combustible de inicio son
   los de la **última lectura en parado** (en memoria o, tras un reinicio, de la BD) siempre que sea de hace menos de 6 h y el odómetro haya avanzado desde
   entonces. La hora se estima por los km recorridos a 35 km/h, sin pasar de esa lectura. La lista de viajes marca la hora con «≈» y lo explica en el detalle.
+- **Batería y combustible de salida:** aunque el inicio no se recupere, se toman de la **última lectura en parado si es de hace menos de 15 min**
+  (`START_LEVELS_MAX_AGE`). Al encender el coche y empezar a moverse se suele perder un punto antes de la primera lectura en marcha (caso real del
+  03-11-2026: 80 % en `ready`, 79 % un minuto después ya circulando); ese punto es del viaje, no del tiempo aparcado, y si no se contaba aquí el
+  viaje salía con un punto de menos y el «gasto en reposo» de Estadísticas con uno de más. La hora de inicio no cambia.
 - **Viajes fantasma descartados:** al cerrar, un viaje de menos de 60 s y sin kilómetros de odómetro se borra (con sus puntos).
 
 ## Qué reporta el coche (caso real del 28/10/2026)

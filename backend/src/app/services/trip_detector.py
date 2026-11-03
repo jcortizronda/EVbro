@@ -34,6 +34,10 @@ RESUME_MAX_AGE = datetime.timedelta(minutes=30)
 ASSUMED_TRIP_SPEED_KMH = 35.0          # to estimate how long it had been moving from the km covered since the idle reading
 BACKFILL_MAX_AGE = datetime.timedelta(hours=6)       # an older idle reading is no longer a valid starting point
 BACKFILL_MAX_MINUTES = 90.0
+# The battery and fuel a trip starts with come from the last stopped reading if it is this recent. Switching the car on (and
+# the first minute of warming up) often takes a point before the first moving reading arrives: 80 % parked and ready, 79 % at
+# the first reading in motion. That point belongs to the trip, not to the time the car spent parked.
+START_LEVELS_MAX_AGE = datetime.timedelta(minutes=15)
 
 # A «trip» shorter than this and without kilometres is noise (a parking manoeuvre, a single moving reading)
 MIN_TRIP_SECONDS = 60
@@ -144,8 +148,13 @@ class TripDetector:
         # 1. Check whether a new trip must start
         if active_drive_id is None and is_moving and lat is not None and lon is not None:
             # If the trip is detected late (the reading arrives with the car already moving), it starts at the last idle reading
-            back = cls._backfill(await cls._previous_idle(session, vin, now), now, odometer)
+            idle = await cls._previous_idle(session, vin, now)
+            back = cls._backfill(idle, now, odometer)
             s_lat, s_lon = (back["lat"], back["lon"]) if back else (lat, lon)
+            # Levels at departure: the recovered start, or the stopped reading just before (car switched on, then moving)
+            levels = back or (idle if idle and now - idle["time"] <= START_LEVELS_MAX_AGE else None)
+            start_battery = levels["battery"] if levels and levels.get("battery") is not None else battery
+            start_fuel = levels["fuel"] if levels and levels.get("fuel") is not None else telemetry.get("fuel_level")
 
             # Look up whether it is inside a geofence
             gf = await find_geofence(session, s_lat, s_lon, owner_id=vehicle.owner_id)
@@ -164,8 +173,8 @@ class TripDetector:
                 start_address=addr,
                 start_geofence_id=gf.id if gf else None,
                 start_odometer=back["odometer"] if back else odometer,
-                start_battery_pct=back["battery"] if back else battery,
-                start_fuel=back["fuel"] if back else telemetry.get("fuel_level"),
+                start_battery_pct=start_battery,
+                start_fuel=start_fuel,
                 start_estimated=bool(back),
                 outside_temp_avg=temp,
                 climate_used=climate,

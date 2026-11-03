@@ -26,6 +26,7 @@ from app.db.session import async_session_factory
 _LOGGER = logging.getLogger(__name__)
 KNOTS_TO_KMH = 1.852
 RECONNECT_DELAYS = (10, 30, 60, 120, 300)
+SWEEP_EVERY_S = 60                      # how often the GPS-built trips of silent trackers are checked
 
 
 class TraccarError(Exception):
@@ -159,6 +160,7 @@ class TraccarHub:
         self._routes: Dict[ServerKey, Dict[int, str]] = {}         # device id → vin
         self._status: Dict[str, Dict[str, Any]] = {}                # vin → {"connected": bool, "error": str|None}
         self._running = False
+        self._sweeper: Optional[asyncio.Task] = None
 
     @classmethod
     def get_instance(cls) -> "TraccarHub":
@@ -179,7 +181,10 @@ class TraccarHub:
             ev.set()
         for t in list(self._tasks.values()):
             t.cancel()
-        await asyncio.gather(*self._tasks.values(), return_exceptions=True)
+        if self._sweeper is not None:
+            self._sweeper.cancel()
+        await asyncio.gather(*self._tasks.values(), *([self._sweeper] if self._sweeper else []), return_exceptions=True)
+        self._sweeper = None
         self._tasks.clear()
         self._stops.clear()
         self._routes.clear()
@@ -203,6 +208,21 @@ class TraccarHub:
             self._tasks[key] = asyncio.create_task(self._run(key, devices))
         if rows:
             _LOGGER.info("Traccar: %d server(s), %d car(s).", len(self._routes), len(rows))
+        if any(link.build_trips for link, _vehicle in rows):
+            self._sweeper = asyncio.create_task(self._sweep())
+
+    async def _sweep(self) -> None:
+        """Every minute: close the GPS-built drives whose tracker fell asleep after parking (gps_positions.close_silent_drives)."""
+        from app.services import gps_positions
+        while True:
+            await asyncio.sleep(SWEEP_EVERY_S)
+            try:
+                async with async_session_factory() as session:
+                    await gps_positions.close_silent_drives(session)
+            except asyncio.CancelledError:
+                raise
+            except Exception as ex:                                 # noqa: BLE001 — logged, tried again next minute
+                _LOGGER.warning("Traccar: closing silent trips failed: %s", ex)
 
     def _set_status(self, vins, connected: bool, error: Optional[str]) -> None:
         for vin in vins:

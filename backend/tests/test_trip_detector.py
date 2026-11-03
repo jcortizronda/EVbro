@@ -231,3 +231,25 @@ async def test_while_a_trip_is_open_the_poller_knows(car) -> None:
     assert TripDetector.has_open_trip(car) is True
     await process(car, reading(0, 9425, DESTINATION), T0 + datetime.timedelta(minutes=6))
     assert TripDetector.has_open_trip(car) is False
+
+
+# ───────────────────────── Levels at departure ─────────────────────────
+async def test_the_point_lost_while_switching_on_counts_for_the_trip_not_for_the_parked_time(car) -> None:
+    # Real case of 03/11/2026: charged to 80 % overnight; «ready» at 80 %, first reading in motion a minute later at 79 %
+    await process(car, reading(0, 9569, HOME, soc=80.0), T0)                                           # parked, unplugged
+    await process(car, reading(0, 9569, HOME, soc=80.0, state="ready"), T0 + datetime.timedelta(seconds=55))
+    await process(car, reading(22, 9569, HOME, soc=79.0), T0 + datetime.timedelta(minutes=2))         # moving, odometer still
+    await process(car, reading(20, 9572, DESTINATION, soc=78.0), T0 + datetime.timedelta(minutes=12))
+    await process(car, reading(0, 9572, DESTINATION, soc=78.0), T0 + datetime.timedelta(minutes=13))
+    await process(car, reading(0, 9572, DESTINATION, soc=78.0), T0 + datetime.timedelta(minutes=19))  # closes
+    (d,) = await drives()
+    assert d.start_estimated is False and d.start_time == T0 + datetime.timedelta(minutes=2)          # the time is not moved
+    assert d.start_battery_pct == 80.0 and d.end_battery_pct == 78.0 and d.battery_used_pct == 2.0
+
+
+async def test_an_old_stopped_reading_does_not_give_the_starting_levels(car) -> None:
+    # Parked for hours: a point lost meanwhile is the parked drain, not the trip's
+    await process(car, reading(0, 9569, HOME, soc=80.0), T0)
+    await process(car, reading(22, 9569, HOME, soc=79.0), T0 + datetime.timedelta(hours=3))
+    (d,) = await drives()
+    assert d.start_battery_pct == 79.0

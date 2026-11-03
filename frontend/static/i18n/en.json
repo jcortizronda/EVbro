@@ -2178,5 +2178,9 @@
  "Conectado, pero la primera descarga falló: {p0}": "Connected, but the first download failed: {p0}",
  "Conectado al catálogo del proyecto: {p0} entradas.": "Connected to the project's catalogue: {p0} entries.",
  "Catálogo propio. Puedes conectarlo cuando quieras en la pestaña Catálogo.": "Own catalogue. You can connect it whenever you like in the Catalogue tab.",
- "Catálogo: conectado al del proyecto": "Catalogue: connected to the project's"
+ "Catálogo: conectado al del proyecto": "Catalogue: connected to the project's",
+ "hace {p0} min": "{p0} min ago",
+ "hace {p0} h": "{p0} h ago",
+ "Posición GPS · {p0}": "GPS position · {p0}",
+ "GPS · {p0}": "GPS · {p0}"
 }

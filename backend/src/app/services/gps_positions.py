@@ -8,6 +8,10 @@ Two modes per car (`TraccarLink.build_trips`):
     for `stop_minutes` within `STOP_RADIUS_M` of the first still fix, and the end time is that first still fix (not the moment
     we noticed). A gap longer than `stop_minutes` between fixes closes the drive at the last fix and a new one opens if the car
     reappears moving somewhere else. Distance is the GPS distance of the track; addresses and geofences as in the car detector.
+
+Many trackers go to sleep a couple of minutes after the car stops and send nothing more until it moves again, so the «still for
+`stop_minutes`» rule never gets its fixes. `close_silent_drives` (run every minute by the Traccar hub) closes a drive whose
+tracker has been silent for longer than `stop_minutes`: it ends where the car stopped, at the first fix of that final stop.
 """
 from __future__ import annotations
 
@@ -163,3 +167,38 @@ async def _close(session: AsyncSession, vehicle: Vehicle, drive_id: int, end_tim
     hours = drive.duration_seconds / 3600.0
     drive.speed_avg_kmh = round(drive.distance_km / hours, 1) if hours > 0 else 0.0
     _LOGGER.info("Traccar: trip closed for %s [Drive #%s] %.1f km", vin[-6:], drive_id, drive.distance_km)
+
+
+async def close_silent_drives(session: AsyncSession, now: Optional[datetime.datetime] = None) -> int:
+    """Closes the GPS-built drives whose tracker went silent (asleep after parking) for longer than `stop_minutes`.
+
+    The end is the first fix of the final stop: walking back from the last fix while the points stay within `STOP_RADIUS_M`
+    of it and below `MOVING_KMH` (a «motion» flag from GPS jitter at walking pace does not split the stop). If the car was still moving at the last fix (signal lost on the road) it ends at that last fix. Returns how many
+    drives it closed."""
+    now = now or datetime.datetime.utcnow()
+    rows = (await session.execute(
+        select(TraccarLink, Vehicle).join(Vehicle, Vehicle.vin == TraccarLink.vin)
+        .where(TraccarLink.enabled.is_(True), TraccarLink.build_trips.is_(True)))).all()
+    closed = 0
+    for link, vehicle in rows:
+        open_id = await _open_drive_id(session, vehicle.vin)
+        if open_id is None:
+            continue
+        points = (await session.execute(
+            select(DrivePosition).where(DrivePosition.drive_id == open_id).order_by(DrivePosition.timestamp.desc()).limit(500))).scalars().all()
+        if not points:
+            continue
+        last = points[0]
+        seen = max(last.timestamp, link.last_position_at or last.timestamp)
+        if now - seen <= datetime.timedelta(minutes=max(1, link.stop_minutes or 5)):
+            continue
+        end = last
+        if (last.speed_kmh or 0.0) <= MOVING_KMH:
+            for p in points[1:]:
+                if (p.speed_kmh or 0.0) > MOVING_KMH or haversine_distance_meters(p.latitude, p.longitude, last.latitude, last.longitude) > STOP_RADIUS_M:
+                    break
+                end = p
+        await _close(session, vehicle, open_id, end.timestamp, last.latitude, last.longitude)
+        await session.commit()
+        closed += 1
+    return closed
