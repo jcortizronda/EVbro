@@ -6,6 +6,8 @@
 <p align="center"><strong>El compañero de tu coche.</strong><br>
 Tu Ebro en el móvil: datos en directo, control remoto, viajes, cargas, mantenimiento y costes. En tu propio servidor, sin suscripciones.</p>
 
+<p align="center"><strong>Web del proyecto:</strong> <a href="https://evbro.app">evbro.app</a>: capturas, funciones y la demo para probarlo sin instalar nada.</p>
+
 <p align="center"><strong>🌍 Idioma:</strong> <strong>Español</strong> · <a href="README.en.md">English</a></p>
 
 <p align="center">
