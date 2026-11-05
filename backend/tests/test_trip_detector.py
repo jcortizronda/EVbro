@@ -11,7 +11,7 @@ import pytest
 from freezegun import freeze_time
 from sqlalchemy import select
 
-from app.db.models import Drive, DrivePosition, TelemetrySnapshot, Vehicle
+from app.db.models import Drive, DrivePosition, Refuel, TelemetrySnapshot, Vehicle
 from app.db.session import async_session_factory
 from app.services import trip_detector as td
 from app.services.trip_detector import TripDetector
@@ -24,7 +24,7 @@ T0 = datetime.datetime(2026, 10, 28, 14, 36, 21)
 
 @pytest.fixture(autouse=True)
 def _clean_state(monkeypatch):
-    for d in (td._ACTIVE_DRIVES, td._LAST_MOTION_TIME, td._LAST_IDLE, td._HV_OFF_AT):
+    for d in (td._ACTIVE_DRIVES, td._LAST_MOTION_TIME, td._LAST_IDLE, td._HV_OFF_AT, td._LAST_CLOSED):
         d.clear()
 
     async def no_geofence(session, lat, lon, **kwargs):
@@ -36,7 +36,7 @@ def _clean_state(monkeypatch):
     monkeypatch.setattr(td, "find_geofence", no_geofence)
     monkeypatch.setattr(td, "reverse_geocode", address)
     yield
-    for d in (td._ACTIVE_DRIVES, td._LAST_MOTION_TIME, td._LAST_IDLE, td._HV_OFF_AT):
+    for d in (td._ACTIVE_DRIVES, td._LAST_MOTION_TIME, td._LAST_IDLE, td._HV_OFF_AT, td._LAST_CLOSED):
         d.clear()
 
 
@@ -218,7 +218,7 @@ async def test_an_open_trip_is_resumed_after_a_restart_and_closed(car) -> None:
 async def test_a_very_old_open_trip_is_not_resumed(car) -> None:
     await process(car, reading(0, 9417, HOME), T0)
     await process(car, reading(50, 9419, DESTINATION), T0 + datetime.timedelta(minutes=4))
-    for d in (td._ACTIVE_DRIVES, td._LAST_MOTION_TIME, td._LAST_IDLE, td._HV_OFF_AT):
+    for d in (td._ACTIVE_DRIVES, td._LAST_MOTION_TIME, td._LAST_IDLE, td._HV_OFF_AT, td._LAST_CLOSED):
         d.clear()
     await process(car, reading(50, 9440, DESTINATION), T0 + datetime.timedelta(hours=5))
     ds = await drives()
@@ -253,3 +253,63 @@ async def test_an_old_stopped_reading_does_not_give_the_starting_levels(car) -> 
     await process(car, reading(22, 9569, HOME, soc=79.0), T0 + datetime.timedelta(hours=3))
     (d,) = await drives()
     assert d.start_battery_pct == 79.0
+
+
+async def test_the_engine_charging_the_battery_does_not_cut_the_trip_but_plugging_in_ends_it(car) -> None:
+    """04-11-2026: one trip became five because the car reported «charging» (engine → battery) twice on the road."""
+    m = datetime.timedelta(minutes=1)
+    await process(car, reading(0, 9605, HOME, soc=62), T0)
+    await process(car, reading(27, 9605, HOME, soc=62), T0 + 2 * m)
+    await process(car, reading(69, 9614, HOME, soc=56, is_charging=True, cable_connected=False), T0 + 8 * m)
+    await process(car, reading(48, 9615, HOME, soc=56), T0 + 9 * m)
+    assert TripDetector.has_open_trip(car) and len(await drives()) == 1
+    await process(car, reading(0, 9631, DESTINATION, soc=50, is_charging=False, cable_connected=True), T0 + 35 * m)
+    (d,) = await drives()
+    assert d.end_time is not None and d.start_battery_pct == 62 and d.end_battery_pct == 50 and d.distance_km == 26
+
+
+async def test_the_fuel_spent_is_litres_out_of_the_gauge_points_and_the_tank_size(car) -> None:
+    """04-11-2026: a 400 km trip took the tank from 100 % to 43 % and the list said «57 L»; the car reports the tank in %."""
+    m = datetime.timedelta(minutes=1)
+    await process(car, reading(0, 9656, HOME, soc=60, fuel=100), T0)
+    await process(car, reading(30, 9657, HOME, soc=60, fuel=100), T0 + 1 * m)
+    await process(car, reading(0, 10056, DESTINATION, soc=56, fuel=43, high_voltage_on=False), T0 + 220 * m)
+    (d,) = await drives()
+    assert d.end_time is not None and (d.start_fuel, d.end_fuel) == (100, 43)
+    assert d.fuel_used_l == 28.5                                 # 57 points of a 50 L tank (the sheet's default)
+
+
+async def test_a_refuel_on_the_way_is_added_to_the_fuel_spent_and_shown_on_the_trip(car) -> None:
+    """05-11-2026: 9 % at the start, 38 points put in at a pump stop, 21 % at the end; the list said no fuel was spent."""
+    m = datetime.timedelta(minutes=1)
+    await process(car, reading(0, 10317, HOME, soc=25, fuel=9), T0)
+    await process(car, reading(138, 10321, HOME, soc=20, fuel=8), T0 + 3 * m)
+    await process(car, reading(0, 10331, HOME, soc=23, fuel=5), T0 + 7 * m)                 # at the pump (under 5 min: the trip goes on)
+    async with async_session_factory() as s:                                                # what the refuel detector records
+        s.add(Refuel(vin=VIN, timestamp=T0 + 7 * m, odometer=10331, fuel_before_pct=5, fuel_after_pct=43, liters=26.6, detected=True))
+        # the day's earlier refuel, edited by hand to noon of the same day, is at another odometer: not this trip's
+        s.add(Refuel(vin=VIN, timestamp=T0 + 20 * m, odometer=9554, fuel_before_pct=27, fuel_after_pct=100, liters=51, detected=True))
+        await s.commit()
+    await process(car, reading(139, 10334, HOME, soc=23, fuel=43), T0 + 12 * m)
+    await process(car, reading(0, 10494, DESTINATION, soc=21, fuel=21, high_voltage_on=False), T0 + 120 * m)
+    (d,) = await drives()
+    assert d.end_time is not None and (d.start_fuel, d.end_fuel) == (9, 21)
+    assert d.fuel_refuelled_pct == 38 and d.fuel_used_l == 13.0                              # 9 + 38 − 21 = 26 points of 50 L
+
+
+async def test_the_end_of_a_trip_moves_where_the_cloud_places_the_parked_car(car) -> None:
+    """04-11-2026: the cloud kept the morning's position (work) for an hour after the car was parked at home."""
+    m = datetime.timedelta(minutes=1)
+    work = (37.5, -5.5)
+    await process(car, reading(0, 9605, work), T0)
+    await process(car, reading(40, 9610, work), T0 + 2 * m)
+    await process(car, reading(0, 9631, work), T0 + 30 * m)                                   # stopped, position still stale
+    await process(car, reading(0, 9631, work, high_voltage_on=False), T0 + 36 * m)            # closes the trip «at work»
+    (d,) = await drives()
+    assert d.end_time is not None and (d.end_lat, d.end_lon) == work and d.end_address == "Calle 37.500"
+    await process(car, reading(0, 9631, HOME, high_voltage_on=False), T0 + 100 * m)           # the cloud wakes up: it is at home
+    (d,) = await drives()
+    assert (d.end_lat, d.end_lon) == HOME and d.end_address == "Calle 40.000"
+    await process(car, reading(0, 9640, DESTINATION, high_voltage_on=False), T0 + 110 * m)    # another odometer: not this trip
+    (d,) = await drives()
+    assert (d.end_lat, d.end_lon) == HOME

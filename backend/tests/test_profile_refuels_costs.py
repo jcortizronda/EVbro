@@ -126,6 +126,7 @@ async def test_the_photo_is_not_served_without_a_session(db) -> None:
 def _clean_refuels(monkeypatch):
     rd._FUEL_LOW.clear()
     rd._LAST_REFUEL_AT.clear()
+    rd._PREV_STOP.clear()
 
     async def address(lat, lon):
         return "Gasolinera Test"
@@ -134,14 +135,15 @@ def _clean_refuels(monkeypatch):
     yield
     rd._FUEL_LOW.clear()
     rd._LAST_REFUEL_AT.clear()
+    rd._PREV_STOP.clear()
 
 
-async def reading(at, fuel, speed=0.0, state="parked"):
+async def reading(at, fuel, speed=0.0, state="parked", odometer=15100, lat=37.0):
     with freeze_time(at):
         async with async_session_factory() as s:
             v = (await s.execute(select(Vehicle).where(Vehicle.vin == VIN))).scalar_one()
-            res = await RefuelDetector.process_snapshot(s, v, {"fuel_level": fuel, "speed_kmh": speed, "state": state, "odometer_km": 15100,
-                                                               "latitude": 37.0, "longitude": -6.0})
+            res = await RefuelDetector.process_snapshot(s, v, {"fuel_level": fuel, "speed_kmh": speed, "state": state, "odometer_km": odometer,
+                                                               "latitude": lat, "longitude": -6.0})
             await s.commit()
             return res
 
@@ -158,7 +160,19 @@ async def test_gauge_wobble_and_rises_while_driving_do_not_count(web) -> None:
     t = D(2026, 10, 28, 10, 0)
     await reading(t, 30.0)
     assert await reading(t + datetime.timedelta(minutes=5), 34.0) is None                      # +4 points: wobble
-    assert await reading(t + datetime.timedelta(minutes=10), 60.0, speed=40.0, state="driving") is None    # rise with the car moving
+    assert await reading(t + datetime.timedelta(minutes=8), 33.0, speed=40.0, state="driving") is None
+    assert await reading(t + datetime.timedelta(minutes=10), 60.0, speed=40.0, state="driving") is None    # rise on the road, no stop before
+
+
+async def test_a_pump_stop_that_ends_before_the_next_reading_is_a_refuel_at_that_stop(web) -> None:
+    """05-11-2026: 5 % stopped at the station, 43 % two minutes later already at 139 km/h."""
+    t = D(2026, 11, 5, 15, 36)
+    await reading(t, 7.0, speed=143.0, state="driving", odometer=10329)
+    await reading(t + datetime.timedelta(minutes=2), 5.0, odometer=10331, lat=37.1)             # stopped at the pump
+    r = await reading(t + datetime.timedelta(minutes=5), 43.0, speed=139.0, state="driving", odometer=10334)
+    assert r is not None and (r.fuel_before_pct, r.fuel_after_pct) == (5.0, 43.0)
+    assert r.timestamp == t + datetime.timedelta(minutes=2) and r.odometer == 10331 and r.latitude == 37.1   # the stop, not the road
+    assert await reading(t + datetime.timedelta(hours=1), 23.0, odometer=10468) is None       # the next stop sees no second refuel
 
 
 async def test_consumption_lowers_the_minimum_and_the_refuel_is_measured_from_the_last_minimum(web) -> None:

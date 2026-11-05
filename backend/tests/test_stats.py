@@ -23,8 +23,10 @@ class _Req:
 @pytest.fixture
 async def web(db):
     now = D.utcnow().replace(minute=0, second=0, microsecond=0)
-    m1 = now - datetime.timedelta(days=40)          # last month
-    m0 = now - datetime.timedelta(days=5)           # this month
+    # The middle of the two previous months, whatever today is. «5 days ago» was last month in the first days of a month, and
+    # on 05-11-2026 from 20:00 UTC the charge 3 hours later fell on 1 November in Madrid: a third month and a red CI.
+    m0 = (now.replace(day=1, hour=12) - datetime.timedelta(days=1)).replace(day=15)
+    m1 = (m0 - datetime.timedelta(days=31)).replace(day=15)
     async with async_session_factory() as s:
         s.add(Vehicle(owner_id=1, vin=VIN, name="Ebro", battery_capacity_kwh=20.0))
         user = AppUser(id=1, role="manager", username="juan", vehicle_limit=-1, password_hash=passwords.hash_password("una-contraseña-larga-1"))

@@ -64,7 +64,9 @@ function applyTelemetry(data) {
   const chargeVoltCurr = document.getElementById('chargeVoltageCurrent');
   const chargeRemain = document.getElementById('chargeRemainTime');
 
-  const isPluggedOrCharging = data.is_charging || state === 'charging' || data.cable_connected || state === 'plugged';
+  // A charge needs the cable: on the road the engine also charges the battery and the car reports it as charging
+  const charging = !!data.is_charging && !!data.cable_connected;
+  const isPluggedOrCharging = charging || state === 'charging' || data.cable_connected || state === 'plugged';
   if (isPluggedOrCharging) {
     if (chargeBar) chargeBar.style.display = 'flex';
     if (chargeCableStatus) {
@@ -80,12 +82,12 @@ function applyTelemetry(data) {
       chargeCableIcon.innerHTML = icon(data.fast_charging ? 'bolt' : 'plug', 22);
     }
     if (chargeStateBadge) {
-      chargeStateBadge.innerText = data.charge_state_desc || (data.is_charging ? "Cargando" : "Enchufado");
-      chargeStateBadge.style.color = data.is_charging ? "var(--accent-green)" : "var(--primary)";
-      chargeStateBadge.style.background = data.is_charging ? "rgba(0,230,118,0.18)" : "rgba(0,229,255,0.18)";
+      chargeStateBadge.innerText = data.charge_state_desc || (charging ? "Cargando" : "Enchufado");
+      chargeStateBadge.style.color = charging ? "var(--accent-green)" : "var(--primary)";
+      chargeStateBadge.style.background = charging ? "rgba(0,230,118,0.18)" : "rgba(0,229,255,0.18)";
     }
     if (chargeKw) {
-      chargeKw.innerText = data.charge_power_kw ? `${data.charge_power_kw} kW` : (data.is_charging ? "Activa" : "0.0 kW");
+      chargeKw.innerText = data.charge_power_kw ? `${data.charge_power_kw} kW` : (charging ? "Activa" : "0.0 kW");
     }
     if (chargeVoltCurr) {
       const v = data.battery_voltage ? `${Math.round(data.battery_voltage)} V` : null;
@@ -209,20 +211,20 @@ function applyTelemetry(data) {
   const remainLine = document.getElementById('energyRemainLine');
   if (remainLine) {
     const min = Number(data.remaining_charge_time_min);
-    remainLine.hidden = !(data.is_charging && min > 0);
+    remainLine.hidden = !(charging && min > 0);
     if (!remainLine.hidden) {
       document.getElementById('energyRemainTime').innerText = min >= 60 ? `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60} min` : ''}` : `${min} min`;
     }
   }
   const energyPower = document.getElementById('energyPowerKw');
   if (energyPower) {
-    energyPower.innerText = data.charge_power_kw ? `${data.charge_power_kw} kW` : (data.is_charging ? 'Activa' : '0,0 kW');
+    energyPower.innerText = data.charge_power_kw ? `${data.charge_power_kw} kW` : (charging ? 'Activa' : '0,0 kW');
   }
   refreshEvConsumptionKpi();
   const energyHeroBadge = document.getElementById('chargeHeroStateBadge');
   if (energyHeroBadge) {
-    energyHeroBadge.innerText = data.is_charging ? "Cargando" : (data.cable_connected ? "Conectado" : "Desconectado");
-    const tone = data.is_charging ? ['rgba(48,209,88,0.18)', 'var(--accent-green)']
+    energyHeroBadge.innerText = charging ? "Cargando" : (data.cable_connected ? "Conectado" : "Desconectado");
+    const tone = charging ? ['rgba(48,209,88,0.18)', 'var(--accent-green)']
       : (data.cable_connected ? ['rgba(41,151,255,0.18)', 'var(--primary)'] : ['rgba(128,128,128,0.18)', 'var(--text-secondary)']);
     energyHeroBadge.style.background = tone[0];
     energyHeroBadge.style.color = tone[1];

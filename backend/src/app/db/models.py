@@ -194,6 +194,7 @@ class Drive(Base):
     start_fuel = Column(Float, nullable=True)
     end_fuel = Column(Float, nullable=True)
     fuel_used_l = Column(Float, default=0.0)
+    fuel_refuelled_pct = Column(Float, default=0.0, nullable=True)   # tank points put in at a pump stop during the trip
 
     outside_temp_avg = Column(Float, nullable=True)
     max_power_kw = Column(Float, default=0.0)

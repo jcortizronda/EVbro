@@ -123,6 +123,8 @@ function driveRow(d) {
     ['Batería', battery],
     ['Energía', d.energy_consumed_kwh ? `${historyNum(d.energy_consumed_kwh)} kWh` : null],
     ['Gasolina', d.fuel_used_l ? `${historyNum(d.fuel_used_l)} L` : null],
+    ['Depósito', pct(d.start_fuel) && pct(d.end_fuel) ? `${pct(d.start_fuel)} → ${pct(d.end_fuel)}` : null],
+    ['Repostado en ruta', d.fuel_refuelled_pct ? `${Math.round(d.fuel_refuelled_pct)} %` : null],
     ['Consumo', consumption || null],
     ['Vel. media', d.speed_avg_kmh ? `${Math.round(d.speed_avg_kmh)} km/h` : null],
     ['Vel. máxima', d.speed_max_kmh ? `${Math.round(d.speed_max_kmh)} km/h` : null],

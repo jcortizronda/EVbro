@@ -95,3 +95,25 @@ async def test_0017_reestimates_with_the_capacity_already_in_the_sheet(tmp_path)
         await engine.dispose()
     assert [tuple(r) for r in drives] == [("A", 17.25), ("B", 10.0)]
     assert [tuple(r) for r in charges] == [(17.25, 2.59), (17.25, 2.73), (7.0, 1.0)]
+
+
+async def test_0024_turns_the_gauge_points_stored_as_litres_into_litres(tmp_path) -> None:
+    url = f"sqlite+aiosqlite:///{tmp_path}/fuel.db"
+    from alembic import command
+    await asyncio.to_thread(command.upgrade, migrate.alembic_config(url), "0023_catalog_signup")
+    engine = create_async_engine(url)
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("INSERT INTO vehicles (vin, name, fuel_tank_liters) VALUES ('A', 'S700', 50), ('B', 'Otro', 40)"))
+            await conn.execute(text("INSERT INTO drives (vin, start_time, start_fuel, end_fuel, fuel_used_l) VALUES "
+                                    "('A', '2026-11-04 16:48:50', 100, 43, 57), "       # the detector's points: 57 % of 50 L
+                                    "('B', '2026-11-04 16:48:50', 60, 50, 10), "        # 10 % of 40 L
+                                    "('A', '2026-11-05 16:48:50', 60, 55, 3.2), "       # corrected by hand: kept
+                                    "('A', '2026-11-06 16:48:50', 60, 60, 0), "         # nothing spent
+                                    "('A', '2026-11-07 16:48:50', NULL, NULL, 4)"))     # entered by hand, no gauge: kept
+        await migrate.upgrade_to_head(url)
+        async with engine.connect() as conn:
+            rows = (await conn.execute(text("SELECT fuel_used_l FROM drives ORDER BY start_time, vin"))).all()
+    finally:
+        await engine.dispose()
+    assert [r[0] for r in rows] == [28.5, 4.0, 3.2, 0.0, 4.0]

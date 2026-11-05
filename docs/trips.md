@@ -23,7 +23,10 @@ velocidad > 1 km/h o `engineState` = `driving`. El sondeo trata `ready` como «e
 
 - **Empieza** un viaje con la primera lectura «en marcha» (`speed > 2 km/h` o `state == driving`) con posición. `ready` no inicia viaje (puede ser un
   climatizado remoto).
-- **Se cierra** cuando llega una lectura al menos `IDLE_MINUTES_TO_END_TRIP` (5 min) después del último movimiento, o con el coche enchufado/cargando.
+- **Se cierra** cuando llega una lectura al menos `IDLE_MINUTES_TO_END_TRIP` (5 min) después del último movimiento, o con el coche **enchufado**
+  (`chargeGunState = 1`). `chargeState = 1` solo no cierra nada: en marcha el motor térmico también carga la batería y el coche lo notifica como
+  «cargando» (el 04-11-2026 partió un viaje en cinco). Lo mismo vale para el detector de cargas y los avisos: carga = cable + `chargeState = 1`
+  (`grid_charging()` en `services/charge_detector.py`).
   Mientras haya un viaje abierto el sondeo no pasa de 150 s (`OPEN_TRIP_POLL_SECONDS`, solo consulta la nube) para poder cerrarlo a tiempo.
 - **Termina (`end_time`) cuando se apagó el coche:** la primera lectura con `hVoltageState = 0` tras el último movimiento. Si se vuelve a encender
   antes del cierre, se descarta y el viaje sigue. Sin ese dato, `end_time` es la hora del último movimiento. El resto de datos de fin (posición,
@@ -35,6 +38,14 @@ velocidad > 1 km/h o `engineState` = `driving`. El sondeo trata `ready` como «e
   corto puede salir como 0 km, igual que en el salpicadero; las gráficas de consumo, la ficha «Consumo EV» de Energía y el consumo medio del
   resumen de Viajes ignoran los viajes de menos de 2 km y los que no tienen energía medida (`MIN_DRIVE_KM` en `services/stats.py`). Los viajes construidos
   solo por GPS ([traccar.md](traccar.md)) no tienen odómetro y conservan la distancia de sus puntos.
+- **Gasolina (`fuel_used_l`):** el coche manda el depósito en **%** (`oilSurplus`), como la batería; los litros de un viaje son los puntos
+  gastados × litros del depósito de la ficha (50 por defecto), igual que en los repostajes detectados. Hasta la migración `0024_drive_fuel_litres`
+  se guardaban los puntos como litros (un viaje de 400 km del 100 % al 43 % salía como «57 L», 04-11-2026); la migración convirtió los viajes
+  antiguos cuyo valor seguía siendo el del detector y respetó los corregidos a mano. El detalle del viaje enseña también el depósito
+  (`100 % → 43 %`). Un **repostaje en ruta** suma sus puntos (`fuel_refuelled_pct`, «Repostado en ruta» en el detalle): los litros son
+  `salida + repostado − llegada`; sin esto un viaje del 9 % al 21 % con 38 puntos echados por el camino salía con 0 L (05-11-2026). El
+  repostaje se asigna al viaje por el **cuentakilómetros** cuando los dos lo tienen (el formulario de repostajes guarda el día pero no
+  la hora) y por la hora si no.
 - **Viaje abierto tras un reinicio:** se retoma si su última actividad fue hace menos de 30 min (y se cierra con las reglas de arriba); si es más
   antiguo se deja como estaba («Viajes incompletos»).
 - **Inicio recuperado** (`start_estimated`): si el viaje se detecta con el coche ya en marcha, hora, posición, odómetro, batería y combustible de inicio son
@@ -52,6 +63,16 @@ Antes el estado `parked` se deducía solo de `vehicleSpeed` y `engineState` (el 
 parado en un semáforo ya salía `parked` (pasó dos veces a mitad de un mismo viaje). La nube manda una señal fiable de «coche apagado»,
 **`hVoltageState`**: `1` con el coche encendido (también en los semáforos) y `0` al apagarlo. En ese viaje valió `0` en las dos paradas finales
 (14:30:19 y 14:41:10 UTC), justo en las lecturas disparadas por MQTT. Ahora es la base de los estados y de la hora de fin.
+
+## Posición vieja de la nube (2026-11-04)
+
+Algunos días la nube no refresca la posición mientras el coche se mueve y la actualiza horas después, con el coche parado (el 04-11-2026
+mantuvo la posición de la mañana, el Trabajo, hasta una hora después de aparcar en Casa). Un viaje cerrado con esa posición y una carga nacida
+con ella salen en el sitio equivocado. Como un coche aparcado o enchufado no se mueve, ambos detectores **recolocan**: una lectura parada con
+el **mismo cuentakilómetros** que el final del último viaje y a más de 250 m (`RELOCATE_METERS`) mueve ese final (posición, dirección y
+geocerca) durante las 6 h siguientes (`RELOCATE_MAX_AGE`; solo en memoria, un reinicio lo olvida), y una carga abierta cuya lectura esté a
+más de 250 m de donde nació se muda allí (posición, dirección, geocerca y por tanto su tarifa al cerrar). La deriva del GPS aparcado queda
+muy por debajo de esa distancia.
 
 ## Ruta: reproducir, exportar y lugares frecuentes (2026-10-30)
 

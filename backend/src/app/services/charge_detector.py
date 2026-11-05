@@ -10,12 +10,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import ChargePoint, ChargingSession, Geofence, Vehicle
 from app.services.electricity_tariffs import calculate_charging_session_cost
-from app.services.geofence import find_geofence, reverse_geocode
+from app.services.geofence import find_geofence, haversine_distance_meters, reverse_geocode
 
 _LOGGER = logging.getLogger(__name__)
 
 # Above this power the car cannot be on AC (its on-board charger tops out well below): it is a DC fast charger
 DC_POWER_KW = 20.0
+
+
+def grid_charging(telemetry: dict) -> bool:
+    """Charging from the grid: cable connected and `chargeState = 1`. On the road the combustion engine of a PHEV also charges
+    the battery and the car reports it as `chargeState = 1` (seen on 04-11-2026 at 69 km/h, 22 kW into the battery): without
+    the cable that is not a charge, neither for the sessions nor for the trips nor for the alerts."""
+    return bool(telemetry.get("cable_connected")) and bool(telemetry.get("is_charging"))
 
 
 def detect_charge_type(telemetry: dict, power_kw: float) -> str:
@@ -31,6 +38,8 @@ _RECOVERED: Set[str] = set()
 # Session that ended with the cable still plugged in, and when: if the car starts charging again soon without being unplugged,
 # it is the same session (a charger hiccup, a stop and restart at the post), not a new one
 _PAUSED: Dict[str, Tuple[int, datetime.datetime]] = {}
+# The cloud refreshing a stale position moves a charge (or a trip end) this far; GPS drift while parked stays well under it
+RELOCATE_METERS = 250.0
 DEFAULT_CAPACITY_KWH = 19.27
 # A session left open across a restart is resumed if its last reading is this recent (and the car is still charging)
 RESUME_MAX_AGE = datetime.timedelta(hours=3)
@@ -123,7 +132,8 @@ class ChargeDetector:
         lat = telemetry.get("latitude")
         lon = telemetry.get("longitude")
 
-        charging_now = bool(is_charging or (cable_connected and power_kw > 0.5))
+        # Only with the cable: `is_charging` on its own also fires when the engine charges the battery while driving (grid_charging)
+        charging_now = bool(cable_connected and (is_charging or power_kw > 0.5))
         if not cable_connected:
             _PAUSED.pop(vin, None)                                # unplugged: whatever comes next is a new session
 
@@ -177,6 +187,16 @@ class ChargeDetector:
             if not charge:
                 _ACTIVE_CHARGES.pop(vin, None)
                 return None
+
+            # A plugged-in car does not move: if the cloud now places it somewhere else, the position the charge was born with
+            # was stale (04-11-2026: the cloud kept the morning's position for an hour, so a charge at home was «at work»)
+            if lat is not None and lon is not None and charge.latitude is not None and charge.longitude is not None \
+                    and haversine_distance_meters(charge.latitude, charge.longitude, lat, lon) > RELOCATE_METERS:
+                gf = await find_geofence(session, lat, lon, only_charging_spots=True, owner_id=vehicle.owner_id)
+                charge.latitude, charge.longitude = lat, lon
+                charge.geofence_id = gf.id if gf else None
+                charge.address = gf.name if gf else await reverse_geocode(lat, lon)
+                _LOGGER.info(f"Charge #{charge.id} of {vin} moved to where the cloud now places the car: {charge.address}")
 
             electric_range = telemetry.get("electric_range_km") or telemetry.get("total_range_km")
             if battery is not None:

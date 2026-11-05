@@ -68,6 +68,7 @@ def format_drive_dict(d: Drive) -> Dict[str, Any]:
         "start_fuel": d.start_fuel,
         "end_fuel": d.end_fuel,
         "fuel_used_l": d.fuel_used_l,
+        "fuel_refuelled_pct": d.fuel_refuelled_pct or 0.0,
         "outside_temp_avg": d.outside_temp_avg,
         "speed_avg_kmh": d.speed_avg_kmh or 0.0,
         "speed_max_kmh": d.speed_max_kmh or 0.0,

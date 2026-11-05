@@ -8,9 +8,10 @@ from typing import Dict, Optional
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import Drive, DrivePosition, TelemetrySnapshot, Vehicle
+from app.db.models import Drive, DrivePosition, Refuel, TelemetrySnapshot, Vehicle
 from app.services.geofence import (
     find_geofence,
+    haversine_distance_meters,
     reverse_geocode,
 )
 
@@ -18,6 +19,8 @@ _LOGGER = logging.getLogger(__name__)
 
 # Active trips per VIN
 _ACTIVE_DRIVES: Dict[str, int] = {}
+# The last closed trip of each car (id, end time, odometer and end position), to move its end if the cloud refreshes the position
+_LAST_CLOSED: Dict[str, Dict] = {}
 # Last time motion was seen (to know when the car is parked for good)
 _LAST_MOTION_TIME: Dict[str, datetime.datetime] = {}
 # Last reading WITHOUT motion per VIN: if a trip is detected late (car already moving), its start is recovered from here
@@ -41,6 +44,17 @@ START_LEVELS_MAX_AGE = datetime.timedelta(minutes=15)
 
 # A «trip» shorter than this and without kilometres is noise (a parking manoeuvre, a single moving reading)
 MIN_TRIP_SECONDS = 60
+# A stopped reading with the odometer of the last trip's end but the car this far away means the cloud had given a stale position
+# when the trip closed (04-11-2026: the morning's position for an hour): the end moves there. Only this long after the end.
+RELOCATE_METERS = 250.0
+RELOCATE_MAX_AGE = datetime.timedelta(hours=6)
+
+
+def fuel_litres(start_pct: Optional[float], end_pct: Optional[float], tank_liters: Optional[float]) -> float:
+    """Litres spent on a trip out of the tank % at the start and the end and the tank size (50 L when the sheet has none)."""
+    if start_pct is None or end_pct is None:
+        return 0.0
+    return round(max(0.0, start_pct - end_pct) / 100.0 * (tank_liters or 50.0), 2)
 
 
 def resolve_distance(start_odometer: Optional[float], end_odometer: Optional[float]) -> Optional[float]:
@@ -112,6 +126,27 @@ class TripDetector:
             return None
         minutes = min(BACKFILL_MAX_MINUTES, (odometer - prev["odometer"]) / ASSUMED_TRIP_SPEED_KMH * 60.0)
         return {**prev, "start_time": max(prev["time"], now - datetime.timedelta(minutes=minutes))}
+
+    @classmethod
+    async def _refuelled_during(cls, session: AsyncSession, drive: Drive, now: datetime.datetime) -> float:
+        """Tank points put in by the refuels of this trip: by odometer when both sides have one (the refuel form keeps the day
+        but not the hour, so the time alone can place a refuel in the wrong trip), by time otherwise."""
+        rows = (await session.execute(
+            select(Refuel).where(Refuel.vin == drive.vin, Refuel.fuel_before_pct.is_not(None), Refuel.fuel_after_pct.is_not(None),
+                                 Refuel.timestamp >= drive.start_time - datetime.timedelta(days=1), Refuel.timestamp <= now)
+        )).scalars().all()
+        points = 0.0
+        for r in rows:
+            in_time = drive.start_time <= r.timestamp <= now
+            if r.odometer is None or drive.start_odometer is None or drive.end_odometer is None:
+                inside = in_time
+            elif drive.start_odometer < r.odometer < drive.end_odometer:
+                inside = True
+            else:                                       # at the very start or end of the trip: the time decides
+                inside = in_time and r.odometer in (drive.start_odometer, drive.end_odometer)
+            if inside:
+                points += max(0.0, r.fuel_after_pct - r.fuel_before_pct)
+        return round(points, 1)
 
     @classmethod
     async def process_snapshot(
@@ -221,8 +256,9 @@ class TripDetector:
             last_motion = _LAST_MOTION_TIME.get(vin, drive.start_time)
             stopped_duration = (now - last_motion).total_seconds() / 60.0
 
-            # Also end it if the car starts charging or gets plugged in
-            force_end = telemetry.get("is_charging") or telemetry.get("cable_connected")
+            # Also end it when the car gets plugged in (a charge from the grid). `is_charging` alone is not enough: the combustion
+            # engine charges the battery on the road and the car reports that as charging (04-11-2026: one trip cut into five)
+            force_end = bool(telemetry.get("cable_connected"))
 
             if stopped_duration >= IDLE_MINUTES_TO_END_TRIP or force_end:
                 # Close the trip
@@ -248,9 +284,13 @@ class TripDetector:
                     drive.battery_used_pct = max(0.0, round(drive.start_battery_pct - drive.end_battery_pct, 1))
                     drive.energy_consumed_kwh = round((drive.battery_used_pct / 100.0) * (vehicle.battery_capacity_kwh or 19.27), 2)
 
+                # The car reports the tank as a % (`oilSurplus`), like the battery: the litres are the points spent times the
+                # tank size of the vehicle sheet (until 0024 the points themselves were stored as litres: 57 % came out as 57 L)
                 drive.end_fuel = telemetry.get("fuel_level")
                 if drive.start_fuel is not None and drive.end_fuel is not None:
-                    drive.fuel_used_l = max(0.0, round(drive.start_fuel - drive.end_fuel, 2))
+                    # A pump stop on the way puts points in: the litres spent are those consumed before and after it
+                    drive.fuel_refuelled_pct = await cls._refuelled_during(session, drive, now)
+                    drive.fuel_used_l = fuel_litres(drive.start_fuel + drive.fuel_refuelled_pct, drive.end_fuel, vehicle.fuel_tank_liters)
 
                 # Geocode the destination
                 end_gf = await find_geofence(session, lat, lon, owner_id=vehicle.owner_id)
@@ -286,11 +326,35 @@ class TripDetector:
                 _ACTIVE_DRIVES.pop(vin, None)
                 _LAST_MOTION_TIME.pop(vin, None)
                 _HV_OFF_AT.pop(vin, None)
+                _LAST_CLOSED[vin] = {"id": drive.id, "end_time": now, "odometer": odometer, "lat": lat, "lon": lon}
                 _remember_idle(vin, now, lat, lon, odometer, battery, telemetry, is_moving)
                 return drive
 
+        if not is_moving:
+            await cls._relocate_last_end(session, vehicle, now, lat, lon, odometer)
         _remember_idle(vin, now, lat, lon, odometer, battery, telemetry, is_moving)
         return None
+
+    @classmethod
+    async def _relocate_last_end(cls, session: AsyncSession, vehicle: Vehicle, now: datetime.datetime,
+                                 lat: Optional[float], lon: Optional[float], odometer: Optional[float]) -> None:
+        """The car has not moved since the last trip closed (same odometer) but the cloud now places it elsewhere: the trip
+        ended there. Forgotten on a restart (memory only)."""
+        last = _LAST_CLOSED.get(vehicle.vin)
+        if (last is None or lat is None or lon is None or odometer is None or last["odometer"] != odometer
+                or last["lat"] is None or last["lon"] is None or now - last["end_time"] > RELOCATE_MAX_AGE
+                or haversine_distance_meters(last["lat"], last["lon"], lat, lon) <= RELOCATE_METERS):
+            return
+        drive = await session.get(Drive, last["id"])
+        if drive is None:
+            _LAST_CLOSED.pop(vehicle.vin, None)
+            return
+        gf = await find_geofence(session, lat, lon, owner_id=vehicle.owner_id)
+        drive.end_lat, drive.end_lon = lat, lon
+        drive.end_geofence_id = gf.id if gf else None
+        drive.end_address = gf.name if gf else await reverse_geocode(lat, lon)
+        last.update({"lat": lat, "lon": lon})
+        _LOGGER.info(f"Drive #{drive.id} of {vehicle.vin} now ends where the cloud places the parked car: {drive.end_address}")
 
 
 def _remember_idle(vin, now, lat, lon, odometer, battery, telemetry, is_moving) -> None:

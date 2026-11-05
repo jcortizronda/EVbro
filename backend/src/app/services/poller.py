@@ -24,7 +24,7 @@ from app.services import command_policy
 from app.services import telemetry as usage_reports
 from app.services.accounts import fetch_account_vehicles, vehicle_data_dir
 from app.services.car_events import CarEventHub
-from app.services.charge_detector import ChargeDetector
+from app.services.charge_detector import ChargeDetector, grid_charging
 from app.services.charge_manager import ChargeManager
 from app.services.geofence import find_geofence
 from app.services.mqtt_hub import MqttHub
@@ -47,6 +47,10 @@ UNEXPECTED_COMMAND_ERROR = "No se pudo enviar la orden al coche por un error ine
 # Cars polled at the same time in one pass of the loop: a manager whose cloud answers slowly must not delay everybody else's reads,
 # but the Chery cloud is shared, so the fan-out stays small.
 POLL_CONCURRENCY = 4
+# Two reads of the same car at once, or one right after the other, bring nothing newer from the cloud and ran the detectors
+# twice over the same snapshot (04-11-2026: a push from the car 2 s after the scheduled read duplicated trips and charges).
+# A read requested while one is running joins it; one requested this soon after an answer gets that answer.
+POLL_COALESCE_SECONDS = 5
 
 
 class VehiclePoller:
@@ -80,6 +84,8 @@ class VehiclePoller:
     # Polls requested by car events (one at a time per vehicle)
     _poll_requests: Dict[str, "asyncio.Task"] = {}
     _poll_semaphore: Optional[asyncio.Semaphore] = None
+    # The read in progress per vehicle: whoever asks meanwhile waits for it instead of asking the cloud again
+    _inflight: Dict[str, "asyncio.Task"] = {}
 
     @classmethod
     def get_instance(cls) -> "VehiclePoller":
@@ -294,7 +300,25 @@ class VehiclePoller:
         return discovered
 
     async def poll_vehicle(self, vin: str, force: bool = False) -> Optional[Dict]:
-        """Runs one telemetry read for a given vehicle."""
+        """One telemetry read of a vehicle: it joins a read already running, reuses one answered less than
+        POLL_COALESCE_SECONDS ago, and otherwise asks the cloud (`_poll_vehicle`). Whatever the outcome, the time of the
+        attempt is kept: a car whose reads fail is retried at its adaptive interval, not at every turn of the loop."""
+        running = self._inflight.get(vin)
+        if running is not None:
+            return await asyncio.shield(running)
+        last = self._last_poll_times.get(vin)
+        if last is not None and (datetime.datetime.utcnow() - last).total_seconds() < POLL_COALESCE_SECONDS:
+            return self._latest_snapshots.get(vin)
+        task = asyncio.create_task(self._poll_vehicle(vin, force))
+        self._inflight[vin] = task
+        try:
+            return await task
+        finally:
+            self._inflight.pop(vin, None)
+            self._last_poll_times[vin] = datetime.datetime.utcnow()
+
+    async def _poll_vehicle(self, vin: str, force: bool = False) -> Optional[Dict]:
+        """Asks the cloud, saves the snapshot and runs the detectors. Always through `poll_vehicle`."""
         ctx = self._get_or_create_ctx(vin)
         loop = asyncio.get_running_loop()
 
@@ -313,6 +337,9 @@ class VehiclePoller:
             _LOGGER.error(f"Exception polling {vin}: {e}", exc_info=True)
             return None
 
+        if isinstance(res, dict) and res.get("ok") is False and res.get("reason") != "cooldown":
+            _LOGGER.warning("Read of %s brought no data: %s", vin[-6:], res.get("reason"))
+
         # With no real-time data (e.g. the car is asleep), use the probe's "rich" summary.
         # Coordinates do NOT travel in the result of `probe_once` (see core/probe.py):
         # raw data only arrives through the `on_data` callback above.
@@ -329,7 +356,6 @@ class VehiclePoller:
         # a cloud snapshot older than the car's last event.
         telemetry = parse_telemetry_data(raw_data, None, CarEventHub.get_instance().fields_for(vin))
         self._latest_snapshots[vin] = telemetry
-        self._last_poll_times[vin] = datetime.datetime.utcnow()
 
         # Save to the database and run the detectors
         async with async_session_factory() as session:
@@ -442,8 +468,8 @@ class VehiclePoller:
                     await self._geofence_transition(session, vehicle, current_gf, last_gf_id, lat, lon, battery, odo)
                     self._last_geofence_by_vin[vin] = current_gf_id
 
-        # 2. Charging alerts (start / end / interruption)
-        is_charging = bool(telemetry.get("is_charging"))
+        # 2. Charging alerts (start / end / interruption); from the grid only, the engine charging on the road is not news
+        is_charging = grid_charging(telemetry)
         if vin in self._last_charging_by_vin:
             was_charging = self._last_charging_by_vin[vin]
             if not was_charging and is_charging:

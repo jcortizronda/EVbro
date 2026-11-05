@@ -53,7 +53,7 @@ Capas del backend: `core/` (protocolo Ebro) → `vehicle/` (canal MQTT del coche
 
 ## Servidor Backend
 - **FastAPI** sobre Uvicorn; E/S asíncrona con `asyncio`, `asyncpg` y SQLAlchemy 2.0. El código bloqueante del core (red con `requests`/`urllib`) se ejecuta en hilos (`run_in_executor`).
-- **Poller (`services/poller.py`):** un `VehiclePoller` singleton con un `CoreCtx` por vehículo, el bucle de sondeo adaptativo, los detectores de viajes/cargas y el despacho de alertas.
+- **Poller (`services/poller.py`):** un `VehiclePoller` singleton con un `CoreCtx` por vehículo, el bucle de sondeo adaptativo, los detectores de viajes/cargas y el despacho de alertas. **Una lectura por coche a la vez:** quien pide una lectura mientras otra está en curso (el bucle, un evento MQTT del coche, el botón de la interfaz, una orden) espera esa misma, y una pedida menos de 5 s después de una respuesta recibe esa respuesta (`POLL_COALESCE_SECONDS`); si no, dos lecturas con el mismo dato pasaban dos veces por los detectores y duplicaban viajes y cargas (04-11-2026). La hora del intento se apunta aunque la lectura falle, para que un coche sin datos se reintente a su intervalo y no en cada vuelta del bucle (10 s).
 - **WebSocket (`/api/ws`):** emite la telemetría a los clientes conectados. **Exige sesión y origen propio** antes de aceptar la conexión (cierra con código 4401).
 - **Ciclo de vida (`lifespan`):** crea/migra el esquema, avisa en el log si falta el primer usuario, y arranca el poller y el publicador MQTT.
 - **`/docs`, `/redoc` y `/openapi.json` solo existen con `DEBUG=true`.**

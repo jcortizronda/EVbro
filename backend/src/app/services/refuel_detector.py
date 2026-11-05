@@ -4,6 +4,11 @@ The car reports the level as a % (`oilSurplus`) that drops while driving and ris
 refuel is kept and, when a reading with the car stopped is at least `FUEL_JUMP_PCT` points above it, there is a refuel. The litres
 are an estimate (% points × tank size, configurable on the vehicle); the user adds the price later.
 
+The rise may only show up once the car is moving again: the cloud is read every minute or two, and a quick stop at the pump
+can end before the next reading (05-11-2026: 5 % stopped at the station, 43 % two minutes later at 139 km/h; the refuel was
+only «seen» at the next stop, 140 km on, as 5 % → 23 %). So a rise counts when the car is stopped now OR was stopped in the
+previous reading; in the second case the refuel takes the time, position and odometer of that stop.
+
 Caveats: a 0 % reading that later «comes back» is not a refuel (the car sometimes sends it before reading the tank), and two
 refuels less than `MIN_GAP` apart are not recorded.
 """
@@ -27,6 +32,8 @@ MIN_GAP = datetime.timedelta(minutes=30)
 # lowest level seen since the last refuel, per VIN
 _FUEL_LOW: Dict[str, float] = {}
 _LAST_REFUEL_AT: Dict[str, datetime.datetime] = {}
+# the previous reading, when the car was stopped in it (time, position, odometer and tank level); None after a moving reading
+_PREV_STOP: Dict[str, Optional[Dict]] = {}
 
 
 class RefuelDetector:
@@ -50,6 +57,10 @@ class RefuelDetector:
         if fuel is None:
             return None
         now = datetime.datetime.utcnow()
+        stopped = (telemetry.get("speed_kmh") or 0.0) <= 2.0 and telemetry.get("state") != "driving"
+        prev_stop = _PREV_STOP.get(vin)
+        _PREV_STOP[vin] = {"time": now, "fuel": fuel, "odometer": telemetry.get("odometer_km"),
+                           "lat": telemetry.get("latitude"), "lon": telemetry.get("longitude")} if stopped else None
         low = await cls._baseline(session, vin, now)
         if low is None or (fuel <= 0 and low > 2.0):
             # first reading, or a 0 % from a tank that was not nearly empty: an invalid reading, it counts for nothing
@@ -57,21 +68,29 @@ class RefuelDetector:
                 _FUEL_LOW[vin] = fuel
             return None
 
-        stopped = (telemetry.get("speed_kmh") or 0.0) <= 2.0 and telemetry.get("state") != "driving"
         if fuel <= low:
             _FUEL_LOW[vin] = fuel                                       # consumption: the minimum goes down
             return None
-        if not stopped or fuel - low < FUEL_JUMP_PCT:
-            return None                                                 # wobble, or a rise while moving: nothing
+        if fuel - low < FUEL_JUMP_PCT:
+            return None                                                 # wobble
+        # The pump stop may have ended before this reading: the rise is a refuel if the car is stopped now or was in the
+        # previous reading (measured against that reading, so a wobble while stopped plus sloshing on the road is not one)
+        at = None
+        if stopped:
+            at = {"time": now, "odometer": telemetry.get("odometer_km"), "lat": telemetry.get("latitude"), "lon": telemetry.get("longitude")}
+        elif prev_stop is not None and fuel - prev_stop["fuel"] >= FUEL_JUMP_PCT:
+            at = prev_stop
+        if at is None:
+            return None                                                 # a rise while moving: nothing
         last = _LAST_REFUEL_AT.get(vin)
         if last and now - last < MIN_GAP:
             _FUEL_LOW[vin] = fuel
             return None
 
-        lat, lon = telemetry.get("latitude"), telemetry.get("longitude")
+        lat, lon = at["lat"], at["lon"]
         address = await reverse_geocode(lat, lon) if lat is not None and lon is not None else None
         liters = round((fuel - low) / 100.0 * (vehicle.fuel_tank_liters or 50.0), 1)
-        refuel = Refuel(vin=vin, timestamp=now, odometer=telemetry.get("odometer_km"), fuel_before_pct=low, fuel_after_pct=fuel,
+        refuel = Refuel(vin=vin, timestamp=at["time"], odometer=at["odometer"], fuel_before_pct=low, fuel_after_pct=fuel,
                         liters=liters, latitude=lat, longitude=lon, address=address, detected=True,
                         full_tank=None)                 # the gauge decides (>= 95 %) until the user says otherwise
 

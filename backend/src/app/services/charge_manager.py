@@ -41,6 +41,7 @@ from app.config import get_timezone
 from app.core import commands
 from app.db.models import ChargePlan
 from app.db.session import async_session_factory
+from app.services.charge_detector import grid_charging
 from app.vehicle import charging
 from app.vehicle.constants import DEFAULT_CHARGE_DURATION_MIN, DEFAULT_CHARGE_START_MIN, MINUTES_PER_DAY
 
@@ -321,7 +322,7 @@ class ChargeManager:
                 return
             state = self._to_state(row)
             action = decide(state, soc=telemetry.get("battery_level"), plugged=bool(telemetry.get("cable_connected")),
-                            charging_now=bool(telemetry.get("is_charging")), now=self._clock())
+                            charging_now=grid_charging(telemetry), now=self._clock())
             if action is None:
                 return
             now = self._clock()
@@ -365,13 +366,13 @@ class ChargeManager:
         out: dict[str, Any] = {
             "target_pct": st.target_pct, "target_choices": list(TARGET_CHOICES),
             "mode": st.mode, "hold_reason": st.hold_reason,
-            "status": status_code(st, bool(latest.get("is_charging"))),
+            "status": status_code(st, grid_charging(latest)),
             "schedule": {"enabled": st.sched_enabled, "start": _hhmm(st.sched_start_min),
                          "duration_min": st.sched_duration_min,
                          "end": _hhmm(None if st.sched_start_min is None or st.sched_duration_min is None
                                       else (st.sched_start_min + st.sched_duration_min) % MINUTES_PER_DAY)},
             "soc": latest.get("battery_level"), "plugged": latest.get("cable_connected"),
-            "charging": latest.get("is_charging"),
+            "charging": grid_charging(latest) if latest else None,
             "last_action": row.last_action if row else None,
             "last_action_at": row.last_action_at.isoformat() if row and row.last_action_at else None,
             "last_error": row.last_error if row else None,
