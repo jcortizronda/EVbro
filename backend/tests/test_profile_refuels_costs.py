@@ -315,13 +315,13 @@ async def check(p, at, pressures, **cfg):
             await s.commit()
 
 
-async def test_low_pressure_alerts_after_ten_minutes_and_once_every_12_hours(poller) -> None:
+async def test_low_pressure_alerts_after_two_minutes_and_once_every_12_hours(poller) -> None:
     t = D(2026, 10, 28, 12, 0)
     bad = {"fl": 2.5, "fr": 2.0, "rl": 2.6, "rr": 2.6}
     await check(poller, t, bad)
-    await check(poller, t + datetime.timedelta(minutes=5), bad)
-    assert poller.tyre_alerts == []                                                                 # the 10 minutes have not passed yet
-    await check(poller, t + datetime.timedelta(minutes=11), bad)
+    await check(poller, t + datetime.timedelta(minutes=1), bad)
+    assert poller.tyre_alerts == []                                                                 # the 2 minutes have not passed yet
+    await check(poller, t + datetime.timedelta(minutes=2, seconds=30), bad)
     assert len(poller.tyre_alerts) == 1 and "Delantero derecho" in poller.tyre_alerts[0][0]
     await check(poller, t + datetime.timedelta(hours=2), bad)
     assert len(poller.tyre_alerts) == 1                                                             # not repeated within the 12 h
@@ -329,12 +329,31 @@ async def test_low_pressure_alerts_after_ten_minutes_and_once_every_12_hours(pol
     assert len(poller.tyre_alerts) == 2
 
 
+async def test_a_lone_low_reading_does_not_alert(poller) -> None:
+    t = D(2026, 10, 28, 12, 0)
+    ok = {"fl": 2.5, "fr": 2.5, "rl": 2.6, "rr": 2.6}
+    await check(poller, t, {**ok, "fr": 2.0})
+    await check(poller, t + datetime.timedelta(minutes=1), ok)                                      # the tyre warms up, or one bad sensor reading
+    await check(poller, t + datetime.timedelta(minutes=3), {**ok, "fr": 2.0})
+    assert poller.tyre_alerts == []
+
+
+async def test_high_pressure_still_waits_ten_minutes(poller) -> None:
+    t = D(2026, 10, 28, 12, 0)
+    hot = {"fl": 2.5, "fr": 3.0, "rl": 2.6, "rr": 2.6}
+    await check(poller, t, hot)
+    await check(poller, t + datetime.timedelta(minutes=5), hot)
+    assert poller.tyre_alerts == []                                                                 # a warm tyre rises 10 % without being a problem
+    await check(poller, t + datetime.timedelta(minutes=11), hot)
+    assert len(poller.tyre_alerts) == 1
+
+
 async def test_if_the_pressure_returns_to_normal_the_count_restarts(poller) -> None:
     t = D(2026, 10, 28, 12, 0)
-    await check(poller, t, {"fr": 2.0})
+    await check(poller, t, {"fr": 3.0})
     await check(poller, t + datetime.timedelta(minutes=5), {"fr": 2.5})                    # back in range
-    await check(poller, t + datetime.timedelta(minutes=8), {"fr": 2.0})                    # out again: counts from zero
-    await check(poller, t + datetime.timedelta(minutes=15), {"fr": 2.0})
+    await check(poller, t + datetime.timedelta(minutes=8), {"fr": 3.0})                    # out again: counts from zero
+    await check(poller, t + datetime.timedelta(minutes=15), {"fr": 3.0})
     assert poller.tyre_alerts == []
 
 

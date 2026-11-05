@@ -42,6 +42,9 @@ SECURITY_CONFIRM_SECONDS = 5 * 60
 # Tyre pressure: it must stay out of range this long (when starting off or with a warm tyre it rises 10 % without being a problem)
 # and the alert is not repeated before TYRE_ALERT_COOLDOWN
 TYRE_CONFIRM_SECONDS = 10 * 60
+# A LOW pressure only has to hold this long: the cold reading is the one that matters and it lasts a few minutes, because rolling
+# warms the tyre and raises it (03 and 04-11-2026: 2.31 bar for 2-4 minutes, never 10). A lone reading of one sensor is not enough.
+TYRE_LOW_CONFIRM_SECONDS = 2 * 60
 TYRE_ALERT_COOLDOWN = datetime.timedelta(hours=12)
 UNEXPECTED_COMMAND_ERROR = "No se pudo enviar la orden al coche por un error inesperado del servidor (mira el log)."
 # Cars polled at the same time in one pass of the loop: a manager whose cloud answers slowly must not delay everybody else's reads,
@@ -549,7 +552,9 @@ class VehiclePoller:
         # 5. Windows / sunroof left open when parking (the situation must last SECURITY_CONFIRM_SECONDS)
         windows = telemetry.get("windows") or {}
         open_windows = [k for k, v in windows.items() if v]
-        is_parked = left_car or telemetry.get("is_locked") is True
+        # Off as well as locked: the car locks itself on the road, and a window lowered while driving is no forgotten window
+        # (every alert up to 05-11-2026 came with the car moving). The car may also raise them when locked: hence the wait.
+        is_parked = telemetry.get("high_voltage_on") is not True and (left_car or telemetry.get("is_locked") is True)
         if self._confirmed(vin, "windows", is_parked and bool(open_windows), datetime.datetime.utcnow()):
             now = datetime.datetime.utcnow()
             last_win_alert = self._last_windows_alert_time.get(vin)
@@ -630,10 +635,12 @@ class VehiclePoller:
         await session.commit()
 
     async def _check_tyre_pressure(self, vehicle: Vehicle, telemetry: Dict) -> None:
-        """Alerts when a tyre leaves the configured range and stays there TYRE_CONFIRM_SECONDS (once every 12 h)."""
+        """Alerts when a tyre stays out of the configured range TYRE_CONFIRM_SECONDS, or below it TYRE_LOW_CONFIRM_SECONDS (once every 12 h)."""
         issues = self.tyre_pressure_issues(vehicle, telemetry)
+        low = any(" (-" in issue for issue in issues)
         now = datetime.datetime.utcnow()
-        if self._confirmed(vehicle.vin, "tyres", bool(issues), now, TYRE_CONFIRM_SECONDS):
+        low_confirmed = self._confirmed(vehicle.vin, "tyres_low", low, now, TYRE_LOW_CONFIRM_SECONDS)
+        if self._confirmed(vehicle.vin, "tyres", bool(issues), now, TYRE_CONFIRM_SECONDS) or low_confirmed:
             last = self._last_tyre_alert_time.get(vehicle.vin)
             if not last or now - last >= TYRE_ALERT_COOLDOWN:
                 self._last_tyre_alert_time[vehicle.vin] = now

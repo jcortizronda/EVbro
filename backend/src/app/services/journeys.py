@@ -28,9 +28,15 @@ def _day(dt: datetime.datetime, tz) -> str:
     return dt.replace(tzinfo=datetime.timezone.utc).astimezone(tz).strftime("%Y-%m-%d")
 
 
+def _days(start: datetime.datetime, end: datetime.datetime, tz) -> int:
+    """Calendar days the span touches, in local time (a journey from 00:00 is stored the evening before in UTC)."""
+    first, last = (dt.replace(tzinfo=datetime.timezone.utc).astimezone(tz).date() for dt in (start, end))
+    return max(1, (last - first).days + 1)
+
+
 def serialize(j: Journey, summary: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     out = {"id": j.id, "vin": j.vin, "name": j.name, "start_time": j.start_time.isoformat(), "end_time": j.end_time.isoformat(),
-           "notes": j.notes, "days": max(1, (j.end_time.date() - j.start_time.date()).days + 1)}
+           "notes": j.notes, "days": _days(j.start_time, j.end_time, get_timezone())}
     if summary is not None:
         out["summary"] = summary
     return out
@@ -86,7 +92,7 @@ async def summary(session: AsyncSession, vin: str, start: datetime.datetime, end
         "totals": {"cost": _r(total, 2), "cost_per_km": _r(total / km, 3) if km >= 1 else None, "cost_per_day": None},
         "per_day": [{"day": k, "km": _r(v["km"]), "drives": v["drives"]} for k, v in sorted(per_day.items())],
     }
-    days = max(1, (end.date() - start.date()).days + 1)
+    days = _days(start, end, tz)
     out["totals"]["cost_per_day"] = _r(total / days, 2)
     if with_items:
         out["items"] = {

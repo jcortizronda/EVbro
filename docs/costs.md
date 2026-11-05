@@ -74,8 +74,8 @@ Debajo de «Otros documentos» se ve el **espacio usado** del gestor («Espacio 
 
 ## Avisos relacionados
 
-- **Presión de neumáticos** (`notify_tyre_pressure`): aviso si una presión se aleja más del margen de la indicada; debe mantenerse 10 min y no se repite en 12 h.
-- **Puertas/ventanillas con el coche aparcado**: solo cuentan si el coche está «dejado» (aparcado y con la alta tensión apagada) durante 5 min seguidos; así no saltan mientras uno se baja.
+- **Presión de neumáticos** (`notify_tyre_pressure`): aviso si una presión se aleja más del margen de la indicada y no se repite en 12 h. Por **debajo** basta con que se mantenga **2 min**: la lectura en frío es la que importa y dura poco, porque al rodar el neumático se calienta y sube (el 03 y el 04-11-2026 estuvo bajo el margen 2-4 min, nunca 10). Por **encima** debe mantenerse 10 min, porque un neumático caliente sube un 10 % sin que sea un problema.
+- **Puertas/ventanillas con el coche aparcado**: solo cuentan si el coche está «dejado» (aparcado y con la alta tensión apagada) durante 5 min seguidos; así no saltan mientras uno se baja. Las ventanillas valen también con el coche bloqueado y dormido, pero siempre **apagado**: el coche se bloquea solo en marcha, y hasta el 05-11-2026 una ventanilla bajada circulando avisaba como olvidada. Los 5 min dejan margen por si el coche las sube al bloquear (visto dos veces, sin confirmar).
 - **ITV**: se calcula desde la matriculación (4 años, luego cada 2, anual a partir de los 10); una fecha de vencimiento introducida manda sobre el cálculo.
 
 ## Pendiente / límites

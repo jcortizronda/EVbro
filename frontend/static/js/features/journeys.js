@@ -63,8 +63,11 @@ window.Journeys = (function () {
     previewTimer = setTimeout(preview, 350);
   }
 
+  // The inputs hold the viewer's local time and the server stores UTC: without the conversion a trip at 17:07 fell outside «from 17:00»
+  const toServer = (value) => { const d = new Date(value); return value && !isNaN(d) ? d.toISOString() : ''; };
+
   function formBody() {
-    return { name: el('jnName').value.trim() || 'Viaje', start_time: el('jnStart').value, end_time: el('jnEnd').value, notes: el('jnNotes').value.trim() || null };
+    return { name: el('jnName').value.trim() || 'Viaje', start_time: toServer(el('jnStart').value), end_time: toServer(el('jnEnd').value), notes: el('jnNotes').value.trim() || null };
   }
 
   async function preview() {

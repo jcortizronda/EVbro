@@ -302,6 +302,24 @@ async def test_an_open_window_with_the_car_locked_alerts_after_the_wait(poller) 
     assert poller.alerts_sent == [("windows", ["Delantera Izquierda"])]
 
 
+async def test_a_window_lowered_while_driving_is_not_a_forgotten_window(poller) -> None:
+    """Up to 05-11-2026 this alerted: the car locks itself on the road, and «locked» was taken for «parked»."""
+    t = D(2026, 10, 28, 12, 0)
+    driving = {"state": "driving", "high_voltage_on": True, "doors": {}, "windows": {"fl": 1}}
+    await check(poller, t, **driving)
+    await check(poller, t + datetime.timedelta(minutes=6), **driving)
+    await check(poller, t + datetime.timedelta(minutes=7), **{**driving, "state": "ready"})          # traffic light
+    assert poller.alerts_sent == []
+
+
+async def test_a_window_the_car_raises_when_locked_does_not_alert(poller) -> None:
+    t = D(2026, 10, 28, 12, 0)
+    await check(poller, t, doors={}, windows={"fl": 1})
+    await check(poller, t + datetime.timedelta(minutes=2), doors={}, windows={"fl": 0})
+    await check(poller, t + datetime.timedelta(minutes=6), doors={}, windows={"fl": 0})
+    assert poller.alerts_sent == []
+
+
 # ───────────────────────── parser ─────────────────────────
 def test_high_voltage_on_comes_from_hvoltagestate() -> None:
     assert parse_telemetry_data({"hVoltageState": "1"})["high_voltage_on"] is True

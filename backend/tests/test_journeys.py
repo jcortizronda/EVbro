@@ -50,7 +50,7 @@ async def holiday(db):
 
 async def test_a_journey_adds_up_everything_between_its_dates(holiday) -> None:
     c = holiday
-    body = {"name": "Asturias 2026", "start_time": "2026-08-01T00:00:00", "end_time": "2026-08-03T23:59:59", "notes": "Con la familia"}
+    body = {"name": "Asturias 2026", "start_time": "2026-07-31T22:00:00Z", "end_time": "2026-08-03T21:59:59Z", "notes": "Con la familia"}
     prev = (await c.post(f"/api/vehicles/{VIN}/journeys/preview", json=body)).json()["summary"]
     assert prev["drives"]["count"] == 2 and prev["drives"]["km"] == 430.0 and prev["totals"]["cost"] == 94.9      # 12.5 + 64 + 12.4 + 6
     r = await c.post(f"/api/vehicles/{VIN}/journeys", json=body)
@@ -67,10 +67,24 @@ async def test_a_journey_adds_up_everything_between_its_dates(holiday) -> None:
     lst = (await c.get(f"/api/vehicles/{VIN}/journeys")).json()
     assert len(lst) == 1 and lst[0]["summary"]["drives"]["km"] == 430.0 and "items" not in lst[0]["summary"]
     assert (await c.get(f"/api/vehicles/{VIN}/journeys/{j['id']}")).json()["name"] == "Asturias 2026"
-    r = await c.put(f"/api/vehicles/{VIN}/journeys/{j['id']}", json={"end_time": "2026-08-01T23:59:59"})
+    r = await c.put(f"/api/vehicles/{VIN}/journeys/{j['id']}", json={"end_time": "2026-08-01T21:59:59Z"})
     assert r.json()["summary"]["drives"]["count"] == 1 and r.json()["days"] == 1
     assert (await c.put(f"/api/vehicles/{VIN}/journeys/{j['id']}", json={"end_time": "2026-07-01T00:00:00"})).status_code == 422
     assert (await c.post(f"/api/vehicles/{VIN}/journeys", json={**body, "end_time": "2028-01-01T00:00:00"})).status_code == 422
     assert (await c.delete(f"/api/vehicles/{VIN}/journeys/{j['id']}")).json() == {"ok": True}
     assert (await c.get(f"/api/vehicles/{VIN}/journeys")).json() == []
     assert (await c.get(f"/api/vehicles/{VIN}/journeys/{j['id']}")).status_code == 404
+
+
+async def test_the_form_sends_utc_and_the_days_are_counted_in_local_time(holiday) -> None:
+    """05-11-2026: «from 17:00» left out a trip at 17:07 because the local time was stored as if it were UTC."""
+    c = holiday
+    # 1 August 08:00 → 2 August 23:59 in Madrid; the first drive starts at 08:00 there (06:00 UTC)
+    body = {"name": "Norte", "start_time": "2026-08-01T06:00:00.000Z", "end_time": "2026-08-02T21:59:00.000Z"}
+    r = await c.post(f"/api/vehicles/{VIN}/journeys", json=body)
+    j = r.json()
+    assert r.status_code in (200, 201) and j["start_time"] == "2026-08-01T06:00:00" and j["days"] == 2
+    assert j["summary"]["drives"]["count"] == 2
+    # 2 August 00:00 in Madrid is still 1 August in UTC: two local days, not three
+    r = await c.post(f"/api/vehicles/{VIN}/journeys", json={"name": "Medianoche", "start_time": "2026-08-01T22:00:00.000Z", "end_time": "2026-08-03T21:59:00.000Z"})
+    assert r.json()["days"] == 2
