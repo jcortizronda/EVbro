@@ -349,8 +349,11 @@ class VehiclePoller:
         if not raw_data and isinstance(res, dict):
             raw_data = res.get("rich", {})
 
+        cloud_codes = res.get("codes") if isinstance(res, dict) else None
         if not raw_data:
             usage_reports.count_poll("empty")
+            if cloud_codes:
+                _LOGGER.info("Read of %s came back empty, cloud codes (realtime, location, trips): %s", vin[-6:], cloud_codes)
             return None
         usage_reports.count_poll("ok")
 
@@ -360,9 +363,10 @@ class VehiclePoller:
         telemetry = parse_telemetry_data(raw_data, None, CarEventHub.get_instance().fields_for(vin))
         # Mid-charge, a read without the realtime answer would look like «plugged, not charging»: it would raise a false alert and
         # stretch the next read to the plugged interval, splitting the charge. It is dropped and the next read comes on time.
-        if ChargeDetector.has_active_charge(vin) and lacks_charge_data(telemetry):
-            _LOGGER.info("Read of %s without charge data during a charge: ignored", vin[-6:])
-            return self._latest_snapshots.get(vin)
+        if lacks_charge_data(telemetry):
+            _LOGGER.info("Read of %s without charge data, cloud codes (realtime, location, trips): %s", vin[-6:], cloud_codes)
+            if ChargeDetector.has_active_charge(vin):
+                return self._latest_snapshots.get(vin)
         self._latest_snapshots[vin] = telemetry
 
         # Save to the database and run the detectors
@@ -485,8 +489,8 @@ class VehiclePoller:
                     vehicle.name, battery or 0.0, telemetry.get("electric_range_km"), vin=vin
                 )
             elif was_charging and not is_charging:
-                # If it stopped before completing (< 95%) and it was not a scheduled stop
-                if battery is not None and battery < 95:
+                # If it stopped before completing (< 95%) and EVBro did not stop it itself (target reached, «Parar carga»)
+                if battery is not None and battery < 95 and not ChargeManager.get_instance().holds_charge(vin):
                     await NotificationService.notify_charge_interrupted(
                         vehicle.name, battery, "Suministro eléctrico cortado o manguera desconectada.", vin=vin
                     )
@@ -753,12 +757,14 @@ class VehiclePoller:
             try:
                 async with async_session_factory() as session:
                     vehicles = (await session.execute(select(Vehicle).where(Vehicle.is_manual.is_(False)))).scalars().all()
-                    vins = [v.vin for v in vehicles]
+                    stored_states = {v.vin: v.state for v in vehicles}
 
                 due = []
-                for vin in vins:
+                for vin, stored_state in stored_states.items():
                     latest = self.get_latest(vin) or {}
-                    current_state = latest.get("state", "parked")
+                    # After a restart nothing is in memory: a car left plugged in stays on the plugged interval while the
+                    # reads come back empty (05-11-2026: read hourly as «parked», a charge went unseen for 2.5 hours)
+                    current_state = latest.get("state") or ("plugged" if stored_state in ("plugged", "charging") else "parked")
                     last_poll = self._last_poll_times.get(vin)
                     now = datetime.datetime.utcnow()
 

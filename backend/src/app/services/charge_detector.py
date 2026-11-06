@@ -5,10 +5,11 @@ import datetime
 import logging
 from typing import Dict, Optional, Set, Tuple
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import ChargePoint, ChargingSession, Geofence, Vehicle
+from app.config import get_timezone
+from app.db.models import ChargePlan, ChargePoint, ChargingSession, Geofence, TelemetrySnapshot, Vehicle
 from app.services.electricity_tariffs import calculate_charging_session_cost
 from app.services.geofence import find_geofence, haversine_distance_meters, reverse_geocode
 
@@ -52,12 +53,50 @@ DEFAULT_CAPACITY_KWH = 19.27
 RESUME_MAX_AGE = datetime.timedelta(hours=3)
 # A pause with the cable plugged in shorter than this joins both halves into one session
 PAUSE_MERGE_MAX = datetime.timedelta(minutes=15)
+# A first reading this many points above the last one means the charge began while no read got through
+MISSED_START_MIN_POINTS = 2.0
+
+
+def scheduled_start_between(plan: Optional[ChargePlan], after: datetime.datetime, before: datetime.datetime) -> Optional[datetime.datetime]:
+    """Last time the user's charge schedule opened between two naive UTC instants, if it is active and did."""
+    if plan is None or plan.mode != "scheduled" or not plan.sched_enabled or plan.sched_start_min is None:
+        return None
+    tz = get_timezone()
+    local_day = before.replace(tzinfo=datetime.timezone.utc).astimezone(tz).date()
+    for days_back in (0, 1):
+        midnight = datetime.datetime.combine(local_day - datetime.timedelta(days=days_back), datetime.time(), tzinfo=tz)
+        opened = (midnight + datetime.timedelta(minutes=plan.sched_start_min)).astimezone(datetime.timezone.utc).replace(tzinfo=None)
+        if after < opened <= before:
+            return opened
+    return None
 
 
 class ChargeDetector:
     @classmethod
     def has_active_charge(cls, vin: str) -> bool:
         return vin in _ACTIVE_CHARGES
+
+    @classmethod
+    async def _missed_start(cls, session: AsyncSession, vin: str, telemetry: Dict, now: datetime.datetime) -> Optional[Tuple[datetime.datetime, float, Optional[float]]]:
+        """Reads can fail for hours (05-11-2026: a charge begun at 20 % was first seen at 41 %). If the car was already plugged in at
+        its last reading, has not moved and the battery rose, the charge began in that gap: the time, battery and range it really
+        started with. The time is the schedule's when it opened in the gap; otherwise only the detection time is known."""
+        battery, odometer = telemetry.get("battery_level"), telemetry.get("odometer_km")
+        if battery is None or odometer is None:
+            return None
+        previous = (await session.execute(
+            select(TelemetrySnapshot).where(TelemetrySnapshot.vin == vin, TelemetrySnapshot.battery_level.is_not(None),
+                                            TelemetrySnapshot.is_charging.is_(False))
+            .order_by(TelemetrySnapshot.timestamp.desc()).limit(1)
+        )).scalar_one_or_none()
+        if previous is None or not previous.cable_connected or previous.odometer_km != odometer \
+                or battery - previous.battery_level < MISSED_START_MIN_POINTS:
+            return None
+        last_end = (await session.execute(select(func.max(ChargingSession.end_time)).where(ChargingSession.vin == vin))).scalar()
+        if last_end is not None and last_end > previous.timestamp:
+            return None                                           # that rise already belongs to the previous session
+        opened = scheduled_start_between(await session.get(ChargePlan, vin), previous.timestamp, now)
+        return opened or now, previous.battery_level, previous.electric_range_km
 
     @classmethod
     async def _last_reading(cls, session: AsyncSession, charge: ChargingSession) -> Tuple[datetime.datetime, Optional[float], Optional[float]]:
@@ -176,14 +215,19 @@ class ChargeDetector:
                 addr = gf.name
 
             electric_range = telemetry.get("electric_range_km") or telemetry.get("total_range_km")
+            start_time, start_battery = now, battery
+            missed = await cls._missed_start(session, vin, telemetry, now)
+            if missed:
+                start_time, start_battery, electric_range = missed
+                _LOGGER.info(f"Charge of {vin} first seen late: it began at {start_battery}% ({start_time} UTC)")
             new_session = ChargingSession(
                 vin=vin,
-                start_time=now,
+                start_time=start_time,
                 latitude=lat,
                 longitude=lon,
                 address=addr,
                 geofence_id=gf.id if gf else None,
-                start_battery_pct=battery,
+                start_battery_pct=start_battery,
                 start_range_km=electric_range,
                 max_charge_power_kw=power_kw,
                 charge_type=detect_charge_type(telemetry, power_kw),

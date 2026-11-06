@@ -7,7 +7,7 @@ import pytest
 from freezegun import freeze_time
 from sqlalchemy import select
 
-from app.db.models import ChargePoint, ChargingSession, Vehicle
+from app.db.models import ChargePlan, ChargePoint, ChargingSession, TelemetrySnapshot, Vehicle
 from app.db.session import async_session_factory
 from app.services import charge_detector as cd
 from app.services.charge_detector import ChargeDetector
@@ -189,3 +189,81 @@ async def test_the_poller_drops_a_read_without_charge_data_during_a_charge(car, 
     assert first["state"] == "charging" and second is first and poller.get_latest(VIN)["state"] == "charging"
     (charge,) = await sessions()
     assert charge.end_time is None and sent == ["notify_charging_started"]
+
+
+async def plugged_reading(at, soc, odometer=1000.0):
+    async with async_session_factory() as s:
+        s.add(TelemetrySnapshot(vin=VIN, timestamp=at, battery_level=soc, electric_range_km=30.0, odometer_km=odometer,
+                                is_charging=False, cable_connected=True))
+        await s.commit()
+
+
+async def first_charge_reading(at, soc, odometer=1000.0):
+    with freeze_time(at):
+        async with async_session_factory() as s:
+            v = (await s.execute(select(Vehicle).where(Vehicle.vin == VIN))).scalar_one()
+            await ChargeDetector.process_snapshot(s, v, {"is_charging": True, "cable_connected": True, "battery_level": soc, "odometer_km": odometer,
+                                                         "electric_range_km": 56.0, "charge_power_kw": 2.8, "latitude": 37.0, "longitude": -6.0})
+            await s.commit()
+
+
+async def test_a_charge_seen_late_starts_where_the_schedule_opened_it(car) -> None:
+    async with async_session_factory() as s:
+        s.add(ChargePlan(vin=VIN, target_pct=100, mode="scheduled", sched_enabled=True, sched_start_min=0, sched_duration_min=480))
+        await s.commit()
+    await plugged_reading(D(2026, 11, 5, 20, 34), 20)
+    await first_charge_reading(D(2026, 11, 6, 1, 31), 41)
+    (charge,) = await sessions()
+    assert charge.start_time == D(2026, 11, 5, 23, 0) and charge.start_battery_pct == 20 and charge.start_range_km == 30.0
+
+
+async def test_a_charge_seen_late_without_a_schedule_keeps_the_detection_time(car) -> None:
+    await plugged_reading(D(2026, 11, 5, 20, 34), 20)
+    await first_charge_reading(D(2026, 11, 6, 1, 31), 41)
+    (charge,) = await sessions()
+    assert charge.start_time == D(2026, 11, 6, 1, 31) and charge.start_battery_pct == 20
+
+
+@pytest.mark.parametrize("before, odometer", [(40.5, 1000.0), (20.0, 1012.0)])
+async def test_a_charge_only_looks_back_if_the_car_stayed_put_and_the_battery_rose(car, before, odometer) -> None:
+    await plugged_reading(D(2026, 11, 5, 20, 34), before, odometer=odometer)
+    await first_charge_reading(D(2026, 11, 6, 1, 31), 41)
+    (charge,) = await sessions()
+    assert charge.start_time == D(2026, 11, 6, 1, 31) and charge.start_battery_pct == 41
+
+
+async def test_a_new_charge_does_not_claim_the_rise_of_the_previous_session(car) -> None:
+    await plugged_reading(D(2026, 11, 5, 20, 0), 20)
+    async with async_session_factory() as s:
+        s.add(ChargingSession(vin=VIN, start_time=D(2026, 11, 5, 21, 0), end_time=D(2026, 11, 5, 23, 0), start_battery_pct=20, end_battery_pct=40))
+        await s.commit()
+    await first_charge_reading(D(2026, 11, 6, 1, 31), 41)
+    assert (await sessions())[-1].start_battery_pct == 41
+
+
+async def alerts_for_a_stop(monkeypatch, holds: bool) -> list:
+    from app.services import poller as poller_mod
+    sent = []
+
+    def record(name):
+        async def notify(cls, *a, **k):
+            sent.append(name)
+        return classmethod(notify)
+
+    for name in ("notify_charging_completed", "notify_charge_interrupted"):
+        monkeypatch.setattr(poller_mod.NotificationService, name, record(name))
+    monkeypatch.setattr(poller_mod.ChargeManager.get_instance(), "_holds", {VIN: "target" if holds else None})
+    monkeypatch.setattr(poller_mod.VehiclePoller, "_last_charging_by_vin", {VIN: True})
+    poller = poller_mod.VehiclePoller()
+    async with async_session_factory() as s:
+        v = (await s.execute(select(Vehicle).where(Vehicle.vin == VIN))).scalar_one()
+        await poller._check_and_dispatch_alerts(s, v, {"battery_level": 80.0, "is_charging": False, "cable_connected": True})
+    return sent
+
+
+async def test_reaching_the_target_is_a_completed_charge(car, monkeypatch) -> None:
+    assert await alerts_for_a_stop(monkeypatch, holds=True) == ["notify_charging_completed"]
+
+
+async def test_a_stop_evbro_did_not_ask_for_is_an_interruption(car, monkeypatch) -> None:
+    assert await alerts_for_a_stop(monkeypatch, holds=False) == ["notify_charge_interrupted"]

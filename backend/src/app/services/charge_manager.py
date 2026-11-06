@@ -130,7 +130,7 @@ class ChargeManager:
         self._tasks: set[asyncio.Task] = set()
         self._clock = clock
         self._locks: dict[str, asyncio.Lock] = {}
-        self._fast: dict[str, bool] = {}          # vehicles paused at the target: poll more often
+        self._holds: dict[str, Optional[str]] = {}   # why EVBro is holding each car's charge (None = it is not)
         self._last_auto: dict[str, datetime.datetime] = {}   # last AUTOMATIC action attempted (successful or not)
         self._last_tick = 0.0
 
@@ -147,11 +147,18 @@ class ChargeManager:
         """At start-up: which vehicles are paused at the target (to poll them more closely)."""
         async with async_session_factory() as s:
             for row in (await s.execute(select(ChargePlan))).scalars():
-                self._fast[row.vin] = row.mode == MODE_HOLD and row.hold_reason == HOLD_TARGET
+                self._remember_hold(row)
+
+    def _remember_hold(self, row: ChargePlan) -> None:
+        self._holds[row.vin] = (row.hold_reason or HOLD_USER) if row.mode == MODE_HOLD else None
 
     def wants_fast_poll(self, vin: str) -> bool:
         """Paused at the target we must learn early that the car is plugged in (the parked poll runs every hour)."""
-        return self._fast.get(vin, False)
+        return self._holds.get(vin) == HOLD_TARGET
+
+    def holds_charge(self, vin: str) -> bool:
+        """EVBro itself stopped this car's charge (target reached or «Parar carga»): the stop is no interruption."""
+        return self._holds.get(vin) is not None
 
     @staticmethod
     async def _row(session, vin: str) -> ChargePlan:
@@ -195,7 +202,7 @@ class ChargeManager:
         else:
             row.mode = MODE_SCHEDULED if kind == "schedule" else MODE_FREE
             row.hold_reason = row.hold_start_utc = None
-        self._fast[row.vin] = row.mode == MODE_HOLD and row.hold_reason == HOLD_TARGET
+        self._remember_hold(row)
         await session.commit()
         if verify and self._verify_delay is not None:
             task = asyncio.create_task(self._verify_later(row.vin))

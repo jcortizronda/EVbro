@@ -365,3 +365,16 @@ async def test_api_car_error_and_unknown_vehicle(manager) -> None:
         r = await c.post(f"/api/vehicles/{VIN}/charge/stop")
         assert r.status_code == 424 and r.json()["reason"] == "reauth" and r.json()["success"] is False
         assert (await c.post("/api/vehicles/LSJA9999999999999/charge/stop")).status_code == 404
+
+
+def test_holds_charge_tells_evbro_stops_from_any_other() -> None:
+    manager = ChargeManager()
+    row = ChargePlan(vin=VIN, mode="hold", hold_reason="user")
+    manager._remember_hold(row)
+    assert manager.holds_charge(VIN) is True and manager.wants_fast_poll(VIN) is False
+    row.hold_reason = "target"
+    manager._remember_hold(row)
+    assert manager.holds_charge(VIN) is True and manager.wants_fast_poll(VIN) is True
+    row.mode, row.hold_reason = "scheduled", None
+    manager._remember_hold(row)
+    assert manager.holds_charge(VIN) is False
