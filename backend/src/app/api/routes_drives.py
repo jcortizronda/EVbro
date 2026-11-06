@@ -312,6 +312,6 @@ async def get_drive_gpx(drive_id: int, session: AsyncSession = Depends(get_db)):
 async def get_frequent_places(vin: str, limit: int = Query(8, ge=1, le=30), session: AsyncSession = Depends(get_db)):
     """Where the drives end most often: by geofence, and elsewhere grouped within about 110 m (services/places.py)."""
     drives = (await session.execute(select(Drive).where(Drive.vin == vin, Drive.end_time.is_not(None)))).scalars().all()
-    vehicle = await session.get(Vehicle, vin)
+    vehicle = (await session.execute(select(Vehicle).where(Vehicle.vin == vin))).scalar_one_or_none()
     geofences = (await session.execute(select(Geofence).where(Geofence.owner_id == vehicle.owner_id))).scalars().all() if vehicle else []
     return {"places": places.frequent_places(drives, limit=limit, geofences=geofences)}

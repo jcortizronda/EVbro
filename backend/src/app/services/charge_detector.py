@@ -25,6 +25,13 @@ def grid_charging(telemetry: dict) -> bool:
     return bool(telemetry.get("cable_connected")) and bool(telemetry.get("is_charging"))
 
 
+def lacks_charge_data(telemetry: dict) -> bool:
+    """The read brought neither battery nor charging power: the cloud's realtime answer is missing and only the location or
+    the trips endpoint replied (06-11-2026, four times in one night). `is_charging` is then a default, not something the car
+    said, so it says nothing about the charge."""
+    return telemetry.get("battery_level") is None and telemetry.get("charge_power_kw") is None
+
+
 def detect_charge_type(telemetry: dict, power_kw: float) -> str:
     """`dc` when the car reports the fast-charging gun or the power is beyond AC; otherwise `ac` (the default when nothing says DC)."""
     if telemetry.get("fast_charging") or (power_kw or 0.0) > DC_POWER_KW:
@@ -48,6 +55,10 @@ PAUSE_MERGE_MAX = datetime.timedelta(minutes=15)
 
 
 class ChargeDetector:
+    @classmethod
+    def has_active_charge(cls, vin: str) -> bool:
+        return vin in _ACTIVE_CHARGES
+
     @classmethod
     async def _last_reading(cls, session: AsyncSession, charge: ChargingSession) -> Tuple[datetime.datetime, Optional[float], Optional[float]]:
         """Time, battery and range of the session's last curve point (its start values when it has none)."""
@@ -122,6 +133,9 @@ class ChargeDetector:
         """Processes a telemetry snapshot and manages the charging session's life cycle."""
         vin = vehicle.vin
         now = datetime.datetime.utcnow()
+
+        if lacks_charge_data(telemetry):
+            return None                                           # no news about the charge: neither an end nor a restart decision
 
         is_charging = telemetry.get("is_charging", False)
         cable_connected = telemetry.get("cable_connected", False)

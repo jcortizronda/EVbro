@@ -128,3 +128,64 @@ async def test_a_charge_moves_where_the_cloud_places_the_plugged_in_car(car) -> 
     await reading(t + datetime.timedelta(hours=1), 59, True, pos=(37.5, -6.5))                  # the real place
     (c,) = await sessions()
     assert (c.latitude, c.longitude) == (37.5, -6.5) and c.address == "Calle 37.500"
+
+
+async def incomplete_reading(at, plug=True):
+    """A read where only the location or trips endpoint answered (06-11-2026): no battery, no power, `is_charging` by default."""
+    with freeze_time(at):
+        async with async_session_factory() as s:
+            v = (await s.execute(select(Vehicle).where(Vehicle.vin == VIN))).scalar_one()
+            res = await ChargeDetector.process_snapshot(s, v, {"is_charging": False, "cable_connected": plug, "battery_level": None,
+                                                              "charge_power_kw": None, "latitude": None, "longitude": None})
+            await s.commit()
+            return res
+
+
+@pytest.mark.parametrize("plug", [True, False])
+async def test_a_read_without_charge_data_does_not_end_the_charge(car, plug) -> None:
+    await reading(D(2026, 11, 6, 1, 30), 41, True)
+    assert await incomplete_reading(D(2026, 11, 6, 1, 44), plug=plug) is None
+    await reading(D(2026, 11, 6, 1, 46), 43, True)
+    await reading(D(2026, 11, 6, 2, 0), 45, False, kw=0.0)
+    (charge,) = await sessions()
+    assert charge.start_battery_pct == 41 and charge.end_battery_pct == 45 and charge.kwh_added == pytest.approx(0.8)
+
+
+async def test_a_read_without_charge_data_after_a_restart_keeps_the_session_open(car) -> None:
+    await reading(D(2026, 11, 6, 1, 30), 41, True)
+    restart()
+    await incomplete_reading(D(2026, 11, 6, 1, 32))
+    await reading(D(2026, 11, 6, 1, 34), 42, True)
+    (charge,) = await sessions()
+    assert charge.end_time is None and cd._ACTIVE_CHARGES[VIN] == charge.id
+
+
+async def test_the_poller_drops_a_read_without_charge_data_during_a_charge(car, monkeypatch) -> None:
+    from app.services import poller as poller_mod
+    sent = []
+
+    def record(name):
+        async def notify(cls, *a, **k):
+            sent.append(name)
+        return classmethod(notify)
+
+    for name in ("notify_charging_started", "notify_charging_completed", "notify_charge_interrupted"):
+        monkeypatch.setattr(poller_mod.NotificationService, name, record(name))
+    answers = [{"chargeGunState": "1", "chargeState": "1", "dumpEnergy": "41", "totalVoltage": "330", "totalCurrent": "-8",
+                "lat": "37.0", "lon": "-6.0"},
+               {"chargeGunState": "1", "appointmentTravelSetVOS": []}]
+
+    def probe(ctx, publish, force=False, on_data=None):
+        on_data(answers.pop(0))
+        return {"ok": True}
+
+    poller = poller_mod.VehiclePoller()
+    monkeypatch.setattr(poller_mod, "probe_once", probe)
+    monkeypatch.setattr(poller, "_get_or_create_ctx", lambda vin: object())
+    monkeypatch.setattr(poller_mod.VehiclePoller, "_latest_snapshots", {})
+    monkeypatch.setattr(poller_mod.VehiclePoller, "_last_charging_by_vin", {VIN: False}, raising=False)
+    first = await poller._poll_vehicle(VIN)
+    second = await poller._poll_vehicle(VIN)
+    assert first["state"] == "charging" and second is first and poller.get_latest(VIN)["state"] == "charging"
+    (charge,) = await sessions()
+    assert charge.end_time is None and sent == ["notify_charging_started"]

@@ -108,6 +108,16 @@ async def test_places_route_only_counts_closed_drives(web) -> None:
     assert len(data["places"]) == 1 and data["places"][0]["visits"] == 2 and data["places"][0]["address"] == "Trabajo"
 
 
+async def test_places_route_names_a_place_after_the_owners_geofence(web) -> None:
+    async with async_session_factory() as s:
+        s.add(Geofence(id=7, owner_id=1, name="Casa", latitude=40.5, longitude=-3.5, radius_meters=150))
+        for day in (1, 2):
+            await _drive(s, D(2026, 10, day, 8, 0), 40.5, -3.5, "Calle Mayor 3", geofence_id=7)
+        await s.commit()
+    r = await web.get(f"/api/vehicles/{VIN}/places")
+    assert r.status_code == 200 and r.json()["places"][0]["address"] == "Casa"
+
+
 # ───────────────────────── Arrivals and departures ─────────────────────────
 async def test_the_poller_records_every_geofence_transition_and_notifies_per_switch(web, monkeypatch) -> None:
     from app.services import poller as poller_mod

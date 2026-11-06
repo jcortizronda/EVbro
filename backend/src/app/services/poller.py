@@ -24,7 +24,7 @@ from app.services import command_policy
 from app.services import telemetry as usage_reports
 from app.services.accounts import fetch_account_vehicles, vehicle_data_dir
 from app.services.car_events import CarEventHub
-from app.services.charge_detector import ChargeDetector, grid_charging
+from app.services.charge_detector import ChargeDetector, grid_charging, lacks_charge_data
 from app.services.charge_manager import ChargeManager
 from app.services.geofence import find_geofence
 from app.services.mqtt_hub import MqttHub
@@ -358,6 +358,11 @@ class VehiclePoller:
         # The MQTT push wins over the poll when both carry the same key: the poll sometimes returns
         # a cloud snapshot older than the car's last event.
         telemetry = parse_telemetry_data(raw_data, None, CarEventHub.get_instance().fields_for(vin))
+        # Mid-charge, a read without the realtime answer would look like «plugged, not charging»: it would raise a false alert and
+        # stretch the next read to the plugged interval, splitting the charge. It is dropped and the next read comes on time.
+        if ChargeDetector.has_active_charge(vin) and lacks_charge_data(telemetry):
+            _LOGGER.info("Read of %s without charge data during a charge: ignored", vin[-6:])
+            return self._latest_snapshots.get(vin)
         self._latest_snapshots[vin] = telemetry
 
         # Save to the database and run the detectors
