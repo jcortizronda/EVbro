@@ -52,10 +52,13 @@ function applyTheme(preference) {
   const effective = resolveEffectiveTheme(preference);
   document.documentElement.setAttribute('data-theme', effective);
 
-  // Update the theme-color meta for mobile browsers (Apple HIG)
+  // Update the theme-color meta for mobile browsers (Apple HIG). On an installed iPhone app it paints the status bar, which
+  // sits right above the header: it takes the page background of the theme and accent in force (core/theme-boot.js sets a
+  // first value before the stylesheets load).
   const metaTheme = document.querySelector('meta[name="theme-color"]');
   if (metaTheme) {
-    metaTheme.setAttribute('content', effective === 'light' ? '#f5f5f7' : '#000000');
+    const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+    metaTheme.setAttribute('content', bg || (effective === 'light' ? '#f5f5f7' : '#000000'));
   }
 
   // Update the icon of the quick button in the navbar

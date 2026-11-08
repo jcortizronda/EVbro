@@ -7,6 +7,7 @@
 .app-header {
   position: sticky;
   top: 0;
+  padding-top: var(--safe-top);              /* iPhone: never under the status bar (seen 08-11-2026, header cut off) */
   z-index: 1000;
   background: var(--bg-navbar);
   backdrop-filter: saturate(180%) blur(24px);

@@ -6,7 +6,7 @@
    ========================================================== */
 .app-toast-container {
   position: fixed;
-  top: 20px;
+  top: calc(20px + var(--safe-top, 0px));
   left: 50%;
   transform: translateX(-50%);
   z-index: 10000;
@@ -66,10 +66,11 @@
 
 /* «Sin conexión» strip (core/offline.js): fixed under the header, covers nothing */
 .offline-banner {
-  position: sticky; top: 0; z-index: 1001; padding: 8px 16px; text-align: center;
+  position: sticky; top: 0; z-index: 1001; padding: calc(8px + var(--safe-top, 0px)) 16px 8px; text-align: center;
   font-size: 0.82rem; font-weight: 600; color: #111; background: var(--warning, #ffd60a);
 }
 .offline-banner[hidden] { display: none; }
+.offline-banner:not([hidden]) + .app-header { padding-top: 0; }   /* the strip already clears the status bar */
 
 /* In-app notification banners (features/notifications.js): they live in the toast column, under the toasts */
 .app-banner {

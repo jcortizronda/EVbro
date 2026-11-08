@@ -5,6 +5,10 @@
    EVBro — Modern Automotive Interface Design System
    Exact tokens, typography, dark OLED styling & mobile native aesthetics
    ======================================================== */
+/* Installed on an iPhone, the page may start under the status bar (the notch): what is anchored at the top steps down by this
+   much. 0 everywhere else, and also on iOS with the «default» status bar style, where the page starts below the bar. */
+:root { --safe-top: env(safe-area-inset-top, 0px); }
+
 :root,
 [data-theme="light"] {
   --bg: #f5f5f7;
