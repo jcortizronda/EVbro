@@ -26,9 +26,12 @@ _R2 = "{{ (value_json.{path} | round(2)) if value_json.{path} is not none else '
 
 
 def _sensor(suffix: str, key: str, name: str, path: str, *, unit: Optional[str] = None, device_class: Optional[str] = None,
-            state_class: Optional[str] = None, icon: Optional[str] = None, diagnostic: bool = False, template: Optional[str] = None) -> Dict[str, Any]:
+            state_class: Optional[str] = None, icon: Optional[str] = None, diagnostic: bool = False, template: Optional[str] = None,
+            raw: Optional[List[str]] = None) -> Dict[str, Any]:
     d: Dict[str, Any] = {"component": "sensor", "suffix": suffix, "key": key, "name": name,
                          "value_template": (template or _N).replace("{path}", path)}
+    if raw:
+        d["raw"] = raw
     if unit:
         d["unit_of_measurement"] = unit
     if device_class:
@@ -43,8 +46,10 @@ def _sensor(suffix: str, key: str, name: str, path: str, *, unit: Optional[str] 
 
 
 def _binary(suffix: str, key: str, name: str, path: str, *, device_class: Optional[str] = None, icon: Optional[str] = None,
-            diagnostic: bool = False) -> Dict[str, Any]:
+            diagnostic: bool = False, raw: Optional[List[str]] = None) -> Dict[str, Any]:
     d: Dict[str, Any] = {"component": "binary_sensor", "suffix": suffix, "key": key, "name": name, "value_template": _B.replace("{path}", path)}
+    if raw:
+        d["raw"] = raw
     if device_class:
         d["device_class"] = device_class
     if icon:
@@ -109,8 +114,10 @@ SENSORS: List[Dict[str, Any]] = [
             state_class="measurement", icon="mdi:thermometer", diagnostic=True),
     _sensor("lastseen", "ultimo_contacto", "Último contacto", "last_contact", device_class="timestamp", icon="mdi:car-clock", diagnostic=True),
     # Extra over the integration: the two temperatures the car reports
-    _sensor("rt_temp_exterior", "temperatura_exterior", "Temperatura exterior", "outside_temp", unit="°C", device_class="temperature", state_class="measurement"),
-    _sensor("rt_temp_interior", "temperatura_interior", "Temperatura interior", "inside_temp", unit="°C", device_class="temperature", state_class="measurement"),
+    _sensor("rt_temp_exterior", "temperatura_exterior", "Temperatura exterior", "outside_temp", unit="°C", device_class="temperature", state_class="measurement",
+            raw=["outsideTemperature", "outCarTemperature"]),
+    _sensor("rt_temp_interior", "temperatura_interior", "Temperatura interior", "inside_temp", unit="°C", device_class="temperature", state_class="measurement",
+            raw=["inCarTemperature"]),
     _sensor("state", "estado", "Estado", "state", icon="mdi:car-info"),
 ]
 
@@ -119,13 +126,13 @@ BINARY_SENSORS: List[Dict[str, Any]] = [
     _binary("frontRightDoor", "puerta_del_derecha", "Puerta del. derecha", "doors.fr", device_class="door"),
     _binary("backLeftDoor", "puerta_tras_izquierda", "Puerta tras. izquierda", "doors.rl", device_class="door"),
     _binary("backRightDoor", "puerta_tras_derecha", "Puerta tras. derecha", "doors.rr", device_class="door"),
-    _binary("hood", "capo", "Capó", "doors.hood", device_class="opening"),
+    _binary("hood", "capo", "Capó", "doors.hood", device_class="opening", raw=["hood"]),
     _binary("liftgateOperateState", "porton_en_movimiento", "Portón en movimiento", "liftgate_operate", device_class="moving"),
     _binary("frontLeftWindowState", "ventanilla_del_izquierda", "Ventanilla del. izquierda", "windows.fl", device_class="window"),
     _binary("frontRightWindowState", "ventanilla_del_derecha", "Ventanilla del. derecha", "windows.fr", device_class="window"),
     _binary("backLeftWindowState", "ventanilla_tras_izquierda", "Ventanilla tras. izquierda", "windows.rl", device_class="window"),
     _binary("backRightWindowState", "ventanilla_tras_derecha", "Ventanilla tras. derecha", "windows.rr", device_class="window"),
-    _binary("sunshadeState", "cortina_del_techo", "Cortina del techo", "windows.sunshade", device_class="window", diagnostic=True),
+    _binary("sunshadeState", "cortina_del_techo", "Cortina del techo", "windows.sunshade", device_class="window", diagnostic=True, raw=["sunshadeState"]),
     _binary("airPurification", "purificacion_de_aire", "Purificación de aire", "air_purification", device_class="running"),
     _binary("chargeGunState", "cable_de_carga_conectado", "Cable de carga conectado", "cable_connected", device_class="plug"),
     _binary("engineState", "motor", "Motor", "engine_state", device_class="running", icon="mdi:engine"),
@@ -146,7 +153,7 @@ SWITCHES: List[Dict[str, Any]] = [
     {"suffix": "frontWindshieldHeat", "key": "desempanado_del_parabrisas", "name": "Desempañado del parabrisas", "path": "front_windshield_heat",
      "on": "defrost_parabrisas", "off": "defrost_parabrisas_off", "icon": "mdi:car-defrost-front"},
     {"suffix": "rWinHeatingState", "key": "calefaccion_de_la_luneta", "name": "Calefacción de la luneta", "path": "rear_windshield_heat",
-     "on": "defrost_luneta", "off": "defrost_luneta_off", "icon": "mdi:car-defrost-rear"},
+     "on": "defrost_luneta", "off": "defrost_luneta_off", "icon": "mdi:car-defrost-rear", "raw": ["rWinHeatingState"]},
     {"suffix": "steerWheelHeating", "key": "calefaccion_del_volante", "name": "Calefacción del volante", "path": "steer_wheel_heat",
      "on": "volante_caliente", "off": "volante_caliente_off", "icon": "mdi:steering"},
     {"suffix": "dSeatHeatingState", "key": "calefaccion_asiento_conductor", "name": "Calefacción asiento conductor", "path": "seat_heating.driver",
@@ -211,8 +218,21 @@ def topics(prefix: str, vin: str) -> Dict[str, str]:
     return {"json": f"{base}/json", "location": f"{base}/location", "cmd": f"{base}/cmd", "availability": f"{prefix}/{AVAILABILITY_TOPIC_SUFFIX}"}
 
 
-def discovery_messages(prefix: str, ha_prefix: str, vin: str, name: Optional[str], brand: Optional[str], model: Optional[str]) -> List[Tuple[str, Dict[str, Any]]]:
-    """Every (discovery topic, config payload) for one car. Retained by the caller."""
+def reports(entry: Dict[str, Any], reported_keys: Optional[List[str]]) -> bool:
+    """Whether this car can feed the entity. `raw` names the car keys behind it; an entity without `raw` is common to every model.
+    With no list of keys yet (a car never read) everything is announced, as before."""
+    raw = entry.get("raw")
+    if not raw or not reported_keys:
+        return True
+    return any(k in reported_keys for k in raw)
+
+
+def discovery_messages(prefix: str, ha_prefix: str, vin: str, name: Optional[str], brand: Optional[str], model: Optional[str],
+                       reported_keys: Optional[List[str]] = None) -> List[Tuple[str, Dict[str, Any]]]:
+    """Every (discovery topic, config payload) for one car. Retained by the caller.
+
+    `reported_keys`: the raw keys the cloud has sent for this car (`vehicles.reported_keys`); entities whose keys it never sends are
+    left out, so a S900 does not get a cabin temperature that would stay unknown for ever."""
     t = topics(prefix, vin)
     dev = device(vin, name, brand, model)
     common = {"device": dev, "availability_topic": t["availability"], "state_topic": t["json"]}
@@ -226,12 +246,18 @@ def discovery_messages(prefix: str, ha_prefix: str, vin: str, name: Optional[str
         out.append((f"{ha_prefix}/{component}/{node}/{suffix}/config", body))
 
     for s in SENSORS:
-        payload = {k: v for k, v in s.items() if k not in ("component", "suffix", "key")}
+        if not reports(s, reported_keys):
+            continue
+        payload = {k: v for k, v in s.items() if k not in ("component", "suffix", "key", "raw")}
         cfg("sensor", s["suffix"], s["key"], payload)
     for b in BINARY_SENSORS:
-        payload = {k: v for k, v in b.items() if k not in ("component", "suffix", "key")}
+        if not reports(b, reported_keys):
+            continue
+        payload = {k: v for k, v in b.items() if k not in ("component", "suffix", "key", "raw")}
         cfg("binary_sensor", b["suffix"], b["key"], payload)
     for sw in SWITCHES:
+        if not reports(sw, reported_keys):
+            continue
         cfg("switch", sw["suffix"], sw["key"], {"name": sw["name"], "icon": sw["icon"], "value_template": _B.replace("{path}", sw["path"]),
                                                 "state_on": "ON", "state_off": "OFF", "command_topic": f"{t['cmd']}/{sw['key']}",
                                                 "payload_on": "ON", "payload_off": "OFF", "optimistic": False})

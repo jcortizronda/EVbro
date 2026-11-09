@@ -19,7 +19,7 @@ from app.db.session import get_db
 from app.i18n import _
 from app.security import auth
 from app.security.access import foreign_vins, is_root, space_owner_id, within_vehicle_limit
-from app.services import command_policy, mqtt_hub, storage
+from app.services import command_policy, mqtt_hub, storage, vehicle_profiles
 from app.services.accounts import fetch_account_vehicles
 from app.services.car_events import CarEventHub
 from app.services.command_policy import pin_throttle, pin_throttle_key
@@ -59,6 +59,8 @@ async def get_account_status(session: AsyncSession = Depends(get_db), user: AppU
     if account:
         return {
             "connected": True,
+            # False while the cloud rejects the stored session and password: the manager has to connect the account again
+            "session_ok": not VehiclePoller.get_instance().session_lost(account.id, account.last_login),
             "source": "web_login",
             "phone": mask_phone(account.phone),
             "area_code": account.area_code,
@@ -210,6 +212,7 @@ async def login_ebro_account(req: EbroLoginRequest, session: AsyncSession = Depe
                 brand=brand,
                 car_token=car_tok,
             )
+            vehicle_profiles.fill_defaults(v_new)            # battery, tank and label of the model; the owner can change them
             session.add(v_new)
             discovered.append({"vin": vin, "name": nickname, "model": model, "is_new": True})
         else:
@@ -239,8 +242,7 @@ async def login_ebro_account(req: EbroLoginRequest, session: AsyncSession = Depe
 
     # if there are vehicles, trigger an initial poll
     if discovered:
-        first_vin = discovered[0]["vin"]
-        asyncio.create_task(poller.poll_vehicle(first_vin, force=True))
+        asyncio.create_task(_first_read(poller, discovered[0]["vin"]))
 
     return {
         "status": "ok",
@@ -252,6 +254,17 @@ async def login_ebro_account(req: EbroLoginRequest, session: AsyncSession = Depe
         },
         "vehicles": discovered,
     }
+
+
+FIRST_READ_RETRY_S = 20
+
+
+async def _first_read(poller: VehiclePoller, vin: str) -> None:
+    """The first read of a car just connected. A token the cloud has just issued is sometimes refused for a few seconds (A00000 on
+    the three endpoints 2 s after connecting, fine 20 s later; 08-11-2026): an empty first read is tried once more."""
+    if await poller.poll_vehicle(vin, force=True) is None:
+        await asyncio.sleep(FIRST_READ_RETRY_S)
+        await poller.poll_vehicle(vin, force=True)
 
 
 class UpdatePinRequest(BaseModel):

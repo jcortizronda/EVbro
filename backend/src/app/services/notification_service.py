@@ -533,6 +533,21 @@ class NotificationService:
         )
 
     @classmethod
+    async def notify_account_session_lost(cls, user_id: int, vehicle_names: List[str]):
+        """The Ebro cloud rejects the session and the stored password: only the manager who connected the account can fix it, so it
+        goes to that account alone (not to the members) and is not one of the switchable categories."""
+        cars = ", ".join(n for n in vehicle_names if n) or "el coche"
+        await cls.dispatch(
+            user_id=user_id,
+            category="account",
+            title=M("Cuenta Ebro desconectada"),
+            message=Message.join(" ", [M("La nube de Ebro ya no acepta la sesión ni la contraseña guardada."),
+                                       M("Vuelve a conectar la cuenta en Ajustes → Cuenta para seguir viendo {p0}.", p0=cars)]),
+            tags=["key", "warning"],
+            priority="high",
+        )
+
+    @classmethod
     async def notify_charge_interrupted(cls, vehicle_name: str, battery_pct: float, reason: Optional[str] = None, vin: Optional[str] = None):
         """Notifies when a charge in progress stops unexpectedly."""
         await cls.dispatch(

@@ -2082,8 +2082,8 @@
  "Siempre en la barra": "Sempre na barra",
  "Sensores": "Sensores",
  "Gráficas": "Gráficos",
-  "Batería, ciclo de carga, programación e historial": "Bateria, ciclo de carga, programação e histórico",
-  "Clima, desempañado y asientos": "Climatização, desembaciamento e bancos",
+ "Batería, ciclo de carga, programación e historial": "Bateria, ciclo de carga, programação e histórico",
+ "Clima, desempañado y asientos": "Climatização, desembaciamento e bancos",
  "Informes": "Relatórios",
  "¿Ayudas a mejorar EVBro?": "Ajuda a melhorar o EVBro?",
  "Este servidor puede enviar una vez al día un informe anónimo al proyecto: versión, qué funciones se usan, cómo responden la nube de Ebro y las órdenes, y los fallos que haya registrado. Sirve para encontrar y corregir errores. No lleva nombres, usuarios, matrículas, VIN, posiciones, viajes ni importes. Antes de decidir puedes ver el informe exacto.": "Este servidor pode enviar ao projeto um relatório anónimo uma vez por dia: versão, que funções se usam, como respondem a nuvem da Ebro e os comandos, e as falhas que tenha registado. Serve para encontrar e corrigir erros. Não leva nomes, utilizadores, matrículas, VIN, posições, viagens nem montantes. Antes de decidir pode ver o relatório exato.",
@@ -2184,5 +2184,13 @@
  "hace {p0} min": "há {p0} min",
  "hace {p0} h": "há {p0} h",
  "Posición GPS · {p0}": "Posição GPS · {p0}",
- "GPS · {p0}": "GPS · {p0}"
+ "GPS · {p0}": "GPS · {p0}",
+ "Sesión caducada": "Sessão expirada",
+ "La nube rechaza la sesión: vuelve a conectar la cuenta Ebro": "A nuvem rejeita a sessão: volte a ligar a conta Ebro",
+ "Sin lecturas nuevas: conecta la cuenta Ebro en Ajustes": "Sem leituras novas: ligue a conta Ebro em Definições",
+ "{p0} datos que este coche no envía": "{p0} dados que este carro não envia",
+ "La nube de Ebro no incluye estas claves en las lecturas de este coche; otros modelos sí las mandan.": "A nuvem da Ebro não inclui estas chaves nas leituras deste carro; outros modelos enviam-nas.",
+ "Sin posición": "Sem posição",
+ "Sin posición: la nube no da la ubicación de este coche, así que el viaje no tiene ruta ni direcciones; los kilómetros son del cuentakilómetros.": "Sem posição: a nuvem não dá a localização deste carro, por isso a viagem não tem rota nem moradas; os quilómetros vêm do conta-quilómetros.",
+ "Finalizada": "Terminada"
 }

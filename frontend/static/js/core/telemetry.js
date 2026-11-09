@@ -34,7 +34,12 @@ function applyTelemetry(data) {
   // 2. Status (badge)
   const badge = document.getElementById('vehicleStatusBadge');
   const state = (data.state || 'parked').toLowerCase();
-  badge.className = `status-badge ${state}`;
+  // A car whose manager has no Ebro account connected (or whose session the cloud no longer accepts) gets no new readings: say so
+  // instead of showing a stale «Dormido» (api/routes_vehicles.py, `account_state`)
+  const vehicle = (typeof currentVehicle === 'function') ? currentVehicle() : null;
+  const accountState = vehicle ? vehicle.account_state : null;
+  const unreadable = accountState === 'disconnected' || accountState === 'expired';
+  badge.className = `status-badge ${unreadable ? 'asleep' : state}`;
   const stateLabels = {
     'driving': 'En Marcha',
     'ready': 'Encendido',
@@ -43,16 +48,21 @@ function applyTelemetry(data) {
     'parked': 'Estacionado',
     'asleep': 'Dormido'
   };
-  badge.innerText = stateLabels[state] || state;
+  badge.innerText = unreadable ? (accountState === 'expired' ? 'Sesión caducada' : 'Sin cuenta Ebro') : (stateLabels[state] || state);
 
   // Honest freshness of the status
   const freshElem = document.getElementById('freshnessText');
   if (freshElem) {
     // The text comes from the server with a coloured circle in front (level); here it is drawn as a CSS dot, no emoji
     const fresh = data.freshness_text;
-    freshElem.textContent = fresh ? stripEmoji(fresh) : (data.online_status ? 'En vivo' : 'En reposo · Nube');
-    const lvl = fresh ? statusLevel(fresh) : 'neutral';
-    freshElem.dataset.level = lvl !== 'neutral' ? lvl : (data.online_status ? 'ok' : 'warn');
+    if (unreadable) {
+      freshElem.textContent = accountState === 'expired' ? 'La nube rechaza la sesión: vuelve a conectar la cuenta Ebro' : 'Sin lecturas nuevas: conecta la cuenta Ebro en Ajustes';
+      freshElem.dataset.level = 'warn';
+    } else {
+      freshElem.textContent = fresh ? stripEmoji(fresh) : (data.online_status ? 'En vivo' : 'En reposo · Nube');
+      const lvl = fresh ? statusLevel(fresh) : 'neutral';
+      freshElem.dataset.level = lvl !== 'neutral' ? lvl : (data.online_status ? 'ok' : 'warn');
+    }
   }
 
   // Cable and active charging status bar

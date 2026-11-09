@@ -244,13 +244,19 @@ document.addEventListener('DOMContentLoaded', () => {
   vpEl('vpPhotoRemove')?.addEventListener('click', removeVehiclePhoto);
 });
 
-/* Factory figures of the EBRO models: chosen from the list, they fill the sheet (the person can still correct them). Only the data
- * confirmed by the owner is here; models without an entry leave the fields as they are. */
-const EBRO_MODEL_SPECS = {
-  'S900 PHEV': { env_label: '0', fuel_tank_liters: 70, battery_capacity_kwh: 34.5, fuel_type: 'phev' },
-};
-function vpOnModelChange() {
-  const spec = EBRO_MODEL_SPECS[vpEl('vpModel').value];
+/* Factory figures of the EBRO models (services/vehicle_profiles.py, one table for the server and the sheet): chosen from the list,
+ * they fill the sheet (the person can still correct them). Models without an entry leave the fields as they are. */
+let ebroModelSpecs = null;
+async function loadModelSpecs() {
+  if (ebroModelSpecs) return ebroModelSpecs;
+  try {
+    const res = await fetch('/api/vehicles/specs');
+    ebroModelSpecs = res.ok ? await res.json() : {};
+  } catch (e) { ebroModelSpecs = {}; }
+  return ebroModelSpecs;
+}
+async function vpOnModelChange() {
+  const spec = (await loadModelSpecs())[vpEl('vpModel').value];
   if (!spec || !vpIsEbroBrand()) return;
   vpEl('vpEnvLabel').value = spec.env_label;
   vpEl('vpTank').value = spec.fuel_tank_liters;

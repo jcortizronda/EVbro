@@ -313,3 +313,34 @@ async def test_the_end_of_a_trip_moves_where_the_cloud_places_the_parked_car(car
     await process(car, reading(0, 9640, DESTINATION, high_voltage_on=False), T0 + 110 * m)    # another odometer: not this trip
     (d,) = await drives()
     assert (d.end_lat, d.end_lon) == HOME
+
+
+# ───────────────────────── cars the cloud never places (two S800, 08-11-2026) ─────────────────────────
+def blind(speed, odo, soc=72.0, fuel=27.0, **extra):
+    """A reading without a position, as the S800 get them."""
+    return {"speed_kmh": speed, "odometer_km": odo, "latitude": None, "longitude": None, "battery_level": soc, "fuel_level": fuel,
+            "state": "driving" if speed > 2 else "parked", **extra}
+
+
+async def test_a_car_without_a_position_still_gets_its_trips_measured_by_the_odometer(car) -> None:
+    await process(car, blind(0, 9417.0, soc=62.0), T0 - datetime.timedelta(minutes=3))
+    await process(car, blind(45, 9417.0, soc=62.0), T0)
+    assert TripDetector.has_open_trip(VIN)
+    await process(car, blind(60, 9430.0, soc=55.0), T0 + datetime.timedelta(minutes=12))
+    await process(car, blind(0, 9441.0, soc=50.0, high_voltage_on=False), T0 + datetime.timedelta(minutes=14))
+    (d,) = await drives()
+    assert d.end_time is None
+    await process(car, blind(0, 9441.0, soc=50.0, high_voltage_on=False), T0 + datetime.timedelta(minutes=20))
+    (d,) = await drives()
+    assert d.end_time == T0 + datetime.timedelta(minutes=14) and d.distance_km == 24.0 and d.battery_used_pct == 12.0
+    assert d.start_lat is None and d.end_lat is None and d.start_address is None and d.end_address is None
+    async with async_session_factory() as s:
+        assert (await s.execute(select(DrivePosition).where(DrivePosition.drive_id == d.id))).scalars().all() == []
+
+
+async def test_a_late_detected_trip_without_a_position_still_recovers_its_start_from_the_parked_reading(car) -> None:
+    await process(car, blind(0, 9417.0, soc=62.0), T0 - datetime.timedelta(minutes=40))
+    await process(car, blind(50, 9431.0, soc=58.0), T0)
+    (d,) = await drives()
+    assert d.start_estimated and d.start_odometer == 9417.0 and d.start_battery_pct == 62.0 and d.start_lat is None
+    assert T0 - datetime.timedelta(minutes=40) <= d.start_time < T0

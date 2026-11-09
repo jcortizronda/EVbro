@@ -36,6 +36,8 @@ frontend/
 
 ## «Todos los datos» (sensores)
 
+Las filas cuyas claves del coche este coche **no ha enviado nunca** (`reported_keys` del vehículo; `carReports()` en `core/vehicles.js`) no se mezclan con las demás: van plegadas al final («N datos que este coche no envía»). Solo participan las filas nombradas por claves crudas del coche (camelCase); los valores calculados (potencia, frescura, posición) siempre se muestran. Con la lista vacía (coche nunca leído) no se oculta nada. El widget **Clima** omite con la misma regla la temperatura interior o exterior que el coche no manda. Los **mandos** (Confort) no se ocultan nunca: que la nube no informe del estado no quiere decir que el coche no tenga la función; el estado queda en «Sin datos». La cabecera dice «Sin cuenta Ebro» o «Sesión caducada» (en vez de un «Dormido» rancio) cuando `account_state` del vehículo no es `ok`.
+
 `features/sensors.js` + `css/features/sensors.css`. Cada fila tiene la misma forma: nombre, campo del coche y explicación a la izquierda y el valor a la derecha. El color del valor dice qué significa y nada más (`data-tone`): normal para una cifra o un estado cerrado/apagado, acento (`on`) para algo funcionando (cargando, calefacción), ámbar (`warn`) para algo abierto, rojo (`alert`) para un aviso del coche (presión, batería baja) y apagado (`unknown`) para **«Sin datos»**: un dato que no ha llegado nunca se pinta como cerrado o apagado (`flag()`). Solo se listan señales del coche: la dirección (geocodificación inversa de OpenStreetMap) se quitó el 01-11-2026 porque la calcula EVBro.
 
 ## Consola de administración (otra interfaz)

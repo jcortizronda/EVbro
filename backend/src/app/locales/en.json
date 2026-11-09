@@ -281,5 +281,8 @@
  "Este servidor no recibe informes.": "This server does not receive reports.",
  "Error no encontrado.": "Error not found.",
  "Demasiadas altas desde esta dirección; inténtalo mañana.": "Too many sign-ups from this address; try again tomorrow.",
- "Petición no válida.": "Invalid request."
+ "Petición no válida.": "Invalid request.",
+ "Cuenta Ebro desconectada": "Ebro account disconnected",
+ "La nube de Ebro ya no acepta la sesión ni la contraseña guardada.": "The Ebro cloud no longer accepts the session or the saved password.",
+ "Vuelve a conectar la cuenta en Ajustes → Cuenta para seguir viendo {p0}.": "Connect the account again in Settings → Account to keep seeing {p0}."
 }

@@ -97,6 +97,11 @@ function driveBatteryUsed(d) {
   return null;
 }
 
+/** Start or end of a trip for the lists: the address, or «Sin posición» for a car the cloud never places (some S800). */
+function drivePlace(address) {
+  return escapeHtml(address || t('Sin posición'));
+}
+
 function driveRow(d) {
   const used = driveBatteryUsed(d);
   // Spent on the row: battery % and the petrol if any, else the energy; everything else is in the detail
@@ -106,7 +111,7 @@ function driveRow(d) {
   else if (d.energy_consumed_kwh) spent.push(`${historyNum(d.energy_consumed_kwh)} kWh`);
   const head = {
     when: `${d.start_estimated ? '≈ ' : ''}${escapeHtml(historyWhen(d.start_time))}`,
-    place: `${escapeHtml(d.start_address)} → ${escapeHtml(d.end_address)}`,
+    place: `${drivePlace(d.start_address)} → ${drivePlace(d.end_address)}`,
     big: `${escapeHtml(historyNum(d.distance_km))} km`,
     small: escapeHtml(spent.length ? spent.join(' · ') : historyDuration(d.duration_seconds)),
   };
@@ -132,14 +137,17 @@ function driveRow(d) {
     ['Temp. exterior', d.outside_temp_avg !== null && d.outside_temp_avg !== undefined ? `${historyNum(d.outside_temp_avg)} °C` : null],
     ['Climatización', d.climate_used ? 'Usada' : null],
   ]);
+  // No start nor end position: the cloud never placed the car during this trip (no route, no addresses)
+  const noPosition = (d.start_lat === null || d.start_lat === undefined) && (d.end_lat === null || d.end_lat === undefined);
   const detail = `
-    <p class="hist-route"><b>${escapeHtml(d.start_address)}</b> → <b>${escapeHtml(d.end_address)}</b></p>
+    <p class="hist-route"><b>${drivePlace(d.start_address)}</b> → <b>${drivePlace(d.end_address)}</b></p>
     ${facts}
     ${d.start_estimated ? '<p class="hist-note">Inicio estimado: el viaje se detectó con el coche ya en marcha; la hora, el origen y el odómetro de inicio son los de la última lectura en parado.</p>' : ''}
+    ${noPosition ? '<p class="hist-note">Sin posición: la nube no da la ubicación de este coche, así que el viaje no tiene ruta ni direcciones; los kilómetros son del cuentakilómetros.</p>' : ''}
     ${d.notes ? `<p class="hist-note">${escapeHtml(d.notes)}</p>` : ''}
     <div class="hist-actions">
-      <button type="button" class="btn-secondary btn-sm" data-on-click="openRouteModal(${Number(d.id)})">Ver trazado</button>
-      <a class="btn-secondary btn-sm" href="/api/drives/${Number(d.id)}/gpx" download title="Descargar la ruta en GPX">GPX</a>
+      ${noPosition ? '' : `<button type="button" class="btn-secondary btn-sm" data-on-click="openRouteModal(${Number(d.id)})">Ver trazado</button>
+      <a class="btn-secondary btn-sm" href="/api/drives/${Number(d.id)}/gpx" download title="Descargar la ruta en GPX">GPX</a>`}
       <button type="button" class="btn-secondary btn-sm needs-edit" data-on-click="openEditDriveModal(${Number(d.id)})">Editar</button>
       <button type="button" class="btn-secondary btn-sm needs-edit is-danger" data-on-click="deleteDrive(${Number(d.id)})">Borrar</button>
     </div>`;
@@ -179,7 +187,7 @@ function renderIncompleteDrives(incomplete) {
     const start = serverDate(inc.start_time).toLocaleString(I18n.locale, { dateStyle: 'short', timeStyle: 'short' });
     tr.innerHTML = `
       <td>${escapeHtml(start)}</td>
-      <td>${escapeHtml(inc.start_address)}</td>
+      <td>${drivePlace(inc.start_address)}</td>
       <td>${escapeHtml(inc.distance_km)} km</td>
       <td>${inc.start_battery_pct !== null && inc.start_battery_pct !== undefined ? escapeHtml(Math.round(inc.start_battery_pct)) : '--'}%</td>
       <td><button class="btn-primary needs-edit u-padding-0p3rem-0p75rem_font-size-0p8rem" data-on-click="openEditDriveModal(${Number(inc.id)})">Corregir / Cerrar</button></td>

@@ -564,8 +564,18 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
     }
   ];
 
+  // Rows whose car keys this car has never sent (the models differ: docs/ebro-protocol.md, «Qué manda cada modelo»). Only rows named
+  // after raw keys of the car take part; computed values (power, freshness, position) always stay.
+  const rawKey = /^[a-z]+[A-Z][A-Za-z0-9]*$/;
+  const unreported = (item) => {
+    const tokens = String(item.key).split(/ \/ | \+ /).map((k) => k.trim());
+    return tokens.length > 0 && tokens.every((k) => rawKey.test(k)) && !carReports(...tokens);
+  };
+  const missing = items.filter(unreported);
+  const present = items.filter((item) => !unreported(item));
+
   // Filtering
-  const filtered = items.filter(item => {
+  const filtered = present.filter(item => {
     if (filterCategory !== 'all' && item.category !== filterCategory) return false;
     if (filterQuery) {
       const matchName = item.name.toLowerCase().includes(filterQuery);
@@ -579,8 +589,13 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
   });
 
   if (countBadge) {
-    countBadge.innerText = t('Mostrando {p0} de {p1} sensores y cables integrados', {p0: filtered.length, p1: items.length});
+    countBadge.innerText = t('Mostrando {p0} de {p1} sensores y cables integrados', {p0: filtered.length, p1: present.length});
   }
+  const unreportedHtml = missing.length && !filterQuery && filterCategory === 'all'
+    ? `<details class="sensor-unreported"><summary>${escapeHtml(t('{p0} datos que este coche no envía', { p0: missing.length }))}</summary>
+        <p>${escapeHtml(t('La nube de Ebro no incluye estas claves en las lecturas de este coche; otros modelos sí las mandan.'))}</p>
+        <ul>${missing.map((m) => `<li>${escapeHtml(t(m.name))} <span class="sensor-key">${escapeHtml(m.key)}</span></li>`).join('')}</ul></details>`
+    : '';
 
   if (filtered.length === 0) {
     container.innerHTML = `
@@ -588,7 +603,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
         
         No se han encontrado sensores que coincidan con la búsqueda.
       </div>
-    `;
+    ` + unreportedHtml;
     return;
   }
 
@@ -630,7 +645,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
     `;
   }
 
-  container.innerHTML = html;
+  container.innerHTML = html + unreportedHtml;
 }
 
 /** The tone of a row: «Sin datos» is always muted; otherwise the reading's own tone or, for the rows that still give an old badge

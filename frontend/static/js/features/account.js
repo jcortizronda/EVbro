@@ -23,16 +23,18 @@ async function checkAccountStatus() {
     const syncBtn = document.getElementById('btnSettingsSync');           // only makes sense with a connected account
 
     if (data.connected) {
+      // `session_ok === false`: the cloud rejects the stored session and password; only connecting the account again fixes it
+      const expired = data.session_ok === false;
       if (dot) {
-        dot.style.background = '#00e676';
-        dot.style.boxShadow = '0 0 8px rgba(0, 230, 118, 0.6)';
+        dot.style.background = expired ? '#ffb300' : '#00e676';
+        dot.style.boxShadow = expired ? '0 0 8px rgba(255, 179, 0, 0.6)' : '0 0 8px rgba(0, 230, 118, 0.6)';
       }
       if (btnText) {
-        btnText.innerText = data.phone || "Conectado";
+        btnText.innerText = expired ? "Sesión caducada" : (data.phone || "Conectado");
       }
       if (settingsBadge) {
-        settingsBadge.className = "status-badge driving";
-        settingsBadge.innerText = "Conectado";
+        settingsBadge.className = expired ? "status-badge plugged" : "status-badge driving";
+        settingsBadge.innerText = expired ? "Sesión caducada" : "Conectado";
       }
       if (settingsPhone) settingsPhone.innerText = data.phone || "Conectado";
       if (settingsVehicles) settingsVehicles.innerText = data.vehicles_count === 1 ? "1 coche" : `${data.vehicles_count} coches`;

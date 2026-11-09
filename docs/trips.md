@@ -21,8 +21,10 @@ velocidad > 1 km/h o `engineState` = `driving`. El sondeo trata `ready` como «e
 
 ## Reglas actuales
 
-- **Empieza** un viaje con la primera lectura «en marcha» (`speed > 2 km/h` o `state == driving`) con posición. `ready` no inicia viaje (puede ser un
-  climatizado remoto).
+- **Empieza** un viaje con la primera lectura «en marcha» (`speed > 2 km/h` o `state == driving`). `ready` no inicia viaje (puede ser un
+  climatizado remoto). **No hace falta posición** (desde el 08-11-2026): a algunos coches la nube no les da nunca la ubicación (dos S800;
+  [ebro-protocol.md](ebro-protocol.md), «Qué manda cada modelo») y sus viajes se miden igual por odómetro, batería y depósito, sin ruta, sin
+  direcciones (`start_address`/`end_address` a `null`, la lista pone «Sin posición») y sin geocercas; el detalle lo explica y no ofrece trazado ni GPX.
 - **Se cierra** cuando llega una lectura al menos `IDLE_MINUTES_TO_END_TRIP` (5 min) después del último movimiento, o con el coche **enchufado**
   (`chargeGunState = 1`). `chargeState = 1` solo no cierra nada: en marcha el motor térmico también carga la batería y el coche lo notifica como
   «cargando» (el 04-11-2026 partió un viaje en cinco). Lo mismo vale para el detector de cargas y los avisos: carga = cable + `chargeState = 1`

@@ -454,7 +454,10 @@ const WidgetBoards = (function () {
     const temp = (v) => (v === null || v === undefined ? '—' : `${num(v, 1)} °C`);
     const on = d ? d.climate_on : null;
     const state = on === true ? t('Encendido') : on === false ? t('Apagado') : t('Sin datos');
-    return `<div class="hw-temps"><span><small>${escapeHtml(t('Dentro'))}</small>${temp(d && d.inside_temp)}</span><span><small>${escapeHtml(t('Fuera'))}</small>${temp(d && d.outside_temp)}</span>`
+    // Only the temperatures this car reports (the S900 sends no cabin temperature; no model sends the outside one so far)
+    const inside = carReports('inCarTemperature') ? `<span><small>${escapeHtml(t('Dentro'))}</small>${temp(d && d.inside_temp)}</span>` : '';
+    const outside = carReports('outsideTemperature', 'outCarTemperature') ? `<span><small>${escapeHtml(t('Fuera'))}</small>${temp(d && d.outside_temp)}</span>` : '';
+    return `<div class="hw-temps">${inside}${outside}`
       + `<span><small>${escapeHtml(t('Clima'))}</small><b data-state="${on === true ? 'on' : on === false ? 'off' : 'unknown'}">${escapeHtml(state)}</b></span></div>`
       + `<div class="hw-buttons"><button type="button" class="btn-secondary needs-control" data-on-click="promptCommand('clima_on', 'Encender Climatizador')">${escapeHtml(t('Encender'))}</button>`
       + `<button type="button" class="btn-secondary needs-control" data-on-click="promptCommand('clima_off', 'Apagar Climatizador')">${escapeHtml(t('Apagar'))}</button></div>`;

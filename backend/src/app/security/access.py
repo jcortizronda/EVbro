@@ -121,6 +121,7 @@ ACCOUNT_RULES: Dict[Tuple[str, str], str] = {
     ("POST", "/api/notifications/push/subscribe"): "any", ("POST", "/api/notifications/push/unsubscribe"): "any",
     ("POST", "/api/notifications/test"): "any",
     ("GET", "/api/vehicles"): "any", ("POST", "/api/vehicles"): "root", ("POST", "/api/vehicles/discover"): "root",
+    ("GET", "/api/vehicles/specs"): "any",          # factory figures of the Ebro models (public data sheets)
     ("GET", "/api/members"): "root", ("POST", "/api/members"): "root",
     ("PATCH", "/api/members/{member_id}"): "root", ("DELETE", "/api/members/{member_id}"): "root",
     # Passkeys (sign-in with the fingerprint) are per account: each one manages only its own.

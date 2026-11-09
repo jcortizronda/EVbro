@@ -2082,8 +2082,8 @@
  "Siempre en la barra": "Always in the bar",
  "Sensores": "Sensors",
  "Gráficas": "Charts",
-  "Batería, ciclo de carga, programación e historial": "Battery, charging cycle, schedule and history",
-  "Clima, desempañado y asientos": "Climate, demisting and seats",
+ "Batería, ciclo de carga, programación e historial": "Battery, charging cycle, schedule and history",
+ "Clima, desempañado y asientos": "Climate, demisting and seats",
  "Informes": "Reports",
  "¿Ayudas a mejorar EVBro?": "Will you help improve EVBro?",
  "Este servidor puede enviar una vez al día un informe anónimo al proyecto: versión, qué funciones se usan, cómo responden la nube de Ebro y las órdenes, y los fallos que haya registrado. Sirve para encontrar y corregir errores. No lleva nombres, usuarios, matrículas, VIN, posiciones, viajes ni importes. Antes de decidir puedes ver el informe exacto.": "This server can send the project an anonymous report once a day: version, which features are used, how the Ebro cloud and the commands respond, and the errors it has logged. It helps find and fix bugs. It carries no names, users, plates, VINs, positions, trips or amounts. You can see the exact report before deciding.",
@@ -2184,5 +2184,13 @@
  "hace {p0} min": "{p0} min ago",
  "hace {p0} h": "{p0} h ago",
  "Posición GPS · {p0}": "GPS position · {p0}",
- "GPS · {p0}": "GPS · {p0}"
+ "GPS · {p0}": "GPS · {p0}",
+ "Sesión caducada": "Session expired",
+ "La nube rechaza la sesión: vuelve a conectar la cuenta Ebro": "The cloud rejects the session: connect the Ebro account again",
+ "Sin lecturas nuevas: conecta la cuenta Ebro en Ajustes": "No new readings: connect the Ebro account in Settings",
+ "{p0} datos que este coche no envía": "{p0} readings this car does not send",
+ "La nube de Ebro no incluye estas claves en las lecturas de este coche; otros modelos sí las mandan.": "The Ebro cloud does not include these keys in this car's readings; other models do send them.",
+ "Sin posición": "No position",
+ "Sin posición: la nube no da la ubicación de este coche, así que el viaje no tiene ruta ni direcciones; los kilómetros son del cuentakilómetros.": "No position: the cloud gives no location for this car, so the trip has no route or addresses; the kilometres come from the odometer.",
+ "Finalizada": "Finished"
 }

@@ -25,6 +25,8 @@ Hay tres tipos de cuenta (`admin`, `manager`, `member`); el **administrador vive
 Al añadir una ruta: clasifícala en `security/access.py` (si no, un test falla y en ejecución se deniega) y añade su caso a la matriz de `tests/test_access_isolation.py` si introduce un identificador nuevo. Diseño completo y pendientes en [hosted-service.md](hosted-service.md).
 
 ## Secretos en reposo (`security/crypto.py`, `db/types.py`)
+
+La **contraseña de la cuenta Ebro** se guarda cifrada porque se usa dos veces: al conectar la cuenta y, desde el 08-11-2026, para **reabrir la sesión** cuando la nube rechaza el `refresh_token` (`services/poller.py:_recover_session`; una vez al día por cuenta como máximo, nunca tras un rechazo de la contraseña, y aviso al gestor). Nunca sale del servidor ni va al log; el texto de error de la nube se recorta antes de registrarlo.
 - **AES-256-GCM** con la clave derivada (HKDF) de `ENCRYPTION_KEY` o, si no existe, de `DATA_DIR/secret.key`. Formato `enc:v1:<base64url(nonce‖tag‖cifrado)>`; el nombre `tabla.columna` va como dato autenticado (un valor no se puede copiar a otro campo).
 - Columnas cifradas: `ebro_accounts.{password,pin,token_data}` y `notification_configs.{telegram_bot_token,pushover_user_key,pushover_api_token,webhook_url}` y `push_subscriptions.subscription`. **Añadir una columna `EncryptedText` en los modelos basta** para que la migración de arranque la cifre.
 - Migración de arranque (`db/secrets_migration.py`): ensancha las columnas a `TEXT` y cifra lo que estuviera en claro (idempotente). Con la clave equivocada devuelve "sin valor" en lugar de romper la consulta; hay que volver a conectar la cuenta.

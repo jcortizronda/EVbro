@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.core import commands, ebro_login
+from app.core import codes, commands, ebro_login
 from app.core.context import CoreCtx
 from app.core.errors import CommandError
 from app.core.probe import probe_once
@@ -20,9 +20,9 @@ from app.core.telemetry import parse_telemetry_data
 from app.db.models import AppUser, CommandAudit, EbroAccount, Geofence, GeofenceEvent, TelemetrySnapshot, Vehicle
 from app.db.session import async_session_factory
 from app.security.access import first_manager_id, foreign_vins, within_vehicle_limit
-from app.services import command_policy
+from app.services import command_policy, energy_recalc, vehicle_profiles
 from app.services import telemetry as usage_reports
-from app.services.accounts import fetch_account_vehicles, vehicle_data_dir
+from app.services.accounts import fetch_account_vehicles, vehicle_data_dir, write_token_file
 from app.services.car_events import CarEventHub
 from app.services.charge_detector import ChargeDetector, grid_charging, lacks_charge_data
 from app.services.charge_manager import ChargeManager
@@ -54,6 +54,33 @@ POLL_CONCURRENCY = 4
 # twice over the same snapshot (04-11-2026: a push from the car 2 s after the scheduled read duplicated trips and charges).
 # A read requested while one is running joins it; one requested this soon after an answer gets that answer.
 POLL_COALESCE_SECONDS = 5
+# A session the cloud no longer accepts (the refresh token rejected too) is opened again with the password the manager saved when
+# connecting the account, at most once a day per account. A rejected password stops the retries until the account is reconnected:
+# hammering the login with a wrong password is how accounts get locked. (07-11-2026: a car went dark for 36 hours this way.)
+SESSION_RELOGIN_INTERVAL = datetime.timedelta(hours=24)
+# Raw keys remembered per car (`vehicles.reported_keys`); the cloud sends about a hundred
+MAX_REPORTED_KEYS = 300
+
+
+async def connected_owner_ids(session: AsyncSession) -> Set[int]:
+    """Managers with an active Ebro account: the only cars that can be read."""
+    return {uid for (uid,) in (await session.execute(select(EbroAccount.user_id).where(EbroAccount.is_active == True))).all() if uid is not None}  # noqa: E712
+
+
+def pollable(vehicle: Vehicle, connected: Set[int]) -> bool:
+    """Whether a car can be read: its manager keeps an Ebro account connected, or the server runs on the account of its `.env`
+    (cars of nobody, or installs without any account in the database)."""
+    if vehicle.is_manual:
+        return False
+    if vehicle.owner_id in connected:
+        return True
+    env_account = bool(settings.EBRO_PHONE and settings.EBRO_PASSWORD)
+    return env_account and (vehicle.owner_id is None or not connected)
+
+
+def _without_secrets(text: str) -> str:
+    """The cloud's answer for the log: its sentence, never a token or a number it may echo."""
+    return text.split("access_token")[0][:160]
 
 
 class VehiclePoller:
@@ -89,6 +116,14 @@ class VehiclePoller:
     _poll_semaphore: Optional[asyncio.Semaphore] = None
     # The read in progress per vehicle: whoever asks meanwhile waits for it instead of asking the cloud again
     _inflight: Dict[str, "asyncio.Task"] = {}
+    # Sessions reopened with the stored password: the last attempt per Ebro account, and the accounts whose password the cloud
+    # rejected (the value is the account's `last_login` at that moment: reconnecting the account changes it and lifts the stop)
+    _relogin_attempt_at: Dict[int, datetime.datetime] = {}
+    _session_lost: Dict[int, Optional[datetime.datetime]] = {}
+    # Cars left out of the loop because their manager has no connected Ebro account (said once in the log)
+    _unpolled_logged: Set[str] = set()
+    # What the location endpoint answered the last time a car was read without a position (logged when it changes)
+    _last_location_code: Dict[str, Optional[str]] = {}
 
     @classmethod
     def get_instance(cls) -> "VehiclePoller":
@@ -163,6 +198,15 @@ class VehiclePoller:
 
             for v in vehicles:
                 self._get_or_create_ctx(v.vin)
+                # A sheet nobody filled in gets the figures of its model (services/vehicle_profiles.py); a new capacity re-estimates
+                # the energy of its drives and charges, as saving the sheet by hand does
+                changed = vehicle_profiles.fill_defaults(v)
+                if changed:
+                    if "battery_capacity_kwh" in changed:
+                        await energy_recalc.recalculate_for_capacity(session, v)
+                    _LOGGER.info("Sheet of %s filled in from its model %s: %s", v.vin[-6:], v.model, ", ".join(changed))
+            if vehicles:
+                await session.commit()
 
             # Each manager's PIN goes to that manager's cars only
             accounts = (await session.execute(select(EbroAccount).where(EbroAccount.is_active == True).order_by(EbroAccount.id))).scalars().all()  # noqa: E712
@@ -278,6 +322,7 @@ class VehiclePoller:
                         brand=brand,
                         car_token=car_tok,
                     )
+                    vehicle_profiles.fill_defaults(new_v)
                     session.add(new_v)
                     await session.commit()
                     discovered.append(new_v)
@@ -320,7 +365,7 @@ class VehiclePoller:
             self._inflight.pop(vin, None)
             self._last_poll_times[vin] = datetime.datetime.utcnow()
 
-    async def _poll_vehicle(self, vin: str, force: bool = False) -> Optional[Dict]:
+    async def _poll_vehicle(self, vin: str, force: bool = False, _retry: bool = True) -> Optional[Dict]:
         """Asks the cloud, saves the snapshot and runs the detectors. Always through `poll_vehicle`."""
         ctx = self._get_or_create_ctx(vin)
         loop = asyncio.get_running_loop()
@@ -340,6 +385,10 @@ class VehiclePoller:
             _LOGGER.error(f"Exception polling {vin}: {e}", exc_info=True)
             return None
 
+        if isinstance(res, dict) and res.get("ok") is False and res.get("reason") == "no_usertoken" and _retry:
+            # The session is dead and the refresh token did not bring it back: sign in again with the stored password and retry once
+            if await self._recover_session(vin):
+                return await self._poll_vehicle(vin, force=True, _retry=False)
         if isinstance(res, dict) and res.get("ok") is False and res.get("reason") != "cooldown":
             _LOGGER.warning("Read of %s brought no data: %s", vin[-6:], res.get("reason"))
 
@@ -367,6 +416,13 @@ class VehiclePoller:
             _LOGGER.info("Read of %s without charge data, cloud codes (realtime, location, trips): %s", vin[-6:], cloud_codes)
             if ChargeDetector.has_active_charge(vin):
                 return self._latest_snapshots.get(vin)
+        if telemetry.get("latitude") is None and isinstance(res, dict) and res.get("got_realtime"):
+            # Telemetry without a position: say what the location endpoint answered, once per change (two S800 never got one,
+            # 08-11-2026, and the reason was nowhere to be read)
+            code = res.get("location_code")
+            if self._last_location_code.get(vin, "") != code:
+                self._last_location_code[vin] = code
+                _LOGGER.info("Read of %s without a position: the location endpoint answered %s (%s)", vin[-6:], code, codes.meaning(code))
         self._latest_snapshots[vin] = telemetry
 
         # Save to the database and run the detectors
@@ -375,6 +431,13 @@ class VehiclePoller:
             vehicle = v.scalar_one_or_none()
             if not vehicle:
                 return telemetry
+
+            # The raw keys this car has ever sent: the interface and the Home Assistant discovery show it only what it can report
+            # (the models differ; docs/ebro-protocol.md, «Qué manda cada modelo»)
+            seen = set(vehicle.reported_keys or [])
+            fresh = {k for k in (telemetry.get("raw_data") or {}) if isinstance(k, str)} - seen
+            if fresh and len(seen) < MAX_REPORTED_KEYS:
+                vehicle.reported_keys = sorted(seen | fresh)[:MAX_REPORTED_KEYS]
 
             # Update the quick fields on the vehicle
             vehicle.state = telemetry["state"]
@@ -451,6 +514,67 @@ class VehiclePoller:
         self.broadcast_telemetry(vin, telemetry)
 
         return telemetry
+
+    # ───────────────────────── Ebro session recovery ─────────────────────────
+    def session_lost(self, account_id: int, last_login: Optional[datetime.datetime]) -> bool:
+        """True while the cloud rejects the stored password of this account (until the manager reconnects it)."""
+        return account_id in self._session_lost and self._session_lost[account_id] == last_login
+
+    async def _recover_session(self, vin: str) -> bool:
+        """Signs in again with the password the manager saved when connecting the account, and hands the new token to every car of
+        that account. At most one attempt per account and day; none at all once the cloud has rejected the password (the manager is
+        told once and has to reconnect the account). Returns True when the car can be read again."""
+        async with async_session_factory() as session:
+            vehicle = (await session.execute(select(Vehicle).where(Vehicle.vin == vin))).scalar_one_or_none()
+            if vehicle is None or vehicle.owner_id is None:
+                return False
+            account = (await session.execute(
+                select(EbroAccount).where(EbroAccount.is_active == True, EbroAccount.user_id == vehicle.owner_id).order_by(EbroAccount.id.desc())  # noqa: E712
+            )).scalars().first()
+            if account is None or self.session_lost(account.id, account.last_login):
+                return False
+            now = datetime.datetime.utcnow()
+            last = self._relogin_attempt_at.get(account.id)
+            if last is not None and now - last < SESSION_RELOGIN_INTERVAL:
+                return False
+            self._relogin_attempt_at[account.id] = now
+            acc_id, owner_id, last_login = account.id, account.user_id, account.last_login
+            phone, password, area = account.phone, account.password, account.area_code or "34"
+            names = [v.name for (v,) in (await session.execute(select(Vehicle).where(Vehicle.owner_id == owner_id, Vehicle.is_manual.is_(False)))).all()]
+
+        loop = asyncio.get_running_loop()
+        try:
+            token_data = await loop.run_in_executor(None, lambda: ebro_login.login_with_password(phone, password, area))
+        except RuntimeError as exc:
+            # The cloud answered and said no (wrong password, blocked account…): stop until the account is reconnected
+            _LOGGER.warning("The Ebro cloud rejected the stored password of the account of user %s: %s", owner_id, _without_secrets(str(exc)))
+            self._session_lost[acc_id] = last_login
+            await NotificationService.notify_account_session_lost(owner_id, names)
+            return False
+        except Exception as exc:                              # noqa: BLE001 — network: nothing to conclude, the next day's try tells
+            _LOGGER.warning("Could not reopen the Ebro session of the account of user %s: %s", owner_id, type(exc).__name__)
+            return False
+        if not isinstance(token_data, dict) or "access_token" not in token_data:
+            self._session_lost[acc_id] = last_login
+            await NotificationService.notify_account_session_lost(owner_id, names)
+            return False
+
+        async with async_session_factory() as session:
+            account = await session.get(EbroAccount, acc_id)
+            if account is not None:
+                account.token_data = token_data
+                account.last_login = datetime.datetime.utcnow()
+            vins = [v for (v,) in (await session.execute(select(Vehicle.vin).where(Vehicle.owner_id == owner_id, Vehicle.is_manual.is_(False)))).all()]
+            await session.commit()
+        for other in vins:
+            try:
+                write_token_file(os.path.join(vehicle_data_dir(other), "token.json"), token_data)
+            except OSError as exc:
+                _LOGGER.warning("Could not write the renewed token of %s: %s", other[-6:], exc)
+        self._session_lost.pop(acc_id, None)
+        _LOGGER.info("Ebro session of the account of user %s reopened with the stored password", owner_id)
+        asyncio.create_task(CarEventHub.get_instance().restart_owner(owner_id, self))       # the car's MQTT channel needs the new session too
+        return True
 
     async def _check_and_dispatch_alerts(
         self, session: AsyncSession, vehicle: Vehicle, telemetry: Dict
@@ -757,7 +881,15 @@ class VehiclePoller:
             try:
                 async with async_session_factory() as session:
                     vehicles = (await session.execute(select(Vehicle).where(Vehicle.is_manual.is_(False)))).scalars().all()
-                    stored_states = {v.vin: v.state for v in vehicles}
+                    connected = await connected_owner_ids(session)
+                    stored_states = {v.vin: v.state for v in vehicles if pollable(v, connected)}
+                    for v in vehicles:
+                        if v.vin not in stored_states and v.vin not in self._unpolled_logged:
+                            # A disconnected account: its token is dead and the cloud would only say so every hour (seen on a real install, 2026-11-08)
+                            _LOGGER.info("Vehicle %s is not polled: its manager has no connected Ebro account", v.vin[-6:])
+                            self._unpolled_logged.add(v.vin)
+                        elif v.vin in stored_states:
+                            self._unpolled_logged.discard(v.vin)
 
                 due = []
                 for vin, stored_state in stored_states.items():

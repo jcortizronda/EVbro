@@ -3,6 +3,18 @@
  */
 
 /**
+ * Whether the car has ever sent one of these raw keys (`reported_keys` of the vehicle, filled by the server read after read).
+ * The models differ: the S900 never sends the cabin temperature, the S700 has no middle seats… What a car never reports is not
+ * shown to it. No list yet (a car never read) counts as «yes»: nothing is hidden before the first readings.
+ */
+function carReports(...keys) {
+  const vehicle = (typeof currentVehicle === 'function') ? currentVehicle() : null;
+  const seen = vehicle && Array.isArray(vehicle.reported_keys) ? vehicle.reported_keys : null;
+  if (!seen || !seen.length) return true;
+  return keys.some((k) => seen.includes(k));
+}
+
+/**
  * Syncs the vehicle header information (name and VIN).
  * Keeps the VIN visible in the main view.
  * @param {Object} [vehicle] - Optional vehicle metadata (name, model, vin).

@@ -116,9 +116,9 @@ class TripDetector:
     def _backfill(prev: Optional[Dict], now: datetime.datetime, odometer: Optional[float]) -> Optional[Dict]:
         """Estimated start of a trip detected with the car already moving, or None when there is no reliable base.
 
-        It needs a recent idle reading with a position and the odometer to have moved since then (otherwise the trip
-        started just now). The time is estimated from the km covered, never earlier than the idle reading."""
-        if not prev or prev.get("lat") is None or prev.get("lon") is None:
+        It needs a recent idle reading and the odometer to have moved since then (otherwise the trip started just now). The time is
+        estimated from the km covered, never earlier than the idle reading. The reading's position, when it has one, is the start."""
+        if not prev:
             return None
         if odometer is None or prev.get("odometer") is None or odometer <= prev["odometer"]:
             return None
@@ -180,22 +180,25 @@ class TripDetector:
         else:
             _HV_OFF_AT.pop(vin, None)
 
-        # 1. Check whether a new trip must start
-        if active_drive_id is None and is_moving and lat is not None and lon is not None:
+        # 1. Check whether a new trip must start. A position is not required: some cars never get one from the cloud (two S800,
+        # 08-11-2026) and their trips are still measured by the odometer, the battery and the tank; they just have no route or address
+        if active_drive_id is None and is_moving:
             # If the trip is detected late (the reading arrives with the car already moving), it starts at the last idle reading
             idle = await cls._previous_idle(session, vin, now)
             back = cls._backfill(idle, now, odometer)
             s_lat, s_lon = (back["lat"], back["lon"]) if back else (lat, lon)
+            if s_lat is None or s_lon is None:
+                s_lat, s_lon = lat, lon
             # Levels at departure: the recovered start, or the stopped reading just before (car switched on, then moving)
             levels = back or (idle if idle and now - idle["time"] <= START_LEVELS_MAX_AGE else None)
             start_battery = levels["battery"] if levels and levels.get("battery") is not None else battery
             start_fuel = levels["fuel"] if levels and levels.get("fuel") is not None else telemetry.get("fuel_level")
 
-            # Look up whether it is inside a geofence
-            gf = await find_geofence(session, s_lat, s_lon, owner_id=vehicle.owner_id)
-            addr = await reverse_geocode(s_lat, s_lon)
-            if gf:
-                addr = gf.name
+            # Look up whether it is inside a geofence (with a position only)
+            gf, addr = None, None
+            if s_lat is not None and s_lon is not None:
+                gf = await find_geofence(session, s_lat, s_lon, owner_id=vehicle.owner_id)
+                addr = gf.name if gf else await reverse_geocode(s_lat, s_lon)
 
             temp = telemetry.get("outside_temp")
             climate = telemetry.get("climate_on", False)
@@ -218,7 +221,7 @@ class TripDetector:
             )
             session.add(new_drive)
             await session.flush()
-            if back:
+            if back and s_lat is not None and s_lon is not None:
                 # The track starts at the starting point, not halfway
                 session.add(DrivePosition(drive_id=new_drive.id, timestamp=new_drive.start_time, latitude=s_lat, longitude=s_lon,
                                           speed_kmh=0.0, battery_pct=back["battery"]))
@@ -292,11 +295,11 @@ class TripDetector:
                     drive.fuel_refuelled_pct = await cls._refuelled_during(session, drive, now)
                     drive.fuel_used_l = fuel_litres(drive.start_fuel + drive.fuel_refuelled_pct, drive.end_fuel, vehicle.fuel_tank_liters)
 
-                # Geocode the destination
-                end_gf = await find_geofence(session, lat, lon, owner_id=vehicle.owner_id)
-                end_addr = await reverse_geocode(lat, lon)
-                if end_gf:
-                    end_addr = end_gf.name
+                # Geocode the destination (with a position only)
+                end_gf, end_addr = None, None
+                if lat is not None and lon is not None:
+                    end_gf = await find_geofence(session, lat, lon, owner_id=vehicle.owner_id)
+                    end_addr = end_gf.name if end_gf else await reverse_geocode(lat, lon)
                 drive.end_geofence_id = end_gf.id if end_gf else None
                 drive.end_address = end_addr
 

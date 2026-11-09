@@ -37,7 +37,9 @@ def kpa_to_bar(kpa: Optional[float]) -> Optional[float]:
 
 CHARGE_STATE_MAP = {"0": "Sin cargar", "1": "Cargando", "2": "Carga completada"}
 FAST_GUN_MAP = {"0": "Desconectada", "1": "Conectada (AC/Lenta)", "2": "Conectada (Carga Rápida CCS2)"}
-APPOINTMENT_CHARGE_MAP = {"0": "Desactivada", "1": "Activa", "2": "En ejecución"}
+# appointmentChargeState: 4 = the scheduled charge has just ended (seen on three cars right after a scheduled charge stopped, 2 → 4 → 0;
+# 08-11-2026). Mirror of the Home Assistant integration: a change here is ported there.
+APPOINTMENT_CHARGE_MAP = {"0": "Desactivada", "1": "Activa", "2": "En ejecución", "4": "Finalizada"}
 
 
 def parse_telemetry_data(

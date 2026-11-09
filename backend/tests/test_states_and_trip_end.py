@@ -44,3 +44,10 @@ def test_without_connection_or_data_the_car_is_asleep() -> None:
 ])
 def test_distance_is_the_odometer_alone(start, end, expected) -> None:
     assert resolve_distance(start, end) == expected
+
+
+@pytest.mark.parametrize("raw, expected", [("0", "Desactivada"), ("1", "Activa"), ("2", "En ejecución"), ("4", "Finalizada"), ("7", "Desconocido (7)")])
+def test_the_scheduled_charge_state_has_a_name_for_the_end_of_a_schedule(raw, expected) -> None:
+    """4 arrives right after a scheduled charge stops (2 → 4 → 0; three cars, 08-11-2026): it used to show as «Desconocido (4)»."""
+    from app.core.telemetry import parse_telemetry_data
+    assert parse_telemetry_data({"appointmentChargeState": raw})["appointment_charge_desc"] == expected

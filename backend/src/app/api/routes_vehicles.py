@@ -4,7 +4,7 @@ from __future__ import annotations
 import datetime
 import re
 import uuid
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field, field_validator
@@ -15,8 +15,8 @@ from app.db.models import AppUser, EbroAccount, TelemetrySnapshot, Vehicle
 from app.db.session import get_db
 from app.security import auth
 from app.security.access import accessible_vehicles, within_vehicle_limit
-from app.services import energy_recalc, storage, uploads
-from app.services.poller import VehiclePoller
+from app.services import energy_recalc, storage, uploads, vehicle_profiles
+from app.services.poller import VehiclePoller, connected_owner_ids, pollable
 
 router = APIRouter(prefix="/vehicles", tags=["Vehicles"])
 
@@ -63,6 +63,10 @@ class VehicleOut(BaseModel):
     photo_url: Optional[str] = None
     is_manual: bool = False
     access_level: Optional[str] = None            # what the signed-in account may do with it: view/edit/control/owner
+    # Whether the car can be read: "ok", "disconnected" (its manager has no Ebro account connected: no new readings, no orders) or
+    # "expired" (the cloud rejects the stored session and password: the manager has to reconnect). None for a manual car.
+    account_state: Optional[str] = None
+    reported_keys: Optional[List[str]] = None     # raw keys the cloud has ever sent for this car (None/empty = not known yet: show everything)
 
     class Config:
         from_attributes = True
@@ -135,9 +139,35 @@ async def list_vehicles(session: AsyncSession = Depends(get_db), user: AppUser =
     if not levels:
         return []
     rows = (await session.execute(select(Vehicle).where(Vehicle.vin.in_(levels)).order_by(Vehicle.id))).scalars().all()
+    states = await account_states(session, rows)
     for v in rows:
         v.access_level = levels[v.vin]
+        v.account_state = states.get(v.vin)
     return rows
+
+
+async def account_states(session: AsyncSession, vehicles: List[Vehicle]) -> Dict[str, Optional[str]]:
+    """{vin: account_state} for `VehicleOut` (see the field). Manual cars have none."""
+    poller = VehiclePoller.get_instance()
+    connected = await connected_owner_ids(session)
+    accounts = {a.user_id: a for a in (await session.execute(select(EbroAccount).where(EbroAccount.is_active == True))).scalars().all()}  # noqa: E712
+    out: Dict[str, Optional[str]] = {}
+    for v in vehicles:
+        if v.is_manual:
+            out[v.vin] = None
+        elif not pollable(v, connected):
+            out[v.vin] = "disconnected"
+        else:
+            acc = accounts.get(v.owner_id)
+            out[v.vin] = "expired" if acc is not None and poller.session_lost(acc.id, acc.last_login) else "ok"
+    return out
+
+
+@router.get("/specs")
+async def model_specs():
+    """Factory figures per Ebro model (battery, tank, seats, range, label): the sheet fills them in when the model is chosen and the
+    server applies them to a new car (services/vehicle_profiles.py)."""
+    return vehicle_profiles.SPECS
 
 
 @router.delete("/{vin}")
@@ -167,6 +197,7 @@ async def create_manual_vehicle(req: ManualVehicle, session: AsyncSession = Depe
     vehicle = Vehicle(owner_id=user.id, vin=f"MAN{uuid.uuid4().hex[:14].upper()}", name=req.name.strip(), model=req.model.strip() or "Ebro Auto",
                       brand=req.brand.strip() or "EBRO", is_manual=True, state="parked",
                       fuel_type=req.fuel_type or ("phev" if (req.brand.strip() or "EBRO").lower() == "ebro" else "gasoline"))
+    vehicle_profiles.fill_defaults(vehicle)
     session.add(vehicle)
     await session.commit()
     await session.refresh(vehicle)

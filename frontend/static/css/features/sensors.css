@@ -19,3 +19,11 @@
 .sensor-value[data-tone="warn"] { color: var(--accent-amber, #ff9f0a); border-color: currentColor; }
 .sensor-value[data-tone="alert"] { color: var(--accent-red, #ff453a); border-color: currentColor; }
 .sensor-value[data-tone="unknown"] { font-weight: 500; color: var(--text-muted); }
+
+/* Keys this car never sends, folded at the end of the list (docs/frontend.md, «Todos los datos») */
+.sensor-unreported { margin-top: 0.9rem; padding: 0.55rem 0.85rem; border: 1px dashed var(--border-color); border-radius: var(--radius-sm); color: var(--text-muted); font-size: 0.82rem; }
+.sensor-unreported summary { cursor: pointer; font-weight: 600; color: var(--text-secondary); }
+.sensor-unreported p { margin: 0.5rem 0 0.35rem; }
+.sensor-unreported ul { margin: 0; padding-left: 1.1rem; }
+.sensor-unreported li { padding: 0.15rem 0; }
+.sensor-unreported .sensor-key { margin-left: 0.35rem; }
