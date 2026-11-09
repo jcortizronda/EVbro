@@ -378,3 +378,24 @@ def test_holds_charge_tells_evbro_stops_from_any_other() -> None:
     row.mode, row.hold_reason = "scheduled", None
     manager._remember_hold(row)
     assert manager.holds_charge(VIN) is False
+
+
+async def test_a_pause_at_the_target_that_the_car_refuses_is_told_once_until_one_succeeds(manager, monkeypatch) -> None:
+    """09-11-2026: a car charged past its target because there was no stored PIN, and the only trace was the audit log."""
+    told = []
+
+    async def tell(cls, name, target_pct, detail, vin=None):
+        told.append((name, target_pct, detail, vin))
+
+    monkeypatch.setattr(cm.NotificationService, "notify_charge_hold_failed", classmethod(tell))
+    manager.fake_car.response = {"success": False, "message": "Falta el PIN de la cuenta Ebro", "reason": "pin"}
+    await manager.set_target(VIN, 80)
+    await manager.on_snapshot(VIN, reading(81))
+    assert told == [("Ebro", 80, "Falta el PIN de la cuenta Ebro", VIN)]
+    manager.fake_clock.advance(hours=2)
+    await manager.on_snapshot(VIN, reading(83))                               # retried, still refused: no second notice
+    assert len(manager.fake_car.sent) == 2 and len(told) == 1
+    manager.fake_car.response = {"success": True, "message": "ok", "reason": None}
+    manager.fake_clock.advance(hours=2)
+    await manager.on_snapshot(VIN, reading(85))                               # accepted: the next failure will be told again
+    assert (await manager.state(VIN))["status"] == "hold_target" and VIN not in manager._hold_failed_told

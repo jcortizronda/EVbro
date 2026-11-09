@@ -114,6 +114,7 @@ async def _legacy_schema() -> None:
             await conn.execute(text("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS chassis_number VARCHAR(32);"))
             await conn.execute(text("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS photo_size INTEGER;"))
             await conn.execute(text("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS reported_keys JSON;"))
+            await conn.execute(text("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS rejected_commands JSON;"))
             await conn.execute(text("ALTER TABLE app_users ADD COLUMN IF NOT EXISTS storage_limit_mb INTEGER;"))
             await conn.execute(text("ALTER TABLE invites ADD COLUMN IF NOT EXISTS storage_limit_mb INTEGER;"))
             # the delivery date stored in the maintenance plan moves to the vehicle settings

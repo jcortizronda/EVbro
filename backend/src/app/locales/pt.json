@@ -284,5 +284,9 @@
  "Petición no válida.": "Pedido inválido.",
  "Cuenta Ebro desconectada": "Conta Ebro desligada",
  "La nube de Ebro ya no acepta la sesión ni la contraseña guardada.": "A nuvem da Ebro já não aceita a sessão nem a palavra-passe guardada.",
- "Vuelve a conectar la cuenta en Ajustes → Cuenta para seguir viendo {p0}.": "Volte a ligar a conta em Definições → Conta para continuar a ver {p0}."
+ "Vuelve a conectar la cuenta en Ajustes → Cuenta para seguir viendo {p0}.": "Volte a ligar a conta em Definições → Conta para continuar a ver {p0}.",
+ "La nube de Ebro rechaza la contraseña guardada de tu cuenta. Vuelve a conectarla en Ajustes → Cuenta.": "A nuvem da Ebro rejeita a palavra-passe guardada da sua conta. Volte a ligá-la em Definições → Conta.",
+ "No se pudo conectar con la nube de Ebro. Inténtalo de nuevo en unos minutos.": "Não foi possível contactar a nuvem da Ebro. Tente de novo dentro de uns minutos.",
+ "No se pudo pausar la carga: {p0}": "Não foi possível pausar o carregamento: {p0}",
+ "La batería ha llegado al objetivo del {p0} % pero el coche no aceptó la orden de pausa y sigue cargando.": "A bateria chegou ao objetivo de {p0} % mas o carro não aceitou a ordem de pausa e continua a carregar."
 }

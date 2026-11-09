@@ -148,3 +148,17 @@ async def test_a_car_whose_manager_disconnected_the_account_is_not_polled(world)
         settings.EBRO_PHONE, settings.EBRO_PASSWORD = "", ""
     manual = Vehicle(owner_id=1, vin="MANX", is_manual=True)
     assert not pollable(manual, {1})
+
+
+async def test_a_car_whose_account_the_cloud_rejected_waits_for_the_account_to_be_reconnected(world) -> None:
+    """09-11-2026: a rejected account was still read every hour, and every hour the log said the same thing."""
+    poller, _alerts = world
+    async with async_session_factory() as s:
+        car = (await s.execute(select(Vehicle).where(Vehicle.vin == VIN))).scalar_one()
+        assert await poller.lost_owner_ids(s) == set()
+        poller._session_lost[7] = datetime.datetime(2026, 11, 1, 10, 0)       # the stored password was rejected
+        lost = await poller.lost_owner_ids(s)
+        assert lost == {1} and not pollable(car, {1}, lost) and pollable(car, {1})
+        (await s.get(EbroAccount, 7)).last_login = datetime.datetime(2026, 11, 9, 8, 0)   # the manager reconnected the account
+        await s.commit()
+        assert await poller.lost_owner_ids(s) == set()

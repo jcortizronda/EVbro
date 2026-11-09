@@ -15,6 +15,16 @@ function carReports(...keys) {
 }
 
 /**
+ * Whether the Ebro cloud refused this command on the current car (`rejected_commands`: A00084 «no permission», remembered by the
+ * server per car; an accepted send clears it). The control is not hidden — the car said no, so it says so.
+ */
+function carRejects(commandKey) {
+  const vehicle = (typeof currentVehicle === 'function') ? currentVehicle() : null;
+  const refused = vehicle && Array.isArray(vehicle.rejected_commands) ? vehicle.rejected_commands : [];
+  return refused.includes(commandKey);
+}
+
+/**
  * Syncs the vehicle header information (name and VIN).
  * Keeps the VIN visible in the main view.
  * @param {Object} [vehicle] - Optional vehicle metadata (name, model, vin).

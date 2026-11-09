@@ -105,6 +105,15 @@ async def get_storage(session: AsyncSession = Depends(get_db), user: AppUser = D
     return {"used_bytes": await storage.storage_usage(session, owner.id), "limit_mb": storage.effective_limit_mb(owner)}
 
 
+def cloud_refusal(text: str) -> str:
+    """The reason the Ebro cloud gives for refusing a login, without the «HTTP 401: » prefix and without anything that could be a
+    token (the text is shown to the manager)."""
+    reason = text.split("access_token")[0].strip()
+    if reason.upper().startswith("HTTP ") and ":" in reason:
+        reason = reason.split(":", 1)[1].strip()
+    return (reason or "credenciales rechazadas")[:160]
+
+
 async def _own_vins(session: AsyncSession, user_id: int) -> set:
     return {v for (v,) in (await session.execute(select(Vehicle.vin).where(Vehicle.owner_id == user_id))).all()}
 
@@ -129,6 +138,15 @@ async def login_ebro_account(req: EbroLoginRequest, session: AsyncSession = Depe
     loop = asyncio.get_running_loop()
     try:
         token_data = await loop.run_in_executor(None, _do_auth)
+    except RuntimeError as e:
+        # The cloud answered and said no (`login_with_password` raises with its text, e.g. «HTTP 401: El nombre de usuario no
+        # existe o la contraseña es incorrecta»): a typo of the manager, not a failure of EVBro — it used to come out as a 502
+        # «could not connect» and an error in the log (09-11-2026)
+        _LOGGER.warning("The Ebro cloud refused the login of user %s: %s", user.id, cloud_refusal(str(e)))
+        raise HTTPException(
+            status_code=401,
+            detail=_("No se pudo iniciar sesión: {p0}. Verifica tu teléfono, código de país y contraseña.", p0=cloud_refusal(str(e))),
+        ) from e
     except Exception as e:
         _LOGGER.error(f"Network or cryptography error on Ebro login: {e}")
         # The exception text can name internal hosts or library internals: it stays in the log.

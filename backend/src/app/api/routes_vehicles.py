@@ -13,10 +13,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import AppUser, EbroAccount, TelemetrySnapshot, Vehicle
 from app.db.session import get_db
+from app.i18n import _
 from app.security import auth
 from app.security.access import accessible_vehicles, within_vehicle_limit
 from app.services import energy_recalc, storage, uploads, vehicle_profiles
-from app.services.poller import VehiclePoller, connected_owner_ids, pollable
+from app.services.poller import LoginFailed, VehiclePoller, connected_owner_ids, pollable
 
 router = APIRouter(prefix="/vehicles", tags=["Vehicles"])
 
@@ -67,6 +68,7 @@ class VehicleOut(BaseModel):
     # "expired" (the cloud rejects the stored session and password: the manager has to reconnect). None for a manual car.
     account_state: Optional[str] = None
     reported_keys: Optional[List[str]] = None     # raw keys the cloud has ever sent for this car (None/empty = not known yet: show everything)
+    rejected_commands: Optional[List[str]] = None # commands the cloud refused with A00084 on this car (the controls say so; nothing is hidden)
 
     class Config:
         from_attributes = True
@@ -299,7 +301,13 @@ async def discover_vehicles(session: AsyncSession = Depends(get_db), user: AppUs
     if account is None:
         raise HTTPException(status_code=409, detail="Conecta primero tu cuenta de Ebro (Ajustes, Cuenta).")
     poller = VehiclePoller.get_instance()
-    vehicles = await poller.discover_vehicles(account=account)
+    try:
+        vehicles = await poller.discover_vehicles(account=account, strict=True)
+    except LoginFailed as exc:
+        # «No new car» and «the cloud refuses the password» are not the same answer (09-11-2026: a manager was told there were none)
+        if exc.rejected:
+            raise HTTPException(status_code=424, detail=_("La nube de Ebro rechaza la contraseña guardada de tu cuenta. Vuelve a conectarla en Ajustes → Cuenta.")) from exc
+        raise HTTPException(status_code=502, detail=_("No se pudo conectar con la nube de Ebro. Inténtalo de nuevo en unos minutos.")) from exc
     return {"status": "ok", "count": len(vehicles), "vehicles": [v.vin for v in vehicles]}
 
 

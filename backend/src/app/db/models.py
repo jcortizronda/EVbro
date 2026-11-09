@@ -74,6 +74,7 @@ class Vehicle(Base):
     photo_filename = Column(String(120), nullable=True)       # in DATA_DIR/vehicle_photos
     photo_size = Column(Integer, nullable=True)               # plaintext bytes of the photo (storage quota of the owner)
     reported_keys = Column(JSON, nullable=True)               # raw keys the cloud has ever sent for this car: what it can show (varies by model)
+    rejected_commands = Column(JSON, nullable=True)           # command keys the cloud refused with A00084 (no permission on this car); an accepted send clears them
 
     # current operating state (asleep, parked, driving, charging, offline)
     state = Column(String(30), default="parked")

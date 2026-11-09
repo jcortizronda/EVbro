@@ -101,6 +101,10 @@
 .csched-day.is-on { background: var(--accent-soft); color: var(--accent-bright); border-color: var(--accent-bright); }
 @media (max-width: 480px) { .csched-form-row { grid-template-columns: 1fr; } .csched-row { grid-template-columns: minmax(0, 1fr) auto; } .csched-row .btn-sm { grid-column: 2; } }
 
+/* The cloud refused the command on this car (A00084): the control stays, dimmed, and its badge says so */
+.comfort-tile.is-rejected { opacity: 0.6; }
+.comfort-state[data-state="rejected"] { background: rgba(255, 159, 10, 0.18); color: var(--accent-amber); }
+
 /* Timed climate: the PIN notice only shows when there is no PIN saved */
 .csched-pin-hint { color: var(--accent-amber); }
 .csched-pin-hint[hidden] { display: none; }

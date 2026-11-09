@@ -284,5 +284,9 @@
  "Petición no válida.": "Invalid request.",
  "Cuenta Ebro desconectada": "Ebro account disconnected",
  "La nube de Ebro ya no acepta la sesión ni la contraseña guardada.": "The Ebro cloud no longer accepts the session or the saved password.",
- "Vuelve a conectar la cuenta en Ajustes → Cuenta para seguir viendo {p0}.": "Connect the account again in Settings → Account to keep seeing {p0}."
+ "Vuelve a conectar la cuenta en Ajustes → Cuenta para seguir viendo {p0}.": "Connect the account again in Settings → Account to keep seeing {p0}.",
+ "La nube de Ebro rechaza la contraseña guardada de tu cuenta. Vuelve a conectarla en Ajustes → Cuenta.": "The Ebro cloud rejects the saved password of your account. Connect it again in Settings → Account.",
+ "No se pudo conectar con la nube de Ebro. Inténtalo de nuevo en unos minutos.": "Could not reach the Ebro cloud. Try again in a few minutes.",
+ "No se pudo pausar la carga: {p0}": "Could not pause the charge: {p0}",
+ "La batería ha llegado al objetivo del {p0} % pero el coche no aceptó la orden de pausa y sigue cargando.": "The battery has reached the {p0} % target but the car did not accept the pause order and keeps charging."
 }

@@ -228,7 +228,8 @@ def reports(entry: Dict[str, Any], reported_keys: Optional[List[str]]) -> bool:
 
 
 def discovery_messages(prefix: str, ha_prefix: str, vin: str, name: Optional[str], brand: Optional[str], model: Optional[str],
-                       reported_keys: Optional[List[str]] = None) -> List[Tuple[str, Dict[str, Any]]]:
+                       reported_keys: Optional[List[str]] = None,
+                       rejected_commands: Optional[List[str]] = None) -> List[Tuple[str, Dict[str, Any]]]:
     """Every (discovery topic, config payload) for one car. Retained by the caller.
 
     `reported_keys`: the raw keys the cloud has sent for this car (`vehicles.reported_keys`); entities whose keys it never sends are
@@ -255,9 +256,10 @@ def discovery_messages(prefix: str, ha_prefix: str, vin: str, name: Optional[str
             continue
         payload = {k: v for k, v in b.items() if k not in ("component", "suffix", "key", "raw")}
         cfg("binary_sensor", b["suffix"], b["key"], payload)
+    refused = set(rejected_commands or [])
     for sw in SWITCHES:
-        if not reports(sw, reported_keys):
-            continue
+        if not reports(sw, reported_keys) or sw["on"] in refused:
+            continue                                         # the cloud refused the command on this car (A00084): no switch that cannot act
         cfg("switch", sw["suffix"], sw["key"], {"name": sw["name"], "icon": sw["icon"], "value_template": _B.replace("{path}", sw["path"]),
                                                 "state_on": "ON", "state_off": "OFF", "command_topic": f"{t['cmd']}/{sw['key']}",
                                                 "payload_on": "ON", "payload_off": "OFF", "optimistic": False})

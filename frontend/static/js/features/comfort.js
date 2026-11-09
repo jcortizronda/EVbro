@@ -107,15 +107,20 @@
     return car;
   }
 
+  /** The cloud refused this control's command on this car (A00084, remembered by the server): it says so instead of «—». */
+  function rejected(control) {
+    return typeof carRejects === 'function' && !!control.on && carRejects(control.on()[0]);
+  }
+
   function stateText(control, st) {
     if (pending.has(control.id)) return '…';
-    if (st.on === null) return '—';
+    if (st.on === null) return rejected(control) ? t('No permitido') : '—';
     if (!st.on) return 'OFF';
     return st.level ? t('ON · {p0}', {p0: st.level}) : 'ON';      // the rear seats report a level (1-3)
   }
   function stateKey(control, st) {
     if (pending.has(control.id)) return 'pending';
-    if (st.on === null) return 'unknown';
+    if (st.on === null) return rejected(control) ? 'rejected' : 'unknown';
     return st.on ? (st.waiting ? 'on-waiting' : 'on') : (st.waiting ? 'off-waiting' : 'off');
   }
 
@@ -147,6 +152,10 @@
     el.classList.toggle('is-on', st.on === true);
     el.classList.toggle('active', st.on === true);              // style of the round climate button
     el.disabled = pending.has(control.id);
+    const refused = rejected(control);
+    el.classList.toggle('is-rejected', refused);                // the car said no to this command: dimmed, still visible
+    if (refused) { el.title = t('La nube de Ebro no permite este mando en este coche (A00084). Pulsa para volver a intentarlo.'); el.dataset.rejected = '1'; }
+    else if (el.dataset.rejected) { el.title = ''; delete el.dataset.rejected; }
     const badge = el.querySelector('.comfort-state');          // the round climate button has no text
     if (badge) {
       badge.dataset.state = key;

@@ -167,11 +167,13 @@ class MqttLinkClient:
                 "cars": sorted(self._published)}
 
     # ───────────────────────── publishing ─────────────────────────
-    def announce(self, vin: str, name: Optional[str], brand: Optional[str], model: Optional[str], reported_keys: Optional[List[str]] = None) -> None:
-        """Home Assistant discovery for one car (retained, once per connection; again when the car reports new keys)."""
+    def announce(self, vin: str, name: Optional[str], brand: Optional[str], model: Optional[str], reported_keys: Optional[List[str]] = None,
+                 rejected_commands: Optional[List[str]] = None) -> None:
+        """Home Assistant discovery for one car (retained, once per connection; again when the car reports new keys or refuses a command)."""
         if not self._connected or not self._client or not self.config.ha_discovery or vin in self._announced:
             return
-        for topic, payload in ha_discovery.discovery_messages(self.config.topic_prefix, self.config.ha_prefix, vin, name, brand, model, reported_keys):
+        for topic, payload in ha_discovery.discovery_messages(self.config.topic_prefix, self.config.ha_prefix, vin, name, brand, model, reported_keys,
+                                                              rejected_commands):
             self._client.publish(topic, json.dumps(payload), qos=1, retain=True)
         self._announced.add(vin)
         _LOGGER.info(f"Home Assistant discovery published for {vin[-6:]} on {self.config.host}")
@@ -179,8 +181,8 @@ class MqttLinkClient:
     def reannounce(self) -> None:
         """Publishes the discovery again for every car seen on this connection (Home Assistant restarted, or a device was deleted there)."""
         self._announced = set()
-        for vin, (name, brand, model, keys) in list(self._vehicles.items()):
-            self.announce(vin, name, brand, model, keys)
+        for vin, facts in list(self._vehicles.items()):
+            self.announce(vin, *facts)
 
     def publish_telemetry(self, vin: str, telemetry: Dict[str, Any], vehicle: Any = None) -> None:
         """Publishes the car's telemetry (JSON + plain topics + location) and, the first time, its discovery."""
@@ -189,9 +191,10 @@ class MqttLinkClient:
         self._published.add(vin)
         if vehicle is not None:
             facts = (getattr(vehicle, "name", None), getattr(vehicle, "brand", None), getattr(vehicle, "model", None),
-                     list(getattr(vehicle, "reported_keys", None) or []) or None)
+                     list(getattr(vehicle, "reported_keys", None) or []) or None,
+                     list(getattr(vehicle, "rejected_commands", None) or []) or None)
             if self._vehicles.get(vin) != facts:
-                self._announced.discard(vin)                 # a new key (or name) changes what the car can show: announce it again
+                self._announced.discard(vin)                 # a new key, a refused command or a new name change what the car offers: announce it again
             self._vehicles[vin] = facts
             self.announce(vin, *facts)
         t = ha_discovery.topics(self.config.topic_prefix, vin)

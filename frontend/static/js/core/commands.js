@@ -165,6 +165,12 @@ function handleCommandFailure(data, commandKey, commandName, extraParams) {
     openPinModalForCommand(commandKey, commandName, extraParams, reason === 'pin_required' ? '' : detail);
   } else if (reason === 'reauth') {
     showToast('La sesión de tu cuenta Ebro ha caducado. Vuelve a conectarla en Ajustes → Cuenta Ebro.', 'error', 7000);
+  } else if (data.code === 'A00084') {
+    // The cloud refuses this command on this car: the server remembers it (`rejected_commands`) and the control says so from now on
+    const v = (typeof currentVehicle === 'function') ? currentVehicle() : null;
+    if (v) v.rejected_commands = Array.from(new Set([...(v.rejected_commands || []), commandKey]));
+    if (typeof renderComfort === 'function') renderComfort();
+    showToast(t('La nube de Ebro no permite «{p0}» en este coche.', {p0: commandName}), 'error', 7000);
   } else {
     showToast(`${escapeHtml(detail)}`, 'error', 6000);
   }

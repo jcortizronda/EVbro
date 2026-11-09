@@ -39,9 +39,10 @@ from sqlalchemy import select
 
 from app.config import get_timezone
 from app.core import commands
-from app.db.models import ChargePlan
+from app.db.models import ChargePlan, Vehicle
 from app.db.session import async_session_factory
 from app.services.charge_detector import grid_charging
+from app.services.notification_service import NotificationService
 from app.vehicle import charging
 from app.vehicle.constants import DEFAULT_CHARGE_DURATION_MIN, DEFAULT_CHARGE_START_MIN, MINUTES_PER_DAY
 
@@ -132,6 +133,7 @@ class ChargeManager:
         self._locks: dict[str, asyncio.Lock] = {}
         self._holds: dict[str, Optional[str]] = {}   # why EVBro is holding each car's charge (None = it is not)
         self._last_auto: dict[str, datetime.datetime] = {}   # last AUTOMATIC action attempted (successful or not)
+        self._hold_failed_told: set[str] = set()     # cars whose manager already heard that the pause at the target failed
         self._last_tick = 0.0
 
     # ───────────────────────── infrastructure ─────────────────────────
@@ -344,7 +346,25 @@ class ChargeManager:
             elif action == "refresh_hold":
                 await self._apply(s, row, "hold", "automático", row.hold_reason)
             elif action == "hold_target":
-                await self._apply(s, row, "hold", "automático", HOLD_TARGET)
+                try:
+                    await self._apply(s, row, "hold", "automático", HOLD_TARGET)
+                except ChargeError as err:
+                    await self._tell_hold_failed(s, vin, state.target_pct, err.message)
+                    raise
+                self._hold_failed_told.discard(vin)
+
+    async def _tell_hold_failed(self, session, vin: str, target_pct: int, detail: str) -> None:
+        """The target was reached but the pause did not get to the car (no stored PIN, a dead session, the car said no): it keeps
+        charging and whoever set the target must know. Once per failure streak: a retry comes every few minutes (09-11-2026: a
+        car charged past its target for lack of a stored PIN and nobody was told)."""
+        if vin in self._hold_failed_told:
+            return
+        self._hold_failed_told.add(vin)
+        name = (await session.execute(select(Vehicle.name).where(Vehicle.vin == vin))).scalar_one_or_none() or vin[-6:]
+        try:
+            await NotificationService.notify_charge_hold_failed(name, target_pct, detail, vin=vin)
+        except Exception:                                    # noqa: BLE001 — telling is secondary to the charge control itself
+            _LOGGER.exception("Charge manager (%s): the hold failure could not be notified", vin)
 
     async def tick(self) -> None:
         """Periodically checks that the pause window is not about to reopen. Cheap: it reads the DB."""

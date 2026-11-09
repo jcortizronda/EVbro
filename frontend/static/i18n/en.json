@@ -2192,5 +2192,9 @@
  "La nube de Ebro no incluye estas claves en las lecturas de este coche; otros modelos sí las mandan.": "The Ebro cloud does not include these keys in this car's readings; other models do send them.",
  "Sin posición": "No position",
  "Sin posición: la nube no da la ubicación de este coche, así que el viaje no tiene ruta ni direcciones; los kilómetros son del cuentakilómetros.": "No position: the cloud gives no location for this car, so the trip has no route or addresses; the kilometres come from the odometer.",
- "Finalizada": "Finished"
+ "Finalizada": "Finished",
+ "La nube de Ebro no permite «{p0}» en este coche.": "The Ebro cloud does not allow “{p0}” on this car.",
+ "Para pausar la carga al llegar al objetivo hace falta el PIN guardado en Ajustes → Cuenta.": "Pausing the charge at the target needs the PIN saved in Settings → Account.",
+ "No permitido": "Not allowed",
+ "La nube de Ebro no permite este mando en este coche (A00084). Pulsa para volver a intentarlo.": "The Ebro cloud does not allow this control on this car (A00084). Tap to try again."
 }

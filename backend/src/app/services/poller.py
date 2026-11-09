@@ -60,6 +60,8 @@ POLL_COALESCE_SECONDS = 5
 SESSION_RELOGIN_INTERVAL = datetime.timedelta(hours=24)
 # Raw keys remembered per car (`vehicles.reported_keys`); the cloud sends about a hundred
 MAX_REPORTED_KEYS = 300
+# The cloud's answer when a car has no permission for a command («No vehicle control command permission»): remembered per car
+NO_COMMAND_PERMISSION = "A00084"
 
 
 async def connected_owner_ids(session: AsyncSession) -> Set[int]:
@@ -67,10 +69,22 @@ async def connected_owner_ids(session: AsyncSession) -> Set[int]:
     return {uid for (uid,) in (await session.execute(select(EbroAccount.user_id).where(EbroAccount.is_active == True))).all() if uid is not None}  # noqa: E712
 
 
-def pollable(vehicle: Vehicle, connected: Set[int]) -> bool:
+class LoginFailed(RuntimeError):
+    """The Ebro cloud could not be entered with an account's password. `rejected` tells a refusal (wrong password, blocked
+    account: the manager has to act) from a network failure (nothing to conclude)."""
+
+    def __init__(self, message: str, rejected: bool) -> None:
+        super().__init__(message)
+        self.rejected = rejected
+
+
+def pollable(vehicle: Vehicle, connected: Set[int], lost: Set[int] = frozenset()) -> bool:
     """Whether a car can be read: its manager keeps an Ebro account connected, or the server runs on the account of its `.env`
-    (cars of nobody, or installs without any account in the database)."""
+    (cars of nobody, or installs without any account in the database). `lost`: managers whose account the cloud rejected
+    (password included); their cars wait for the account to be reconnected instead of failing every hour."""
     if vehicle.is_manual:
+        return False
+    if vehicle.owner_id is not None and vehicle.owner_id in lost:
         return False
     if vehicle.owner_id in connected:
         return True
@@ -227,18 +241,26 @@ class VehiclePoller:
                 _LOGGER.info("Auto-discovering vehicles from the environment's Ebro account...")
                 await self.discover_vehicles(account=None)
 
-    async def discover_vehicles(self, account: Optional[EbroAccount] = None) -> List[Vehicle]:
-        """Logs in to the Ebro cloud and discovers the vehicles linked to the account."""
+    async def discover_vehicles(self, account: Optional[EbroAccount] = None, strict: bool = False) -> List[Vehicle]:
+        """Discovers the vehicles linked to the account. With the session the account already holds when it still works (Chery
+        keeps one session per account: a password login throws the official app out, so it is the last resort); otherwise it
+        logs in with the stored password. `strict` raises `LoginFailed` instead of returning an empty list, so a request made
+        by the manager can tell «no new car» from «the cloud refuses the password» (09-11-2026: a manager whose password the
+        cloud rejected pressed «Buscar vehículos» twice and was told there were none)."""
         phone = None
         password = None
         area_code = "34"
 
         acc_user_id = None
+        token_data: Optional[dict] = None
         if account:
             phone = account.phone
             password = account.password
             area_code = account.area_code or "34"
             acc_user_id = account.user_id
+            if isinstance(account.token_data, dict) and account.token_data.get("access_token") \
+                    and not self.session_lost(account.id, account.last_login):
+                token_data = account.token_data
         else:
             async with async_session_factory() as session:
                 acc_stmt = select(EbroAccount).where(EbroAccount.is_active == True)
@@ -272,23 +294,53 @@ class VehiclePoller:
             return token_resp
 
         loop = asyncio.get_running_loop()
-        try:
-            token_data = await loop.run_in_executor(None, _do_login)
-        except Exception as e:
-            _LOGGER.error(f"Error logging in to Ebro: {e}")
-            return []
+        skip = await foreign_vins(owner_for_skip)
+        v_list: Optional[List[dict]] = None
+        if token_data is not None:
+            try:
+                v_list = await loop.run_in_executor(None, fetch_account_vehicles, token_data, skip)
+            except Exception as e:                            # noqa: BLE001 — a dead session: the password decides below
+                _LOGGER.info("The stored Ebro session of user %s could not list the cars (%s): logging in again", acc_user_id, type(e).__name__)
+                v_list = None
+        if v_list is None:
+            try:
+                token_data = await loop.run_in_executor(None, _do_login)
+            except RuntimeError as e:
+                # The cloud answered and said no: a manager's wrong or changed password, not a failure of EVBro
+                who = f"of user {acc_user_id}" if acc_user_id is not None else "of the environment"
+                _LOGGER.warning("The Ebro cloud rejected the password of the account %s: %s", who, _without_secrets(str(e)))
+                if strict and account is not None:
+                    self._session_lost[account.id] = account.last_login
+                if strict:
+                    raise LoginFailed(_without_secrets(str(e)), rejected=True) from e
+                return []
+            except Exception as e:                            # noqa: BLE001 — network or cryptography: the text may name hosts, it stays in the log
+                _LOGGER.warning("Could not log in to Ebro: %s", type(e).__name__)
+                if strict:
+                    raise LoginFailed(type(e).__name__, rejected=False) from e
+                return []
 
-        if not token_data or "access_token" not in token_data:
-            # Only the shape of the answer: it may carry partial tokens or account details that do not belong in the log.
-            _LOGGER.error("Invalid login answer (keys: %s)", sorted(token_data) if isinstance(token_data, dict) else type(token_data).__name__)
-            return []
+            if not token_data or "access_token" not in token_data:
+                # Only the shape of the answer: it may carry partial tokens or account details that do not belong in the log.
+                _LOGGER.error("Invalid login answer (keys: %s)", sorted(token_data) if isinstance(token_data, dict) else type(token_data).__name__)
+                if strict:
+                    raise LoginFailed("invalid answer", rejected=True)
+                return []
 
-        try:
-            skip = await foreign_vins(owner_for_skip)
-            v_list = await loop.run_in_executor(None, fetch_account_vehicles, token_data, skip)
-        except Exception as e:
-            _LOGGER.error(f"Error fetching the vehicle list: {e}")
-            v_list = []
+            try:
+                v_list = await loop.run_in_executor(None, fetch_account_vehicles, token_data, skip)
+            except Exception as e:                            # noqa: BLE001
+                _LOGGER.error(f"Error fetching the vehicle list: {e}")
+                v_list = []
+            if account is not None:
+                # The account carries the session just opened (the one the poller and the car's MQTT channel read)
+                async with async_session_factory() as session:
+                    acc = await session.get(EbroAccount, account.id)
+                    if acc is not None:
+                        acc.token_data = token_data
+                        acc.last_login = datetime.datetime.utcnow()
+                        await session.commit()
+                self._session_lost.pop(account.id, None)
 
         discovered = []
         async with async_session_factory() as session:
@@ -516,6 +568,13 @@ class VehiclePoller:
         return telemetry
 
     # ───────────────────────── Ebro session recovery ─────────────────────────
+    async def lost_owner_ids(self, session: AsyncSession) -> Set[int]:
+        """Managers whose active Ebro account the cloud rejected (session and stored password): their cars are not read until
+        the account is reconnected."""
+        rows = (await session.execute(select(EbroAccount.id, EbroAccount.user_id, EbroAccount.last_login)
+                                      .where(EbroAccount.is_active == True))).all()  # noqa: E712
+        return {uid for (acc_id, uid, last_login) in rows if uid is not None and self.session_lost(acc_id, last_login)}
+
     def session_lost(self, account_id: int, last_login: Optional[datetime.datetime]) -> bool:
         """True while the cloud rejects the stored password of this account (until the manager reconnects it)."""
         return account_id in self._session_lost and self._session_lost[account_id] == last_login
@@ -882,11 +941,15 @@ class VehiclePoller:
                 async with async_session_factory() as session:
                     vehicles = (await session.execute(select(Vehicle).where(Vehicle.is_manual.is_(False)))).scalars().all()
                     connected = await connected_owner_ids(session)
-                    stored_states = {v.vin: v.state for v in vehicles if pollable(v, connected)}
+                    lost = await self.lost_owner_ids(session)
+                    stored_states = {v.vin: v.state for v in vehicles if pollable(v, connected, lost)}
                     for v in vehicles:
                         if v.vin not in stored_states and v.vin not in self._unpolled_logged:
                             # A disconnected account: its token is dead and the cloud would only say so every hour (seen on a real install, 2026-11-08)
-                            _LOGGER.info("Vehicle %s is not polled: its manager has no connected Ebro account", v.vin[-6:])
+                            if v.owner_id in lost:
+                                _LOGGER.info("Vehicle %s is not polled: the Ebro cloud rejected its manager's account; it has to be reconnected", v.vin[-6:])
+                            else:
+                                _LOGGER.info("Vehicle %s is not polled: its manager has no connected Ebro account", v.vin[-6:])
                             self._unpolled_logged.add(v.vin)
                         elif v.vin in stored_states:
                             self._unpolled_logged.discard(v.vin)
@@ -1055,12 +1118,13 @@ class VehiclePoller:
             message = UNEXPECTED_COMMAND_ERROR
 
         await self._audit_command(vin, command_key, clean_params, success, code or reason, message, client_ip)
+        await self._remember_rejection(vin, command_key, success, code)
 
         # If the command succeeded, trigger a quick poll to refresh the state
         if success:
             asyncio.create_task(self.poll_vehicle(vin, force=True))
 
-        return {"success": success, "message": message, "reason": reason, "retry_after": 0}
+        return {"success": success, "message": message, "reason": reason, "code": code, "retry_after": 0}
 
     async def execute_internal(self, vin: str, command_key: str, params: Optional[Dict], origin: str) -> Dict:
         """A command EVBro sends itself (e.g. the charge manager): it uses the stored PIN and does NOT go through the
@@ -1083,9 +1147,31 @@ class VehiclePoller:
             _LOGGER.exception("Unexpected failure sending '%s' (%s) to %s", command_key, origin, vin[-6:])
             message = UNEXPECTED_COMMAND_ERROR
         await self._audit_command(vin, command_key, params, success, code or reason, message, origin)
+        await self._remember_rejection(vin, command_key, success, code)
         if success:
             asyncio.create_task(self.poll_vehicle(vin, force=True))
-        return {"success": success, "message": message, "reason": reason}
+        return {"success": success, "message": message, "reason": reason, "code": code}
+
+    @staticmethod
+    async def _remember_rejection(vin: str, command_key: str, success: bool, code: Optional[str]) -> None:
+        """`A00084` is the cloud saying this car has no permission for the command (the S900 answers it to the rear window
+        heater, 08-11-2026, five tries by its owner). Kept per car in `vehicles.rejected_commands` so the interface and the
+        Home Assistant discovery can say so; an accepted send takes the command off the list again."""
+        if not success and code != NO_COMMAND_PERMISSION:
+            return
+        async with async_session_factory() as session:
+            vehicle = (await session.execute(select(Vehicle).where(Vehicle.vin == vin))).scalar_one_or_none()
+            if vehicle is None:
+                return
+            current = list(vehicle.rejected_commands or [])
+            if success and command_key in current:
+                current.remove(command_key)
+            elif not success and command_key not in current:
+                current.append(command_key)
+            else:
+                return
+            vehicle.rejected_commands = sorted(current)
+            await session.commit()
 
     @staticmethod
     async def _pin_policy(vin: str) -> str:

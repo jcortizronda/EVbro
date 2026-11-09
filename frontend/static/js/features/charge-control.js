@@ -70,7 +70,11 @@
 
     const warn = $('chargeWarning');
     if (warn) {
-      const msg = plan.last_error ? t('El último cambio no llegó al coche: {p0}', {p0: plan.last_error}) : '';
+      let msg = plan.last_error ? t('El último cambio no llegó al coche: {p0}', {p0: plan.last_error}) : '';
+      // A target below 100 % is enforced by EVBro itself sending the pause: that needs the PIN saved in the account (09-11-2026:
+      // a car charged past its target because there was none, and the only trace was a line in the audit log)
+      const noPin = typeof currentAccountInfo !== 'undefined' && currentAccountInfo && currentAccountInfo.has_pin === false;
+      if (!msg && plan.target_pct < 100 && noPin) msg = t('Para pausar la carga al llegar al objetivo hace falta el PIN guardado en Ajustes → Cuenta.');
       warn.textContent = msg; warn.hidden = !msg;
     }
 

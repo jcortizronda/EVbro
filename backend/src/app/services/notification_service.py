@@ -533,6 +533,20 @@ class NotificationService:
         )
 
     @classmethod
+    async def notify_charge_hold_failed(cls, vehicle_name: str, target_pct: int, detail: str, vin: Optional[str] = None):
+        """EVBro reached the battery target but could not pause the charge: the car keeps charging. Not a switchable category:
+        the manager asked for the target and must learn it is not being enforced."""
+        await cls.dispatch(
+            vin=vin,
+            category="charge_control",
+            title=M("No se pudo pausar la carga: {p0}", p0=vehicle_name),
+            message=Message.join(" ", [M("La batería ha llegado al objetivo del {p0} % pero el coche no aceptó la orden de pausa y sigue cargando.", p0=target_pct),
+                                       M("Motivo: {p0}", p0=detail)]),
+            tags=["battery", "warning"],
+            priority="high",
+        )
+
+    @classmethod
     async def notify_account_session_lost(cls, user_id: int, vehicle_names: List[str]):
         """The Ebro cloud rejects the session and the stored password: only the manager who connected the account can fix it, so it
         goes to that account alone (not to the members) and is not one of the switchable categories."""
