@@ -2231,5 +2231,6 @@
  "Vence el {p0} ({p1} meses después de la anterior)": "Due on {p0} ({p1} months after the previous one)",
  "Borrar este registro": "Delete this record",
  "¿Borrar este registro del historial? Si es una revisión oficial, volverá a contar como pendiente. Su factura también se borra.": "Delete this record from the history? If it is an official service, it will count as pending again. Its invoice is deleted too.",
- "Registro borrado.": "Record deleted."
+ "Registro borrado.": "Record deleted.",
+ "Puesta por un repostaje anterior en el mismo sitio. Cámbiala si no es esta.": "Filled in from an earlier fuel-up at the same spot. Change it if it is not this one."
 }

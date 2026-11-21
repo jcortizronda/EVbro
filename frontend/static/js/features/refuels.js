@@ -20,10 +20,18 @@ async function loadRefuels() {
     if (!res.ok) throw new Error(res.status);
     const data = await res.json();
     refuelsData = data.refuels;
+    fillStationList(data.stations || []);
     renderRefuels(data);
   } catch (err) {
     console.warn('Could not load the refuels:', err);
   }
+}
+
+// The stations already used, most used first: the «Gasolinera» field suggests them as you type
+function fillStationList(stations) {
+  const list = rfEl('rfStationList');
+  if (!list) return;
+  list.replaceChildren(...stations.map((s) => Object.assign(document.createElement('option'), { value: s.name })));
 }
 
 function setRefuelsPeriod(period) {
@@ -103,7 +111,10 @@ function openRefuelModal(id) {
   rfEl('rfFull').checked = r ? !!r.full_tank : true;
   rfEl('rfPrice').value = r && r.price_per_liter ? r.price_per_liter : '';
   rfEl('rfTotal').value = '';
-  rfEl('rfStation').value = r ? r.station || '' : '';
+  // A refuel without a name at the spot of an earlier one gets that station's name (the hint says so)
+  const suggested = r && !r.station && r.station_suggestion;
+  rfEl('rfStation').value = r ? r.station || suggested || '' : '';
+  rfEl('rfStationHint').hidden = !suggested;
   rfEl('rfNotes').value = r ? r.notes || '' : '';
   document.querySelector('input[name="rfMode"][value="price"]').checked = true;
   setRefuelMode('price');

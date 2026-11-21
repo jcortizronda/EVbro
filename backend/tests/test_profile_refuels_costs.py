@@ -238,6 +238,27 @@ async def test_a_detected_refuel_is_completed_with_the_price_and_the_real_litres
     assert (await web.put("/api/refuels/9999", json={"liters": 3})).status_code == 404
 
 
+async def test_the_station_field_suggests_the_stations_already_used(web) -> None:
+    """21-11-2026: the same station typed by hand on every refuel. The names come from the refuels themselves."""
+    async with async_session_factory() as s:
+        s.add_all([
+            Refuel(vin=VIN, timestamp=D(2026, 9, 1, 10), liters=40, detected=False, station="Repsol Centro", latitude=37.0, longitude=-6.0),
+            Refuel(vin=VIN, timestamp=D(2026, 10, 1, 10), liters=41, detected=False, station="repsol  centro "),
+            Refuel(vin=VIN, timestamp=D(2026, 10, 15, 10), liters=30, detected=False, station="BP Norte", latitude=37.1, longitude=-6.0),
+            # detected at the pump of the first one (some 60 m away) and still without a name
+            Refuel(vin=VIN, timestamp=D(2026, 11, 1, 10), liters=35, detected=True, fuel_before_pct=20, fuel_after_pct=90,
+                   latitude=37.0005, longitude=-6.0003),
+            Refuel(vin=VIN, timestamp=D(2026, 11, 10, 10), liters=35, detected=True, fuel_before_pct=20, fuel_after_pct=90,
+                   latitude=37.05, longitude=-6.0),                                                   # far from all of them
+        ])
+        await s.commit()
+    d = (await web.get(f"/api/vehicles/{VIN}/refuels/summary")).json()
+    assert d["stations"] == [{"name": "repsol centro", "count": 2}, {"name": "BP Norte", "count": 1}]    # most used first, latest spelling
+    by_day = {r["timestamp"][:10]: r["station_suggestion"] for r in d["refuels"]}
+    assert by_day["2026-11-01"] == "Repsol Centro" and by_day["2026-11-10"] is None
+    assert by_day["2026-09-01"] is None                                                              # it has its own name
+
+
 # ───────────────────────── costs ─────────────────────────
 async def test_costs_add_up_purchase_charges_refuels_and_maintenance(web) -> None:
     await web.put(f"/api/vehicles/{VIN}", json={"purchase_price": 30000, "delivery_date": "2025-01-10T00:00:00", "purchase_odometer": 5000})

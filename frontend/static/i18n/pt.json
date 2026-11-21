@@ -2231,5 +2231,6 @@
  "Vence el {p0} ({p1} meses después de la anterior)": "Vence a {p0} ({p1} meses depois da anterior)",
  "Borrar este registro": "Apagar este registo",
  "¿Borrar este registro del historial? Si es una revisión oficial, volverá a contar como pendiente. Su factura también se borra.": "Apagar este registo do histórico? Se for uma revisão oficial, voltará a contar como pendente. A sua fatura também é apagada.",
- "Registro borrado.": "Registo apagado."
+ "Registro borrado.": "Registo apagado.",
+ "Puesta por un repostaje anterior en el mismo sitio. Cámbiala si no es esta.": "Preenchida a partir de um abastecimento anterior no mesmo local. Altere-a se não for esta."
 }

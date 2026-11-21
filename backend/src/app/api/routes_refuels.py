@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Refuel, Vehicle
 from app.db.session import get_db
-from app.services import periods, refuel_stats
+from app.services import periods, refuel_stations, refuel_stats
 from app.timeutil import utcnow
 
 router = APIRouter(tags=["Refuels"])
@@ -88,7 +88,9 @@ async def refuel_summary(vin: str, period: str = Query("all"), frm: Optional[str
     per = stats.pop("per_refuel")
     selected = sorted((r for r in rows if periods.inside(r.timestamp, (since, until))), key=lambda r: r.timestamp, reverse=True)
     stats["period"], stats["from"], stats["to"] = period, frm, to
-    stats["refuels"] = [{**serialize(r), **{k: per[r.id].get(k) for k in ("km_since_previous", "l_per_100km", "km_since_full")}} for r in selected]
+    stats["refuels"] = [{**serialize(r), **{k: per[r.id].get(k) for k in ("km_since_previous", "l_per_100km", "km_since_full")},
+                         "station_suggestion": refuel_stations.suggest_station(r, rows)} for r in selected]
+    stats["stations"] = refuel_stations.used_stations(rows)        # for the «Gasolinera» field: no need to type the same name again
     return stats
 
 

@@ -154,7 +154,18 @@ with sync_playwright() as p:
         pg.click("#rfList .costs-row-btn >> nth=0")
         pg.wait_for_timeout(300)
         ok(pg.input_value("#rfLiters") == "30" and pg.is_checked("#rfFull"), f"{tag}: tapping it opens it for editing")
+        ok(pg.is_hidden("#rfStationHint"), f"{tag}: a refuel with its own station shows no suggestion note")
         pg.click("#refuelModal >> text=Cancelar")
+        # Stations already used: suggested in the field, and a detected refuel at the same spot gets the name filled in
+        stations = pg.evaluate("[...document.querySelectorAll('#rfStationList option')].map(o => o.value)")
+        ok("Repsol" in stations, f"{tag}: the station field suggests the stations already used ({stations})")
+        pg.evaluate("""() => { refuelsData.push({ id: 99999, timestamp: '2026-11-20T10:00:00', liters: 35.5, liters_estimated: true,
+            fuel_before_pct: 20, fuel_after_pct: 90, full_tank: true, station: null, station_suggestion: 'Repsol' }); openRefuelModal(99999); }""")
+        pg.wait_for_timeout(300)
+        ok(pg.input_value("#rfStation") == "Repsol" and pg.is_visible("#rfStationHint"), f"{tag}: a detected refuel at a known spot gets its station, with a note")
+        pg.screenshot(path=f"{OUT}/refuel-station-{theme}.png")
+        pg.click("#refuelModal >> text=Cancelar")
+        pg.evaluate("refuelsData = refuelsData.filter(r => r.id !== 99999)")
         pg.screenshot(path=f"{OUT}/refuels-{theme}.png", full_page=True)
         over = pg.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
         ok(over <= 0, f"{tag}: refuels without horizontal overflow ({over} px)")
