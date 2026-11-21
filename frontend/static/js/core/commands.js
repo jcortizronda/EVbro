@@ -334,11 +334,18 @@ async function saveAccountPin(pin) {
  */
 async function openUpdatePinModal() {
   const currentStatus = currentAccountInfo?.has_pin ? "Hay un PIN guardado actualmente en tu cuenta." : "No hay ningún PIN guardado en tu cuenta.";
-  const newPin = await promptDialog(t('{p0}\nIntroduce el PIN de 4 a 6 dígitos para las órdenes que no piden confirmación, como el clima o las luces (déjalo en blanco para eliminarlo). Las que abren el coche siempre te lo pedirán.', {p0: currentStatus}),
+  // What happens after saving depends on «Pedir el PIN» (services/command_policy.py): say only what is true for the current choice
+  const policy = currentAccountInfo?.pin_policy || 'open';
+  const policyNote = {
+    open: t('Las órdenes que abren, desbloquean o desarman el coche te lo pedirán cada vez.'),
+    always: t('Con «Pedir el PIN: Siempre», todas las órdenes te lo pedirán igualmente.'),
+    never: t('Con «Pedir el PIN: Nunca», ninguna orden te lo pedirá.'),
+  }[policy] || '';
+  const newPin = await promptDialog(t('{p0}\nIntroduce el PIN de 4 a 6 dígitos que usará EVBro para las órdenes que no te lo pidan (déjalo en blanco para eliminarlo). {p1}', {p0: currentStatus, p1: policyNote}),
     { title: 'PIN de órdenes rápidas', type: 'password', inputmode: 'numeric', placeholder: '••••••', maxLength: 6, confirmText: 'Guardar' });
   if (newPin === null) return; // Cancelled
 
   saveAccountPin(newPin.trim()).then(() => {
-    showToast(newPin.trim() ? 'PIN guardado. Las órdenes que abren el coche seguirán pidiéndolo cada vez.' : 'PIN eliminado. Las órdenes volverán a pedir el PIN.', 'success', 6000);
+    showToast(newPin.trim() ? t('PIN guardado. {p0}', {p0: policyNote}) : 'PIN eliminado. Las órdenes volverán a pedir el PIN.', 'success', 6000);
   });
 }

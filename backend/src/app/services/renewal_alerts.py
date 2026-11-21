@@ -1,6 +1,6 @@
 """Dated deadlines: the insurance renewal (car sheet) and expenses with a «próxima fecha» (road tax, etc.).
 
-Only reads the DB. Each alert carries a stable `key` and `repeat_hours`: how long to wait before repeating it (the poller applies it).
+Only reads the DB. Each alert carries a stable `key` with its band (warning, urgent, overdue): the poller sends each key once.
 """
 from __future__ import annotations
 
@@ -11,9 +11,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Expense, Vehicle
+from app.timeutil import utcnow
 
 WARN_DAYS = 30           # how early the alert starts
-URGENT_DAYS = 7          # from here on the alert is daily
+URGENT_DAYS = 7          # a second alert in the last week
 CATEGORY_LABEL = {"insurance": "el seguro", "tax": "el impuesto", "parking": "el garaje", "tolls": "los peajes", "fines": "la multa",
                   "wash": "el lavado", "accessories": "los accesorios", "other": "el gasto"}
 
@@ -22,17 +23,12 @@ def _alert(key: str, label: str, due: datetime.date, today: datetime.date) -> Op
     days = (due - today).days
     if days > WARN_DAYS:
         return None
-    if days < 0:
-        band, repeat = "overdue", 72
-    elif days <= URGENT_DAYS:
-        band, repeat = "urgent", 24
-    else:
-        band, repeat = "warning", 7 * 24
-    return {"key": f"{key}:{band}", "label": label, "remaining_days": days, "is_overdue": days < 0, "repeat_hours": repeat}
+    band = "overdue" if days < 0 else ("urgent" if days <= URGENT_DAYS else "warning")
+    return {"key": f"{key}:{band}", "label": label, "remaining_days": days, "is_overdue": days < 0}
 
 
 async def collect_renewals(session: AsyncSession, vin: str, now: Optional[datetime.datetime] = None) -> List[Dict[str, Any]]:
-    now = now or datetime.datetime.utcnow()
+    now = now or utcnow()
     today = now.date()
     out: List[Dict[str, Any]] = []
     vehicle = (await session.execute(select(Vehicle).where(Vehicle.vin == vin))).scalar_one_or_none()

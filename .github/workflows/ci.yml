@@ -23,6 +23,48 @@ jobs:
       - run: ruff check src tests
       - run: python -m pytest -q          # BD SQLite temporal: no necesita PostgreSQL
 
+  browser:
+    # The interface in a real browser (tools/e2e) against the isolated demo server: Inicio, Confort, Energía and the page's security
+    # policy, at 390 px in light and dark; then every screen at phone widths in two languages. They used to run only by hand.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements*
+            tools/e2e/requirements.txt
+      - name: Server and Playwright in backend/.venv (what tools/e2e/demo_server.sh uses)
+        working-directory: backend
+        run: |
+          python -m venv .venv
+          . .venv/bin/activate
+          pip install -r requirements.lock -r ../tools/e2e/requirements.txt
+          python -m playwright install --with-deps chromium
+      - run: tools/e2e/demo_server.sh start
+      - name: Browser tests
+        run: |
+          . backend/.venv/bin/activate
+          for t in home comfort charge csp; do
+            echo "== $t"
+            python "tools/e2e/$t.py" "$RUNNER_TEMP/shots-$t"
+          done
+      - name: Every screen at 360, 390 and 430 px, in Spanish and light and in English and dark (no overflow, no JavaScript errors)
+        env:
+          EVBRO_URL: http://127.0.0.1:8099
+          EVBRO_USER: juan
+          EVBRO_PASSWORD: una-contraseña-larga-1
+        run: |
+          . backend/.venv/bin/activate
+          python tools/mobile_check.py --lang es --theme light
+          python tools/mobile_check.py --lang en --theme dark
+      - name: Demo server log
+        if: failure()
+        run: |
+          cat /tmp/evbro-e2e/server.log 2>/dev/null || echo "The demo server did not start, see the step that launched it"
+
   audit:
     # Known vulnerabilities in the pinned versions. It fails the build on purpose: bump the version in requirements.lock.
     runs-on: ubuntu-latest

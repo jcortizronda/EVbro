@@ -74,7 +74,7 @@ def _read_or_create_key_file(path: str) -> str:
         fh.write(value)
     _LOGGER.warning(
         "Encryption key generated at %s. Back this file up (or set ENCRYPTION_KEY): "
-        "without it the stored credentials cannot be read.", path)
+        "without it the stored credentials cannot be read.", path, extra={"telemetry": False})
     return value
 
 

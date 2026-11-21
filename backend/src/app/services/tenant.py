@@ -28,6 +28,8 @@ from app.db.models import (
     VehicleDocument,
 )
 from app.services import uploads
+from app.services.accounts import remove_vehicle_data
+from app.services.ebro_sessions import remove_account_session
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -67,6 +69,11 @@ async def delete_vehicles(session: AsyncSession, vins: List[str]) -> None:
     for folder, names in ((uploads.PHOTOS_FOLDER, photos), (uploads.INVOICES_FOLDER, invoices), (uploads.DOCUMENTS_FOLDER, documents)):
         for name in names:
             uploads.remove(folder, name)
+    for vin in vins:                      # its folder: an old copy of the Ebro session and the taskId are credentials
+        try:
+            remove_vehicle_data(vin)
+        except ValueError:
+            pass
 
 
 async def delete_manager_space(session: AsyncSession, manager_id: int) -> Dict[str, int]:
@@ -77,7 +84,10 @@ async def delete_manager_space(session: AsyncSession, manager_id: int) -> Dict[s
     for member_id in member_ids:
         await delete_member(session, member_id)
     await session.execute(delete(Geofence).where(Geofence.owner_id == manager_id))
+    accounts = [a for (a,) in (await session.execute(select(EbroAccount.id).where(EbroAccount.user_id == manager_id))).all()]
     await session.execute(delete(EbroAccount).where(EbroAccount.user_id == manager_id))
+    for account_id in accounts:          # the Ebro session its cars shared (services/ebro_sessions.py)
+        remove_account_session(account_id)
     await delete_member(session, manager_id)
     removed = {"vehicles": len(vins), "members": len(member_ids)}
     _LOGGER.warning("Space of manager #%s deleted: %s", manager_id, removed)

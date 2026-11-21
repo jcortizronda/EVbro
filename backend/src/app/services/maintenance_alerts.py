@@ -10,11 +10,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.routes_maintenance import calculate_item_health
 from app.db.models import MaintenanceItem, MaintenancePlan, Vehicle
 from app.services import maintenance_official as official
+from app.timeutil import utcnow
 
 
 async def collect_alerts(session: AsyncSession, vin: str, odometer: float, now: Optional[datetime.datetime] = None) -> List[Dict[str, Any]]:
     """What is upcoming or overdue right now. Each alert carries a stable `key` so it is not repeated every day."""
-    now = now or datetime.datetime.utcnow()
+    now = now or utcnow()
     vehicle = (await session.execute(select(Vehicle).where(Vehicle.vin == vin))).scalar_one_or_none()
     plan = await session.get(MaintenancePlan, vin)
     mode = plan.mode if plan else "official"
@@ -34,12 +35,13 @@ async def collect_alerts(session: AsyncSession, vin: str, odometer: float, now: 
 
     if mode == "official":
         logs = await _official_logs(session, vin)
-        last_done = max((log.revision_km for log in logs), default=None)
+        last_log = max(logs, key=lambda log: log.revision_km, default=None)
         nxt = official.official_next(
-            odometer, now.date(), last_done,
+            odometer, now.date(), last_log.revision_km if last_log else None,
             (vehicle.delivery_date if vehicle else None) or (plan.baseline_date if plan else None),
             (plan.baseline_odometer if plan else 0.0) or 0.0,
             vehicle.model if vehicle else None,
+            last_log.odometer if last_log else None, last_log.service_date if last_log else None,
         )
         if nxt and nxt["status"] != "ok":
             alerts.append({

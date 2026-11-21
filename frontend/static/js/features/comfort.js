@@ -42,7 +42,7 @@
 
   const CONTROLS = [
     { id: 'ac', group: 'ac', label: 'Climatizador', rawKeys: ['frontHVACState'], read: (t) => t.climate_on,
-      on: () => ['clima_on', t('Encender climatizador a {p0} °C', {p0: currentTargetTemp.toFixed(1)}), { temperature: currentTargetTemp.toFixed(1) }],
+      on: () => ['clima_on', t('Encender climatizador a {p0} °C', {p0: historyNum(currentTargetTemp, 1)}), { temperature: currentTargetTemp.toFixed(1) }],
       off: () => ['clima_off', 'Apagar climatizador', null] },
     { id: 'windshield', group: 'defrost', icon: ICONS.windshield, label: 'Parabrisas', hint: 'Desempañar delantero',
       rawKeys: ['frontWindshieldHeat', 'fWinHeatingState'], read: (t) => t.front_windshield_heat,
@@ -234,7 +234,7 @@
     const id = 'ac';
     if (pending.has(id)) return;
     pending.add(id); renderComfort();
-    try { await executeCommandDirect('clima_on', t('Encender climatizador a {p0} °C', {p0: celsius}), { temperature: celsius.toFixed(1) }); }
+    try { await executeCommandDirect('clima_on', t('Encender climatizador a {p0} °C', {p0: historyNum(celsius, 1)}), { temperature: celsius.toFixed(1) }); }
     finally { pending.delete(id); }
     renderComfort();
   }

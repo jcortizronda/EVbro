@@ -1,13 +1,14 @@
 """Vehicle and live telemetry routes."""
 from __future__ import annotations
 
+import asyncio
 import datetime
 import re
 import uuid
 from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,6 +18,7 @@ from app.i18n import _
 from app.security import auth
 from app.security.access import accessible_vehicles, within_vehicle_limit
 from app.services import energy_recalc, storage, uploads, vehicle_profiles
+from app.services.car_events import CHANNEL_RUNNING, CarEventHub
 from app.services.poller import LoginFailed, VehiclePoller, connected_owner_ids, pollable
 
 router = APIRouter(prefix="/vehicles", tags=["Vehicles"])
@@ -70,8 +72,7 @@ class VehicleOut(BaseModel):
     reported_keys: Optional[List[str]] = None     # raw keys the cloud has ever sent for this car (None/empty = not known yet: show everything)
     rejected_commands: Optional[List[str]] = None # commands the cloud refused with A00084 on this car (the controls say so; nothing is hidden)
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class VehicleUpdate(BaseModel):
@@ -308,6 +309,11 @@ async def discover_vehicles(session: AsyncSession = Depends(get_db), user: AppUs
         if exc.rejected:
             raise HTTPException(status_code=424, detail=_("La nube de Ebro rechaza la contraseña guardada de tu cuenta. Vuelve a conectarla en Ajustes → Cuenta.")) from exc
         raise HTTPException(status_code=502, detail=_("No se pudo conectar con la nube de Ebro. Inténtalo de nuevo en unos minutos.")) from exc
+    # The account works again, so the car's live channel should too: a manager does not tell one from the other (14-11-2026: after
+    # using the official app, «Sincronizar» brought commands back but the channel stayed stopped until «Reconectar» in Conexiones)
+    hub = CarEventHub.get_instance()
+    if hub.status_for(user.id).get("state") not in CHANNEL_RUNNING:
+        asyncio.create_task(hub.restart_owner(user.id, poller))
     return {"status": "ok", "count": len(vehicles), "vehicles": [v.vin for v in vehicles]}
 
 

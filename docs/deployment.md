@@ -43,6 +43,7 @@ El nombre del proyecto es fijo (`evbro`): los volúmenes (`evbro_evbro_data` con
 | `TELEMETRY_RECEIVER` | `false` | Solo el servidor del proyecto: recibe los informes de otras instalaciones y los muestra en la pestaña Informes de su consola |
 | `POLL_INTERVAL_PARKED_MIN` / `_PLUGGED_MIN` / `_CHARGING_MIN` / `_DRIVING_MIN` / `_DRIVING_IDLE_MIN` | `60` / `30` / `2` / `1` / `3` | Cada cuánto se consulta la nube según el estado (0 = no sondear). No despierta el coche, pero compite con la app oficial: no bajarlos sin motivo |
 | `CAR_MQTT_ENABLED` / `CAR_MQTT_HOST` / `CAR_MQTT_PORT` | `false` / nube de Ebro / `8083` | Canal en directo con el coche (puertas, cierre, cable, motor, confirmaciones). Solo la cuenta propietaria; la nube admite un cliente por cuenta |
+| `AUTO_LOCATE_ENABLED` | `false` | Experimento: cuando la nube repite la misma posición con el coche en marcha, EVBro manda «Localizar coche (GPS)» con el PIN guardado (uno cada 5 min y dos por episodio como mucho, y uno al pararse si el último punto se quedó 2 km atrás; [trips.md](trips.md), «Posición congelada»). Visto funcionar en un S900 el 21-11-2026. |
 | `MQTT_ENABLED` / `MQTT_HOST` / `MQTT_PORT` / `MQTT_USER` / `MQTT_PASSWORD` / `MQTT_TOPIC_PREFIX` / `MQTT_PUBLISH_SCOPE` / `MQTT_HA_DISCOVERY` / `MQTT_HA_PREFIX` | `false` / `mosquitto` / `1883` / — / — / `evbro` / `owner` / `true` / `homeassistant` | Publicar los coches en tu broker MQTT (Home Assistant los descubre). Cada gestor puede conectar el suyo desde Ajustes → Cuenta |
 | `EVBRO_TAG` / `EVBRO_IMAGE_OWNER` / `EVBRO_COMMIT` | `latest` / `jcortizronda` / vacío | Imagen a usar y commit que se muestra en Ajustes → Sistema |
 
@@ -112,6 +113,14 @@ evbro.example.com {
 1. Abre la URL pública, crea el usuario de EVBro con el **código de configuración** del log.
 2. **Ajustes → Cuenta**: conecta tu teléfono, contraseña y PIN de Ebro (se guardan cifrados).
 3. **Ajustes → Avisos → Activar en este dispositivo** para las notificaciones.
+
+## Registro
+
+Además de la salida de `docker compose logs app`, EVBro escribe el registro en el **volumen de datos**, `logs/evbro.log`: el de Docker se pierde cada vez que se recrea el contenedor, es decir, en cada actualización. El fichero rota a los 5 MB y guarda cuatro anteriores (`evbro.log.1` … `evbro.log.4`), y entra en la copia diaria del volumen. Para leerlo:
+
+```bash
+docker compose exec app tail -n 200 /app/data/logs/evbro.log
+```
 
 ## Copias de seguridad
 

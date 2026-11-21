@@ -12,7 +12,6 @@ from app.db.models import AppUser, DeviceAccess, NotificationLog, PushSubscripti
 from app.db.session import async_session_factory
 from app.main import app
 from app.security import auth, passwords
-from app.services import poller as poller_mod
 from app.services.notification_service import NotificationService, webhook_url_problem
 from app.services.poller import VehiclePoller
 
@@ -200,9 +199,8 @@ async def test_the_low_fuel_threshold_is_a_car_setting_and_alerts_go_per_car(wor
     async def fuel(cls, name, pct, rng=None, **kwargs):
         calls.append((name, pct, kwargs.get("vin")))
 
-    monkeypatch.setattr(poller_mod.NotificationService, "notify_fuel_low", classmethod(fuel))
+    monkeypatch.setattr(NotificationService, "notify_fuel_low", classmethod(fuel))
     p = VehiclePoller.get_instance()
-    p.__dict__.pop("_last_fuel_alert_time", None)
     async with async_session_factory() as s:
         a = await s.get(Vehicle, 1) if False else (await s.execute(select(Vehicle).where(Vehicle.vin == VIN_A))).scalar_one()
         a.fuel_low_threshold = 30
@@ -210,7 +208,15 @@ async def test_the_low_fuel_threshold_is_a_car_setting_and_alerts_go_per_car(wor
         await s.commit()
         await p._check_and_dispatch_alerts(s, a, {"fuel_level": 25.0})         # 25 % <= 30 %: warns
         await p._check_and_dispatch_alerts(s, b, {"fuel_level": 25.0})         # 25 % > the default 15 %: does not
-    assert calls == [("Coche de Ana", 25.0, VIN_A)]
+        await s.commit()
+        for level in (24.0, 20.0, 33.0, 28.0):                                 # still low, and 33 % is the gauge swaying: said once
+            await p._check_and_dispatch_alerts(s, a, {"fuel_level": level})
+        await s.commit()
+        assert calls == [("Coche de Ana", 25.0, VIN_A)]
+        await p._check_and_dispatch_alerts(s, a, {"fuel_level": 80.0})         # refuelled: the episode ends
+        await p._check_and_dispatch_alerts(s, a, {"fuel_level": 29.0})
+        await s.commit()
+    assert calls == [("Coche de Ana", 25.0, VIN_A), ("Coche de Ana", 29.0, VIN_A)]
 
 
 async def test_only_the_owner_edits_the_car_thresholds_and_they_are_validated(world) -> None:

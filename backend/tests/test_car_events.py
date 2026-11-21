@@ -240,9 +240,39 @@ async def test_connections_lasting_seconds_stop_the_service() -> None:
         client.on_connected(True, 0)
         client.on_disconnected(7)             # another client kicks us out instantly
         await flush()
-    assert svc.state == "conflict" and "Home Assistant" in svc.detail
+    assert svc.state == "conflict" and "otra app usa tu cuenta" in svc.detail
     await asyncio.sleep(0.05)
     assert client.disconnected is True
+
+
+async def test_a_channel_stopped_by_another_app_only_comes_back_when_the_manager_asks() -> None:
+    """Owner's decision, 14-11-2026: after the official app takes the account, EVBro does not reconnect the channel by itself, not
+    after reopening the session on its own and not after a restart of the server; «Reconectar» or «Sincronizar» do."""
+    svc, poller = await start_service()
+    client = FakeClient.instances[0]
+    for _ in range(ce.FLAP_MAX_EPHEMERAL):
+        client.on_connected(True, 0)
+        client.on_disconnected(7)
+        await flush()
+    assert svc.state == "conflict" and svc.stopped_by_conflict()
+
+    # the server restarts: a new service for the same account reads the mark and stays stopped
+    again = ce.CarEventService(client_factory=FakeClient)
+    await again.start(poller)
+    assert again.state == "conflict" and len(FakeClient.instances) == 1
+
+    # EVBro reopened the session with the stored password: the channel is left alone
+    hub = ce.CarEventHub()
+    hub._services[0] = again
+    async def vins_of(owner_id):
+        return None
+    hub._vins_of = vins_of
+    await hub.resume_owner(0, poller)
+    assert again.state == "conflict" and len(FakeClient.instances) == 1
+
+    # the manager presses «Reconectar»: the mark goes and it connects
+    await hub.restart_owner(0, poller)
+    assert not again.stopped_by_conflict() and again.state == "connecting" and len(FakeClient.instances) == 2
 
 
 async def test_a_disconnection_after_a_long_time_is_not_a_conflict(monkeypatch) -> None:
@@ -341,3 +371,39 @@ async def test_the_status_api_requires_a_session_and_answers(db) -> None:
         r = await c.get("/api/car-events/status")
         assert r.status_code == 200 and {"enabled", "state", "detail", "messages", "awake"} <= set(r.json())
         assert (await c.post("/api/car-events/reconnect")).status_code == 200
+
+
+# ───────────────────────── what the car answered stays next to its order ─────────────────────────
+async def test_the_cars_answer_is_kept_on_the_order_it_answers(db) -> None:
+    """17-11-2026: two «Cerrar ventanillas» were accepted by the cloud and a window went on reading ajar; what the car had
+    answered was nowhere, because the confirmation only went to the web."""
+    import datetime
+
+    from sqlalchemy import select
+
+    from app.db.models import CommandAudit
+    sent = datetime.datetime(2026, 11, 17, 18, 46, 20)
+    seq = f"{VIN}-{int(sent.replace(tzinfo=datetime.timezone.utc).timestamp() * 1000)}"
+    async with async_session_factory() as s:
+        s.add(Vehicle(owner_id=1, vin=VIN, name="Ebro"))
+        s.add(CommandAudit(vin=VIN, command="bloquear", success=True, timestamp=sent - datetime.timedelta(minutes=10)))
+        s.add(CommandAudit(vin=VIN, command="ventanillas_cerrar", success=False, code="A00082", timestamp=sent + datetime.timedelta(seconds=2)))
+        s.add(CommandAudit(vin=VIN, command="ventanillas_cerrar", success=True, timestamp=sent + datetime.timedelta(seconds=7)))
+        await s.commit()
+    svc, _poller, client = await connected()
+
+    async def results():
+        await flush()
+        async with async_session_factory() as s:
+            return [(r.command, r.success, r.car_result) for r in (await s.execute(select(CommandAudit).order_by(CommandAudit.id))).scalars()]
+
+    client.on_message(payload({"result": "5", "hasAsy": "1", "seq": seq}, "1108"), svc._topic)
+    assert [r[2] for r in await results()] == [None, None, "Comando en ejecución en el coche… ⏳"]
+    client.on_message(payload({"result": "9", "seq": seq, "reason": ["window not initialized"]}, "1108"), svc._topic)
+    rows = await results()
+    assert rows[2][2].startswith("El coche ha señalado un problema ❌") and "window not initialized" in rows[2][2]
+    # an order sent from another app (no row of ours at that moment, or a `seq` that is not ours) touches nothing
+    client.on_message(payload({"result": "1", "seq": f"{VIN}-{int(sent.replace(tzinfo=datetime.timezone.utc).timestamp() * 1000) + 3_600_000}"}, "1108"), svc._topic)
+    client.on_message(payload({"result": "1", "seq": "another-app-77"}, "1108"), svc._topic)
+    assert await results() == rows
+    assert ce.sent_at_from_seq(VIN, seq) == sent and ce.sent_at_from_seq(VIN, None) is None

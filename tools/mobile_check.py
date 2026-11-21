@@ -10,6 +10,10 @@ visible element goes past the right edge. The two checks below were a real heada
 
 With `--shots DIR` it also saves a screenshot of each screen to review by eye. Screenshots are still
 needed: this script detects overflows, not whether something looks ugly.
+
+`--theme light|dark` and `--lang es|en|pt` choose the look and the account's language (English and Portuguese texts are longer
+and break layouts the Spanish ones do not). A JavaScript error on any screen also fails. The CI runs it against the demo server
+(tools/e2e/demo_server.sh) in Spanish and light, and in English and dark.
 """
 from __future__ import annotations
 
@@ -19,18 +23,19 @@ import sys
 
 from playwright.sync_api import sync_playwright
 
-TABS = ["overview", "charges", "climate", "drives", "refuels", "more", "vehicle", "maintenance", "geofences", "settings"]
+TABS = ["overview", "charges", "climate", "drives", "refuels", "stats", "timeline", "costs", "expenses", "more", "vehicle", "maintenance",
+        "geofences", "settings"]
 SETTINGS = ["account", "accounts", "notifs", "connections", "system"]
 WIDTHS = [360, 390, 430]
 
 # Visible elements whose right edge goes past the viewport, except those that scroll on purpose
-# (sub-tabs, maps, maintenance matrix) or are visually hidden for accessibility.
+# (sub-tabs, filter chips, maps, maintenance matrix) or are visually hidden for accessibility.
 FIND_OVERFLOW = """(width) => {
   const bad = [];
   for (const e of document.querySelectorAll('body *')) {
     const r = e.getBoundingClientRect(), cs = getComputedStyle(e);
     if (!r.width || !r.height || cs.visibility === 'hidden' || cs.display === 'none') continue;
-    if (e.closest('.sub-nav-bar, .leaflet-container, thead, .table-responsive-matrix, .modal-overlay:not(.open)')) continue;
+    if (e.closest('.sub-nav-bar, .ex-chips, .leaflet-container, thead, .table-responsive-matrix, .modal-overlay:not(.open)')) continue;
     if (r.right > width + 1) bad.push(`${e.tagName.toLowerCase()}#${e.id}.${String(e.className && e.className.baseVal === undefined ? e.className : '').trim().replace(/\\s+/g, '.')} → ${Math.round(r.right)}px`);
   }
   return bad.slice(0, 6);
@@ -40,6 +45,8 @@ FIND_OVERFLOW = """(width) => {
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--shots", help="folder where a screenshot of each screen is saved")
+    ap.add_argument("--theme", choices=("light", "dark"), default="dark")
+    ap.add_argument("--lang", choices=("es", "en", "pt"), default="es")
     args = ap.parse_args()
     base = os.environ.get("EVBRO_URL", "http://127.0.0.1:8080").rstrip("/")
     user, password = os.environ.get("EVBRO_USER", ""), os.environ.get("EVBRO_PASSWORD", "")
@@ -54,12 +61,19 @@ def main() -> int:
         browser = p.chromium.launch()
         for width in WIDTHS:
             ctx = browser.new_context(viewport={"width": width, "height": 844}, has_touch=True, locale="es-ES")
+            ctx.add_init_script(f"localStorage.setItem('evbro_theme', '{args.theme}')")
             login = ctx.request.post(f"{base}/api/auth/login", headers={"Origin": base},
                                      data={"username": user, "password": password})
             if not login.ok:
                 print(f"Login failed ({login.status})", file=sys.stderr)
                 return 2
+            lang = ctx.request.put(f"{base}/api/account/language", headers={"Origin": base}, data={"language": args.lang})
+            if not lang.ok:
+                print(f"Could not set the language ({lang.status})", file=sys.stderr)
+                return 2
             page = ctx.new_page()
+            errors: list[str] = []
+            page.on("pageerror", lambda e, errors=errors: errors.append(str(e)))
             page.goto(base)
             page.wait_for_load_state("networkidle")
             page.wait_for_timeout(1200)
@@ -74,14 +88,17 @@ def main() -> int:
                 bad = page.evaluate(FIND_OVERFLOW, width)
                 if page_wide > 0 or bad:
                     failures.append(f"{width}px · {name}: page +{page_wide}px · {bad}")
+                if errors:
+                    failures.append(f"{width}px · {name}: JavaScript error · {errors[:2]}")
+                    errors.clear()
                 if args.shots:
-                    page.screenshot(path=f"{args.shots}/{width}-{name}.png", full_page=True)
+                    page.screenshot(path=f"{args.shots}/{args.lang}-{args.theme}-{width}-{name}.png", full_page=True)
             ctx.close()
         browser.close()
 
     for f in failures:
         print("✘", f)
-    print(f"{len(failures)} screen(s) with overflow" if failures else "✔ no screen overflows at 360, 390 and 430 px")
+    print(f"{len(failures)} screen(s) with problems" if failures else f"✔ no screen overflows at 360, 390 and 430 px ({args.lang}, {args.theme})")
     return 1 if failures else 0
 
 

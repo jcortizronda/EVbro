@@ -25,6 +25,7 @@ from reportlab.platypus import Image, PageBreak, Paragraph, SimpleDocTemplate, S
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_timezone
 from app.db.models import (
     ChargingSession,
     Drive,
@@ -39,7 +40,7 @@ from app.db.models import (
     VehiclePart,
 )
 from app.i18n import _, get_language
-from app.services import refuel_stats, uploads
+from app.services import battery_capacity, refuel_stats, stats, uploads
 from app.services.parts import CATEGORY_BY_KEY, POSITIONS
 
 SECTIONS = ("sheet", "maintenance", "parts", "drives", "charges", "refuels", "expenses", "geofences", "documents")
@@ -199,6 +200,8 @@ async def collect(session: AsyncSession, vehicle: Vehicle, sections: Iterable[st
     if "charges" in wanted:
         data["charges"] = (await session.execute(select(ChargingSession).where(ChargingSession.vin == vin, ChargingSession.end_time.is_not(None))
                                                  .order_by(ChargingSession.start_time.desc()))).scalars().all()
+        # Battery health measured from the charge curves, the same figures as Estadísticas: a certificate when selling the car
+        data["battery_health"], data["battery_summary"] = await stats.measured_battery_health(session, vin, list(data["charges"]), get_timezone())
     if "refuels" in wanted:
         refuels = (await session.execute(select(Refuel).where(Refuel.vin == vin))).scalars().all()
         data["refuels"] = sorted(refuels, key=lambda r: r.timestamp, reverse=True)
@@ -297,11 +300,18 @@ def _drives(d: Dict[str, Any], w: float) -> List[Any]:
     months: Dict[str, float] = defaultdict(float)
     for x in drives:
         months[x.start_time.strftime("%Y-%m")] += x.distance_km or 0
+    # Electric consumption only over fully electric drives (the petrol engine charges the battery on the way: services/stats.py)
+    ev_drives = [x for x in drives if stats.counts_for_ev_consumption(x)]
+    ev_drive_km = sum(x.distance_km or 0 for x in ev_drives)
+    ev_drive_kwh = sum(x.energy_consumed_kwh or 0 for x in ev_drives)
+    # Share of electric km since new: the two odometers of the latest drive that has both (drives come newest first)
+    latest = next((x for x in drives if x.end_ev_odometer and x.end_odometer), None)
+    lifetime_ev = (_n(latest.end_ev_odometer / latest.end_odometer * 100, 0, "%"), _("en eléctrico desde nuevo")) if latest else None
     out: List[Any] = [_kpis([(str(len(drives)), _("viajes")), (_n(km, 0, "km"), _("recorridos")), (_n(kwh, 1, "kWh"), _("eléctrico")),
                              (_n(litres, 1, "l"), _("gasolina")), (_dur(secs), _("al volante")),
                              (_n(km / len(drives), 1, "km"), _("por viaje")),
-                             (_n(kwh / km * 100, 1, "kWh/100 km") if km else "—", _("consumo eléctrico medio")),
-                             (_n(max((x.speed_max_kmh or 0) for x in drives), 0, "km/h"), _("velocidad máxima"))], w),
+                             (_n(ev_drive_kwh / ev_drive_km * 100, 1, "kWh/100 km") if ev_drive_km >= stats.MIN_DRIVE_KM else "—", _("consumo eléctrico medio")),
+                             (_n(max((x.speed_max_kmh or 0) for x in drives), 0, "km/h"), _("velocidad máxima"))] + ([lifetime_ev] if lifetime_ev else []), w),
                      Spacer(1, 6), _bars(months, "km", w, BAND["drives"], "Kilómetros por mes"), Spacer(1, 4),
                      Paragraph(_("Últimos viajes ({p0} de {p1})", p0=min(len(drives), 40), p1=len(drives)), H3)]
     out.append(_table(["Fecha", "Origen → destino", "Km", "Duración", "Batería", "Energía"],
@@ -309,6 +319,26 @@ def _drives(d: Dict[str, Any], w: float) -> List[Any]:
                         f"{_n(x.start_battery_pct, 0)} → {_n(x.end_battery_pct, 0)} %" if x.start_battery_pct is not None and x.end_battery_pct is not None else "—",
                         " · ".join(v for v in [_n(x.energy_consumed_kwh, 1, "kWh") if x.energy_consumed_kwh else "", _n(x.fuel_used_l, 1, "l") if x.fuel_used_l else ""] if v) or "—"]
                        for x in drives[:40]], [w * 0.14, w * 0.38, w * 0.08, w * 0.12, w * 0.14, w * 0.14], align_right=(2,)))
+    return out
+
+
+def _battery_health(d: Dict[str, Any], w: float) -> List[Any]:
+    """Usable capacity measured from the charge curves, now and per month (services/stats.py, `measured_battery_health`)."""
+    summary = d.get("battery_summary") or {}
+    health = d.get("battery_health") or []
+    out: List[Any] = [Paragraph(_("Salud de la batería"), H3)]
+    if not summary.get("measured_kwh"):
+        out.append(Paragraph(_("Todavía no hay cargas de al menos {p0} puntos con la curva completa para medir la capacidad.",
+                               p0=int(battery_capacity.MIN_POINTS_GAINED)), SMALL))
+        return out
+    out.append(_kpis([(_n(summary["measured_kwh"], 1, "kWh"), _("útiles medidos")),
+                      (_n(summary.get("nominal_kwh"), 1, "kWh") if summary.get("nominal_kwh") else "—", _("según la ficha")),
+                      (_n(summary["pct_of_nominal"], 0, "%") if summary.get("pct_of_nominal") else "—", _("de la ficha")),
+                      (str(summary.get("charges") or 0), _("cargas medidas"))], w))
+    if len(health) > 1:
+        out += [Spacer(1, 6), _bars({h["month"]: h["capacity_kwh"] for h in health}, "kWh", w, BAND["charges"], "Capacidad útil medida por mes")]
+    how = _("Energía que entró en la batería (la curva de potencia de la carga) entre los puntos ganados, en cargas de al menos {p0} puntos; la cifra actual es la media de las últimas cargas medidas.", p0=int(battery_capacity.MIN_POINTS_GAINED))  # noqa: E501
+    out += [Paragraph(how, SMALL), Spacer(1, 4)]
     return out
 
 
@@ -325,8 +355,9 @@ def _charges(d: Dict[str, Any], w: float) -> List[Any]:
                              (_n(cost / kwh, 3, "€/kWh") if kwh else "—", _("precio medio")),
                              (_n(max((c.max_charge_power_kw or 0) for c in charges), 1, "kW"), _("potencia máxima")),
                              (_dur(sum(c.duration_seconds or 0 for c in charges)), _("enchufado"))], w),
-                     Spacer(1, 6), _bars(months, "kWh", w, BAND["charges"], "Energía cargada por mes"), Spacer(1, 4),
-                     Paragraph(_("Últimas cargas ({p0} de {p1})", p0=min(len(charges), 40), p1=len(charges)), H3)]
+                     Spacer(1, 6), _bars(months, "kWh", w, BAND["charges"], "Energía cargada por mes"), Spacer(1, 4)]
+    out += _battery_health(d, w)
+    out.append(Paragraph(_("Últimas cargas ({p0} de {p1})", p0=min(len(charges), 40), p1=len(charges)), H3))
     out.append(_table(["Inicio", "Lugar", "Tipo", "Batería", "kWh", "Duración", "Coste"],
                       [[_dt(c.start_time), c.address or "—", "DC" if c.charge_type == "dc" else "AC",
                         f"{_n(c.start_battery_pct, 0)} → {_n(c.end_battery_pct, 0)} %" if c.start_battery_pct is not None and c.end_battery_pct is not None else "—",

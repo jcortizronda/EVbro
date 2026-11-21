@@ -19,6 +19,7 @@ from app.db.session import get_db
 from app.i18n import _
 from app.security import auth
 from app.services import storage, uploads
+from app.timeutil import utcnow
 
 router = APIRouter(tags=["Documents"])
 
@@ -78,7 +79,7 @@ async def upload_document(vin: str, file: UploadFile = File(...), kind: str = Fo
 
     stored = uploads.store(DOCUMENTS_FOLDER, data, extension)
     doc = VehicleDocument(vin=vin, kind=kind, title=title, filename=stored, original_name=uploads.clean_original_name(file.filename, extension),
-                          content_type=content_type, size=len(data), uploaded_at=datetime.datetime.utcnow(), uploaded_by=user.id)
+                          content_type=content_type, size=len(data), uploaded_at=utcnow(), uploaded_by=user.id)
     session.add(doc)
     try:
         await session.commit()

@@ -65,6 +65,8 @@ services:
       - CAR_MQTT_ENABLED=${CAR_MQTT_ENABLED:-false}
       - CAR_MQTT_HOST=${CAR_MQTT_HOST:-tspemqx-app-eu.ebroauto.com}
       - CAR_MQTT_PORT=${CAR_MQTT_PORT:-8083}
+      # Experiment: ask the car for a fix when the cloud repeats the same position while driving (docs/trips.md)
+      - AUTO_LOCATE_ENABLED=${AUTO_LOCATE_ENABLED:-false}
       # Optional: publish the cars to your own MQTT broker (Home Assistant discovers them). Every manager can also connect
       # their own broker from Settings → Account without touching this.
       - MQTT_ENABLED=${MQTT_ENABLED:-false}

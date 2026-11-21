@@ -116,6 +116,7 @@ ACCOUNT_RULES: Dict[Tuple[str, str], str] = {
     # Notifications are per account: every account manages its own configuration, channels, devices and history.
     ("GET", "/api/notifications/config"): "any", ("PUT", "/api/notifications/config"): "any",
     ("GET", "/api/notifications/logs"): "any", ("DELETE", "/api/notifications/logs"): "any",
+    ("GET", "/api/notifications/unread"): "any", ("POST", "/api/notifications/seen"): "any",
     ("GET", "/api/notifications/push/devices"): "any", ("DELETE", "/api/notifications/push/devices/{device_id}"): "any",
     ("GET", "/api/notifications/push/public-key"): "any", ("POST", "/api/notifications/push/status"): "any",
     ("POST", "/api/notifications/push/subscribe"): "any", ("POST", "/api/notifications/push/unsubscribe"): "any",

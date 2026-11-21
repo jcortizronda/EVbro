@@ -11,6 +11,7 @@ from app.db.models import ChargePlan, ChargePoint, ChargingSession, TelemetrySna
 from app.db.session import async_session_factory
 from app.services import charge_detector as cd
 from app.services.charge_detector import ChargeDetector
+from app.services.notification_service import NotificationService
 
 VIN = "LSJA0000000000002"
 D = datetime.datetime
@@ -170,7 +171,7 @@ async def test_the_poller_drops_a_read_without_charge_data_during_a_charge(car, 
         return classmethod(notify)
 
     for name in ("notify_charging_started", "notify_charging_completed", "notify_charge_interrupted"):
-        monkeypatch.setattr(poller_mod.NotificationService, name, record(name))
+        monkeypatch.setattr(NotificationService, name, record(name))
     answers = [{"chargeGunState": "1", "chargeState": "1", "dumpEnergy": "41", "totalVoltage": "330", "totalCurrent": "-8",
                 "lat": "37.0", "lon": "-6.0"},
                {"chargeGunState": "1", "appointmentTravelSetVOS": []}]
@@ -251,7 +252,7 @@ async def alerts_for_a_stop(monkeypatch, holds: bool) -> list:
         return classmethod(notify)
 
     for name in ("notify_charging_completed", "notify_charge_interrupted"):
-        monkeypatch.setattr(poller_mod.NotificationService, name, record(name))
+        monkeypatch.setattr(NotificationService, name, record(name))
     monkeypatch.setattr(poller_mod.ChargeManager.get_instance(), "_holds", {VIN: "target" if holds else None})
     monkeypatch.setattr(poller_mod.VehiclePoller, "_last_charging_by_vin", {VIN: True})
     poller = poller_mod.VehiclePoller()

@@ -47,7 +47,7 @@ with sync_playwright() as p:
         ok(txt("#cardLockStatus")=="Abierto" and txt("#cardTrunkStatus")=="Abierto" and txt("#cardSunroofStatus")=="Abierto","lock/trunk/sunroof «Abierto»")
         ok(st("trunk")=="open" and st("win-fl")=="open" and st("lock")=="unlocked" and txt("#carFigureSummary")=="Maletero · Techo · Ventanilla del. izq.", f"figure: open parts in amber and summary ({txt('#carFigureSummary')})")
         tel(doors={"fl":0,"fr":0,"rl":0,"rr":0,"hood":0,"trunk":0}, windows={"fl":0,"sunroof":0}, tyre_pressures={"fl":2.4,"fr":2.4,"rl":2.3,"rr":1.8}, tyre_warnings={"rr":True})
-        ok(txt("#carFigureSummary")=="Todo cerrado" and pg.text_content("#cfTyreRR")=="1.8" and pg.get_attribute('#carFigure [data-wheel="rr"]','data-state')=="warn", "figure: «Todo cerrado» and the flagged wheel in red with its pressure")
+        ok(txt("#carFigureSummary")=="Todo cerrado" and pg.text_content("#cfTyreRR")=="1,8" and pg.get_attribute('#carFigure [data-wheel="rr"]','data-state')=="warn", "figure: «Todo cerrado» and the flagged wheel in red with its pressure")
         pg.screenshot(path=f"{OUT}/figura-{theme}.png")
         tel(is_locked=False, doors={"trunk":1}, windows={"fl":1,"sunroof":1})
         ok(txt("#cardWindowsStatus")=="1 abierta","1 window → «1 abierta»")

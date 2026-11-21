@@ -16,6 +16,7 @@ from app.db.models import Expense, Vehicle
 from app.db.session import get_db
 from app.i18n import _
 from app.services import periods
+from app.timeutil import utcnow
 
 router = APIRouter(tags=["Expenses"])
 
@@ -80,7 +81,7 @@ async def create_expense(vin: str, req: ExpenseCreate, session: AsyncSession = D
     _check_category(req.category)
     if (await session.execute(select(Vehicle.id).where(Vehicle.vin == vin))).first() is None:
         raise HTTPException(status_code=404, detail="Vehículo no encontrado.")
-    date = _naive(req.date) or datetime.datetime.utcnow()
+    date = _naive(req.date) or utcnow()
     due = _naive(req.next_due_date)
     if due and due <= date:
         raise HTTPException(status_code=422, detail="La próxima fecha debe ser posterior a la del gasto.")

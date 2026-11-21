@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_timezone
 from app.db.models import ChargingSession, Drive, Expense, Journey, MaintenanceItem, MaintenanceLog, Refuel
+from app.services.stats import counts_for_ev_consumption
 
 MAX_DAYS = 400
 
@@ -59,7 +60,10 @@ async def summary(session: AsyncSession, vin: str, start: datetime.datetime, end
     seconds = sum(d.duration_seconds or 0 for d in drives)
     kwh_used = sum(d.energy_consumed_kwh or 0.0 for d in drives)
     fuel_used = sum(d.fuel_used_l or 0.0 for d in drives)
-    ev_km = sum(d.distance_km or 0.0 for d in drives if (d.energy_consumed_kwh or 0.0) > 0 and (d.distance_km or 0.0) >= 1.0)
+    # Electric consumption only over fully electric drives: the petrol engine charges the battery on the way (services/stats.py)
+    ev_drives = [d for d in drives if counts_for_ev_consumption(d)]
+    ev_km = sum(d.distance_km or 0.0 for d in ev_drives)
+    ev_kwh = sum(d.energy_consumed_kwh or 0.0 for d in ev_drives)
     fuel_km = sum(d.distance_km or 0.0 for d in drives if (d.fuel_used_l or 0.0) > 0 and (d.distance_km or 0.0) >= 1.0)
     charge_cost = sum(c.charge_cost or 0.0 for c in charges)
     charge_kwh = sum(c.kwh_added or 0.0 for c in charges)
@@ -80,7 +84,7 @@ async def summary(session: AsyncSession, vin: str, start: datetime.datetime, end
 
     out: Dict[str, Any] = {
         "drives": {"count": len(drives), "km": _r(km), "hours": _r(seconds / 3600.0), "kwh": _r(kwh_used), "fuel_l": _r(fuel_used),
-                   "kwh_per_100km": _r(kwh_used / ev_km * 100.0) if ev_km >= 5 else None,
+                   "kwh_per_100km": _r(ev_kwh / ev_km * 100.0) if ev_km >= 5 else None,
                    "l_per_100km": _r(fuel_used / fuel_km * 100.0) if fuel_km >= 5 else None,
                    "first_address": drives[0].start_address if drives else None, "last_address": drives[-1].end_address if drives else None,
                    "max_speed_kmh": _r(max((d.speed_max_kmh or 0.0) for d in drives)) if drives else None},

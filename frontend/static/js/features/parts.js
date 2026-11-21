@@ -301,7 +301,7 @@ function catalogItemHtml(e) {
   const line1 = [e.brand, e.name !== e.category_label ? e.name : null].filter(Boolean).join(' ') || 'Sin marca indicada';
   const oem = entryOem(e);
   const line2 = [e.reference ? t('Ref. marca {p0}', {p0: e.reference}) : null, oem ? t('Ref. fabricante {p0}', {p0: oem}) : null, e.spec,
-    e.quantity !== null && e.quantity !== undefined ? `${String(e.quantity).replace('.', ',')} ${(e.qty_label || '').toLowerCase()}` : null].filter(Boolean).join(' · ');
+    e.quantity !== null && e.quantity !== undefined ? `${localNum(e.quantity)} ${(e.qty_label || '').toLowerCase()}` : null].filter(Boolean).join(' · ');
   if (e._kind === 'proposal') {
     return `<button type="button" class="part-item part-item-catalog" disabled>
       <div class="part-item-main"><strong>${escapeHtml(title)}<span class="part-tag part-tag-pending">${PROPOSAL_LABEL.pending}</span></strong><span>${escapeHtml(line1)}</span>${line2 ? `<small>${escapeHtml(line2)}</small>` : ''}</div>
@@ -317,7 +317,7 @@ function partItemHtml(p) {
   const title = p.position_label ? `${p.category_label} · ${p.position_label.toLowerCase()}` : p.category_label;
   const line1 = [p.brand, p.name !== p.category_label ? p.name : null].filter(Boolean).join(' ') || 'Sin marca indicada';
   const cat = partCat(p.category);
-  const line2 = [p.reference ? t('Ref. marca {p0}', {p0: p.reference}) : null, p.oem_reference ? t('Ref. fabricante {p0}', {p0: p.oem_reference}) : null, p.spec, p.quantity !== null && p.quantity !== undefined ? `${String(p.quantity).replace('.', ',')} ${(cat?.qty_label || '').toLowerCase()}` : null,
+  const line2 = [p.reference ? t('Ref. marca {p0}', {p0: p.reference}) : null, p.oem_reference ? t('Ref. fabricante {p0}', {p0: p.oem_reference}) : null, p.spec, p.quantity !== null && p.quantity !== undefined ? `${localNum(p.quantity)} ${(cat?.qty_label || '').toLowerCase()}` : null,
     p.attrs?.season ? partCatalog.tyre_seasons.find((s) => s.key === p.attrs.season)?.label : null].filter(Boolean).join(' · ');
   let when = '';
   if (p.installed_at) { const d = serverDate(p.installed_at); when = `Montado ${monthsES[d.getMonth()]} ${d.getFullYear()}${p.installed_odometer ? ` · ${Math.round(p.installed_odometer).toLocaleString(I18n.locale)} km` : ''}`; }

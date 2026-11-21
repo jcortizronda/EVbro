@@ -7,6 +7,8 @@ from typing import Any, Dict, Optional, Tuple
 
 import aiohttp
 
+from app.timeutil import utcnow
+
 _LOGGER = logging.getLogger(__name__)
 
 # In-memory cache of PVPC hourly prices: {"YYYY-MM-DD_zone": {hour: price_eur_kwh}}
@@ -167,7 +169,7 @@ async def calculate_charging_session_cost(
         }
 
     # 3. time-of-use or PVPC (spread over the duration of the charge)
-    finish_time = end_time or datetime.datetime.utcnow()
+    finish_time = end_time or utcnow()
     total_seconds = max(60, int((finish_time - start_time).total_seconds()))
 
     # split the session hour by hour for an exact figure

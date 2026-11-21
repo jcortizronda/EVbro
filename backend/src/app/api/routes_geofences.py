@@ -5,7 +5,7 @@ import datetime
 from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +15,7 @@ from app.security import auth
 from app.security.access import space_owner_id
 from app.services import geofence_history
 from app.services.electricity_tariffs import get_pvpc_hourly_price, get_time_of_use_period
+from app.timeutil import utcnow
 
 router = APIRouter(prefix="/geofences", tags=["Geofences"])
 
@@ -76,8 +77,7 @@ class GeofenceOut(BaseModel):
     # After creating or editing: past charges and drives now assigned to it (services/geofence_history.py); absent when listing
     applied: Optional[Dict[str, int]] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 @router.get("", response_model=List[GeofenceOut])
@@ -91,7 +91,7 @@ async def list_geofences(session: AsyncSession = Depends(get_db), user: AppUser 
 @router.get("/pvpc/current")
 async def current_pvpc_info(zone: str = "Peninsula"):
     """Returns the current regulated PVPC electricity price and the 2.0TD period in force."""
-    now = datetime.datetime.utcnow()
+    now = utcnow()
     period, period_desc = get_time_of_use_period(now)
     price, label = await get_pvpc_hourly_price(now, zone=zone)
     return {

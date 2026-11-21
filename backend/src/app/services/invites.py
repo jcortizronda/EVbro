@@ -10,12 +10,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Invite
 from app.security.auth import hash_token
+from app.timeutil import utcnow
 
 TOKEN_PREFIX = "ebm_"
 
 
 def _now() -> datetime.datetime:
-    return datetime.datetime.utcnow()
+    return utcnow()
 
 
 def invite_state(invite: Invite, now: Optional[datetime.datetime] = None) -> str:

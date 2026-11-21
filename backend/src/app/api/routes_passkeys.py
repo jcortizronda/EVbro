@@ -5,7 +5,6 @@ Registering needs an app session (so an admin, who never has one, cannot registe
 """
 from __future__ import annotations
 
-import datetime
 import json
 import logging
 from typing import Any, Dict, Optional
@@ -28,6 +27,7 @@ from app.db.session import get_db
 from app.i18n import _
 from app.security import auth
 from app.security import passkeys as pk
+from app.timeutil import utcnow
 
 _LOGGER = logging.getLogger("app.api.passkeys")
 router = APIRouter(prefix="/passkeys", tags=["Passkeys"])
@@ -103,7 +103,7 @@ async def register_verify(req: RegisterVerifyRequest, request: Request, user: Ap
     row = PasskeyCredential(user_id=user.id, credential_id=credential_id, public_key=verified.credential_public_key,
                             sign_count=verified.sign_count, label=label[:120],
                             transports=[str(t)[:20] for t in transports][:10] if isinstance(transports, list) else None,
-                            created_at=datetime.datetime.utcnow())
+                            created_at=utcnow())
     db.add(row)
     await db.commit()
     await db.refresh(row)

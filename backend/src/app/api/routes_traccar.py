@@ -1,7 +1,6 @@
 """Traccar Server link of a car (Coches → ficha → «Posición por GPS»): configure, test, status, latest fix."""
 from __future__ import annotations
 
-import datetime
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -12,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import GpsPosition, TraccarLink, Vehicle
 from app.db.session import get_db
 from app.services.traccar import TraccarClient, TraccarError, TraccarHub
+from app.timeutil import utcnow
 
 router = APIRouter(tags=["Traccar"])
 
@@ -112,4 +112,4 @@ async def latest_fix(vin: str, session: AsyncSession = Depends(get_db)):
         return {"position": None}
     return {"position": {"timestamp": row.timestamp.isoformat(), "latitude": row.latitude, "longitude": row.longitude, "speed_kmh": row.speed_kmh,
                          "course": row.course, "accuracy_m": row.accuracy_m, "ignition": row.ignition, "motion": row.motion,
-                         "age_s": int((datetime.datetime.utcnow() - row.timestamp).total_seconds())}}
+                         "age_s": int((utcnow() - row.timestamp).total_seconds())}}

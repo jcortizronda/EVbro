@@ -4,6 +4,23 @@
 
 let currentAccountInfo = null;
 
+// The car's MQTT channel stopped because another app used the account: shown on Inicio (where nobody misses it) and in the
+// account card; «Sincronizar» in either place brings it back
+async function showAccountChannelNotice() {
+  const notes = ['settingsAccountChannel', 'homeChannelBanner'].map((id) => document.getElementById(id)).filter(Boolean);
+  if (!notes.length) return;
+  let stopped = false;
+  try {
+    const res = await fetch('/api/car-events/status');
+    const s = res.ok ? await res.json() : null;
+    stopped = !!(s && s.state === 'conflict');
+  } catch (e) {
+    stopped = false;
+  }
+  notes.forEach((note) => { note.hidden = !stopped; });
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden && currentAccountInfo) showAccountChannelNotice(); });
+
 async function checkAccountStatus() {
   if (typeof currentRole === 'function' && currentRole() === 'member') return;      // members have no Ebro account
   try {
@@ -48,6 +65,7 @@ async function checkAccountStatus() {
         connectBtn.onclick = logoutEbroAccount;
       }
       if (syncBtn) syncBtn.disabled = false;
+      showAccountChannelNotice();
     } else {
       if (dot) {
         dot.style.background = '#ffb300';
@@ -69,6 +87,7 @@ async function checkAccountStatus() {
         connectBtn.onclick = openAccountModal;
       }
       if (syncBtn) syncBtn.disabled = true;
+      showAccountChannelNotice();            // no account, no channel: the notice goes away
     }
   } catch (err) {
     console.warn("Failed to check the account status:", err);
@@ -145,6 +164,7 @@ async function submitEbroLogin() {
       await loadVehicles();
       const n = data.vehicles ? data.vehicles.length : 0;
       showToast(n ? `Cuenta de Ebro conectada: ${n === 1 ? 'un coche' : `${n} coches`} en la cuenta.` : 'Cuenta de Ebro conectada. No se ha encontrado ningún coche en ella.', 'success', 6000);
+      if (window.EbroPush && EbroPush.suggest) EbroPush.suggest();       // without a channel the notices would only stay in the bell
     } else {
       if (errBox) {
         errBox.innerText = data.detail || "Error de autenticación. Comprueba tus datos.";
@@ -182,7 +202,7 @@ async function logoutEbroAccount() {
 
 // ───────────────────────── When orders ask for the PIN ─────────────────────────
 const PIN_POLICY_HINT = {
-  open: 'Las órdenes que abren o desbloquean el coche piden el PIN cada vez; las demás (clima, luces, cerrar…) usan el PIN guardado.',
+  open: 'Las órdenes que abren, desbloquean o desarman el coche (puertas, maletero, ventanillas, techo, ventilar y quitar la alarma) piden el PIN cada vez; las demás (clima, luces, cerrar…) usan el PIN guardado.',
   always: 'Todas las órdenes piden el PIN, también encender el clima o cerrar.',
   never: 'Ninguna orden pide el PIN: con el PIN guardado, quien entre en EVBro con tu cuenta puede abrir el coche.',
 };

@@ -108,15 +108,26 @@ async function saveNotificationConfig() {
   }
 }
 
-function openNotificationsModal() {
+/** The bell of the header: the history with the unread notices marked, and from then on everything counts as seen. */
+async function openNotificationsModal() {
   const modal = document.getElementById('notificationsCenterModal');
   if (modal) modal.classList.add('open');
-  loadNotificationLogsList();
+  refreshPushHint();
+  const painted = await loadNotificationLogsList();
+  if (!painted) return;                                        // offline or no session: nothing was shown, nothing is marked
+  try { await fetch('/api/notifications/seen', { method: 'POST' }); } catch (e) { /* offline: the next opening marks them */ }
+  setNotificationDot(0);
 }
 
 function closeNotificationsModal() {
   const modal = document.getElementById('notificationsCenterModal');
   if (modal) modal.classList.remove('open');
+}
+
+function openNotificationSettings() {
+  closeNotificationsModal();
+  switchTab('settings');
+  switchSettingsSubTab('notifs');
 }
 
 async function testNotificationChannel(channel) {
@@ -151,64 +162,92 @@ async function testNotificationChannel(channel) {
   }
 }
 
-function toggleNotificationLogs() {
-  const container = document.getElementById('notifLogsContainer');
-  if (!container) return;
-  const isHidden = container.style.display === 'none';
-  container.style.display = isHidden ? 'block' : 'none';
-  if (isHidden) {
-    loadNotificationLogs();
-  }
-}
+// ───────────────────────── notice history (bell of the header) ─────────────────────────
+// Icon and colour of each kind of notice (the categories of services/notification_service.py)
+const NOTICE_KIND = {
+  charge_started: ['plug', 'charge'], charge_completed: ['battery', 'charge'],
+  charge_interrupted: ['alert', 'warn'], charge_control: ['alert', 'warn'], low_battery: ['battery', 'warn'],
+  fuel_low: ['fuel', 'warn'], tyre_pressure: ['alert', 'warn'], windows_open: ['window', 'warn'],
+  geofence_enter: ['pin', 'place'], geofence_exit: ['pin', 'place'],
+  maintenance: ['wrench', 'maint'], renewals: ['clock', 'maint'],
+  security: ['siren', 'alarm'], vehicle_fault: ['alert', 'alarm'], account: ['key', 'alarm'],
+};
 
-async function loadNotificationLogs() {
-  const list = document.getElementById('notifLogsList');
-  if (!list) return;
-
-  try {
-    const res = await fetch('/api/notifications/logs');
-    if (!res.ok) return;
-    const logs = await res.json();
-
-    if (!logs || logs.length === 0) {
-      list.innerHTML = '<div class="u-color-var-text-muted_text-align-center_padding-1rem">No hay registros de notificaciones aún.</div>';
-      return;
+/** A notice sent through several channels leaves one row per channel, written in the same second: here they are one notice. */
+function groupNotices(logs) {
+  const notices = [];
+  const byKey = new Map();
+  for (const row of logs) {
+    const key = [row.category, row.title, row.message, String(row.timestamp || '').slice(0, 19)].join('\u0000');
+    let notice = byKey.get(key);
+    if (!notice) {
+      notice = { category: row.category, title: row.title, message: row.message, timestamp: row.timestamp, unread: false, failures: [] };
+      byKey.set(key, notice);
+      notices.push(notice);
     }
-
-    list.innerHTML = logs.map(l => {
-      const dt = serverDate(l.timestamp).toLocaleString(I18n.locale);
-      const badgeClass = l.success ? 'class="notif-log-ok"' : 'class="notif-log-fail"';
-      const statusText = l.success ? 'Enviada' : t('Error: {p0}', {p0: escapeHtml(l.error || 'Fallo')});
-      return `
-        <div class="u-border-bottom-1px-solid-rgba-255-255-255-0p06_padding-0p5rem-0">
-          <div class="u-display-flex_justify-content-space-between_align-items-center">
-            <strong>${escapeHtml(l.title)}</strong>
-            <span class="u-font-size-0p72rem_color-var-text-muted">${dt}</span>
-          </div>
-          <div class="u-color-var-text-secondary_margin-0p2rem-0_white-space-pre-wrap">${escapeHtml(l.message)}</div>
-          <div class="u-display-flex_gap-0p6rem_font-size-0p72rem">
-            <span class="maint-category-badge">${escapeHtml((l.channel || '').toUpperCase())}</span>
-            <span ${badgeClass}>${statusText}</span>
-          </div>
-        </div>
-      `;
-    }).join('');
-  } catch (err) {
-    list.innerHTML = `<div class="u-color-var-accent-red_padding-0p5rem">${t('Error cargando logs: {p0}', {p0: escapeHtml(err)})}</div>`;
+    notice.unread = notice.unread || !!row.unread;
+    if (!row.success) notice.failures.push(row);
   }
+  return notices;
 }
 
+function noticeDay(d) {
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (d.toDateString() === new Date().toDateString()) return t('Hoy');
+  if (d.toDateString() === yesterday.toDateString()) return t('Ayer');
+  return d.toLocaleDateString(I18n.locale, { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
+function noticeChannel(channel) {
+  return { webpush: t('notificación del móvil'), telegram: 'Telegram', pushover: 'Pushover', webhook: 'webhook' }[channel] || channel;
+}
+
+/** One row per notice, grouped by day and the newest first: the look of the timeline (kind icon, title, text and time). */
+function renderNotices(list, logs) {
+  const notices = groupNotices(logs || []);
+  if (!notices.length) {
+    list.innerHTML = `<div class="hist-empty">${t('Todavía no hay avisos.')}</div>`;
+    return;
+  }
+  let day = null;
+  const html = [];
+  for (const n of notices) {
+    const when = serverDate(n.timestamp);
+    const label = noticeDay(when);
+    if (label !== day) {
+      day = label;
+      html.push(`<div class="hist-month"><strong>${escapeHtml(label)}</strong></div>`);
+    }
+    const [ico, kind] = NOTICE_KIND[n.category] || ['bell', 'info'];
+    const time = when.toLocaleTimeString(I18n.locale, { hour: '2-digit', minute: '2-digit' });
+    const failures = n.failures.map((f) => `<small class="notice-fail">${escapeHtml(t('No se pudo enviar por {p0}: {p1}', {p0: noticeChannel(f.channel), p1: f.error || '—'}))}</small>`);
+    html.push(`<div class="notice-row notice-${kind}${n.unread ? ' is-unread' : ''}">
+      <span class="notice-ico" aria-hidden="true">${icon(ico, 16)}</span>
+      <span class="notice-main"><strong>${escapeHtml(n.title)}</strong><span class="notice-text">${escapeHtml(n.message)}</span>${failures.join('')}</span>
+      <span class="notice-time">${n.unread ? `<span class="notice-new">${t('Nuevo')}</span>` : ''}${escapeHtml(time)}</span>
+    </div>`);
+  }
+  list.innerHTML = html.join('');
+}
+
+/** Paints the history in the bell's dialog. Returns whether it could (offline or without a session it could not). */
 async function loadNotificationLogsList() {
-  await loadNotificationLogs();
-  const modalList = document.getElementById('modalNotifLogsList');
-  const mainList = document.getElementById('notifLogsList');
-  if (modalList && mainList) {
-    modalList.innerHTML = mainList.innerHTML;
+  const list = document.getElementById('modalNotifLogsList');
+  if (!list) return false;
+  try {
+    const res = await fetch('/api/notifications/logs?limit=100');
+    if (!res.ok) throw new Error(res.status);
+    renderNotices(list, await res.json());
+    return true;
+  } catch (err) {
+    list.innerHTML = `<div class="hist-empty is-error">${t('No se pudo cargar el historial de avisos.')}</div>`;
+    return false;
   }
 }
 
 async function clearNotificationLogs() {
-  if (!await confirmDialog("¿Deseas vaciar el historial de notificaciones?", { confirmText: 'Borrar', danger: true })) return;
+  if (!await confirmDialog("¿Vaciar el historial de avisos?", { confirmText: 'Vaciar', danger: true })) return;
   try {
     await fetch('/api/notifications/logs', { method: 'DELETE' });
     loadNotificationLogsList();
@@ -216,6 +255,45 @@ async function clearNotificationLogs() {
     showToast(t('No se pudo vaciar el historial: {p0}', {p0: err}), 'error');
   }
 }
+
+// ───────────────────────── dot of the bell ─────────────────────────
+function setNotificationDot(count) {
+  const dot = document.getElementById('headerNotifDot');
+  if (dot) dot.classList.toggle('is-on', count > 0);
+  const bell = document.getElementById('btnNotificationsBell');
+  if (bell) bell.setAttribute('aria-label', count > 0 ? t('Avisos: {p0} sin leer', {p0: count}) : t('Avisos'));
+}
+
+/** Lights the dot when there are notices the account has not seen (on any of its devices: the mark is kept by the server). */
+async function refreshNotificationDot() {
+  try {
+    const res = await fetch('/api/notifications/unread');
+    if (res.ok) setNotificationDot((await res.json()).count || 0);
+  } catch (e) { /* offline: the dot stays as it was */ }
+}
+
+// ───────────────────────── push on this device ─────────────────────────
+/** The dialog suggests turning push on when this device can receive it and does not yet. */
+async function refreshPushHint() {
+  const box = document.getElementById('notifPushHint');
+  if (!box) return;
+  box.hidden = !(window.EbroPush && EbroPush.state) || (await EbroPush.state()) !== 'off';
+}
+
+async function enableNotificationsHere() {
+  if (window.EbroPush && EbroPush.enable) await EbroPush.enable();
+  refreshPushHint();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const start = (signedIn) => {
+    if (signedIn === false) return;
+    refreshNotificationDot();
+    setInterval(() => { if (!document.hidden) refreshNotificationDot(); }, 5 * 60 * 1000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshNotificationDot(); });
+  };
+  if (window.EbroAuth && EbroAuth.ready) EbroAuth.ready().then(start); else start(true);
+});
 
 function showAppNotificationBanner(title, message, category) {
   // 1. System notification if allowed

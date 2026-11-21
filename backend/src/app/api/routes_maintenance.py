@@ -15,6 +15,7 @@ from app.db.session import get_db
 from app.services import storage, uploads
 from app.services.maintenance_official import add_months
 from app.services.parts import PartIn
+from app.timeutil import utcnow
 
 router = APIRouter(tags=["Maintenance"])
 
@@ -100,7 +101,7 @@ async def list_vehicle_maintenance(vin: str, session: AsyncSession = Depends(get
     v_stmt = select(Vehicle).where(Vehicle.vin == vin)
     vehicle = (await session.execute(v_stmt)).scalar_one_or_none()
     current_odo = vehicle.odometer if vehicle and vehicle.odometer else 0.0
-    now = datetime.datetime.utcnow()
+    now = utcnow()
 
     stmt = (
         select(MaintenanceItem)
@@ -120,7 +121,7 @@ async def create_maintenance_item(
     v_stmt = select(Vehicle).where(Vehicle.vin == vin)
     vehicle = (await session.execute(v_stmt)).scalar_one_or_none()
     current_odo = vehicle.odometer if vehicle and vehicle.odometer else 0.0
-    now = datetime.datetime.utcnow()
+    now = utcnow()
 
     last_odo = req.last_service_odometer if req.last_service_odometer is not None else current_odo
     last_dt = req.last_service_date if req.last_service_date is not None else now
@@ -177,7 +178,7 @@ async def update_maintenance_item(
     vehicle = (await session.execute(v_stmt)).scalar_one_or_none()
     current_odo = vehicle.odometer if vehicle and vehicle.odometer else 0.0
 
-    return calculate_item_health(item, current_odo, datetime.datetime.utcnow())
+    return calculate_item_health(item, current_odo, utcnow())
 
 
 @router.post("/maintenance/{item_id}/complete")
@@ -194,7 +195,7 @@ async def complete_maintenance_service(
     current_odo = vehicle.odometer if vehicle and vehicle.odometer else 0.0
 
     service_odo = req.odometer if req.odometer is not None else current_odo
-    service_dt = req.service_date if req.service_date is not None else datetime.datetime.utcnow()
+    service_dt = req.service_date if req.service_date is not None else utcnow()
 
     # 1. record it in the service history (log)
     log = MaintenanceLog(
@@ -220,7 +221,7 @@ async def complete_maintenance_service(
     await session.commit()
     await session.refresh(item)
 
-    health = calculate_item_health(item, current_odo, datetime.datetime.utcnow())
+    health = calculate_item_health(item, current_odo, utcnow())
     health["log_id"] = log.id
     return health
 
@@ -240,6 +241,35 @@ async def delete_maintenance_item(item_id: int, session: AsyncSession = Depends(
     for name in invoices:
         uploads.remove(INVOICES_FOLDER, name)
     return {"status": "ok", "deleted_id": item_id}
+
+
+@router.delete("/maintenance/logs/{log_id}")
+async def delete_maintenance_log(log_id: int, session: AsyncSession = Depends(get_db)):
+    """Deletes one entry of the history (an official step, a task done, an intervention or an ITV), with its invoice file.
+
+    16-11-2026: a step recorded to try the screen could not be undone. What depends on it follows: the official plan and the ITV
+    are worked out from the history each time; a custom task goes back to its previous record, when it has one."""
+    log = await session.get(MaintenanceLog, log_id)
+    if not log:
+        raise HTTPException(status_code=404, detail="Registro de mantenimiento no encontrado.")
+    item = await session.get(MaintenanceItem, log.item_id)
+    invoice = log.invoice_filename
+    await session.delete(log)
+    await session.flush()
+    if item is not None:
+        latest = (await session.execute(
+            select(MaintenanceLog).where(MaintenanceLog.item_id == item.id).order_by(desc(MaintenanceLog.service_date)).limit(1)
+        )).scalars().first()
+        if item.origin == "custom" and latest is not None:
+            item.last_service_date, item.last_service_odometer = latest.service_date, latest.odometer
+            item.next_due_odometer = latest.odometer + item.interval_km if item.interval_km else None
+            item.next_due_date = add_months(latest.service_date, item.interval_months) if item.interval_months else None
+        elif item.origin == "itv" and latest is None:
+            item.next_due_date = None                    # the «valid until» of a sticker no longer in the history
+    await session.commit()
+    if invoice:
+        uploads.remove(INVOICES_FOLDER, invoice)
+    return {"status": "ok", "deleted_id": log_id}
 
 
 @router.get("/vehicles/{vin}/maintenance/logs")

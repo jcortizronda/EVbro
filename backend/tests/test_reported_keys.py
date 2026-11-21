@@ -5,11 +5,13 @@ the S800 never sends a position, only the S700 of 2026 sends `chargingCutOffSOC`
 """
 from __future__ import annotations
 
+import datetime
+
 import httpx
 import pytest
 from sqlalchemy import select
 
-from app.db.models import AppUser, Vehicle
+from app.db.models import AppUser, TelemetrySnapshot, Vehicle
 from app.db.session import async_session_factory
 from app.main import app
 from app.security import auth, passwords
@@ -96,3 +98,18 @@ async def test_a_read_without_a_position_says_once_what_the_location_endpoint_an
         await car._poll_vehicle(VIN)
     said = [r.message for r in caplog.records if "without a position" in r.message]
     assert len(said) == 1 and "A07900" in said[0] and "reposo" in said[0]
+
+
+async def test_at_start_up_the_list_is_completed_from_the_stored_readings(car) -> None:
+    """09-11-2026: `remainChargeTime` only comes while charging; an S900 that had not charged since the list began looked like it never sent it."""
+    now = datetime.datetime.utcnow()
+    async with async_session_factory() as s:
+        v = (await s.execute(select(Vehicle).where(Vehicle.vin == VIN))).scalar_one()
+        v.reported_keys = ["dumpEnergy"]
+        s.add(TelemetrySnapshot(vin=VIN, timestamp=now - datetime.timedelta(days=1), raw_data={"dumpEnergy": "80", "remainChargeTime": "90", "chargeState": "1"}))
+        s.add(TelemetrySnapshot(vin=VIN, timestamp=now - datetime.timedelta(days=40), raw_data={"ancientKey": "1"}))      # too old to count
+        s.add(TelemetrySnapshot(vin=VIN, timestamp=now, raw_data=None))
+        await s.commit()
+        await poller_mod.VehiclePoller._backfill_reported_keys(s, v)
+        await s.commit()
+    assert await keys() == ["chargeState", "dumpEnergy", "remainChargeTime"]

@@ -7,14 +7,13 @@ from sqlalchemy import select
 
 from app.api import routes_auth
 from app.config import settings
-from app.core import catalog
+from app.core import catalog, commands
 from app.core.errors import CommandError
 from app.db.models import AppUser, CommandAudit, EbroAccount, Vehicle
 from app.db.session import async_session_factory
 from app.main import app
 from app.security import auth, passwords
 from app.services import command_policy
-from app.services import poller as poller_module
 from app.services.poller import VehiclePoller
 
 VIN = "LSJA0000000000001"
@@ -52,7 +51,7 @@ def _clean_state(monkeypatch, data_dir):
 @pytest.fixture
 def send(monkeypatch) -> FakeSend:
     fake = FakeSend()
-    monkeypatch.setattr(poller_module.commands, "send", fake)
+    monkeypatch.setattr(commands, "send", fake)
 
     async def _no_poll(self, vin, force=False):          # the poll after a success would hit the network
         return None
@@ -338,3 +337,14 @@ async def test_never_requires_a_stored_pin_and_odd_values_are_rejected(db, send)
         assert r.status_code == 409 and "PIN guardado" in r.json()["detail"]
         assert (await _set_policy(client, "sometimes")).status_code == 422
         assert (await client.get("/api/account/status")).json()["pin_policy"] == "open"
+
+
+async def test_the_alarm_of_a_car_without_an_ebro_session_is_unknown_not_a_server_error(db) -> None:
+    """The page asks for the alarm every minute; a car whose account was never connected has no session file (09-11-2026: 500 and a
+    traceback in the log each time)."""
+    client = await prepare(db)
+    try:
+        r = await client.get(f"/api/vehicles/{VIN}/alarm")
+        assert r.status_code == 200 and r.json() == {"enabled": None}
+    finally:
+        await client.aclose()

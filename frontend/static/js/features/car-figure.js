@@ -28,7 +28,7 @@
     const pill = document.querySelector(`#carFigure [data-pill="${key}"]`);
     const has = known(bar) && bar > 0;
     const state = !has ? 'unknown' : warn ? 'warn' : 'ok';
-    if (text) text.textContent = has ? bar.toFixed(1) : '';
+    if (text) text.textContent = has ? historyNum(bar, 1) : '';
     if (wheel) wheel.dataset.state = state;
     if (pill) pill.dataset.state = state;
   }

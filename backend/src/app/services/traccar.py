@@ -22,6 +22,7 @@ from sqlalchemy import select
 
 from app.db.models import TraccarLink, Vehicle
 from app.db.session import async_session_factory
+from app.timeutil import utcnow
 
 _LOGGER = logging.getLogger(__name__)
 KNOTS_TO_KMH = 1.852
@@ -54,7 +55,7 @@ def _when(value: Any) -> datetime.datetime:
         ts = datetime.datetime.fromisoformat(str(value).replace("Z", "+00:00"))
         return ts.astimezone(datetime.timezone.utc).replace(tzinfo=None) if ts.tzinfo else ts
     except (TypeError, ValueError):
-        return datetime.datetime.utcnow()
+        return utcnow()
 
 
 def parse_position(p: Dict[str, Any]) -> Optional[Fix]:
@@ -245,7 +246,10 @@ class TraccarHub:
             except Exception as ex:                                 # noqa: BLE001 — logged, retried
                 message = str(ex) or ex.__class__.__name__
                 self._set_status(devices.values(), False, message)
-                _LOGGER.warning("Traccar %s: %s (retrying in %ss)", base, message, RECONNECT_DELAYS[min(attempt, len(RECONNECT_DELAYS) - 1)])
+                # The server closing a live feed now and then is normal and the next attempt brings it back: a warning only when
+                # reconnecting fails too
+                _LOGGER.log(logging.INFO if attempt == 0 else logging.WARNING, "Traccar %s: %s (retrying in %ss)", base, message,
+                            RECONNECT_DELAYS[min(attempt, len(RECONNECT_DELAYS) - 1)])
             if stop.is_set():
                 break
             await asyncio.sleep(RECONNECT_DELAYS[min(attempt, len(RECONNECT_DELAYS) - 1)])

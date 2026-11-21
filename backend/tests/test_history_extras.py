@@ -15,6 +15,7 @@ from app.db.session import async_session_factory
 from app.main import app
 from app.security import auth, passwords
 from app.services import climate_schedule, places
+from app.services.notification_service import NotificationService
 from app.services.poller import VehiclePoller
 
 VIN = "LSJA0000000000003"
@@ -120,15 +121,14 @@ async def test_places_route_names_a_place_after_the_owners_geofence(web) -> None
 
 # ───────────────────────── Arrivals and departures ─────────────────────────
 async def test_the_poller_records_every_geofence_transition_and_notifies_per_switch(web, monkeypatch) -> None:
-    from app.services import poller as poller_mod
     sent = []
-    monkeypatch.setattr(poller_mod.NotificationService, "notify_geofence_enter", classmethod(lambda cls, *a, **k: sent.append(("enter", a[1]))))
-    monkeypatch.setattr(poller_mod.NotificationService, "notify_geofence_exit", classmethod(lambda cls, *a, **k: sent.append(("exit", a[1]))))
+    monkeypatch.setattr(NotificationService, "notify_geofence_enter", classmethod(lambda cls, *a, **k: sent.append(("enter", a[1]))))
+    monkeypatch.setattr(NotificationService, "notify_geofence_exit", classmethod(lambda cls, *a, **k: sent.append(("exit", a[1]))))
 
     async def _noop(*a, **k):
         return None
-    monkeypatch.setattr(poller_mod.NotificationService, "notify_geofence_enter", classmethod(lambda cls, *a, **k: (sent.append(("enter", a[1])), _noop())[1]))
-    monkeypatch.setattr(poller_mod.NotificationService, "notify_geofence_exit", classmethod(lambda cls, *a, **k: (sent.append(("exit", a[1])), _noop())[1]))
+    monkeypatch.setattr(NotificationService, "notify_geofence_enter", classmethod(lambda cls, *a, **k: (sent.append(("enter", a[1])), _noop())[1]))
+    monkeypatch.setattr(NotificationService, "notify_geofence_exit", classmethod(lambda cls, *a, **k: (sent.append(("exit", a[1])), _noop())[1]))
     async with async_session_factory() as s:
         home = Geofence(owner_id=1, name="Casa", latitude=40.0, longitude=-3.0, radius_meters=100, notify_enter=True, notify_exit=False)
         work = Geofence(owner_id=1, name="Trabajo", latitude=40.5, longitude=-3.5, radius_meters=100, notify_enter=False, notify_exit=True)

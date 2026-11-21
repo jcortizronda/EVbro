@@ -135,7 +135,7 @@
         </button>
 
         <!-- Notification Center Button -->
-        <button class="nav-btn nav-icon-btn u-position-relative" id="btnNotificationsBell" data-on-click="openNotificationsModal()" title="Centro de Notificaciones y Alertas">
+        <button class="nav-btn nav-icon-btn u-position-relative" id="btnNotificationsBell" data-on-click="openNotificationsModal()" title="Avisos" aria-label="Avisos">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
           <span class="notif-badge-dot" id="headerNotifDot"></span>
         </button>
@@ -187,7 +187,14 @@
     <!-- ==================== TAB 1: INICIO (HOME / OVERVIEW) ==================== -->
     <section id="tabOverview" class="tab-content active">
       <div class="native-app-container">
-        
+
+        <!-- The car's live channel is stopped because another app used the Ebro account: «Sincronizar» brings it back
+             (features/account.js, showAccountChannelNotice) -->
+        <div class="channel-banner" id="homeChannelBanner" role="status" hidden>
+          <span>EVBro está desconectado del coche en directo: otra app usaba tu cuenta de Ebro. Cuando la cierres, pulsa «Sincronizar».</span>
+          <button type="button" class="btn-primary btn-sm" data-on-click="triggerVehicleDiscovery()">Sincronizar</button>
+        </div>
+
         <!-- Hero Car Banner -->
         <!-- Vehicle header (no image: the photo added nothing) -->
         <div class="native-section-header page-head page-banner u---banner-url-static-images-banner-exteriorpjpg" id="overviewBanner">
@@ -1443,6 +1450,7 @@
               <th>Taller / Profesional</th>
               <th>Notas</th>
               <th class="u-text-align-center">Factura / Documento</th>
+              <th class="u-text-align-center" aria-label="Borrar"></th>
             </tr>
           </thead>
           <tbody id="maintLogsTableBody">
@@ -1467,14 +1475,15 @@
         <div class="glass details-card st-card">
           <div class="card-title">Resumen</div>
           <div class="st-totals" id="stTotals"></div>
+          <p class="st-capacity" id="stLifetimeEv" hidden></p>
           <p class="st-hint" id="stHint"></p>
         </div>
         <div class="st-grid">
-          <div class="glass details-card st-card"><div class="card-title">Kilómetros por mes</div><small class="st-sub">Suma de los viajes.</small><canvas id="stKm"></canvas></div>
+          <div class="glass details-card st-card"><div class="card-title">Kilómetros por mes</div><small class="st-sub">En eléctrico (verde) y con el motor de gasolina (ámbar), según el cuentakilómetros EV del coche; en azul, viajes sin ese dato.</small><canvas id="stKm"></canvas></div>
           <div class="glass details-card st-card"><div class="card-title">Energía por mes</div><small class="st-sub">kWh a la batería (verde) y litros repostados (ámbar).</small><canvas id="stEnergy"></canvas></div>
           <div class="glass details-card st-card"><div class="card-title">Gasto por mes</div><small class="st-sub">Cargas, gasolina, taller y otros gastos.</small><canvas id="stCost"></canvas></div>
           <div class="glass details-card st-card"><div class="card-title">Coste por kilómetro</div><small class="st-sub">Todo el gasto del mes entre sus kilómetros (meses con al menos 20 km).</small><canvas id="stCostKm"></canvas></div>
-          <div class="glass details-card st-card"><div class="card-title">Consumo eléctrico por mes</div><small class="st-sub">kWh/100 km de los viajes con energía medida.</small><canvas id="stEff"></canvas></div>
+          <div class="glass details-card st-card"><div class="card-title">Consumo eléctrico por mes</div><small class="st-sub">kWh/100 km de los viajes que no gastaron gasolina. Los que usan el motor de gasolina quedan fuera: el motor recarga la batería por el camino y el consumo saldría más bajo de lo real.</small><canvas id="stEff"></canvas></div>
           <div class="glass details-card st-card"><div class="card-title">Salud de la batería</div><small class="st-sub">Capacidad útil medida en cada carga de al menos 20 puntos: la energía que entró en la batería (su curva de potencia) entre los puntos ganados.</small><p class="st-capacity" id="stCapacityNow" hidden></p><canvas id="stCapacity"></canvas></div>
           <div class="glass details-card st-card"><div class="card-title">Consumo según la velocidad</div><small class="st-sub">Velocidad media del viaje, en tramos de 10 km/h.</small><canvas id="stSpeed"></canvas></div>
           <div class="glass details-card st-card"><div class="card-title">Dónde se carga</div><small class="st-sub">Lugares con más energía cargada.</small><canvas id="stPlaces"></canvas></div>
@@ -1895,6 +1904,8 @@
             <p class="u-color-var-text-secondary_font-size-0p9rem_margin-bottom-1p25rem">
               La cuenta de la app oficial de Ebro (teléfono y contraseña): con ella se ve el coche y se le mandan órdenes.
             </p>
+            <!-- The car's live channel is part of the account for the person using it: when it stops, say so here (features/account.js) -->
+            <p class="vp-status" id="settingsAccountChannel" data-tone="bad" hidden>Los avisos al momento del coche están parados: otra app usaba tu cuenta de Ebro. Cuando la cierres, pulsa «Sincronizar».</p>
 
             <div class="u-background-var-bg-glass-inset_border-1px-solid-var-border-color_border-radius-var-radius-sm_padding-1rem_margin-bottom-1p25rem" id="settingsAccountInfoBox">
               <div class="u-display-flex_justify-content-space-between_align-items-center_flex-wrap-wrap_gap-0p75rem">
@@ -2226,18 +2237,8 @@
 
             <div class="u-display-flex_justify-content-space-between_align-items-center_flex-wrap-wrap_gap-0p75rem">
               <button class="btn-primary" data-on-click="saveNotificationConfig()">Guardar Ajustes de Notificaciones</button>
-              <button class="btn-secondary" data-on-click="toggleNotificationLogs()">Ver Historial de Avisos</button>
-            </div>
-
-            <!-- Notification history (collapsible) -->
-            <div class="u-display-none_margin-top-1p25rem" id="notifLogsContainer">
-              <div class="u-display-flex_justify-content-space-between_align-items-center_margin-bottom-0p5rem">
-                <strong class="u-font-size-0p85rem">Historial de Notificaciones Enviadas</strong>
-                <button class="btn-sm btn-secondary u-color-var-accent-red_font-size-0p75rem" data-on-click="clearNotificationLogs()">Limpiar Historial</button>
-              </div>
-              <div class="u-max-height-250px_overflow-y-auto_background-rgba-0-0-0-0p3_border-1px-solid-var-border-color_border-radius-var-radius-sm_padding-0p5rem_font-size-0p8rem" id="notifLogsList">
-                <div class="u-color-var-text-muted_text-align-center_padding-1rem">Cargando historial...</div>
-              </div>
+              <!-- The history lives in the bell of the header (one list, not two) -->
+              <button class="btn-secondary" data-on-click="openNotificationsModal()">Ver historial de avisos</button>
             </div>
           </div>
         </div>
@@ -2564,14 +2565,15 @@
     <div class="modal-card u-max-width-460px">
       <h3 class="u-margin-0-0-4px">Coste de la carga</h3>
       <p class="u-color-var-text-secondary_font-size-0p85rem_margin-0-0-14px" id="chargeCostIntro"></p>
-      <div class="cc-modes" role="radiogroup" aria-label="Cómo indicar el coste">
-        <label><input type="radio" name="chargeCostMode" value="price" checked><span>Precio por kWh</span></label>
-        <label><input type="radio" name="chargeCostMode" value="total"><span>Coste total</span></label>
+      <!-- Either figure: writing one works out the other over the kWh of the charge (features/charge-sessions.js) -->
+      <div class="cc-pair">
+        <label class="vp-field"><span>Total pagado (€)</span><input type="number" id="chargeCostTotal" class="form-control" min="0" step="0.01" inputmode="decimal" /></label>
+        <label class="vp-field"><span>Precio (€/kWh)</span><input type="number" id="chargeCostPrice" class="form-control" min="0" max="5" step="0.001" inputmode="decimal" /></label>
       </div>
-      <label class="vp-field" id="chargeCostPriceBox"><span>Precio (€/kWh)</span><input type="number" id="chargeCostPrice" class="form-control" min="0" max="5" step="0.001" inputmode="decimal" /></label>
-      <label class="vp-field" id="chargeCostTotalBox" hidden><span>Total pagado (€)</span><input type="number" id="chargeCostTotal" class="form-control" min="0" step="0.01" inputmode="decimal" /></label>
+      <small class="vp-hint" id="chargeCostBase"></small>
       <label class="vp-field u-margin-top-12px"><span>kWh de tu contador o cargador (opcional)</span><input type="number" id="chargeCostMeter" class="form-control" min="0" step="0.01" inputmode="decimal" />
         <small class="vp-hint">Es la energía que sale de la red. Con ella se calcula la eficiencia real de la carga y el coste se cuenta sobre esos kWh.</small></label>
+      <p class="cc-note">El precio por kWh puede no coincidir con el que marca el cargador. El cargador factura la energía que entrega; EVBro cuenta la que llega a la batería, que es algo menor por las pérdidas de la carga (suelen rondar el 10-15 %). Con el mismo importe, el precio por kWh resulta un poco más alto. Si indicas los kWh de tu contador o cargador, se calcula sobre ellos.</p>
       <div class="modal-actions u-margin-top-16px">
         <button class="btn-secondary" data-on-click="closeChargeCostModal()">Cancelar</button>
         <button class="btn-primary" data-on-click="saveChargeCost()">Guardar</button>
@@ -3144,36 +3146,26 @@
 
   <!-- Modal: notification and alert centre -->
   <div id="notificationsCenterModal" class="modal-overlay">
-    <div class="modal-card u-max-width-620px_max-height-85vh_display-flex_flex-direction-column_background-rgba-13-17-23-0p96_backdrop-filter-blur-20px_border-1px-solid-rgba-255-255-255-0p08_border-radius-20px_box-shadow-0-24px-64px-rgba-0-0-0-0p8">
-      <div class="u-display-flex_justify-content-space-between_align-items-center_padding-bottom-0p9rem_border-bottom-1px-solid-rgba-255-255-255-0p08_margin-bottom-0p75rem">
-        <div class="u-display-flex_align-items-center_gap-0p75rem">
-          <div class="u-width-38px_height-38px_border-radius-12px_background-rgba-255-159-10-0p15_display-flex_align-items-center_justify-content-center_color-ff9f0a_font-size-1p25rem">
-            <svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
-          </div>
-          <div>
-            <h3 class="u-margin-0_font-size-1p15rem_font-weight-700_color-ffffff">Centro de Alertas & Notificaciones</h3>
-            <p class="u-margin-0p15rem-0-0_font-size-0p78rem_color-rgba-255-255-255-0p55">Historial de avisos y eventos recientes</p>
-          </div>
+    <div class="modal-card notice-card" role="dialog" aria-modal="true" aria-labelledby="noticeCenterTitle">
+      <div class="notice-head">
+        <span class="notice-head-ico" aria-hidden="true"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></span>
+        <div>
+          <h3 id="noticeCenterTitle">Avisos</h3>
+          <p>Lo que EVBro te ha avisado, lo más reciente arriba.</p>
         </div>
-        <button class="nav-btn u-padding-0p35rem-0p65rem_border-radius-8px" data-on-click="closeNotificationsModal()">✕</button>
       </div>
-
-      <div class="u-display-flex_justify-content-space-between_align-items-center_margin-bottom-0p75rem_gap-0p5rem_flex-wrap-wrap">
-        <button type="button" class="btn-secondary u-font-size-0p82rem_padding-0p45rem-0p85rem_border-radius-10px_display-flex_align-items-center_gap-0p4rem_background-rgba-255-255-255-0p06_border-1px-solid-rgba-255-255-255-0p12" data-on-click="switchTab('settings'); switchSettingsSubTab('notifs'); closeNotificationsModal();">
-          Configurar Disparadores en Ajustes
-        </button>
-        <button type="button" class="btn-secondary u-font-size-0p82rem_padding-0p45rem-0p85rem_border-radius-10px_color-ff453a_border-color-rgba-255-69-58-0p25" data-on-click="clearNotificationLogs()">
-          Vaciar Historial
-        </button>
+      <!-- Only when this device can receive push notifications and does not yet -->
+      <div class="notice-push" id="notifPushHint" hidden>
+        <p>Este dispositivo no recibe los avisos con la app cerrada.</p>
+        <button type="button" class="btn-primary btn-sm" data-on-click="enableNotificationsHere()">Activar aquí</button>
       </div>
-
-      <!-- Log container -->
-      <div class="u-flex-1_overflow-y-auto_max-height-420px_border-radius-14px_background-rgba-0-0-0-0p35_border-1px-solid-rgba-255-255-255-0p05_padding-0p75rem_min-height-180px" id="modalNotifLogsList">
-        <div class="u-text-align-center_color-rgba-255-255-255-0p4_padding-2rem-0_font-size-0p88rem">Cargando notificaciones...</div>
+      <div class="notice-list" id="modalNotifLogsList">
+        <div class="hist-empty">Cargando avisos…</div>
       </div>
-
-      <div class="modal-actions u-margin-top-1rem_border-top-1px-solid-rgba-255-255-255-0p08_padding-top-0p85rem_justify-content-flex-end">
-        <button type="button" class="btn-primary u-border-radius-10px_padding-0p5rem-1p4rem" data-on-click="closeNotificationsModal()">Cerrar</button>
+      <div class="modal-actions notice-actions">
+        <button type="button" class="btn-secondary" data-on-click="clearNotificationLogs()">Vaciar</button>
+        <button type="button" class="btn-secondary" data-on-click="openNotificationSettings()">Ajustes</button>
+        <button type="button" class="btn-primary" data-on-click="closeNotificationsModal()">Cerrar</button>
       </div>
     </div>
   </div>

@@ -21,6 +21,7 @@ from app.db.models import AppUser, DeviceAccess, NotificationConfig, Notificatio
 from app.db.session import async_session_factory
 from app.i18n import M, Message, render
 from app.security.auth import account_usable
+from app.timeutil import utcnow
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -157,7 +158,7 @@ class NotificationService:
                 continue
             ok, err, expired = await loop.run_in_executor(None, cls._webpush_blocking, sub.subscription, payload)
             if ok:
-                sub.last_success, sub.last_error = datetime.datetime.utcnow(), None
+                sub.last_success, sub.last_error = utcnow(), None
             elif expired:
                 await session.delete(sub)
             else:
@@ -288,6 +289,12 @@ class NotificationService:
             ok, err = await cls._send_webhook(config.webhook_url, payload)
             log("webhook", ok, err)
             results.append({"channel": "webhook", "success": ok, "error": err})
+
+        # --- No channel at all: the notice is still kept in the account's history (the bell of the header shows it). An account
+        #     without push, Telegram, Pushover or webhook used to lose every notice, «Cuenta Ebro desconectada» included (09-11-2026:
+        #     five of seven accounts of a server had no channel, and only two had received anything in a month).
+        if not results:
+            log("app", True, None)
         return results
 
     # ------------------------------------------------------------------------
@@ -520,13 +527,13 @@ class NotificationService:
         )
 
     @classmethod
-    async def notify_windows_open_alert(cls, vehicle_name: str, issues: List[str], vin: Optional[str] = None):
-        """Notifies when the windows or the sunroof were left open after parking."""
+    async def notify_windows_open_alert(cls, vehicle_name: str, issues: List[Any], vin: Optional[str] = None):
+        """Notifies when the windows or the sunroof were left open after parking (`issues`: one text or `Message` per window)."""
         await cls.dispatch(
             vin=vin,
             category="windows_open",
             title=M("Ventanas Olvidadas Abiertas: {p0}", p0=vehicle_name),
-            message=Message.join("\n", [M("El vehículo está cerrado pero se detectaron aberturas:"), *(f"• {i}" for i in issues),
+            message=Message.join("\n", [M("El vehículo está cerrado pero se detectaron aberturas:"), *(Message.join(" ", ["•", i]) for i in issues),
                                         M("Puedes cerrarlas de inmediato desde el botón 'Cerrar ventanas' en EVBro.")]),
             tags=["window", "warning"],
             priority="high",

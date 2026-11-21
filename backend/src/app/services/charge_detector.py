@@ -12,6 +12,7 @@ from app.config import get_timezone
 from app.db.models import ChargePlan, ChargePoint, ChargingSession, Geofence, TelemetrySnapshot, Vehicle
 from app.services.electricity_tariffs import calculate_charging_session_cost
 from app.services.geofence import find_geofence, haversine_distance_meters, reverse_geocode
+from app.timeutil import utcnow
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -171,7 +172,7 @@ class ChargeDetector:
     ) -> Optional[ChargingSession]:
         """Processes a telemetry snapshot and manages the charging session's life cycle."""
         vin = vehicle.vin
-        now = datetime.datetime.utcnow()
+        now = utcnow()
 
         if lacks_charge_data(telemetry):
             return None                                           # no news about the charge: neither an end nor a restart decision

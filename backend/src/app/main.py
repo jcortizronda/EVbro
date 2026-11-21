@@ -17,8 +17,9 @@ from app import __version__, i18n
 from app.admin_app import AdminConsole
 from app.api import api_router
 from app.api.errors import install_error_handlers
-from app.config import settings
+from app.config import get_data_dir, settings
 from app.db.session import init_db
+from app.logging_setup import LOG_FORMAT, install_file_logging
 from app.paths import frontend_dir
 from app.security.auth import announce_setup_if_needed
 from app.services.poller import VehiclePoller
@@ -31,7 +32,7 @@ os.umask(0o077)
 # Logging setup
 logging.basicConfig(
     level=logging.DEBUG if settings.DEBUG else logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    format=LOG_FORMAT,
 )
 _LOGGER = logging.getLogger("app")
 
@@ -39,6 +40,8 @@ _LOGGER = logging.getLogger("app")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifecycle: startup and shutdown."""
+    # 0. a copy of the log in the data volume: Docker's goes away with the container on every deploy (logging_setup.py)
+    install_file_logging(get_data_dir())
     _LOGGER.info("Arrancando EVBro Server...")
 
     # 1. initialise the database schema
@@ -96,10 +99,9 @@ install_error_handlers(app)
 MAX_JSON_BODY_BYTES = 1024 * 1024
 
 # Content Security Policy of the web app. **No inline script at all**: handlers are declared with `data-on-*` attributes
-# (`core/actions.js`) and the theme bootstrap is a file, so a text that slipped into the HTML can never run. Styles still allow
-# `'unsafe-inline'` because the interface uses `style=` attributes (moving them to classes is the next step); what the policy already
-# guarantees is that the page cannot load code from, send data to or be framed by anybody but ourselves and the few hosts listed
-# (Leaflet, OpenStreetMap, Google Fonts). `connect-src` is completed per request with the WebSocket origin (older browsers do not
+# (`core/actions.js`) and the theme bootstrap is a file, so a text that slipped into the HTML can never run. No inline styles either:
+# the `style=` attributes became classes (`utilities.css`) and the dynamic ones go through `data-css` (CSSOM). The page cannot load code
+# from, send data to or be framed by anybody but ourselves and the few hosts listed (Leaflet, OpenStreetMap, Google Fonts). `connect-src` is completed per request with the WebSocket origin (older browsers do not
 # count `ws(s):` as `'self'`).
 _PAGE_CSP = (
     "default-src 'self'; "

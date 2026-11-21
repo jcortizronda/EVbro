@@ -1,0 +1,4 @@
+# Browser tests (tools/e2e): installed next to the server's requirements, never in the image.
+playwright==1.64.1
+# the demo server (tools/e2e/demo_server.sh) runs on SQLite, whose driver only the development requirements bring
+aiosqlite==0.22.1

@@ -6,8 +6,11 @@ operations to **replace (R)** and **inspect (I)** and a labour time.
 **How the next service is worked out.** It used to come only from the current odometer, so it did not remember when the
 last one was done nor look at the months. Now:
   * the next step is the first one whose mileage is GREATER than that of the last recorded step;
-  * it is due on **whichever comes first**: the step's km or its date (car delivery + the step's months);
-  * without a delivery date configured only the kilometres are watched (the interface asks for it).
+  * with a step recorded, it is due **15,000 km and 12 months after that service** (the gap between the two steps), counted from
+    the odometer and date it was actually done: a 15,000 service done at 10,688 km makes the next one due at 25,688 km, not at
+    30,000 (16-11-2026, two cars on the server). The step only says WHAT is done (the R/I table);
+  * with none recorded, at the step's km or its date (car delivery + the step's months);
+  * it is due on **whichever comes first**, km or date; without a date to count from only the kilometres are watched.
 """
 from __future__ import annotations
 
@@ -138,27 +141,44 @@ def official_next(
     baseline_date: Optional[datetime.datetime],
     baseline_odometer: float,
     model: Optional[str],
+    last_done_odometer: Optional[float] = None,
+    last_done_date: Optional[datetime.datetime] = None,
 ) -> Optional[Dict[str, Any]]:
-    """Next official service with its status; None when the official plan is complete."""
+    """Next official service with its status; None when the official plan is complete. `last_done_odometer`/`last_done_date`: when
+    and where the last recorded step was really done; the next one is counted from there."""
     step = next_step(last_done_km)
     if step is None:
         return None
     prev = next((s for s in reversed(STEPS) if s["km"] < step["km"]), None)
-    prev_km = prev["km"] if prev else baseline_odometer
-    due_date = add_months(baseline_date, step["months"]) if baseline_date else None
-    remaining_km = round(step["km"] - odometer, 1)
+    if prev is not None and last_done_odometer is not None:
+        # Counted from the last service: the gap between the two steps (15,000 km / 12 months)
+        start_km = last_done_odometer
+        due_km = last_done_odometer + (step["km"] - prev["km"])
+        start_date = last_done_date
+        interval_months = step["months"] - prev["months"]
+        since_last = True
+    else:
+        start_km = prev["km"] if prev else baseline_odometer
+        due_km = step["km"]
+        start_date = (add_months(baseline_date, prev["months"]) if prev else baseline_date) if baseline_date else None
+        interval_months = step["months"]
+        since_last = False
+    due_date = (add_months(last_done_date, interval_months) if since_last and last_done_date
+                else add_months(baseline_date, step["months"]) if not since_last and baseline_date else None)
+    remaining_km = round(due_km - odometer, 1)
     remaining_days = (due_date.date() - today).days if due_date else None
 
-    span_km = max(1.0, step["km"] - prev_km)
-    progress_km = min(100.0, max(0.0, (odometer - prev_km) / span_km * 100.0))
+    span_km = max(1.0, due_km - start_km)
+    progress_km = min(100.0, max(0.0, (odometer - start_km) / span_km * 100.0))
     progress_time = None
-    if baseline_date:
-        start = add_months(baseline_date, prev["months"]) if prev else baseline_date
-        total = max(1, (due_date.date() - start.date()).days)
-        progress_time = min(100.0, max(0.0, (today - start.date()).days / total * 100.0))
+    if due_date and start_date:
+        total = max(1, (due_date.date() - start_date.date()).days)
+        progress_time = min(100.0, max(0.0, (today - start_date.date()).days / total * 100.0))
 
     return {
         "km": step["km"], "months": step["months"], "label": step["label"],
+        "due_km": round(due_km), "interval_km": round(due_km - start_km) if since_last else step["km"],
+        "interval_months": interval_months, "since_last": since_last,
         "due_date": due_date.isoformat() if due_date else None,
         "remaining_km": remaining_km, "remaining_days": remaining_days,
         "status": status_for(remaining_km, remaining_days),

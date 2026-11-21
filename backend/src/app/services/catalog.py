@@ -10,7 +10,6 @@ filter has one number at Ebro and another at a different make.
 """
 from __future__ import annotations
 
-import datetime
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import func, select
@@ -18,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import AppUser, CatalogEntry, CatalogFitment, Vehicle, VehiclePart
 from app.services.parts import CATEGORY_BY_KEY, POSITIONS
+from app.timeutil import utcnow
 
 STATUSES = ("pending", "approved", "rejected")
 EDITABLE = ("model", "make", "years", "name", "brand", "reference", "spec", "quantity", "notes", "position")   # what the admin may correct
@@ -62,7 +62,7 @@ async def propose_from_part(session: AsyncSession, part: VehiclePart, user_id: i
     entry = CatalogEntry(model=model, make=(vehicle.brand or "").strip() or None, years=(years or "").strip() or (str(vehicle.model_year) if vehicle.model_year else None), category=part.category,
                          position=part.position, name=part.name, brand=part.brand, reference=part.reference, oem_reference=part.oem_reference, spec=part.spec,
                          quantity=part.quantity, notes=None, source=source if source in ("manual", "invoice", "photo") else "manual",
-                         status="pending", proposed_by=user_id, proposed_at=datetime.datetime.utcnow())
+                         status="pending", proposed_by=user_id, proposed_at=utcnow())
     session.add(entry)
     await session.flush()
     session.add(CatalogFitment(entry_id=entry.id, make=entry.make, model=entry.model, years=entry.years, oem_reference=entry.oem_reference))
@@ -139,7 +139,7 @@ async def review(session: AsyncSession, entry_id: int, admin_id: int, approve: b
         raise CatalogError(404, "Propuesta no encontrada.")
     if e.status != "pending":
         raise CatalogError(409, "Esta propuesta ya está revisada.")
-    e.reviewed_by, e.reviewed_at = admin_id, datetime.datetime.utcnow()
+    e.reviewed_by, e.reviewed_at = admin_id, utcnow()
     if approve:
         dup = await _duplicate_of(session, e)
         if dup is not None:
@@ -189,7 +189,7 @@ async def create(session: AsyncSession, admin_id: int, data: Dict[str, Any]) -> 
     main = fits[0]
     if not (text["brand"] or text["reference"] or main.oem_reference or text["spec"]):
         raise CatalogError(422, "Indica al menos la marca, una referencia o la especificación de la pieza.")
-    now = datetime.datetime.utcnow()
+    now = utcnow()
     entry = CatalogEntry(model=main.model, make=main.make, years=main.years, category=cat["key"], position=text["position"], name=text["name"] or cat["label"],
                          brand=text["brand"], reference=text["reference"], oem_reference=main.oem_reference, spec=text["spec"], quantity=data.get("quantity"),
                          notes=text["notes"], source="manual", status="approved", proposed_by=admin_id, proposed_at=now, reviewed_by=admin_id, reviewed_at=now)
@@ -236,7 +236,7 @@ async def edit(session: AsyncSession, entry_id: int, changes: Dict[str, Any]) ->
 async def export_approved(session: AsyncSession) -> Dict[str, Any]:
     """This server's own approved entries (never the mirrored ones: they already live on the online server)."""
     rows = await approved(session, limit=100_000, include_remote=False)
-    return {"format": "evbro-catalog/2", "exported_at": datetime.datetime.utcnow().isoformat() + "Z", "count": len(rows),
+    return {"format": "evbro-catalog/2", "exported_at": utcnow().isoformat() + "Z", "count": len(rows),
             "entries": [{k: v for k, v in d.items() if _export_key(k)}
                         for d in await serialize_many(session, rows)]}
 

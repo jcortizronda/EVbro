@@ -1,7 +1,6 @@
 """Routes to configure and test mobile notifications (Android, iOS and Web)."""
 from __future__ import annotations
 
-import datetime
 from typing import Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -14,6 +13,7 @@ from app.db.session import get_db
 from app.i18n import _
 from app.security import auth
 from app.services.notification_service import NotificationService, webhook_url_problem
+from app.timeutil import utcnow
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
 
@@ -211,7 +211,7 @@ async def update_notification_config(
                 continue
             setattr(config, k, v)
 
-    config.updated_at = datetime.datetime.utcnow()
+    config.updated_at = utcnow()
     await session.commit()
     await session.refresh(config)
     return {"status": "ok", "message": "Configuración de notificaciones guardada con éxito."}
@@ -258,7 +258,7 @@ async def test_notification(
             "event": "test",
             "title": title,
             "message": msg,
-            "timestamp": datetime.datetime.utcnow().isoformat(),
+            "timestamp": utcnow().isoformat(),
         }
         success, error = await NotificationService._send_webhook(url, payload)
 
@@ -289,13 +289,24 @@ async def test_notification(
     return {"status": "ok", "channel": channel, "message": "Notificación enviada correctamente."}
 
 
+# How many recent rows are looked at to count the unread notices (one notice is one row per channel it went through)
+UNREAD_SCAN = 500
+
+
+def notice_key(log: NotificationLog) -> tuple:
+    """One notice sent through several channels leaves one row per channel, all written in the same instant: this joins them."""
+    stamp = log.timestamp.replace(microsecond=0) if log.timestamp else None
+    return (log.category, log.title, log.message, stamp)
+
+
 @router.get("/logs")
 async def list_notification_logs(
     limit: int = Query(50, ge=1, le=500), session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)
 ):
-    """Recent history of the notifications sent to THIS account."""
+    """Recent history of the notifications sent to THIS account. `unread`: newer than the last time it opened its notification centre."""
     stmt = select(NotificationLog).where(NotificationLog.user_id == user.id).order_by(desc(NotificationLog.timestamp)).limit(limit)
     logs = (await session.execute(stmt)).scalars().all()
+    seen = user.notifications_seen_at
 
     return [
         {
@@ -307,9 +318,28 @@ async def list_notification_logs(
             "channel": log.channel,
             "success": log.success,
             "error": log.error,
+            "unread": seen is None or (log.timestamp is not None and log.timestamp > seen),
         }
         for log in logs
     ]
+
+
+@router.get("/unread")
+async def count_unread_notifications(session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)):
+    """Notices this account has not seen yet (for the dot of the bell in the header)."""
+    stmt = select(NotificationLog).where(NotificationLog.user_id == user.id)
+    if user.notifications_seen_at is not None:
+        stmt = stmt.where(NotificationLog.timestamp > user.notifications_seen_at)
+    rows = (await session.execute(stmt.order_by(desc(NotificationLog.timestamp)).limit(UNREAD_SCAN))).scalars().all()
+    return {"count": len({notice_key(r) for r in rows})}
+
+
+@router.post("/seen")
+async def mark_notifications_seen(session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)):
+    """The account opened its notification centre: everything up to now counts as seen."""
+    user.notifications_seen_at = utcnow()
+    await session.commit()
+    return {"status": "ok"}
 
 
 @router.delete("/logs")

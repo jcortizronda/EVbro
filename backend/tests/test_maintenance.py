@@ -39,6 +39,22 @@ def test_due_on_whichever_comes_first_km_or_date() -> None:
     assert ok["status"] == "ok"
 
 
+def test_after_a_recorded_step_the_next_counts_from_when_it_was_really_done() -> None:
+    """16-11-2026: the 15,000 service done at 10,688 km still announced the next one at 30,000. It is 15,000 km and 12 months after
+    the service (25,688 km), and the step (30,000) only says what is done."""
+    done_at = datetime.datetime(2026, 11, 10)
+    n = mo.official_next(11000, datetime.date(2026, 11, 16), 15000, DELIVERY, 0.0, "S700 PHEV", 10688, done_at)
+    assert n["km"] == 30000 and n["since_last"] is True
+    assert n["due_km"] == 25688 and n["interval_km"] == 15000 and n["remaining_km"] == 14688
+    assert n["due_date"].startswith("2027-11-10") and n["interval_months"] == 12      # not delivery + 24 months
+    assert n["status"] == "ok" and 0 < n["progress_km_pct"] < 5
+    assert {i["operation"] for i in n["replace_items"]} == {"R"}                       # the 30,000 checklist
+    late = mo.official_next(25200, datetime.date(2027, 6, 1), 15000, DELIVERY, 0.0, None, 10688, done_at)
+    assert late["status"] == "warning" and late["remaining_km"] == 488
+    # done late (17,000 km): the next one moves on as well
+    assert mo.official_next(17500, datetime.date(2026, 11, 16), 15000, None, 0.0, None, 17000, done_at)["due_km"] == 32000
+
+
 def test_without_a_delivery_date_only_kilometres_are_watched() -> None:
     n = mo.official_next(9000, datetime.date(2030, 1, 1), None, None, 0.0, None)
     assert n["due_date"] is None and n["remaining_days"] is None and n["progress_time_pct"] is None
@@ -123,6 +139,41 @@ async def test_recording_a_step_advances_to_the_next_and_stays_in_the_history(we
     assert (await web.post(f"/api/vehicles/{VIN}/maintenance/official/complete", json={"step_km": 20000})).status_code == 422
 
 
+async def test_the_plan_counts_the_next_service_from_the_recorded_one(web) -> None:
+    r = await web.post(f"/api/vehicles/{VIN}/maintenance/official/complete",
+                       json={"step_km": 15000, "odometer": 10688, "service_date": "2026-11-10T10:00:00"})
+    assert r.status_code == 200
+    nxt = (await web.get(f"/api/vehicles/{VIN}/maintenance/plan")).json()["official"]["next"]
+    assert nxt["km"] == 30000 and nxt["due_km"] == 25688 and nxt["since_last"] is True and nxt["due_date"].startswith("2027-11-10")
+
+
+async def test_a_recorded_step_can_be_deleted_and_counts_as_pending_again(web) -> None:
+    """16-11-2026: a step recorded to try the screen could not be undone."""
+    r = await web.post(f"/api/vehicles/{VIN}/maintenance/official/complete", json={"step_km": 15000, "odometer": 11037})
+    log_id = r.json()["log_id"]
+    assert (await web.get(f"/api/vehicles/{VIN}/maintenance/plan")).json()["official"]["next"]["km"] == 30000
+    assert (await web.delete(f"/api/maintenance/logs/{log_id}")).status_code == 200
+    d = (await web.get(f"/api/vehicles/{VIN}/maintenance/plan")).json()
+    assert d["official"]["next"]["km"] == 15000 and d["official"]["next"]["since_last"] is False and d["official"]["history"] == []
+    assert (await web.get(f"/api/vehicles/{VIN}/maintenance/logs")).json() == []
+    assert (await web.delete(f"/api/maintenance/logs/{log_id}")).status_code == 404
+    # and it can be recorded again
+    again = await web.post(f"/api/vehicles/{VIN}/maintenance/official/complete", json={"step_km": 15000, "odometer": 15100})
+    assert again.status_code == 200
+
+
+async def test_deleting_the_last_record_of_a_task_goes_back_to_the_previous_one(web) -> None:
+    item_id = (await web.post(f"/api/vehicles/{VIN}/maintenance", json={"name": "Aceite", "interval_km": 10000, "interval_months": 12,
+                                                                          "last_service_odometer": 2000})).json()["id"]
+    await web.post(f"/api/maintenance/{item_id}/complete", json={"odometer": 5000, "service_date": "2026-01-10T10:00:00"})
+    wrong = (await web.post(f"/api/maintenance/{item_id}/complete", json={"odometer": 13900, "service_date": "2026-11-10T10:00:00"})).json()
+    assert wrong["next_due_odometer"] == 23900
+    assert (await web.delete(f"/api/maintenance/logs/{wrong['log_id']}")).status_code == 200
+    item = (await web.get(f"/api/vehicles/{VIN}/maintenance")).json()[0]
+    assert item["next_due_odometer"] == 15000 and item["last_service_odometer"] == 5000
+    assert item["next_due_date"].startswith("2027-01-10")
+
+
 async def test_completing_every_step_closes_the_plan(web) -> None:
     for st in mo.STEPS:
         assert (await web.post(f"/api/vehicles/{VIN}/maintenance/official/complete", json={"step_km": st["km"]})).status_code == 200
@@ -177,6 +228,21 @@ async def test_alerts_in_official_mode_use_the_next_step(db) -> None:
     async with async_session_factory() as s:
         a = await collect_alerts(s, VIN, 5000.0, datetime.datetime(2026, 5, 1))            # overdue by date
     assert a[0]["is_overdue"] and a[0]["key"] == "official:15000:due"
+
+
+async def test_alerts_count_the_next_step_from_the_last_service(db) -> None:
+    from app.db.models import MaintenanceLog
+    async with async_session_factory() as s:
+        s.add(Vehicle(owner_id=1, vin=VIN, name="Ebro", model="S700 PHEV", odometer=25000.0))
+        s.add(MaintenancePlan(vin=VIN, mode="official", baseline_date=None, baseline_odometer=0.0))
+        holder = MaintenanceItem(vin=VIN, name="Revisión oficial", origin="official")
+        s.add(holder)
+        await s.flush()
+        s.add(MaintenanceLog(item_id=holder.id, service_date=datetime.datetime(2026, 11, 10), odometer=10688.0, revision_km=15000))
+        await s.commit()
+    async with async_session_factory() as s:
+        a = await collect_alerts(s, VIN, 25000.0, datetime.datetime(2027, 3, 1))
+    assert len(a) == 1 and a[0]["key"] == "official:30000:warning" and a[0]["remaining_km"] == 688
 
 
 async def test_alerts_in_custom_mode_ignore_the_official_plan_and_look_at_the_tasks(db) -> None:

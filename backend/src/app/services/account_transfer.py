@@ -38,6 +38,7 @@ from app.db.models import (
     VehiclePart,
 )
 from app.services import uploads
+from app.timeutil import utcnow
 
 _LOGGER = logging.getLogger(__name__)
 FORMAT = "evbro-account/1"
@@ -125,7 +126,7 @@ async def export_account(session: AsyncSession, user_id: int, username: str) -> 
                 "traccar": row(traccar, tuple(TRACCAR_SKIP)) if traccar else None,
                 "documents": [{**row(d, ("id", "vin", "filename")), "file": put(uploads.DOCUMENTS_FOLDER, d.filename, f"files/documents/{vin}/{d.id}")} for d in docs],
             })
-        payload = {"format": FORMAT, "exported_at": datetime.datetime.utcnow().isoformat() + "Z", "username": username,
+        payload = {"format": FORMAT, "exported_at": utcnow().isoformat() + "Z", "username": username,
                    "geofences": [{**row(g, ("owner_id",)), "id": g.id} for g in geofences], "vehicles": out_vehicles,
                    "missing_files": missing,
                    "note": "Sin secretos: ni credenciales de Ebro, ni tokens, ni canales de aviso. Los coches se importan como coches sin cuenta."}

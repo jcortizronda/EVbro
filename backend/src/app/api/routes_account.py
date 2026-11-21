@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-import datetime
 import logging
 import re
 from typing import Any, Dict, List, Literal, Optional
@@ -23,8 +22,10 @@ from app.services import command_policy, mqtt_hub, storage, vehicle_profiles
 from app.services.accounts import fetch_account_vehicles
 from app.services.car_events import CarEventHub
 from app.services.command_policy import pin_throttle, pin_throttle_key
+from app.services.ebro_sessions import account_session_path
 from app.services.mqtt_hub import MqttHub, MqttLinkConfig
 from app.services.poller import VehiclePoller
+from app.timeutil import utcnow
 
 _LOGGER = logging.getLogger("app.api.account")
 router = APIRouter(prefix="/account", tags=["Account"])
@@ -142,7 +143,8 @@ async def login_ebro_account(req: EbroLoginRequest, session: AsyncSession = Depe
         # The cloud answered and said no (`login_with_password` raises with its text, e.g. «HTTP 401: El nombre de usuario no
         # existe o la contraseña es incorrecta»): a typo of the manager, not a failure of EVBro — it used to come out as a 502
         # «could not connect» and an error in the log (09-11-2026)
-        _LOGGER.warning("The Ebro cloud refused the login of user %s: %s", user.id, cloud_refusal(str(e)))
+        _LOGGER.warning("The Ebro cloud refused the login of user %s: %s", user.id, cloud_refusal(str(e)),
+                        extra={"telemetry": False})          # a mistyped password is not a fault to report to the project
         raise HTTPException(
             status_code=401,
             detail=_("No se pudo iniciar sesión: {p0}. Verifica tu teléfono, código de país y contraseña.", p0=cloud_refusal(str(e))),
@@ -168,7 +170,7 @@ async def login_ebro_account(req: EbroLoginRequest, session: AsyncSession = Depe
     if existing_acc is not None and existing_acc.user_id not in (None, user.id):
         raise HTTPException(status_code=409, detail="Esa cuenta de Ebro ya está conectada por otro usuario de este servidor.")
 
-    now = datetime.datetime.utcnow()
+    now = utcnow()
     if existing_acc:
         existing_acc.password = req.password
         existing_acc.pin = req.pin
@@ -194,9 +196,10 @@ async def login_ebro_account(req: EbroLoginRequest, session: AsyncSession = Depe
     await session.commit()
     await session.refresh(account_obj)
 
-    # 2. discover vehicles automatically with the token just obtained
+    # 2. discover vehicles with the session just obtained, kept in the account's file that all its cars share (ebro_sessions.py)
     try:
-        cars_list = await loop.run_in_executor(None, fetch_account_vehicles, token_data, await foreign_vins(session, user.id))
+        cars_list = await loop.run_in_executor(None, fetch_account_vehicles, token_data, await foreign_vins(session, user.id),
+                                               account_session_path(account_obj.id))
     except Exception as e:
         _LOGGER.error(f"Error listing vehicles after login: {e}")
         cars_list = []
@@ -255,6 +258,8 @@ async def login_ebro_account(req: EbroLoginRequest, session: AsyncSession = Depe
 
     await session.commit()
 
+    # every car of the account on its session before anything reads the cloud with it
+    await poller.bind_sessions()
     # new account: the car's MQTT channel reconnects with it (in the background: it takes a while)
     asyncio.create_task(CarEventHub.get_instance().restart_owner(account_obj.user_id, poller))
 

@@ -69,10 +69,11 @@ async def test_stats_summarise_months_buckets_capacity_places_and_drain(web) -> 
     assert d["period"] == "12m" and len(d["monthly"]) == 2 and d["totals"]["drives"] == 3 and d["totals"]["charges"] == 2
     first, last = d["monthly"]
     assert first["km"] == 70 and first["kwh_charged"] == 10 and first["liters"] == 30 and first["cost_total"] == 46.5
-    assert first["kwh_per_100km"] == round(13 / 70 * 100, 1) and first["cost_per_km"] == round(46.5 / 70, 3)
+    # the 20 km drive used petrol (1 l): out of the electric consumption, only the 50 km electric one counts
+    assert first["kwh_per_100km"] == 20.0 and first["cost_per_km"] == round(46.5 / 70, 3)
     assert last["km"] == 30 and last["cost_total"] == 90 and last["cost_per_km"] == 3.0
     assert d["totals"]["km"] == 100 and d["totals"]["cost_total"] == 136.5 and d["totals"]["cost_per_km"] == round(136.5 / 100, 3)
-    assert d["totals"]["kwh_per_100km"] == 18.0            # (10 + 3 + 5) kWh over (50 + 20 + 30) km: what the Energía tab shows for its 30 days
+    assert d["totals"]["kwh_per_100km"] == 18.8            # (10 + 5) kWh over (50 + 30) km, the electric drives: what the Energía tab shows for its 30 days
     # consumption buckets by speed: the 90–100 km/h bucket holds the 50 km drive at 20 kWh/100 km (no by-temperature chart: the car never reports it)
     assert "consumption_by_temp" not in d
     speeds = {b["label"]: b for b in d["consumption_by_speed"]}

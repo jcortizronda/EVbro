@@ -137,7 +137,7 @@ async function loadLatestCharge(vin = currentVin, chargeId = null) {
         const dateStr = d.toLocaleDateString(I18n.locale, { day: '2-digit', month: 'short' });
         const timeStr = d.toLocaleTimeString(I18n.locale, { hour: '2-digit', minute: '2-digit' });
         const statusIcon = s.is_active ? '[En Curso] ' : '';
-        const kwh = s.kwh_added ? ` · +${s.kwh_added} kWh` : '';
+        const kwh = s.kwh_added ? ` · +${historyNum(s.kwh_added)} kWh` : '';
         opt.innerText = `${statusIcon}${dateStr} ${timeStr} · ${s.address || 'Carga'}${kwh}`;
         if (data.charge && s.id === data.charge.id) {
           opt.selected = true;
@@ -156,7 +156,7 @@ async function loadLatestCharge(vin = currentVin, chargeId = null) {
       }
       document.getElementById('chargeLocationText').innerText = 'Conecta tu vehículo para registrar sesiones';
       document.getElementById('chargeChartTimeRange').innerText = '-- : --';
-      document.getElementById('kpiCost').innerText = '0.00 €';
+      document.getElementById('kpiCost').innerText = `${historyNum(0, 2)} €`;
       document.getElementById('kpiCostMode').innerText = 'Tarifa: Fija';
       document.getElementById('kpiDuration').innerText = '00m:00s';
       document.getElementById('kpiDurationDates').innerText = '-- : --';
@@ -169,8 +169,8 @@ async function loadLatestCharge(vin = currentVin, chargeId = null) {
       document.getElementById('kpiBatStart').innerText = '--%';
       document.getElementById('kpiBatAdded').innerText = '+0%';
       document.getElementById('kpiBatEnd').innerText = '--%';
-      document.getElementById('kpiAvgPower').innerText = '0.0 kW';
-      document.getElementById('kpiMaxPower').innerText = '0.0 kW';
+      document.getElementById('kpiAvgPower').innerText = `${historyNum(0, 1)} kW`;
+      document.getElementById('kpiMaxPower').innerText = `${historyNum(0, 1)} kW`;
       document.getElementById('kpiRangeStart').innerText = '-- km';
       document.getElementById('kpiRangeAdded').innerText = '+0 km';
       document.getElementById('kpiRangeEnd').innerText = '-- km';
@@ -225,20 +225,20 @@ async function loadLatestCharge(vin = currentVin, chargeId = null) {
     // Cost: a charge without a tariff (outside geofences and with no default price) is shown WITHOUT a cost, not as 0,00 €
     window.currentChargeDetail = c;
     const costLabels = { fixed: 'Tarifa fija', free: 'Gratis', pvpc: 'Tarifa PVPC (horaria)', time_of_use: 'Tarifa 2.0TD', default: 'Sin tarifa (0 €/kWh)' };
-    const effectiveCost = c.effective_cost_per_kwh ? ` (${c.effective_cost_per_kwh.toFixed(3).replace('.', ',')} €/kWh)` : '';
-    document.getElementById('kpiCost').innerText = c.has_cost ? `${(c.charge_cost || 0).toFixed(2).replace('.', ',')} €` : '-- €';
+    const effectiveCost = c.effective_cost_per_kwh ? ` (${historyNum(c.effective_cost_per_kwh, 3)} €/kWh)` : '';
+    document.getElementById('kpiCost').innerText = c.has_cost ? `${historyNum(c.charge_cost, 2)} €` : '-- €';
     document.getElementById('kpiCostMode').innerText = c.has_cost
-      ? `${costLabels[c.cost_mode] || c.cost_source}${effectiveCost}` : 'Sin tarifa: toca «Editar coste»';
+      ? `${costLabels[c.cost_mode] || c.cost_source}${effectiveCost}` : 'Sin tarifa: toca «Añadir coste»';
     const editBtn = document.getElementById('btnEditChargeCost');
     editBtn.hidden = !!c.is_active;                              // a charge in progress cannot be priced yet
     editBtn.textContent = c.has_cost ? 'Editar coste' : 'Añadir coste';
 
     // Energy. The battery energy is ESTIMATED (% gained × usable battery); grid energy and efficiency only exist if you enter the meter kWh
-    const fmtKwh = (n) => `${n.toFixed(1).replace('.', ',')} kWh`;
+    const fmtKwh = (n) => `${historyNum(n, 1)} kWh`;
     document.getElementById('kpiEnergyAdded').innerText = fmtKwh(c.kwh_added || 0);
     document.getElementById('kpiEnergyUsed').innerText = c.kwh_used ? fmtKwh(c.kwh_used) : '--';
-    document.getElementById('kpiEfficiency').innerText = c.efficiency_pct ? `${c.efficiency_pct.toFixed(1).replace('.', ',')} %` : '--';
-    const cap = c.battery_capacity_kwh ? String(c.battery_capacity_kwh).replace('.', ',') : '19,27';
+    document.getElementById('kpiEfficiency').innerText = c.efficiency_pct ? `${historyNum(c.efficiency_pct, 1)} %` : '--';
+    const cap = c.battery_capacity_kwh ? localNum(c.battery_capacity_kwh) : localNum(19.27);
     document.getElementById('kpiEnergyNote').innerText = c.kwh_used
       ? `Eficiencia = energía a la batería ÷ energía de la red. La de la batería es estimada: ${Math.round(c.added_battery_pct || 0)} % ganado × ${cap} kWh de batería útil.`
       : t('La energía a la batería es una estimación: {p0} % ganado × {p1} kWh de batería útil. La eficiencia solo se puede calcular si indicas los kWh de tu contador.', {p0: Math.round(c.added_battery_pct || 0), p1: cap});
@@ -252,8 +252,8 @@ async function loadLatestCharge(vin = currentVin, chargeId = null) {
     document.getElementById('kpiBatEnd').innerText = `${Math.round(c.end_battery_pct || 0)}%`;
 
     // Power
-    document.getElementById('kpiAvgPower').innerText = `${(c.avg_charge_power_kw || 0).toFixed(1)} kW`;
-    document.getElementById('kpiMaxPower').innerText = `${(c.max_charge_power_kw || 0).toFixed(1)} kW`;
+    document.getElementById('kpiAvgPower').innerText = `${historyNum(c.avg_charge_power_kw, 1)} kW`;
+    document.getElementById('kpiMaxPower').innerText = `${historyNum(c.max_charge_power_kw, 1)} kW`;
 
     // Ranges
     document.getElementById('kpiRangeStart').innerText = `${Math.round(c.start_range_km || 0)} km`;
@@ -382,8 +382,8 @@ function renderChargeTemporalChart(points, meta) {
   const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
   setEl('legSocMin', `${Math.round(minSoc)}%`);
   setEl('legSocMax', `${Math.round(maxSoc)}%`);
-  setEl('legPowerMin', `${minPow.toFixed(1)} kW`);
-  setEl('legPowerMax', `${maxPow.toFixed(1)} kW`);
+  setEl('legPowerMin', `${historyNum(minPow, 1)} kW`);
+  setEl('legPowerMax', `${historyNum(maxPow, 1)} kW`);
   setEl('legRangeMin', `${Math.round(minRng)} km`);
   setEl('legRangeMax', `${Math.round(maxRng)} km`);
 
@@ -580,7 +580,7 @@ function renderChargeTemporalChart(points, meta) {
       tooltip.innerHTML = `
         <div class="u-font-weight-700_margin-bottom-3px_border-bottom-1px-solid-rgba-255-255-255-0p1_padding-bottom-2px">${timeStr}</div>
         <div class="u-color-10b981">● Batería: <b>${Math.round(closestPt.battery_pct)}%</b></div>
-        <div class="u-color-f59e0b">● Potencia: <b>${(closestPt.power_kw || 0).toFixed(1)} kW</b></div>
+        <div class="u-color-f59e0b">● Potencia: <b>${historyNum(closestPt.power_kw, 1)} kW</b></div>
         ${closestPt.range_km ? `<div class="u-color-f97316">● Autonomía: <b>${Math.round(closestPt.range_km)} km</b></div>` : ''}
         ${closestPt.voltage ? `<div class="u-color-a855f7_font-size-0p75rem">● Tensión: <b>${Math.round(closestPt.voltage)} V</b></div>` : ''}
         ${closestPt.current ? `<div class="u-color-38bdf8_font-size-0p75rem">● Corriente: <b>${Math.round(closestPt.current)} A</b></div>` : ''}
@@ -755,7 +755,7 @@ function renderChargingCurveChart(points) {
     if (tooltip) {
       tooltip.innerHTML = `
         <div class="u-font-weight-700_color-var-text-primary_margin-bottom-2px">${t('Batería: {p0}%', {p0: Math.round(pt.battery_pct)})}</div>
-        <div class="u-color-var-primary">● Potencia: <b>${(pt.power_kw || 0).toFixed(1)} kW</b></div>
+        <div class="u-color-var-primary">● Potencia: <b>${historyNum(pt.power_kw, 1)} kW</b></div>
       `;
       tooltip.style.display = 'block';
       let tipLeft = ptX + 15;
@@ -806,7 +806,7 @@ async function loadPvpcLiveBanner() {
       badge.style.cssText = `font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 20px; font-weight: 700; ${badgeStyle}`;   // CSSOM: allowed without 'unsafe-inline'
       badge.textContent = `Tramo ${period.toUpperCase()}`;
       desc.innerText = `${data.period_description} • Operador ESIOS / Red Eléctrica de España`;
-      priceElem.innerText = `${(data.pvpc_price_kwh || 0).toFixed(4)} €/kWh`;
+      priceElem.innerText = `${historyNum(data.pvpc_price_kwh, 4)} €/kWh`;
     }
   } catch (err) {
     console.warn("Live PVPC query failed:", err);
@@ -819,14 +819,40 @@ function openChargeCostModal() {
   const c = window.currentChargeDetail;
   if (!c) return;
   document.getElementById('chargeCostIntro').textContent =
-    t('Carga del {p0}: {p1} kWh a la batería (estimados).', {p0: serverDate(c.start_time).toLocaleDateString(I18n.locale, { day: '2-digit', month: 'long' }), p1: String(c.kwh_added).replace('.', ',')});
-  const manual = c.cost_mode === 'manual';
-  document.querySelector('input[name="chargeCostMode"][value="price"]').checked = true;
-  setChargeCostMode('price');
+    t('Carga del {p0}: {p1} kWh a la batería (estimados).', {p0: serverDate(c.start_time).toLocaleDateString(I18n.locale, { day: '2-digit', month: 'long' }), p1: localNum(c.kwh_added)});
   document.getElementById('chargeCostPrice').value = c.effective_cost_per_kwh ?? '';
-  document.getElementById('chargeCostTotal').value = manual ? c.charge_cost : '';
+  document.getElementById('chargeCostTotal').value = c.has_cost ? c.charge_cost : '';
   document.getElementById('chargeCostMeter').value = c.kwh_used ?? '';
+  chargeCostEdited = null;
+  syncChargeCost(null);
   document.getElementById('chargeCostModal').classList.add('open');
+}
+
+// Which of the two figures the manager wrote last: that one is sent, the other only follows it on screen
+let chargeCostEdited = null;
+
+/** The kWh the cost is counted over: the meter's if written in the dialog, otherwise the ones estimated into the battery. */
+function chargeCostEnergy() {
+  const c = window.currentChargeDetail || {};
+  const meter = parseFloat(String(document.getElementById('chargeCostMeter').value).replace(',', '.'));
+  return meter > 0 ? { kwh: meter, meter: true } : { kwh: c.kwh_added || 0, meter: false };
+}
+
+/** Works out the figure that was not written from the one that was (`source`: 'total', 'price' or null for none yet). */
+function syncChargeCost(source) {
+  if (source) chargeCostEdited = source;
+  const energy = chargeCostEnergy();
+  const total = document.getElementById('chargeCostTotal');
+  const price = document.getElementById('chargeCostPrice');
+  const value = (el) => { const v = parseFloat(String(el.value).replace(',', '.')); return isNaN(v) ? null : v; };
+  if (energy.kwh > 0) {
+    if (chargeCostEdited === 'total') price.value = value(total) === null ? '' : (value(total) / energy.kwh).toFixed(3);
+    if (chargeCostEdited === 'price') total.value = value(price) === null ? '' : (value(price) * energy.kwh).toFixed(2);
+  }
+  document.getElementById('chargeCostBase').textContent = energy.kwh > 0
+    ? (energy.meter ? t('Calculado sobre {p0} kWh de tu contador.', { p0: localNum(energy.kwh) })
+                    : t('Calculado sobre {p0} kWh a la batería (estimados).', { p0: localNum(energy.kwh) }))
+    : '';
 }
 
 /** The grid kWh from the owner's meter or charger: the only way to know the real efficiency (the battery kWh are estimated).
@@ -855,20 +881,15 @@ function closeChargeCostModal() {
   document.getElementById('chargeCostModal').classList.remove('open');
 }
 
-function setChargeCostMode(mode) {
-  document.getElementById('chargeCostPriceBox').hidden = mode !== 'price';
-  document.getElementById('chargeCostTotalBox').hidden = mode !== 'total';
-}
-
 async function saveChargeCost() {
   const c = window.currentChargeDetail;
   if (!c) return;
-  const mode = document.querySelector('input[name="chargeCostMode"]:checked').value;
   const num = (id) => { const v = parseFloat(document.getElementById(id).value.replace(',', '.')); return isNaN(v) ? null : v; };
   const body = {};
-  if (mode === 'price' && num('chargeCostPrice') !== null) body.price_per_kwh = num('chargeCostPrice');
-  if (mode === 'total' && num('chargeCostTotal') !== null) body.total_cost = num('chargeCostTotal');
-  if (num('chargeCostMeter') !== null) body.kwh_meter = num('chargeCostMeter');
+  // The figure written by hand is the one that counts; the other was only worked out from it
+  if (chargeCostEdited === 'price' && num('chargeCostPrice') !== null) body.price_per_kwh = num('chargeCostPrice');
+  if (chargeCostEdited === 'total' && num('chargeCostTotal') !== null) body.total_cost = num('chargeCostTotal');
+  if (num('chargeCostMeter') !== null && num('chargeCostMeter') !== c.kwh_used) body.kwh_meter = num('chargeCostMeter');
   if (!Object.keys(body).length) { showToast('Indica el precio, el coste total o los kWh del contador.', 'warning'); return; }
   try {
     const res = await fetch(`/api/charges/${c.id}/cost`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -884,7 +905,10 @@ async function saveChargeCost() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  document.querySelectorAll('input[name="chargeCostMode"]').forEach((r) => r.addEventListener('change', () => setChargeCostMode(r.value)));
+  const on = (id, source) => { const el = document.getElementById(id); if (el) el.addEventListener('input', () => syncChargeCost(source)); };
+  on('chargeCostTotal', 'total');
+  on('chargeCostPrice', 'price');
+  on('chargeCostMeter', null);            // other kWh: the figure that was written stays, the other follows
 });
 
 

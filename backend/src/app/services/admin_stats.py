@@ -30,13 +30,14 @@ from app.db.models import (
     VehiclePart,
 )
 from app.services import invites, storage
+from app.timeutil import utcnow
 
 _STARTED = time.time()
 WEEKS = 8
 
 
 def _now() -> datetime.datetime:
-    return datetime.datetime.utcnow()
+    return utcnow()
 
 
 async def _count(session: AsyncSession, model, *where) -> int:

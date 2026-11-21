@@ -103,3 +103,14 @@ async def test_charge_summary_adds_up_every_charge_by_month(web) -> None:
 async def test_charge_summary_of_a_car_without_charges(web) -> None:
     body = (await web.get(f"/api/vehicles/{VIN}/charges/summary")).json()
     assert body == {"count": 0, "kwh_added": 0.0, "cost": 0.0, "dc_count": 0, "dc_kwh_added": 0, "months": []}
+
+
+async def test_each_trip_says_whether_the_cloud_placed_the_car(web) -> None:
+    """09-11-2026: the web looked for coordinates the list never sent, so every trip showed «Sin posición» and lost «Ver trazado»."""
+    async with async_session_factory() as s:
+        s.add(Drive(vin=VIN, start_time=D(2026, 11, 2, 8), end_time=D(2026, 11, 2, 9), distance_km=12.0,
+                    start_lat=40.0, start_lon=-3.0, end_lat=40.1, end_lon=-3.1, start_address="Calle Mayor 3"))
+        s.add(Drive(vin=VIN, start_time=D(2026, 11, 3, 8), end_time=D(2026, 11, 3, 9), distance_km=8.0))
+        await s.commit()
+    drives = {d["distance_km"]: d for d in (await web.get(f"/api/vehicles/{VIN}/drives?limit=50")).json()["drives"]}
+    assert drives[12.0]["has_position"] is True and drives[8.0]["has_position"] is False

@@ -195,18 +195,30 @@ async def test_a_report_travels_end_to_end_and_the_receiver_limits_and_aggregate
     gid = summary["errors"][0]["id"]
     assert (await console.post(f"/api/admin/telemetry/errors/{gid}/resolve", json={"resolved": True})).status_code == 200
 
-    # the same error from a newer version reopens it
-    async with async_session_factory() as s:
-        inst = (await s.execute(select(TelemetryInstall))).scalar_one()
-        inst.last_seen = datetime.datetime.utcnow() - datetime.timedelta(hours=2)
-        await s.commit()
-        report = await telemetry.build_report(s)
-    report["server"]["version"] = "9.9.9"
-    report["errors"] = [{**summary["errors"][0], "fingerprint": group.fingerprint, "count": 2}]
-    async with async_session_factory() as s:
-        await telemetry.receive(s, report)
-        g = (await s.execute(select(TelemetryErrorGroup))).scalar_one()
-        assert g.resolved_at is None and g.total_count == 3 and g.versions[-1] == "9.9.9"
+    async def resend(version, commit):
+        async with async_session_factory() as s:
+            inst = (await s.execute(select(TelemetryInstall))).scalar_one()
+            inst.last_seen = datetime.datetime.utcnow() - datetime.timedelta(hours=2)
+            await s.commit()
+            report = await telemetry.build_report(s)
+        report["server"]["version"], report["server"]["commit"] = version, commit
+        report["errors"] = [{**summary["errors"][0], "fingerprint": group.fingerprint, "count": 2}]
+        async with async_session_factory() as s:
+            await telemetry.receive(s, report)
+            return (await s.execute(select(TelemetryErrorGroup))).scalar_one()
+
+    # the same build sends it again: it stays resolved (until 11-11-2026 every resolved error reopened on the next report)
+    first = group.versions[-1]
+    version, _, commit = first.partition("+")
+    g = await resend(version, commit or None)
+    assert g.resolved_at is not None and g.total_count == 3
+    # a newer build (same version number, another commit) sends it: reopened
+    g = await resend(version, "abcdef1234567")
+    assert g.resolved_at is None and g.total_count == 5 and g.versions[-1] == f"{version}+abcdef1"
+    # resolved again, and a newer version reopens it too
+    assert (await console.post(f"/api/admin/telemetry/errors/{gid}/resolve", json={"resolved": True})).status_code == 200
+    g = await resend("9.9.9", None)
+    assert g.resolved_at is None and g.versions[-1] == "9.9.9"
 
 
 async def test_the_receiver_refuses_bad_reports(world, monkeypatch) -> None:
@@ -232,3 +244,67 @@ async def test_turning_it_off_forgets_what_was_waiting_and_an_empty_url_disables
     monkeypatch.setattr(settings, "TELEMETRY_URL", "")
     assert (await console.put("/api/admin/telemetry", json={"enabled": True})).status_code == 409
     assert (await console.get("/api/admin/telemetry")).json()["available"] is False
+
+
+def test_warnings_about_the_installation_or_an_account_are_not_reported(monkeypatch) -> None:
+    """A new encryption key or a password the Ebro cloud rejects is for whoever runs the server, not a fault in the code."""
+    import logging
+
+    monkeypatch.setattr(telemetry._state, "enabled", True)
+    monkeypatch.setattr(telemetry._state, "errors", {})
+    handler = telemetry.TelemetryLogHandler()
+    log = logging.getLogger("app.services.example")
+    log.addHandler(handler)
+    try:
+        log.warning("The Ebro cloud rejected the stored password", extra={"telemetry": False})
+        assert telemetry._state.errors == {}
+        log.warning("Read of 123456 brought no data: exception (timeout)")
+        assert len(telemetry._state.errors) == 1
+    finally:
+        log.removeHandler(handler)
+
+
+def test_reads_without_data_are_grouped_by_cause(monkeypatch) -> None:
+    """A read without data used to be one group for every cause: the console showed the last message (a DNS failure) over hundreds
+    of expired sessions. Each cause is now a group of its own, and a session the cloud closed is not reported."""
+    import logging
+
+    from app.services.poller import read_failure_group
+
+    assert read_failure_group({"reason": "no_usertoken"}) == "session"
+    assert read_failure_group({"reason": "exception", "error": "HTTPSConnectionPool(...): Max retries exceeded (NameResolutionError)"}) == "network"
+    assert read_failure_group({"reason": "exception", "error": "KeyError: 'data'"}) == "exception"
+    assert read_failure_group({"reason": "busy"}) == "busy"
+
+    monkeypatch.setattr(telemetry._state, "enabled", True)
+    monkeypatch.setattr(telemetry._state, "errors", {})
+    handler = telemetry.TelemetryLogHandler()
+    log = logging.getLogger("app.services.example")
+    log.addHandler(handler)
+    try:
+        for group in ("network", "exception", "network"):
+            log.warning("Read of 123456 brought no data: exception", extra={"telemetry_group": group})
+        counts = {e["location"].rsplit("[", 1)[-1].rstrip("]"): e["count"] for e in telemetry._state.errors.values()}
+        assert set(counts) == {"network", "exception"}
+        assert counts["network"] == 2 * counts["exception"]          # the root logger may hold the app's handler as well
+    finally:
+        log.removeHandler(handler)
+
+
+def test_a_wrong_pin_is_not_reported(monkeypatch) -> None:
+    """core/taskid.py logs checkPassword's raw answer; a wrong PIN (A07908/A07909) is the person's typo, any other answer is kept."""
+    import logging
+
+    monkeypatch.setattr(telemetry._state, "enabled", True)
+    monkeypatch.setattr(telemetry._state, "errors", {})
+    handler = telemetry.TelemetryLogHandler()
+    log = logging.getLogger("app.core.taskid")
+    log.addHandler(handler)
+    try:
+        log.warning("[taskId] checkPassword NO devolvió un taskId → %s (respuesta cruda)", "code=1 'A07908'")
+        log.warning("[taskId] checkPassword NO devolvió un taskId → %s (respuesta cruda)", "code=1 'A07909'")
+        assert telemetry._state.errors == {}
+        log.warning("[taskId] checkPassword NO devolvió un taskId → %s (respuesta cruda)", "code=1 'A00123'")
+        assert len(telemetry._state.errors) == 1
+    finally:
+        log.removeHandler(handler)

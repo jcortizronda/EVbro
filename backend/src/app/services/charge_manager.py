@@ -53,6 +53,7 @@ MIN_AUTO_GAP_MIN = 10     # minimum gap between the manager's automatic actions
 TICK_EVERY_S = 300        # how often to check that the pause window is still «closed»
 TARGET_CHOICES = tuple(range(50, 101, 5))     # in steps of 5; the target is NOT sent to the car: EVBro watches it
 VERIFY_DELAY_S = 20        # wait before checking that the car applied the command
+VERIFY_RECHECK_S = 30      # if it does not show yet, wait this much more before resending: the car may still be running it
 PENDING_WINDOW_S = 90      # during this time a reading that does not match counts as «being applied»
 
 MODE_FREE, MODE_SCHEDULED, MODE_HOLD = "free", "scheduled", "hold"
@@ -219,9 +220,24 @@ class ChargeManager:
     async def _verify_later(self, vin: str) -> None:
         try:
             await asyncio.sleep(self._verify_delay or 0)
-            await self.verify_applied(vin)
+            if not await self._car_matches(vin):
+                # Not there yet: the car runs one command at a time and may still be on this one. A resend now only gets «busy»
+                # (A00082) and leaves that as the plan's error (14-11-2026: the manager pressed twice more for nothing)
+                await asyncio.sleep(VERIFY_RECHECK_S)
+                await self.verify_applied(vin)
+        except ChargeError as exc:                           # the car refused the resend: its answer, not a failure of EVBro
+            _LOGGER.warning("Charge manager (%s): the resend was not accepted (%s)", vin, exc.reason)
         except Exception:                                    # noqa: BLE001 - must never break anything
             _LOGGER.exception("Charge manager (%s): error while verifying", vin)
+
+    async def _car_matches(self, vin: str) -> bool:
+        """Does the car show what it was asked for? True as well when it cannot be read (nothing to conclude)."""
+        car = await self._reader(vin)
+        if car is None:
+            return True
+        async with async_session_factory() as s:
+            row = await s.get(ChargePlan, vin)
+            return row is None or bool(car.get("enabled")) == self._expected_enabled(row)
 
     async def verify_applied(self, vin: str) -> bool:
         """Checks that the car has what it was asked for; otherwise resends ONCE. Returns True when it matches."""

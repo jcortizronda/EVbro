@@ -24,6 +24,7 @@ from app.config import settings
 from app.db.models import MqttLink
 from app.db.session import async_session_factory
 from app.services import ha_discovery
+from app.timeutil import utcnow
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -121,7 +122,7 @@ class MqttLinkClient:
     def _on_connect(self, client, userdata, flags, rc, properties=None):
         code = getattr(rc, "value", rc)
         if code == 0:
-            self._connected, self.last_error, self.connected_at = True, None, datetime.datetime.utcnow()
+            self._connected, self.last_error, self.connected_at = True, None, utcnow()
             self._announced = set()
             client.publish(self.availability_topic, "online", qos=1, retain=True)
             if self.config.ha_discovery:

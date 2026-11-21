@@ -96,9 +96,9 @@ async def test_insurance_renewal_alert_by_stages(web) -> None:
     await web.put(f"/api/vehicles/{VIN}", json={"insurance_renewal_date": "2026-12-01T00:00:00"})
     assert await renewals_at(D(2026, 10, 1)) == []                                            # 61 days left
     (a,) = await renewals_at(D(2026, 11, 10))                                                  # 21 days
-    assert a["key"] == "insurance:warning" and a["remaining_days"] == 21 and a["repeat_hours"] == 168
+    assert a["key"] == "insurance:warning" and a["remaining_days"] == 21
     (a,) = await renewals_at(D(2026, 11, 28))
-    assert a["key"] == "insurance:urgent" and a["repeat_hours"] == 24
+    assert a["key"] == "insurance:urgent"
     (a,) = await renewals_at(D(2026, 12, 4))
     assert a["key"] == "insurance:overdue" and a["is_overdue"] and a["remaining_days"] == -3
 

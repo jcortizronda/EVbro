@@ -40,6 +40,11 @@ velocidad > 1 km/h o `engineState` = `driving`. El sondeo trata `ready` como «e
   corto puede salir como 0 km, igual que en el salpicadero; las gráficas de consumo, la ficha «Consumo EV» de Energía y el consumo medio del
   resumen de Viajes ignoran los viajes de menos de 2 km y los que no tienen energía medida (`MIN_DRIVE_KM` en `services/stats.py`). Los viajes construidos
   solo por GPS ([traccar.md](traccar.md)) no tienen odómetro y conservan la distancia de sus puntos.
+- **Km en eléctrico:** el viaje guarda también el **cuentakilómetros EV** del coche al empezar y al terminar (`start_ev_odometer` /
+  `end_ev_odometer`, de la misma lectura que el odómetro total, también cuando el inicio se recupera de la lectura aparcada). Solo se usa en
+  sumas (meses, periodos): por viaje el EV y el total pueden diferir en un km sin gasolina, porque avanzan desfasados. Los viajes que gastaron
+  gasolina del depósito quedan fuera del consumo eléctrico, porque el motor recarga la batería por el camino ([stats.md](stats.md),
+  «Kilómetros en eléctrico y viajes con gasolina»).
 - **Gasolina (`fuel_used_l`):** el coche manda el depósito en **%** (`oilSurplus`), como la batería; los litros de un viaje son los puntos
   gastados × litros del depósito de la ficha (50 por defecto), igual que en los repostajes detectados. Hasta la migración `0024_drive_fuel_litres`
   se guardaban los puntos como litros (un viaje de 400 km del 100 % al 43 % salía como «57 L», 04-11-2026); la migración convirtió los viajes
@@ -75,6 +80,46 @@ el **mismo cuentakilómetros** que el final del último viaje y a más de 250 m 
 geocerca) durante las 6 h siguientes (`RELOCATE_MAX_AGE`; solo en memoria, un reinicio lo olvida), y una carga abierta cuya lectura esté a
 más de 250 m de donde nació se muda allí (posición, dirección, geocerca y por tanto su tarifa al cerrar). La deriva del GPS aparcado queda
 muy por debajo de esa distancia.
+
+**Viajes no vistos** (`drives.unseen`, 18-11-2026). Un coche dormido se lee una vez por hora; si además su canal en directo está parado, un
+trayecto corto entre dos lecturas no deja más rastro que un cuentakilómetros más alto. El 16-11-2026 un coche marcaba, 77 min después de un viaje de
+98 km y en el mismo sitio, 4 km más y 3 puntos menos de batería, con datos que el propio coche había generado 72 min después de aparcar (campo
+`time`): una salida de ida y vuelta que nadie vio. Esos km no estaban en ningún viaje (9 casos en 157 viajes del servidor).
+
+Ahora se registran como **un viaje propio**, nunca sumados al anterior (decisión del dueño): cuando el coche se lee **apagado** con **2 km o más**
+(`UNSEEN_MIN_KM`; menos es el cuentakilómetros, que va en km enteros) sobre la última lectura en parado y no hay ningún viaje entre las dos,
+`_record_unseen_drive` crea el viaje con lo que dicen esas dos lecturas: origen y destino (posición, dirección, geocerca), cuentakilómetros,
+batería y depósito con su consumo. El final es la hora que el coche pone a sus datos (`time`) y el inicio se estima a 35 km/h, sin pasar de la
+lectura anterior; no hay ruta ni velocidades. No se crea si el coche está encendido (si circula, el viaje normal arranca en la lectura siguiente
+con su inicio recuperado) ni si los km no caben entre las dos lecturas a menos de 110 km/h (`UNSEEN_MAX_SPEED_KMH`: es la lectura que cerró el
+viaje anterior, que iba atrasada; esos km siguen sin viaje). La lista lo marca «No visto» y lo explica en el detalle, sin «Ver trazado» ni GPX.
+Con el canal en directo conectado el coche avisa al despertarse y el trayecto sale como un viaje normal.
+
+**Posición congelada (medido el 09-11-2026).** No es que falte la posición: en 3.851 lecturas de 13 días de un S900 solo 17 vinieron sin ella.
+Lo que pasa es que la nube **repite el mismo punto** durante horas mientras el coche circula: tres episodios en ese coche (31-10 20:00→21:58,
+5 km; 03-11 22:30→04-11 06:20, 27 km; 04-11 06:20→15:06, 26 km), ninguno en los demás coches del servidor. Durante esos viajes la telemetría en
+tiempo real era fresca (velocidad, cuentakilómetros, `onlineStatus` 1): es el almacén de posición de la nube (o la subida de GPS del coche) lo que
+se para, y los viajes salen con un solo punto. El «Localizar coche (GPS)» manual dio un punto fresco **cada vez**, pero no siempre reactivó las
+actualizaciones (el del 04-11 06:20 dio su punto y la posición volvió a congelarse hasta las 15:06). Desde entonces cinco días sin congelación y sin
+ningún localizar: no hay una relación «localizar → X días de posición». El `resultTime` de `queryVehicleLocation` es la hora del **último comando**
+(localizar o incluso desbloquear), no la del último fix: no sirve para detectar la congelación. `travelQuery` es la «salida programada», no un
+historial de viajes: no hay otra fuente de trazados.
+
+EVBro lo **detecta** (`services/poller_position.py:_watch_frozen_position`: el mismo punto redondeado a 4 decimales durante 3 min **desde que el
+cuentakilómetros empieza a subir**, y al menos 2 km. Hasta el 14-11-2026 bastaba 1 km y el reloj corría desde que se vio el punto: el cuentakilómetros va
+en km enteros, así que un solo salto al arrancar tras una noche aparcado daba «1097 min congelado, 1,0 km»; hubo cuatro falsas alarmas así en dos días) y lo escribe en el log («Frozen position on …», y «moves again after …» cuando se descongela). Como **experimento**
+(`AUTO_LOCATE_ENABLED`, apagado por defecto), al detectarlo manda él mismo `localizar_coche_gps` con el PIN guardado (origen `auto_locate` en la
+auditoría), como mucho uno cada 5 min y **dos por episodio**. Los km solo cuentan en lecturas con el coche encendido: el 16-11-2026 un coche aparcado tras un viaje de 98 km recibió tres «localizar» en tres horas, dormido y en su posición real, porque el cuentakilómetros marcaba 4 km más una hora después de aparcar (una salida corta que EVBro no vio, entre dos lecturas horarias); cada uno lo despertó. Si la cuenta no tiene PIN guardado no lo reintenta en ese episodio y lo
+anota como información, no como aviso. El log dice cuántos segundos tarda la posición en moverse
+tras cada localizar: con eso se decide si vale.
+
+**Visto funcionar el 21-11-2026** (el S900, con `AUTO_LOCATE_ENABLED` activado en el servidor): en tres viajes seguidos la nube solo movió
+el punto después de cada localizar; hubo cuatro episodios y en los cuatro la posición se movió entre 11 y 69 s después del localizar
+automático. Ese mismo día salió el hueco que quedaba: el último punto llegó a mitad del cuarto viaje, el coche recorrió 2 km más, aparcó en
+casa y el mapa lo seguía poniendo a 2 km (el episodio no llegó a los 3 min de congelación). Por eso, **al pararse**, un coche que ha recorrido
+2 km o más con el motor encendido sobre su último punto pide **un** localizar para saber dónde se ha quedado. Lo pide mientras sigue
+despierto, no si ya se mandó un localizar sobre ese mismo punto, y nunca si el cuentakilómetros subió con el coche apagado. El viaje se cierra
+unos minutos después de pararse y toma ese punto nuevo como final.
 
 ## Ruta: reproducir, exportar y lugares frecuentes (2026-10-30)
 

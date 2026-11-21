@@ -7,12 +7,15 @@ can be compared and synced between both repositories without renaming anything.
 from __future__ import annotations
 
 import os
+import shutil
 import tempfile
 
 # EVBro's configuration is read when `app.config` is imported: the test environment must be
 # set BEFORE any module imports it (this conftest is loaded first).
 _TMP = tempfile.mkdtemp(prefix="evbro-tests-")
-os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{_TMP}/test.db"
+_DB_FILE = os.path.join(_TMP, "test.db")
+_TEMPLATE_FILE = os.path.join(_TMP, "template.db")      # the empty schema, built once per run (see `db`)
+os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{_DB_FILE}"
 os.environ["DATA_DIR"] = os.path.join(_TMP, "data")
 os.environ["ADMIN_PORT"] = "0"          # the admin console is tested through its ASGI app; no real second port in tests
 for _k in ("EBRO_PHONE", "EBRO_PASSWORD", "EBRO_PIN", "ENCRYPTION_KEY", "SETUP_CODE"):
@@ -53,15 +56,33 @@ def ensure_test_database(engine) -> None:
         f"Tests may only drop tables in SQLite, not in {engine.url.render_as_string(hide_password=True)}")
 
 
+def _remove_database_files() -> None:
+    for suffix in ("", "-journal", "-wal", "-shm"):
+        try:
+            os.remove(_DB_FILE + suffix)
+        except FileNotFoundError:
+            pass
+
+
 @pytest_asyncio.fixture
 async def db():
-    """Empty SQLite database (freshly created tables) on the app's real engine."""
+    """Empty SQLite database (freshly created tables) on the app's real engine.
+
+    The schema is created once per run into a template file and copied for each test. Dropping and creating every table took
+    about 1.3 s per test, most of the 14 minutes of the whole suite (measured on 2026-11-09); copying the file takes milliseconds
+    and leaves exactly the same empty schema."""
     from app.db.models import Base
     from app.db.session import engine
 
     ensure_test_database(engine)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
+    await engine.dispose()                                     # no pooled connection may keep the old file open
+    if not os.path.exists(_TEMPLATE_FILE):
+        _remove_database_files()
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        await engine.dispose()
+        shutil.copyfile(_DB_FILE, _TEMPLATE_FILE)
+    _remove_database_files()
+    shutil.copyfile(_TEMPLATE_FILE, _DB_FILE)
     yield engine
     await engine.dispose()

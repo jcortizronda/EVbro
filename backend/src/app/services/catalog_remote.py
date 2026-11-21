@@ -32,6 +32,7 @@ from app.db.models import AppSetting, CatalogEntry, CatalogFitment, CatalogKey, 
 from app.security.auth import hash_token
 from app.services import catalog
 from app.services.parts import CATEGORY_BY_KEY, POSITIONS
+from app.timeutil import utcnow
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -50,7 +51,7 @@ MAX_SIGNUPS_PER_DAY = 100               # new self-service keys per day, all cal
 
 
 def _now() -> datetime.datetime:
-    return datetime.datetime.utcnow()
+    return utcnow()
 
 
 class RemoteError(Exception):

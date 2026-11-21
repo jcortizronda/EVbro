@@ -14,7 +14,7 @@ from app.config import get_timezone
 from app.db.models import Drive, DrivePosition, Geofence, Vehicle
 from app.db.session import get_db
 from app.services import gpx, periods, places
-from app.services.stats import MIN_DRIVE_KM
+from app.services.stats import MIN_DRIVE_KM, counts_for_ev_consumption, electric_only
 
 router = APIRouter(tags=["Drives"])
 
@@ -46,7 +46,10 @@ def format_drive_dict(d: Drive) -> Dict[str, Any]:
     fuel_l = d.fuel_used_l or 0.0
 
     # Wh/km or kWh/100km
-    consumption_wh_km = round((energy_kwh * 1000.0) / dist, 1) if dist > 0.1 and energy_kwh > 0 else None
+    # Not for trips that used the petrol engine: it charges the battery on the way, so the battery points spent understate the
+    # cost of driving (services/stats.py, `counts_for_ev_consumption`)
+    only_ev = electric_only(d)
+    consumption_wh_km = round((energy_kwh * 1000.0) / dist, 1) if dist > 0.1 and energy_kwh > 0 and only_ev is not False else None
     consumption_l_100km = round((fuel_l * 100.0) / dist, 2) if dist > 0.1 and fuel_l > 0 else None
 
 
@@ -57,6 +60,9 @@ def format_drive_dict(d: Drive) -> Dict[str, Any]:
         "end_time": d.end_time.isoformat() if d.end_time else None,
         "start_address": d.start_address or "Origen no identificado",
         "end_address": d.end_address or "Destino no identificado",
+        # Whether the cloud placed the car at the start or the end: without it the trip has no route (some cars never get a
+        # position). The web hides «Ver trazado» and GPX by this; it used to look for coordinates the list never sent (09-11-2026).
+        "has_position": d.start_lat is not None or d.end_lat is not None,
         "duration_seconds": d.duration_seconds or 0,
         "duration_min": round((d.duration_seconds or 0) / 60.0, 1),
         "distance_km": round(dist, 1),
@@ -76,10 +82,12 @@ def format_drive_dict(d: Drive) -> Dict[str, Any]:
         "climate_used": d.climate_used or False,
         "notes": d.notes or "",
         "consumption_wh_km": consumption_wh_km,
+        "electric_only": only_ev,
         "consumption_l_100km": consumption_l_100km,
         "consumption_kwh_100km": round(consumption_wh_km / 10.0, 1) if consumption_wh_km else None,
         "is_incomplete": d.end_time is None,
         "start_estimated": bool(d.start_estimated),
+        "unseen": bool(d.unseen),        # built from the readings before and after it: estimated times, no route
     }
 
 
@@ -160,11 +168,11 @@ async def list_vehicle_drives(
             total_fuel_l += (d.fuel_used_l or 0.0)
             total_duration_sec += (d.duration_seconds or 0)
             total_distance_km += (d.distance_km or 0.0)
-            if (d.distance_km or 0.0) >= MIN_DRIVE_KM and d.energy_consumed_kwh:
+            if counts_for_ev_consumption(d):
                 eff_km += d.distance_km
                 eff_kwh += d.energy_consumed_kwh
 
-    # averages for the period summary banner. Electric consumption only over drives of ≥ MIN_DRIVE_KM with measured energy:
+    # averages for the period summary banner. Electric consumption only over fully electric drives of ≥ MIN_DRIVE_KM with measured energy:
     # a drive without kWh would add km and no energy, and in a very short one a single battery point and the odometer's
     # whole-km rounding give meaningless figures.
     avg_wh_km = round((eff_kwh * 1000.0) / eff_km, 1) if eff_km >= MIN_DRIVE_KM else 0.0

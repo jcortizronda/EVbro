@@ -174,6 +174,30 @@ async def test_verify_resends_once_if_the_car_did_not_apply_the_clear(manager) -
     assert await manager.verify_applied(VIN) is True and len(manager.fake_car.sent) == n + 1
 
 
+async def test_verify_gives_the_car_time_before_resending(manager, monkeypatch) -> None:
+    """14-11-2026: the check 20 s after the command found the car still running it, resent, and got «busy» (A00082) as the
+    plan's error."""
+    from app.services import charge_manager as cm
+    monkeypatch.setattr(cm, "VERIFY_RECHECK_S", 0)
+    await manager.stop(VIN)
+    n = len(manager.fake_car.sent)
+    manager._verify_delay = 0
+    applied = {"enabled": True, "start": "20:30", "end": "21:30", "duration_min": 60}
+    readings = [{"enabled": False, "start": None, "end": None, "duration_min": None}, applied]   # not yet… and then it is there
+
+    async def read(vin):
+        return readings.pop(0) if len(readings) > 1 else readings[0]
+
+    manager._reader = read
+    await manager._verify_later(VIN)
+    assert len(manager.fake_car.sent) == n and (await plan_row()).last_error is None      # nothing resent
+    readings[:] = [{"enabled": False, "start": None, "end": None, "duration_min": None}]         # it never applies it: one resend
+    await manager._verify_later(VIN)
+    assert len(manager.fake_car.sent) == n + 1 and manager.fake_car.sent[-1][2] == "automático (verificación)"
+    manager.fake_car.response = {"success": False, "reason": "busy", "message": "coche ocupado"}
+    await manager._verify_later(VIN)                                             # the car refuses the resend: logged, never raised
+
+
 async def test_verify_touches_nothing_if_it_cannot_read_or_it_matches(manager) -> None:
     await manager.stop(VIN)
     n = len(manager.fake_car.sent)

@@ -61,7 +61,8 @@ async def test_a_journey_adds_up_everything_between_its_dates(holiday) -> None:
     assert s["charges"] == {"count": 2, "kwh": 40.0, "cost": 12.5, "dc_count": 1, "unpriced": 1}
     assert s["refuels"]["liters"] == 40.0 and s["expenses"]["by_category"] == {"parking": 6.0, "tolls": 12.4}
     assert s["totals"]["cost_per_km"] == round(94.9 / 430, 3) and s["totals"]["cost_per_day"] == round(94.9 / 3, 2)
-    assert s["drives"]["kwh_per_100km"] == round(25 / 430 * 100, 1) and s["drives"]["l_per_100km"] == 4.5 and s["drives"]["max_speed_kmh"] == 125.0
+    # only the fully electric drive: the 400 km one used petrol, which also charged the battery
+    assert s["drives"]["kwh_per_100km"] == round(5 / 30 * 100, 1) and s["drives"]["l_per_100km"] == 4.5 and s["drives"]["max_speed_kmh"] == 125.0
     assert [d["day"] for d in s["per_day"]] == ["2026-08-01", "2026-08-02"] and len(s["items"]["drives"]) == 2 and len(s["items"]["expenses"]) == 2
     # list, detail, edit, delete
     lst = (await c.get(f"/api/vehicles/{VIN}/journeys")).json()

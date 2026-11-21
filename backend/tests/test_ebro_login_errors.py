@@ -6,6 +6,7 @@ vehículos» with a password the cloud no longer accepted answered «0 vehicles�
 from __future__ import annotations
 
 import datetime
+import json
 
 import httpx
 import pytest
@@ -18,6 +19,7 @@ from app.db.session import async_session_factory
 from app.main import app
 from app.security import auth, passwords
 from app.services import poller as poller_mod
+from app.services.ebro_sessions import account_session_path
 from app.services.poller import LoginFailed, VehiclePoller
 
 REFUSAL = "HTTP 401: El nombre de usuario no existe o la contraseña es incorrecta"
@@ -87,8 +89,10 @@ async def test_looking_for_cars_uses_the_session_the_account_holds_before_any_pa
         logins.append(phone)
         return {"access_token": "nueva"}
 
-    def list_cars(token_data, skip_vins=frozenset()):
-        assert token_data["access_token"] == "viva"                          # the stored session, not a fresh login
+    def list_cars(token_data, skip_vins=frozenset(), session_path=None):
+        assert token_data is None and session_path == account_session_path(3)    # the account's stored session, not a fresh login
+        with open(session_path, encoding="utf-8") as fh:
+            assert json.load(fh)["access_token"] == "viva"
         return [{"vin": VIN, "nickname": "Ebro", "fullName": "S900 PHEV", "brandName": "Ebro"}]
 
     monkeypatch.setattr(poller_mod.ebro_login, "login_with_password", login)
@@ -98,7 +102,7 @@ async def test_looking_for_cars_uses_the_session_the_account_holds_before_any_pa
 
 
 async def test_looking_for_cars_with_a_password_the_cloud_rejects_says_so_and_stops_the_reads(web, connected, monkeypatch) -> None:
-    def dead_session(token_data, skip_vins=frozenset()):
+    def dead_session(token_data, skip_vins=frozenset(), session_path=None):
         raise RuntimeError("no_usertoken")
 
     def refused(phone, password, area_code="34", **kw):
@@ -140,3 +144,30 @@ async def test_without_strict_mode_a_refusal_is_an_empty_list_and_a_warning_not_
     assert exc.value.rejected is True
     async with async_session_factory() as s:
         assert (await s.execute(select(Vehicle))).scalars().all() == []
+
+
+async def test_a_good_sync_restarts_the_car_channel_stopped_by_another_app(web, connected, monkeypatch) -> None:
+    """14-11-2026: after using the official app, «Sincronizar» brought commands back but the car's channel stayed stopped until
+    «Reconectar» in another tab. A manager does not tell the account from the channel, so a good sync restarts it as well."""
+    import asyncio
+
+    from app.services.car_events import CarEventHub
+
+    restarted = []
+
+    async def restart_owner(self, owner_id, poller):
+        restarted.append(owner_id)
+
+    state = {"value": "conflict"}
+    monkeypatch.setattr(CarEventHub, "restart_owner", restart_owner)
+    monkeypatch.setattr(CarEventHub, "status_for", lambda self, owner_id: {"state": state["value"]})
+    monkeypatch.setattr(poller_mod, "fetch_account_vehicles",
+                        lambda token_data, skip_vins=frozenset(), session_path=None: [{"vin": VIN, "fullName": "S900 PHEV"}])
+    assert (await web.post("/api/vehicles/discover")).status_code == 200
+    await asyncio.sleep(0)
+    assert restarted == [1]
+
+    state["value"] = "subscribed"                                     # already listening: left alone
+    assert (await web.post("/api/vehicles/discover")).status_code == 200
+    await asyncio.sleep(0)
+    assert restarted == [1]

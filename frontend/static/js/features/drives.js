@@ -97,9 +97,15 @@ function driveBatteryUsed(d) {
   return null;
 }
 
-/** Start or end of a trip for the lists: the address, or «Sin posición» for a car the cloud never places (some S800). */
-function drivePlace(address) {
-  return escapeHtml(address || t('Sin posición'));
+/** The trip has no position at all: the cloud never placed the car (some S800). Only when the server says so: a list without the
+ *  field (an old cached answer) keeps the route buttons. */
+function driveWithoutPosition(d) {
+  return d.has_position === false;
+}
+
+/** Start or end of a trip for the lists: the address, or «Sin posición» for a trip the cloud never placed. */
+function drivePlace(d, address) {
+  return escapeHtml(driveWithoutPosition(d) ? t('Sin posición') : (address || t('Sin posición')));
 }
 
 function driveRow(d) {
@@ -111,9 +117,9 @@ function driveRow(d) {
   else if (d.energy_consumed_kwh) spent.push(`${historyNum(d.energy_consumed_kwh)} kWh`);
   const head = {
     when: `${d.start_estimated ? '≈ ' : ''}${escapeHtml(historyWhen(d.start_time))}`,
-    place: `${drivePlace(d.start_address)} → ${drivePlace(d.end_address)}`,
+    place: `${drivePlace(d, d.start_address)} → ${drivePlace(d, d.end_address)}`,
     big: `${escapeHtml(historyNum(d.distance_km))} km`,
-    small: escapeHtml(spent.length ? spent.join(' · ') : historyDuration(d.duration_seconds)),
+    small: escapeHtml([d.unseen ? t('No visto') : '', spent.length ? spent.join(' · ') : historyDuration(d.duration_seconds)].filter(Boolean).join(' · ')),
   };
 
   const pct = (v) => (v === null || v === undefined ? null : `${Math.round(v)} %`);
@@ -131,6 +137,8 @@ function driveRow(d) {
     ['Depósito', pct(d.start_fuel) && pct(d.end_fuel) ? `${pct(d.start_fuel)} → ${pct(d.end_fuel)}` : null],
     ['Repostado en ruta', d.fuel_refuelled_pct ? `${Math.round(d.fuel_refuelled_pct)} %` : null],
     ['Consumo', consumption || null],
+    // A trip with the petrol engine has no electric consumption: the engine charged the battery on the way (docs/stats.md)
+    ['Consumo eléctrico', d.electric_only === false && d.energy_consumed_kwh ? t('Sin medir: el motor de gasolina recargó la batería') : null],
     ['Vel. media', d.speed_avg_kmh ? `${Math.round(d.speed_avg_kmh)} km/h` : null],
     ['Vel. máxima', d.speed_max_kmh ? `${Math.round(d.speed_max_kmh)} km/h` : null],
     ['Potencia máx.', d.max_power_kw ? `${Math.round(d.max_power_kw)} kW` : null],
@@ -138,15 +146,16 @@ function driveRow(d) {
     ['Climatización', d.climate_used ? 'Usada' : null],
   ]);
   // No start nor end position: the cloud never placed the car during this trip (no route, no addresses)
-  const noPosition = (d.start_lat === null || d.start_lat === undefined) && (d.end_lat === null || d.end_lat === undefined);
+  const noPosition = driveWithoutPosition(d);
   const detail = `
-    <p class="hist-route"><b>${drivePlace(d.start_address)}</b> → <b>${drivePlace(d.end_address)}</b></p>
+    <p class="hist-route"><b>${drivePlace(d, d.start_address)}</b> → <b>${drivePlace(d, d.end_address)}</b></p>
     ${facts}
-    ${d.start_estimated ? '<p class="hist-note">Inicio estimado: el viaje se detectó con el coche ya en marcha; la hora, el origen y el odómetro de inicio son los de la última lectura en parado.</p>' : ''}
+    ${d.unseen ? `<p class="hist-note">${escapeHtml(t('Viaje no visto: EVBro no leyó el coche durante este trayecto (dormía entre dos lecturas). Los kilómetros, la batería y el depósito son la diferencia entre la lectura anterior y la siguiente; las horas son aproximadas y no hay ruta.'))}</p>` : ''}
+    ${d.start_estimated && !d.unseen ? '<p class="hist-note">Inicio estimado: el viaje se detectó con el coche ya en marcha; la hora, el origen y el odómetro de inicio son los de la última lectura en parado.</p>' : ''}
     ${noPosition ? '<p class="hist-note">Sin posición: la nube no da la ubicación de este coche, así que el viaje no tiene ruta ni direcciones; los kilómetros son del cuentakilómetros.</p>' : ''}
     ${d.notes ? `<p class="hist-note">${escapeHtml(d.notes)}</p>` : ''}
     <div class="hist-actions">
-      ${noPosition ? '' : `<button type="button" class="btn-secondary btn-sm" data-on-click="openRouteModal(${Number(d.id)})">Ver trazado</button>
+      ${noPosition || d.unseen ? '' : `<button type="button" class="btn-secondary btn-sm" data-on-click="openRouteModal(${Number(d.id)})">Ver trazado</button>
       <a class="btn-secondary btn-sm" href="/api/drives/${Number(d.id)}/gpx" download title="Descargar la ruta en GPX">GPX</a>`}
       <button type="button" class="btn-secondary btn-sm needs-edit" data-on-click="openEditDriveModal(${Number(d.id)})">Editar</button>
       <button type="button" class="btn-secondary btn-sm needs-edit is-danger" data-on-click="deleteDrive(${Number(d.id)})">Borrar</button>
@@ -159,20 +168,20 @@ function driveRow(d) {
 /** «Resumen del periodo» cards: totals of every filtered trip, computed by the server. */
 function renderDriveSummary(summary) {
   const energy = summary.total_energy_kwh || 0;
-  document.getElementById('sumEnergy').innerText = energy >= 1000 ? `${(energy / 1000).toFixed(2)} MWh` : `${energy.toFixed(1)} kWh`;
-  document.getElementById('sumFuel').innerText = t('{p0} L Gasolina', {p0: (summary.total_fuel_l || 0).toFixed(1)});
+  document.getElementById('sumEnergy').innerText = energy >= 1000 ? `${historyNum(energy / 1000, 2)} MWh` : `${historyNum(energy, 1)} kWh`;
+  document.getElementById('sumFuel').innerText = t('{p0} L Gasolina', {p0: historyNum(summary.total_fuel_l, 1)});
 
   const durDays = summary.total_duration_days || 0;
   const durHours = Math.floor((summary.total_duration_seconds || 0) / 3600);
   const durMins = Math.round(((summary.total_duration_seconds || 0) % 3600) / 60);
   document.getElementById('sumDuration').innerText = durDays >= 1 ? `${durDays} días` : `${durHours}h ${durMins}min`;
-  document.getElementById('sumDurationDays').innerText = t('{p0} horas netas', {p0: ((summary.total_duration_seconds || 0) / 3600).toFixed(1)});
+  document.getElementById('sumDurationDays').innerText = t('{p0} horas netas', {p0: historyNum((summary.total_duration_seconds || 0) / 3600, 1)});
 
-  document.getElementById('sumDistance').innerText = `${(summary.total_distance_km || 0).toFixed(1)} km`;
+  document.getElementById('sumDistance').innerText = `${historyNum(summary.total_distance_km, 1)} km`;
   document.getElementById('sumTripsCount').innerText = `${summary.count || 0} viajes`;
 
   document.getElementById('sumAvgConsumption').innerText = `${historyNum((summary.avg_consumption_wh_km || 0) / 10)} kWh/100 km`;
-  document.getElementById('sumAvgFuel').innerText = `${(summary.avg_fuel_consumption_l_100km || 0).toFixed(2)} l/100km`;
+  document.getElementById('sumAvgFuel').innerText = `${historyNum(summary.avg_fuel_consumption_l_100km, 2)} l/100km`;
 }
 
 function renderIncompleteDrives(incomplete) {
@@ -187,8 +196,8 @@ function renderIncompleteDrives(incomplete) {
     const start = serverDate(inc.start_time).toLocaleString(I18n.locale, { dateStyle: 'short', timeStyle: 'short' });
     tr.innerHTML = `
       <td>${escapeHtml(start)}</td>
-      <td>${drivePlace(inc.start_address)}</td>
-      <td>${escapeHtml(inc.distance_km)} km</td>
+      <td>${drivePlace(inc, inc.start_address)}</td>
+      <td>${escapeHtml(historyNum(inc.distance_km))} km</td>
       <td>${inc.start_battery_pct !== null && inc.start_battery_pct !== undefined ? escapeHtml(Math.round(inc.start_battery_pct)) : '--'}%</td>
       <td><button class="btn-primary needs-edit u-padding-0p3rem-0p75rem_font-size-0p8rem" data-on-click="openEditDriveModal(${Number(inc.id)})">Corregir / Cerrar</button></td>
     `;
@@ -293,7 +302,7 @@ async function openRouteModal(driveId) {
 
     const statsElem = document.getElementById('routeModalStats');
     statsElem.innerHTML = `
-      <span><strong>Distancia:</strong> ${geojson.properties.distance_km} km</span>
+      <span><strong>Distancia:</strong> ${historyNum(geojson.properties.distance_km)} km</span>
       <span><strong>Duración:</strong> ${Math.round(geojson.properties.duration_s / 60)} min</span>
       <span><strong>Vel. Máx:</strong> ${geojson.properties.speed_max} km/h</span>
       <span><strong>Puntos GPS:</strong> ${points.length}</span>

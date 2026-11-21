@@ -4,7 +4,7 @@ Complementan a `backend/tests/` (que solo comprueban la *forma* del frontend): e
 con la API simulada donde hace falta, a 390 px, en tema claro y oscuro.
 
 ```bash
-pip install playwright && playwright install chromium     # una vez
+pip install -r tools/e2e/requirements.txt && playwright install chromium     # una vez (versión fijada)
 tools/e2e/demo_server.sh start                             # servidor aislado con datos de demo (SQLite)
 python tools/e2e/charge.py [carpeta_capturas]              # Energía: objetivo deslizante, parar/iniciar, programación
 python tools/e2e/nav.py                                    # navegación según dispositivo: táctil → dock inferior; ratón → barra lateral; sin zoom

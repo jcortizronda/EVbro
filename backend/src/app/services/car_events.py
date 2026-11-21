@@ -32,11 +32,17 @@ import asyncio
 import dataclasses
 import datetime
 import logging
+import os
 import time
 from typing import Any, Callable, Optional
 
+from sqlalchemy import select
+
 from app.config import get_data_dir, settings
 from app.core.wake import _bff_login
+from app.db.models import CommandAudit
+from app.db.session import async_session_factory
+from app.timeutil import utcnow
 from app.vehicle import certificates
 from app.vehicle.constants import DEFAULT_AWAKE_WINDOW
 from app.vehicle.mqtt_client import EbroMqttClient, MqttConfig, MqttConnectError
@@ -54,6 +60,49 @@ FLAP_MAX_EPHEMERAL = 3
 FLAP_WINDOW_S = 300.0
 
 # States shown on the web (stable key) and their explanation.
+CONFLICT_TEXT = "Parado: otra app usa tu cuenta de Ebro. Cuando la cierres, pulsa «Reconectar»."
+
+# States in which the channel is up or on its way: «Sincronizar» leaves these alone and restarts any other
+CHANNEL_RUNNING = frozenset({"disabled", "connecting", "connected", "subscribed"})
+
+# The car's confirmation echoes the `seq` of the order (`<vin>-<ms when it was sent>`, core/commands.py). The audit row is written
+# once the cloud has answered, so it carries a time this much after that moment at most.
+RESULT_MATCH_BEFORE = datetime.timedelta(seconds=5)
+RESULT_MATCH_AFTER = datetime.timedelta(seconds=90)
+_RESULT_TASKS: set = set()
+
+
+def sent_at_from_seq(vin: str, seq: Any) -> Optional[datetime.datetime]:
+    """When EVBro sent the order a confirmation answers (naive UTC), or None when the `seq` is not one of ours."""
+    prefix = f"{vin}-"
+    if not isinstance(seq, str) or not seq.startswith(prefix) or not seq[len(prefix):].isdigit():
+        return None
+    try:
+        return datetime.datetime.fromtimestamp(int(seq[len(prefix):]) / 1000, datetime.timezone.utc).replace(tzinfo=None)
+    except (OverflowError, OSError, ValueError):
+        return None
+
+
+async def save_car_result(vin: Optional[str], seq: Any, text: str) -> None:
+    """Keeps what the car answered next to the order it answers in the audit log (the row's own `message` is only the cloud
+    accepting it). Orders sent from another app have no row here and are left alone. Never raises: it runs beside the channel."""
+    try:
+        sent_at = sent_at_from_seq(vin or "", seq)
+        if sent_at is None:
+            return
+        async with async_session_factory() as session:
+            row = (await session.execute(
+                select(CommandAudit).where(CommandAudit.vin == vin, CommandAudit.success.is_(True),
+                                           CommandAudit.timestamp >= sent_at - RESULT_MATCH_BEFORE,
+                                           CommandAudit.timestamp <= sent_at + RESULT_MATCH_AFTER)
+                .order_by(CommandAudit.timestamp).limit(1))).scalar_one_or_none()
+            if row is None:
+                return
+            row.car_result, row.car_result_at = text, utcnow()        # «running» first, then the final answer over it
+            await session.commit()
+    except Exception:                                                 # noqa: BLE001
+        _LOGGER.warning("Could not keep the car's answer to an order of %s", (vin or "")[-6:], exc_info=True)
+
 STATE_TEXT = {
     "disabled": "Desactivado (CAR_MQTT_ENABLED=false)",
     "no_account": "Sin cuenta Ebro conectada",
@@ -63,7 +112,7 @@ STATE_TEXT = {
     "subscribed": "Escuchando al coche",
     "rejected": "El broker ha rechazado la conexión",
     "error": "Error de conexión",
-    "conflict": "Parado: otro cliente usa la misma cuenta",
+    "conflict": "Parado: otra app usa tu cuenta de Ebro",
 }
 
 
@@ -106,6 +155,9 @@ class CarEventService:
         if not settings.CAR_MQTT_ENABLED:
             self._set("disabled")
             return
+        if self.stopped_by_conflict():
+            self._set("conflict", CONFLICT_TEXT)
+            return
         target = self._pick_vehicle(poller, self._vins)
         if target is None:
             self._set("no_account", "Aún no hay ningún vehículo vinculado.")
@@ -131,9 +183,31 @@ class CarEventService:
                       "" if not settings.CAR_MQTT_ENABLED else "Cuenta desconectada.")
 
     async def restart(self, poller, vins: list[str] | None = None) -> None:
+        """The manager's «Reconectar», «Sincronizar» or a new login: also lifts the stop left by another app."""
         await self.stop()
         self._ephemeral.clear()
+        self._mark_stopped(False)
         await self.start(poller, vins)
+
+    # Stopped because another app took the account (official app, Home Assistant): kept in a file so that EVBro never reconnects on
+    # its own, not even after a restart; it would throw the other app out (owner's decision, 14-11-2026)
+    def _stopped_path(self) -> str:
+        return os.path.join(get_data_dir(), "car_channel", f"stopped-{self.owner_id if self.owner_id is not None else 0}")
+
+    def stopped_by_conflict(self) -> bool:
+        return os.path.exists(self._stopped_path())
+
+    def _mark_stopped(self, stopped: bool) -> None:
+        path = self._stopped_path()
+        try:
+            if stopped:
+                os.makedirs(os.path.dirname(path), exist_ok=True)
+                with open(path, "w", encoding="utf-8") as fh:
+                    fh.write(datetime.datetime.now(datetime.timezone.utc).isoformat())
+            elif os.path.exists(path):
+                os.remove(path)
+        except OSError as exc:
+            _LOGGER.warning("Car MQTT channel: could not keep the stop mark: %s", exc)
 
     @staticmethod
     def _pick_vehicle(poller, vins: list[str] | None = None):
@@ -218,11 +292,11 @@ class CarEventService:
         self._ephemeral = [t for t in self._ephemeral if now - t < FLAP_WINDOW_S] + [now]
         if len(self._ephemeral) >= FLAP_MAX_EPHEMERAL:
             client, self._client = self._client, None
-            self._set("conflict", (
-                "La conexión se corta a los pocos segundos una y otra vez: otro cliente usa la misma "
-                "cuenta (¿la integración de Home Assistant?) o el broker nos rechaza. Se ha parado para "
-                "no expulsarse en bucle; desactiva el otro cliente y pulsa «Reconectar»."))
-            _LOGGER.error("Car MQTT channel: %s", self.detail)
+            self._set("conflict", CONFLICT_TEXT)
+            self._mark_stopped(True)                 # a restart of the server must not reconnect it either: only the manager does
+            # Another client on the same account (the official app, Home Assistant): the account's matter, not the code's, so it stays
+            # out of the project's reports; the manager sees it in the web and in the local log
+            _LOGGER.error("Car MQTT channel: %s", self.detail, extra={"telemetry": False})
             if client is not None and self._loop is not None:
                 self._loop.run_in_executor(None, client.disconnect)
 
@@ -243,6 +317,9 @@ class CarEventService:
 
         if message.is_confirmation:
             self.last_command_result = format_command_result(message.data)
+            task = asyncio.ensure_future(save_car_result(self.vin, message.data.get("seq"), self.last_command_result))
+            _RESULT_TASKS.add(task)
+            task.add_done_callback(_RESULT_TASKS.discard)
             self._poller.broadcast_event({
                 "type": "command_result", "vin": self.vin, "message": self.last_command_result,
                 "applied": "✅" in self.last_command_result, "failed": "❌" in self.last_command_result,
@@ -342,7 +419,14 @@ class CarEventHub:
             await service.stop()
 
     async def restart_owner(self, owner_id: int, poller) -> None:
+        """Only for something the manager did (Reconectar, Sincronizar, connecting the account)."""
         await self.service_for(owner_id).restart(poller, await self._vins_of(owner_id))
+
+    async def resume_owner(self, owner_id: int, poller) -> None:
+        """After EVBro reopened the account's session on its own: the channel needs it too, unless another app stopped it."""
+        service = self.service_for(owner_id)
+        if service.state != "conflict" and not service.stopped_by_conflict():
+            await service.restart(poller, await self._vins_of(owner_id))
 
     async def stop_owner(self, owner_id: int) -> None:
         if owner_id in self._services:

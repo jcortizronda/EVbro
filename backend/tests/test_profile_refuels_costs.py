@@ -13,8 +13,8 @@ from app.db.models import AppUser, ChargingSession, Refuel, Vehicle
 from app.db.session import async_session_factory
 from app.main import app
 from app.security import auth, passwords
-from app.services import poller as poller_mod
 from app.services import refuel_detector as rd
+from app.services.notification_service import NotificationService
 from app.services.poller import VehiclePoller
 from app.services.refuel_detector import RefuelDetector
 
@@ -292,13 +292,12 @@ async def poller(db, monkeypatch):
         await s.commit()
     p = VehiclePoller.get_instance()
     p._pending_since.clear()
-    p._last_tyre_alert_time.clear()
     alerts = []
 
     async def tyres(cls, name, problems, **kwargs):
         alerts.append(problems)
 
-    monkeypatch.setattr(poller_mod.NotificationService, "notify_tyre_pressure", classmethod(tyres))
+    monkeypatch.setattr(NotificationService, "notify_tyre_pressure", classmethod(tyres))
     monkeypatch.setattr(VehiclePoller, "request_poll", lambda self, vin, force=False: None)
     p.tyre_alerts = alerts
     yield p
@@ -311,11 +310,11 @@ async def check(p, at, pressures, **cfg):
             v = (await s.execute(select(Vehicle).where(Vehicle.vin == VIN))).scalar_one()
             for k, val in cfg.items():
                 setattr(v, k, val)
-            await p._check_tyre_pressure(v, {"tyre_pressures": pressures})
+            await p._check_tyre_pressure(s, v, {"tyre_pressures": pressures})
             await s.commit()
 
 
-async def test_low_pressure_alerts_after_two_minutes_and_once_every_12_hours(poller) -> None:
+async def test_low_pressure_alerts_after_two_minutes_and_once_until_it_is_back_in_range(poller) -> None:
     t = D(2026, 10, 28, 12, 0)
     bad = {"fl": 2.5, "fr": 2.0, "rl": 2.6, "rr": 2.6}
     await check(poller, t, bad)
@@ -323,10 +322,22 @@ async def test_low_pressure_alerts_after_two_minutes_and_once_every_12_hours(pol
     assert poller.tyre_alerts == []                                                                 # the 2 minutes have not passed yet
     await check(poller, t + datetime.timedelta(minutes=2, seconds=30), bad)
     assert len(poller.tyre_alerts) == 1 and "Delantero derecho" in poller.tyre_alerts[0][0]
-    await check(poller, t + datetime.timedelta(hours=2), bad)
-    assert len(poller.tyre_alerts) == 1                                                             # not repeated within the 12 h
-    await check(poller, t + datetime.timedelta(hours=13), bad)
+    for hours in (2, 13, 30):
+        await check(poller, t + datetime.timedelta(hours=hours), bad)
+    assert len(poller.tyre_alerts) == 1                                                             # once for as long as it lasts
+    ok = {"fl": 2.5, "fr": 2.5, "rl": 2.6, "rr": 2.6}
+    await check(poller, t + datetime.timedelta(hours=31), ok)                                       # inflated…
+    await check(poller, t + datetime.timedelta(hours=31, minutes=2), bad)                           # …no: a reading that swayed
+    await check(poller, t + datetime.timedelta(hours=31, minutes=5), bad)
+    assert len(poller.tyre_alerts) == 1
+    await check(poller, t + datetime.timedelta(hours=32), ok)
+    await check(poller, t + datetime.timedelta(hours=32, minutes=11), ok)                           # ten minutes in range: the episode ends
+    await check(poller, t + datetime.timedelta(hours=40), bad)
+    await check(poller, t + datetime.timedelta(hours=40, minutes=3), bad)
     assert len(poller.tyre_alerts) == 2
+    await check(poller, t + datetime.timedelta(hours=41), {**bad, "rl": 2.0})                       # another tyre goes down: news
+    await check(poller, t + datetime.timedelta(hours=41, minutes=3), {**bad, "rl": 2.0})
+    assert len(poller.tyre_alerts) == 3 and len(poller.tyre_alerts[-1]) == 2
 
 
 async def test_a_lone_low_reading_does_not_alert(poller) -> None:

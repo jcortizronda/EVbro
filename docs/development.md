@@ -16,10 +16,10 @@ El frontend se sirve solo (`frontend/` junto a `backend/`); `FRONTEND_DIR` lo ca
 
 ```bash
 cd backend && . .venv/bin/activate
-python -m pytest                 # ~550 tests, ~70 s
+python -m pytest                 # ~1.070 tests, menos de 2 min
 python -m pytest tests/core      # solo el protocolo
 ```
-**Los tests nunca tocan PostgreSQL:** `tests/conftest.py` fija `DATABASE_URL` a un SQLite temporal antes de importar la app y las fixtures se niegan a hacer `drop_all` en cualquier otro motor. **No ejecutes scripts sueltos que importen `app.db.session` fuera de pytest con operaciones de escritura**: usarían la URL por defecto (PostgreSQL local).
+**Base de datos de los tests:** la fixture `db` crea el esquema una vez por ejecución en una plantilla SQLite y la copia en cada test (recrear las tablas en cada uno costaba unos 1,3 s por test, casi todo el tiempo de la batería). **Los tests nunca tocan PostgreSQL:** `tests/conftest.py` fija `DATABASE_URL` a un SQLite temporal antes de importar la app y las fixtures se niegan a hacer `drop_all` en cualquier otro motor. **No ejecutes scripts sueltos que importen `app.db.session` fuera de pytest con operaciones de escritura**: usarían la URL por defecto (PostgreSQL local).
 
 Los tests de `tests/core/` y `tests/vehicle/` vienen de la integración de HA (snapshots incluidos): ver [ha-integration.md](ha-integration.md).
 
@@ -40,7 +40,7 @@ alembic current                                        # revisión de la BD de D
 
 ## Pruebas de navegador
 
-`tools/e2e/` (Playwright) ejecuta la interfaz real contra un servidor de demostración aislado: ver [tools/e2e/README.md](../tools/e2e/README.md). Se usan al tocar el frontend; `tools/mobile_check.py` falla si alguna pantalla se sale a 360/390/430 px y `tools/desktop_check.py` comprueba la interfaz de ordenador (barra lateral, sin dock, sin desbordes a 1024/1366/1920 px). `python tools/inline_styles.py --check` vigila que no vuelva ningún `style="…"` (la CSP no lo admite; `--apply` lo convierte en clases).
+`tools/e2e/` (Playwright) ejecuta la interfaz real contra un servidor de demostración aislado: ver [tools/e2e/README.md](../tools/e2e/README.md). La CI pasa en cada push las de Inicio, Confort, Energía y la política de seguridad (`home`, `comfort`, `charge`, `csp`; trabajo `browser` de `.github/workflows/ci.yml`); el resto se lanzan a mano. Se usan al tocar el frontend; `tools/mobile_check.py` falla si alguna pantalla se sale a 360/390/430 px y `tools/desktop_check.py` comprueba la interfaz de ordenador (barra lateral, sin dock, sin desbordes a 1024/1366/1920 px). `python tools/inline_styles.py --check` vigila que no vuelva ningún `style="…"` (la CSP no lo admite; `--apply` lo convierte en clases).
 
 ## Calidad
 

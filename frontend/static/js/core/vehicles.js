@@ -136,6 +136,7 @@ function vehicleLabel(v) {
 function selectVehicle(vin) {
   if (!vin) return;
   currentVin = vin;
+  lastCarTargetTemp = null;   // the next reading brings this car's temperature
   try { localStorage.setItem(VEHICLE_KEY, vin); } catch (e) { /* does not matter */ }
   const sel = document.getElementById('vehicleSelector');
   if (sel && sel.value !== vin) sel.value = vin;
@@ -175,6 +176,11 @@ async function triggerVehicleDiscovery() {
     const n = data.count || 0;
     showToast(n ? `Sincronizado: ${n === 1 ? 'un coche' : `${n} coches`} en tu cuenta de Ebro.` : 'Sincronizado: tu cuenta de Ebro no tiene coches nuevos.', 'success', 5000);
     loadVehicles();
+    // The server restarts the car's channel after a good sync; it takes a few seconds to come up
+    setTimeout(() => {
+      if (typeof showAccountChannelNotice === 'function') showAccountChannelNotice();
+      if (typeof loadCarChannelStatus === 'function') loadCarChannelStatus();
+    }, 5000);
   } catch (err) {
     showToast('Error de red al sincronizar con Ebro.', 'error');
   } finally {

@@ -14,6 +14,7 @@ from app.services.geofence import (
     haversine_distance_meters,
     reverse_geocode,
 )
+from app.timeutil import utcnow
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,6 +49,14 @@ MIN_TRIP_SECONDS = 60
 # when the trip closed (04-11-2026: the morning's position for an hour): the end moves there. Only this long after the end.
 RELOCATE_METERS = 250.0
 RELOCATE_MAX_AGE = datetime.timedelta(hours=6)
+# A trip EVBro did not see: the car is read off again with more km than at the last stopped reading and no trip in between (it
+# slept between two hourly readings and its live channel was stopped; 16-11-2026: 4 km and 3 battery points more, same spot, with
+# data the car had produced 72 minutes after parking). It is recorded as its own trip, marked `unseen`, never added to the
+# previous one. Less than this is the odometer ticking (it counts whole km), and faster than this between the two readings is
+# the reading that closed the last trip running behind, not a trip.
+UNSEEN_MIN_KM = 2
+UNSEEN_MAX_SPEED_KMH = 110.0
+CAR_ON_STATES = ("driving", "ready")
 
 
 def fuel_litres(start_pct: Optional[float], end_pct: Optional[float], tank_liters: Optional[float]) -> float:
@@ -109,7 +118,7 @@ class TripDetector:
         for row in (await session.execute(stmt)).scalars():
             if (row.speed_kmh or 0.0) <= 2.0:
                 return {"time": row.timestamp, "lat": row.latitude, "lon": row.longitude, "odometer": row.odometer_km,
-                        "battery": row.battery_level, "fuel": row.fuel_level}
+                        "battery": row.battery_level, "fuel": row.fuel_level, "ev_odometer": _raw_ev_odometer(row.raw_data)}
         return None
 
     @staticmethod
@@ -157,7 +166,7 @@ class TripDetector:
     ) -> Optional[Drive]:
         """Processes a telemetry snapshot and manages the trip's life cycle."""
         vin = vehicle.vin
-        now = datetime.datetime.utcnow()
+        now = utcnow()
         speed = telemetry.get("speed_kmh", 0.0) or 0.0
         lat = telemetry.get("latitude")
         lon = telemetry.get("longitude")
@@ -193,6 +202,8 @@ class TripDetector:
             levels = back or (idle if idle and now - idle["time"] <= START_LEVELS_MAX_AGE else None)
             start_battery = levels["battery"] if levels and levels.get("battery") is not None else battery
             start_fuel = levels["fuel"] if levels and levels.get("fuel") is not None else telemetry.get("fuel_level")
+            # Electric-only odometer: from the same reading as the total odometer, or the two would not match
+            start_ev = back.get("ev_odometer") if back else telemetry.get("ev_odometer_km")
 
             # Look up whether it is inside a geofence (with a position only)
             gf, addr = None, None
@@ -211,6 +222,7 @@ class TripDetector:
                 start_address=addr,
                 start_geofence_id=gf.id if gf else None,
                 start_odometer=back["odometer"] if back else odometer,
+                start_ev_odometer=start_ev,
                 start_battery_pct=start_battery,
                 start_fuel=start_fuel,
                 start_estimated=bool(back),
@@ -274,6 +286,7 @@ class TripDetector:
                 drive.end_lat = lat
                 drive.end_lon = lon
                 drive.end_odometer = odometer
+                drive.end_ev_odometer = telemetry.get("ev_odometer_km")
                 drive.end_battery_pct = battery
 
                 # Distance (odometer only) and duration
@@ -335,8 +348,64 @@ class TripDetector:
 
         if not is_moving:
             await cls._relocate_last_end(session, vehicle, now, lat, lon, odometer)
+            if active_drive_id is None:
+                await cls._record_unseen_drive(session, vehicle, now, telemetry)
         _remember_idle(vin, now, lat, lon, odometer, battery, telemetry, is_moving)
         return None
+
+    @classmethod
+    async def _record_unseen_drive(cls, session: AsyncSession, vehicle: Vehicle, now: datetime.datetime, telemetry: Dict) -> Optional[Drive]:
+        """The car is off and reads UNSEEN_MIN_KM or more than at the last stopped reading, with no trip in between: it drove
+        while nobody was looking. Records that trip from the two readings (km, battery, fuel, where it was before and where
+        it is now), with estimated times and no route, marked `unseen`."""
+        vin = vehicle.vin
+        odometer = telemetry.get("odometer_km")
+        prev = await cls._previous_idle(session, vin, now)
+        if (odometer is None or not prev or prev.get("odometer") is None or telemetry.get("high_voltage_on") is True
+                or telemetry.get("state") in CAR_ON_STATES):
+            return None                                          # still on: if it is driving, the trip starts with the next reading
+        km = int(odometer) - int(prev["odometer"])
+        hours = max((now - prev["time"]).total_seconds(), 1.0) / 3600.0
+        if km < UNSEEN_MIN_KM or km / hours > UNSEEN_MAX_SPEED_KMH:
+            return None
+        # A trip already recorded since that reading (built from GPS fixes, or closed on this very reading) has those km
+        known = (await session.execute(select(Drive.id).where(Drive.vin == vin, Drive.end_time.is_not(None),
+                                                               Drive.end_time > prev["time"]).limit(1))).first()
+        if known is not None:
+            return None
+
+        end_time = _car_clock(telemetry.get("raw_data"))          # when the car produced this data: closer to the arrival than `now`
+        if end_time is None or not prev["time"] < end_time <= now:
+            end_time = now
+        start_time = max(prev["time"], end_time - datetime.timedelta(hours=km / ASSUMED_TRIP_SPEED_KMH))
+        lat, lon = telemetry.get("latitude"), telemetry.get("longitude")
+        s_lat, s_lon = prev.get("lat"), prev.get("lon")
+        start_gf = await find_geofence(session, s_lat, s_lon, owner_id=vehicle.owner_id) if s_lat is not None and s_lon is not None else None
+        end_gf = await find_geofence(session, lat, lon, owner_id=vehicle.owner_id) if lat is not None and lon is not None else None
+        start_address = start_gf.name if start_gf else (await reverse_geocode(s_lat, s_lon) if s_lat is not None and s_lon is not None else None)
+        end_address = end_gf.name if end_gf else (await reverse_geocode(lat, lon) if lat is not None and lon is not None else None)
+
+        battery, fuel = telemetry.get("battery_level"), telemetry.get("fuel_level")
+        used = max(0.0, round(prev["battery"] - battery, 1)) if prev.get("battery") is not None and battery is not None else 0.0
+        drive = Drive(
+            vin=vin, unseen=True, start_estimated=True, start_time=start_time, end_time=end_time,
+            duration_seconds=max(0, int((end_time - start_time).total_seconds())),
+            start_lat=s_lat, start_lon=s_lon, end_lat=lat, end_lon=lon,
+            start_address=start_address, end_address=end_address,
+            start_geofence_id=start_gf.id if start_gf else None, end_geofence_id=end_gf.id if end_gf else None,
+            start_odometer=prev["odometer"], end_odometer=odometer, distance_km=float(km),
+            start_ev_odometer=prev.get("ev_odometer"), end_ev_odometer=telemetry.get("ev_odometer_km"),
+            start_battery_pct=prev.get("battery"), end_battery_pct=battery, battery_used_pct=used,
+            energy_consumed_kwh=round((used / 100.0) * (vehicle.battery_capacity_kwh or 19.27), 2),
+            start_fuel=prev.get("fuel"), end_fuel=fuel,
+            fuel_used_l=fuel_litres(prev.get("fuel"), fuel, vehicle.fuel_tank_liters) if prev.get("fuel") is not None and fuel is not None else 0.0,
+            outside_temp_avg=telemetry.get("outside_temp"), speed_avg_kmh=0.0, speed_max_kmh=0.0,       # nobody measured the speed
+        )
+        session.add(drive)
+        await session.flush()
+        _LAST_CLOSED[vin] = {"id": drive.id, "end_time": now, "odometer": odometer, "lat": lat, "lon": lon}
+        _LOGGER.info(f"Unseen trip recorded for {vin} [Drive #{drive.id}]: {km} km between two stopped readings")
+        return drive
 
     @classmethod
     async def _relocate_last_end(cls, session: AsyncSession, vehicle: Vehicle, now: datetime.datetime,
@@ -360,8 +429,25 @@ class TripDetector:
         _LOGGER.info(f"Drive #{drive.id} of {vehicle.vin} now ends where the cloud places the parked car: {drive.end_address}")
 
 
+def _car_clock(raw: Optional[Dict]) -> Optional[datetime.datetime]:
+    """When the car produced a reading (`time`, epoch ms), as naive UTC; None when it does not say."""
+    try:
+        return datetime.datetime.fromtimestamp(int((raw or {}).get("time")) / 1000, datetime.timezone.utc).replace(tzinfo=None)
+    except (TypeError, ValueError, OverflowError, OSError):
+        return None
+
+
 def _remember_idle(vin, now, lat, lon, odometer, battery, telemetry, is_moving) -> None:
     """Stores the last idle reading (the starting point if the next trip is detected late)."""
     if not is_moving:
         _LAST_IDLE[vin] = {"time": now, "lat": lat, "lon": lon, "odometer": odometer, "battery": battery,
-                           "fuel": telemetry.get("fuel_level")}
+                           "fuel": telemetry.get("fuel_level"), "ev_odometer": telemetry.get("ev_odometer_km")}
+
+
+def _raw_ev_odometer(raw: Optional[Dict]) -> Optional[float]:
+    """The electric-only odometer of a stored reading (`electricRange`, the same key core/telemetry.py reads)."""
+    try:
+        value = float((raw or {}).get("electricRange"))
+    except (TypeError, ValueError):
+        return None
+    return value if value > 0 else None

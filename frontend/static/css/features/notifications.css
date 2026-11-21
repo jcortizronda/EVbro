@@ -15,6 +15,57 @@
   box-shadow: 0 0 8px rgba(255, 61, 0, 0.8);
   display: none;
 }
+.notif-badge-dot.is-on { display: block; }        /* notices the account has not seen (features/notifications.js) */
+
+/* Notice centre (the bell): the dialog of the rest of the app and the rows of the timeline, one per notice, grouped by day */
+.notice-card { max-width: 560px; overflow: hidden; }
+.notice-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; flex-shrink: 0; }
+.notice-head h3 { margin: 0; }
+.notice-head p { margin: 2px 0 0; font-size: 0.85rem; color: var(--text-secondary); }
+.notice-head-ico {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 12px;
+  background: rgba(var(--accent-rgb), 0.14); color: var(--accent);
+}
+.notice-push {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-shrink: 0;
+  margin: 0 0 12px; padding: 10px 12px; border-radius: var(--radius-sm);
+  border: 1px solid rgba(var(--accent-rgb), 0.35); background: rgba(var(--accent-rgb), 0.08);
+}
+.notice-push[hidden] { display: none; }
+.notice-push p { margin: 0; font-size: 0.85rem; color: var(--text-secondary); }
+.notice-push .btn-sm { flex: none; }
+.notice-list { display: flex; flex-direction: column; gap: 6px; flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.notice-list .hist-month { margin-top: 10px; }
+.notice-list .hist-month:first-child { margin-top: 0; }
+.notice-row {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: start; column-gap: 10px;
+  padding: 10px; background: var(--surface-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm);
+}
+.notice-row.is-unread { border-color: rgba(var(--accent-rgb), 0.5); }
+.notice-ico {
+  display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 10px;
+  background: rgba(var(--accent-rgb), 0.12); color: var(--accent);
+}
+.notice-charge .notice-ico { color: var(--accent-green); background: rgba(48, 209, 88, 0.14); }
+.notice-warn .notice-ico { color: var(--accent-amber); background: rgba(255, 159, 10, 0.14); }
+.notice-alarm .notice-ico { color: var(--accent-red); background: rgba(255, 69, 58, 0.12); }
+.notice-maint .notice-ico { color: var(--accent-purple); background: rgba(139, 92, 246, 0.14); }
+.notice-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.notice-main strong { font-size: 0.92rem; font-weight: 650; letter-spacing: -0.01em; color: var(--text-primary); }
+.notice-row.is-unread .notice-main strong { font-weight: 750; }
+.notice-text { font-size: 0.82rem; line-height: 1.4; color: var(--text-secondary); white-space: pre-line; overflow-wrap: anywhere; }
+.notice-fail { font-size: 0.75rem; color: var(--accent-red); overflow-wrap: anywhere; }
+.notice-time {
+  display: flex; flex-direction: column; align-items: flex-end; gap: 4px; padding-top: 2px;
+  font-size: 0.75rem; color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.notice-new {
+  padding: 1px 7px; border-radius: 999px; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.02em;
+  color: var(--accent); background: rgba(var(--accent-rgb), 0.14);
+}
+/* Three short buttons side by side, also on the phone (the general rule stacks dialog buttons there) */
+.modal-actions.notice-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.modal-actions.notice-actions button { width: 100%; min-width: 0; padding-left: 8px; padding-right: 8px; justify-content: center; }
 
 .native-section-header {
   margin-bottom: 1.25rem;

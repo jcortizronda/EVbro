@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Refuel, TelemetrySnapshot, Vehicle
 from app.services.geofence import reverse_geocode
+from app.timeutil import utcnow
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -56,7 +57,7 @@ class RefuelDetector:
         fuel = telemetry.get("fuel_level")
         if fuel is None:
             return None
-        now = datetime.datetime.utcnow()
+        now = utcnow()
         stopped = (telemetry.get("speed_kmh") or 0.0) <= 2.0 and telemetry.get("state") != "driving"
         prev_stop = _PREV_STOP.get(vin)
         _PREV_STOP[vin] = {"time": now, "fuel": fuel, "odometer": telemetry.get("odometer_km"),

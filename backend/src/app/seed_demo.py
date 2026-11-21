@@ -22,6 +22,7 @@ from app.db.models import (
     Vehicle,
 )
 from app.db.session import async_session_factory, init_db
+from app.timeutil import utcnow
 
 # The demo is seeded before the first account exists; the setup flow always creates it with id 1, so the demo data belongs to it.
 DEMO_OWNER_ID = 1
@@ -59,7 +60,7 @@ async def seed():
             brand="Ebro",
             license_plate="1234-EBR",
             state="parked",
-            last_seen=datetime.datetime.utcnow(),
+            last_seen=utcnow(),
             odometer=14520.5,
             battery_level=78.0,
             electric_range_km=68.0,
@@ -105,7 +106,7 @@ async def seed():
         )
         session.add(snap)
 
-        now = datetime.datetime.utcnow()
+        now = utcnow()
 
         # 4. several test drives (with fuel and metrics)
         drives_data = [
@@ -177,6 +178,9 @@ async def seed():
                 climate_used=dd["climate"],
                 start_odometer=14520.5 - dd["dist"],
                 end_odometer=14520.5,
+                # EV odometer: the trips without petrol were all electric, the others partly
+                start_ev_odometer=9000.0,
+                end_ev_odometer=9000.0 + (round(dd["dist"]) if not dd["fuel_used"] else round(dd["dist"] * 0.4)),
             )
             session.add(d)
             await session.flush()
@@ -241,6 +245,8 @@ async def seed():
             duration_seconds=135 * 60,
             max_charge_power_kw=6.6,
             charge_cost=round(13.5 * 0.14, 2),
+            cost_mode="fixed",
+            effective_cost_per_kwh=0.14,
         )
         session.add(charge)
         await session.flush()

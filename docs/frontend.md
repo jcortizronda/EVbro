@@ -46,6 +46,10 @@ Las filas cuyas claves del coche este coche **no ha enviado nunca** (`reported_k
 
 `frontend/admin/` (HTML + `assets/admin.js` + `assets/admin.css`) es una aplicación aparte, servida por `admin_app.py` en su propio puerto; no comparte código con la PWA. Va bajo una política CSP estricta (`default-src 'self'`): **sin estilos ni manejadores en línea**, y todo texto que llega del servidor se pinta con `textContent`. No está en el precaché del Service Worker ni en `index.html`.
 
+## Avisos (campana de la cabecera)
+
+`features/notifications.js` + `css/features/notifications.css`. Un único historial: el de la campana; Ajustes → Avisos abre el mismo. Las filas siguen el formato de la cronología (icono por tipo de aviso, título, texto y hora), agrupadas por día con `.hist-month`; un aviso que salió por varios canales deja una fila por canal en `notification_logs` y aquí se ve una sola (`groupNotices`, mismo texto en el mismo segundo), con los envíos fallidos debajo. El punto rojo (`#headerNotifDot.is-on`) sale de `GET /api/notifications/unread`, que cuenta los avisos posteriores a `app_users.notifications_seen_at`; abrir la campana llama a `POST /api/notifications/seen`. Se refresca al arrancar, al volver a la pestaña y cada 5 minutos. Una cuenta sin canales también guarda el aviso (canal `app`). `EbroPush.suggest()` (`features/push.js`) propone una vez por dispositivo activar las notificaciones al conectar la cuenta Ebro, si ningún dispositivo de la cuenta las recibe; la campana lo ofrece mientras este dispositivo pueda y no las tenga.
+
 ## Ficha del coche plegable
 
 Cada sección de la ficha (Identidad, Compra, Seguro, Documentación, Neumáticos, Energía) es un `<details>`: se pliega y despliega con el título, hay botones «Desplegar todo» / «Plegar todo», y lo abierto se recuerda por navegador (`localStorage`, clave `evbro_vp_open`). La primera vez solo está abierta «Identidad». Al validar un campo hay que abrir su sección antes de enfocarlo (`vpRevealField`).

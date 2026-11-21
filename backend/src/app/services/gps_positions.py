@@ -25,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import Drive, DrivePosition, GpsPosition, TraccarLink, Vehicle
 from app.services.geofence import find_geofence, haversine_distance_meters, reverse_geocode
 from app.services.traccar import Fix
+from app.timeutil import utcnow
 
 _LOGGER = logging.getLogger(__name__)
 MOVING_KMH = 3.0
@@ -175,7 +176,7 @@ async def close_silent_drives(session: AsyncSession, now: Optional[datetime.date
     The end is the first fix of the final stop: walking back from the last fix while the points stay within `STOP_RADIUS_M`
     of it and below `MOVING_KMH` (a «motion» flag from GPS jitter at walking pace does not split the stop). If the car was still moving at the last fix (signal lost on the road) it ends at that last fix. Returns how many
     drives it closed."""
-    now = now or datetime.datetime.utcnow()
+    now = now or utcnow()
     rows = (await session.execute(
         select(TraccarLink, Vehicle).join(Vehicle, Vehicle.vin == TraccarLink.vin)
         .where(TraccarLink.enabled.is_(True), TraccarLink.build_trips.is_(True)))).all()

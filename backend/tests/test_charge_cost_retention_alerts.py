@@ -22,9 +22,9 @@ from app.db.session import async_session_factory
 from app.main import app
 from app.security import auth, passwords
 from app.services import charge_detector as cd
-from app.services import poller as poller_mod
 from app.services import retention
 from app.services.charge_detector import ChargeDetector
+from app.services.notification_service import NotificationService
 from app.services.poller import VehiclePoller
 
 VIN = "LSJA0000000000001"
@@ -96,6 +96,13 @@ async def test_a_charge_without_tariff_is_shown_without_cost(web) -> None:
     cid = await add_charge()
     c = (await web.get(f"/api/charges/{cid}")).json()["charge"]
     assert c["has_cost"] is False and c["cost_source"] == "Sin tarifa" and c["charge_cost"] == 0.0
+
+
+async def test_a_charge_with_an_amount_but_no_tariff_mode_shows_its_cost(web) -> None:
+    # Older or imported charges carry the amount without `cost_mode`: the list showed «1,89 €» and the detail «-- €»
+    cid = await add_charge(charge_cost=1.89)
+    c = (await web.get(f"/api/charges/{cid}")).json()["charge"]
+    assert c["has_cost"] is True and c["charge_cost"] == 1.89
 
 
 async def test_the_detector_sets_0_euros_per_kwh_outside_geofences(db, monkeypatch) -> None:
@@ -227,18 +234,16 @@ async def poller(db, monkeypatch):
         await s.commit()
     p = VehiclePoller.get_instance()
     p._pending_since.clear()
-    p._last_security_alert_time.clear()
-    p.__dict__.pop("_last_windows_alert_time", None)
     alerts = []
 
     async def security(cls, name, problems, **kwargs):
         alerts.append(("security", problems))
 
     async def windows(cls, name, windows, **kwargs):
-        alerts.append(("windows", windows))
+        alerts.append(("windows", [str(w) for w in windows]))
 
-    monkeypatch.setattr(poller_mod.NotificationService, "notify_security_alert", classmethod(security))
-    monkeypatch.setattr(poller_mod.NotificationService, "notify_windows_open_alert", classmethod(windows))
+    monkeypatch.setattr(NotificationService, "notify_security_alert", classmethod(security))
+    monkeypatch.setattr(NotificationService, "notify_windows_open_alert", classmethod(windows))
     monkeypatch.setattr(VehiclePoller, "request_poll", lambda self, vin, force=False: None)
     p.alerts_sent = alerts
     yield p
@@ -299,7 +304,72 @@ async def test_an_open_window_with_the_car_locked_alerts_after_the_wait(poller) 
     await check(poller, t, doors={}, windows={"fl": 1})
     assert poller.alerts_sent == []
     await check(poller, t + datetime.timedelta(minutes=6), doors={}, windows={"fl": 1})
-    assert poller.alerts_sent == [("windows", ["Delantera Izquierda"])]
+    assert poller.alerts_sent == [("windows", ["Delantera izquierda: entreabierta"])]
+
+
+async def test_an_open_window_alerts_once_until_it_is_closed_or_the_car_drives_off(poller) -> None:
+    """18-11-2026: a front window the car read as ajar (1) alerted every 30 minutes, 15 times in one night, charging in between."""
+    t = D(2026, 10, 28, 12, 0)
+    ajar = {"doors": {}, "windows": {"fl": 1, "fr": 0, "sunshade": 1}}
+    for minutes in (0, 6, 40, 70, 300):
+        await check(poller, t + datetime.timedelta(minutes=minutes), **ajar)
+    assert poller.alerts_sent == [("windows", ["Delantera izquierda: entreabierta"])]         # once; the sunshade is not an opening
+    charging = {**ajar, "state": "charging", "high_voltage_on": True}
+    await check(poller, t + datetime.timedelta(minutes=310), **charging)                         # charging at night: same episode
+    for minutes in (500, 506, 540):
+        await check(poller, t + datetime.timedelta(minutes=minutes), **ajar)
+    assert len(poller.alerts_sent) == 1
+    await check(poller, t + datetime.timedelta(minutes=545), doors={}, windows={"fl": 1, "sunroof": 3})   # another one opens
+    assert poller.alerts_sent[-1] == ("windows", ["Delantera izquierda: entreabierta", "Techo solar: abierta"]) and len(poller.alerts_sent) == 2
+    await check(poller, t + datetime.timedelta(minutes=600), doors={}, windows={"fl": 0, "sunroof": 0})   # closed: the episode ends
+    await check(poller, t + datetime.timedelta(minutes=700), **ajar)
+    await check(poller, t + datetime.timedelta(minutes=706), **ajar)
+    assert len(poller.alerts_sent) == 3                                                          # a new episode alerts again
+    await check(poller, t + datetime.timedelta(minutes=800), **{**ajar, "state": "driving", "high_voltage_on": True, "is_locked": False})
+    await check(poller, t + datetime.timedelta(minutes=830), **ajar)
+    await check(poller, t + datetime.timedelta(minutes=836), **ajar)
+    assert len(poller.alerts_sent) == 4                                                          # parked again with it still ajar
+
+
+async def test_fully_open_windows_read_3_on_the_drivers_and_10_on_the_others(poller) -> None:
+    """18-11-2026, «Abrir ventanillas» on a parked car: 3, 10, 10, 10. Without data there is nothing to say."""
+    t = D(2026, 10, 28, 12, 0)
+    for minutes in (0, 6, 12):
+        await check(poller, t + datetime.timedelta(minutes=minutes), doors={}, windows={"fl": None, "fr": "", "rl": 0})
+    assert poller.alerts_sent == []
+    opened = {"fl": 3, "fr": 10, "rl": 10, "rr": 2}
+    await check(poller, t + datetime.timedelta(minutes=20), doors={}, windows=opened)
+    await check(poller, t + datetime.timedelta(minutes=26), doors={}, windows=opened)
+    assert poller.alerts_sent == [("windows", ["Delantera izquierda: abierta", "Delantera derecha: abierta", "Trasera izquierda: abierta",
+                                               "Trasera derecha: entreabierta"])]
+
+
+async def test_an_alert_already_sent_survives_a_restart(poller) -> None:
+    """The episode lives in the database (`alert_states`), not in the poller's memory."""
+    from app.db.models import AlertState
+    t = D(2026, 10, 28, 12, 0)
+    await check(poller, t, doors={}, windows={"fl": 3})
+    await check(poller, t + datetime.timedelta(minutes=6), doors={}, windows={"fl": 3})
+    assert poller.alerts_sent == [("windows", ["Delantera izquierda: abierta"])]
+    poller._pending_since.clear()                                                                # a restart forgets the waits…
+    await check(poller, t + datetime.timedelta(minutes=30), doors={}, windows={"fl": 3})
+    await check(poller, t + datetime.timedelta(minutes=36), doors={}, windows={"fl": 3})
+    assert len(poller.alerts_sent) == 1                                                          # …but not what was already said
+    async with async_session_factory() as s:
+        assert [r.key for r in (await s.execute(select(AlertState))).scalars()] == ["windows:fl"]
+
+
+async def test_an_unlocked_car_alerts_once_until_it_is_locked(poller) -> None:
+    t = D(2026, 10, 28, 12, 0)
+    for minutes in (0, 6, 40, 70, 200):
+        await check(poller, t + datetime.timedelta(minutes=minutes), is_locked=False, doors={})
+    assert poller.alerts_sent == [("security", ["Vehículo sin cerrar con llave."])]
+    await check(poller, t + datetime.timedelta(minutes=210), is_locked=False, doors={"rl": 1})    # and now a door too: news
+    assert poller.alerts_sent[-1] == ("security", ["Vehículo sin cerrar con llave.", "Puertas abiertas: rl"]) and len(poller.alerts_sent) == 2
+    await check(poller, t + datetime.timedelta(minutes=220), doors={})                           # locked and closed
+    await check(poller, t + datetime.timedelta(minutes=300), is_locked=False, doors={})
+    await check(poller, t + datetime.timedelta(minutes=306), is_locked=False, doors={})
+    assert len(poller.alerts_sent) == 3
 
 
 async def test_a_window_lowered_while_driving_is_not_a_forgotten_window(poller) -> None:

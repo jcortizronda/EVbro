@@ -36,6 +36,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import __version__, build_commit
 from app.config import settings
+from app.timeutil import utcnow
 
 _LOGGER = logging.getLogger("app.telemetry")
 
@@ -60,7 +61,7 @@ _APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))       # .
 
 
 def _now() -> datetime.datetime:
-    return datetime.datetime.utcnow()
+    return utcnow()
 
 
 # ───────────────────────── scrubbing ─────────────────────────
@@ -161,14 +162,36 @@ def count_poll(outcome: str) -> None:
             _state.polls[outcome] += 1
 
 
+# checkPassword answers with these when the PIN typed is wrong (docs/ebro-protocol.md); core/taskid.py logs the raw answer as a
+# warning, and core/ mirrors the Home Assistant integration, so the person's typo is left out of the reports here.
+_WRONG_PIN_CODES = ("A07908", "A07909", "A00282", "A00285")
+
+
+def _wrong_pin(record: logging.LogRecord) -> bool:
+    if record.name != "app.core.taskid":
+        return False
+    try:
+        text = record.getMessage()
+    except Exception:                                       # noqa: BLE001
+        return False
+    return "checkPassword" in text and any(code in text for code in _WRONG_PIN_CODES)
+
+
 class TelemetryLogHandler(logging.Handler):
-    """Every WARNING and ERROR logged by the server becomes an error group while the reports are on."""
+    """Every WARNING and ERROR logged by the server becomes an error group while the reports are on, except those logged with
+    `extra={"telemetry": False}`: notices about the installation or an account (a new encryption key, a password the Ebro cloud
+    rejects) that are for whoever runs the server and say nothing about the code; and a wrong command PIN.
+
+    `extra={"telemetry_group": "…"}` splits one log line into several groups (a read without data: session, network, cloud…), so the
+    console does not add up different causes under the last message."""
 
     def __init__(self) -> None:
         super().__init__(level=logging.WARNING)
 
     def emit(self, record: logging.LogRecord) -> None:
-        if not _state.enabled or record.name.startswith("app.telemetry"):
+        if not _state.enabled or record.name.startswith("app.telemetry") or getattr(record, "telemetry", True) is False:
+            return
+        if _wrong_pin(record):
             return
         try:
             level = "error" if record.levelno >= logging.ERROR else "warning"
@@ -183,7 +206,9 @@ class TelemetryLogHandler(logging.Handler):
                 message = record.getMessage()
             path = os.path.abspath(record.pathname or "")
             here = f"app/{os.path.relpath(path, _APP_DIR)}" if path.startswith(_APP_DIR + os.sep) else os.path.basename(path)
-            record_error("server", level, error_type, message, f"{here}:{record.lineno} {record.funcName}", frames)
+            group = getattr(record, "telemetry_group", None)
+            suffix = f" [{str(group)[:40]}]" if group else ""
+            record_error("server", level, error_type, message, f"{here}:{record.lineno} {record.funcName}{suffix}", frames)
         except Exception:                                   # noqa: BLE001 — logging must never fail because of this
             pass
 
@@ -578,6 +603,8 @@ async def receive(session: AsyncSession, report: Dict[str, Any]) -> Dict[str, An
     now = _now()
     server = report.get("server") if isinstance(report.get("server"), dict) else {}
     version, commit = _s(server.get("version"), 40), _s(server.get("commit"), 40)
+    # The build that sent it: every image says 0.1.0 until releases are numbered, the commit tells two builds apart
+    release = f"{version}+{commit[:7]}" if version and commit else version
 
     inst = (await session.execute(select(TelemetryInstall).where(TelemetryInstall.install_id == iid))).scalar_one_or_none()
     if inst is not None and now - inst.last_seen < MIN_REPORT_INTERVAL:
@@ -605,17 +632,20 @@ async def receive(session: AsyncSession, report: Dict[str, Any]) -> Dict[str, An
         group.message = scrub(e.get("message")) or group.message          # scrubbed again: never trust the sender
         group.total_count = (group.total_count or 0) + count
         group.last_seen = now
-        if version:
-            group.versions = ([v for v in (group.versions or []) if v != version] + [version])[-KEEP_VERSIONS:]
-        if group.resolved_at is not None and version and version not in (group.versions or [])[:-1]:
-            group.resolved_at = None                                       # it came back in a newer version: reopen it
+        # Reopen a resolved error only when a build that had not sent it does. The check must come BEFORE adding the build to
+        # the list: done after it (until 11-11-2026), the build was never «already there» and every resolved error came back
+        seen_before = bool(release) and release in (group.versions or [])
+        if release:
+            group.versions = ([v for v in (group.versions or []) if v != release] + [release])[-KEEP_VERSIONS:]
+        if group.resolved_at is not None and release and not seen_before:
+            group.resolved_at = None                                       # it came back in a newer build: reopen it
         hit = (await session.execute(select(TelemetryErrorHit).where(TelemetryErrorHit.group_id == group.id,
                                                                      TelemetryErrorHit.install_id == iid))).scalar_one_or_none()
         if hit is None:
             hit = TelemetryErrorHit(group_id=group.id, install_id=iid, count=0)
             session.add(hit)
         hit.count = (hit.count or 0) + count
-        hit.version, hit.last_seen = version, now
+        hit.version, hit.last_seen = release, now
         accepted += 1
 
     old = now - RETENTION

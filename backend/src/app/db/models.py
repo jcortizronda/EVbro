@@ -1,8 +1,6 @@
 """SQLAlchemy database models for EVBro."""
 from __future__ import annotations
 
-import datetime
-
 from sqlalchemy import (
     JSON,
     BigInteger,
@@ -21,6 +19,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import DeclarativeBase, relationship
 
 from app.db.types import EncryptedJSON, EncryptedText
+from app.timeutil import utcnow
 
 # BIGINT on PostgreSQL; on SQLite (tests only) a BIGINT key does not autoincrement, so INTEGER
 # is used there. Nothing changes in production.
@@ -93,8 +92,8 @@ class Vehicle(Base):
     car_token = Column(String(255), nullable=True)
     tuserid = Column(String(100), nullable=True)
 
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
     @property
     def photo_url(self) -> str | None:
@@ -115,7 +114,7 @@ class TelemetrySnapshot(Base):
 
     id = Column(BigIntPK, primary_key=True, autoincrement=True)
     vin = Column(String(32), ForeignKey("vehicles.vin", ondelete="CASCADE"), index=True, nullable=False)
-    timestamp = Column(DateTime, index=True, default=datetime.datetime.utcnow, nullable=False)
+    timestamp = Column(DateTime, index=True, default=utcnow, nullable=False)
 
     online_status = Column(Boolean, default=False)
     state = Column(String(30), default="parked")
@@ -205,9 +204,17 @@ class Drive(Base):
 
     start_odometer = Column(Float, nullable=True)
     end_odometer = Column(Float, nullable=True)
+    # the car's electric-only odometer («Cuentakilómetros EV», `electricRange`) at both ends: their difference is the trip's
+    # electric kilometres (services/stats.py, `ev_km`). NULL when the car did not report it.
+    start_ev_odometer = Column(Float, nullable=True)
+    end_ev_odometer = Column(Float, nullable=True)
     # the drive was detected with the car already moving: the start time, position, odometer and battery are those of the
     # last reading while parked (see services/trip_detector.py)
     start_estimated = Column(Boolean, default=False, nullable=False, server_default="false")
+    # EVBro did not see this trip: the car was read off before and after it with more km in between (it slept between two readings
+    # and its live channel was stopped). Km, battery and fuel are the difference between those readings; times are estimated and
+    # there is no route (services/trip_detector.py, `_record_unseen_drive`)
+    unseen = Column(Boolean, default=False, nullable=False, server_default="false")
 
     positions = relationship("DrivePosition", back_populates="drive", cascade="all, delete-orphan", order_by="DrivePosition.timestamp")
     vehicle = relationship("Vehicle", back_populates="drives")
@@ -291,7 +298,7 @@ class Journey(Base):
     start_time = Column(DateTime, nullable=False, index=True)
     end_time = Column(DateTime, nullable=False)
     notes = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
 
 class VehiclePart(Base):
@@ -354,6 +361,19 @@ class GeofenceEvent(Base):
     odometer_km = Column(Float, nullable=True)
 
 
+class AlertState(Base):
+    """An alert already sent about a situation that is still going on (window left open, low fuel, a service due…). While the row
+    exists the alert is not sent again; it is deleted when the situation ends, so the next time it alerts once more. Kept in the
+    database so a restart does not repeat every alert in progress."""
+    __tablename__ = "alert_states"
+    __table_args__ = (UniqueConstraint("vin", "key", name="uq_alert_states_vin_key"),)
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    vin = Column(String(32), ForeignKey("vehicles.vin", ondelete="CASCADE"), index=True, nullable=False)
+    key = Column(String(160), nullable=False)                 # "<group>:<name>": windows:fl, security:unlocked, maintenance:official:30000:due
+    sent_at = Column(DateTime, default=utcnow, nullable=False)
+
+
 class CatalogEntry(Base):
     """Shared catalogue of consumables and references (which oil, filters, pads, tyres... fits each model).
 
@@ -378,7 +398,7 @@ class CatalogEntry(Base):
     status = Column(String(10), nullable=False, default="pending", server_default="pending", index=True)   # pending | approved | rejected
     reject_reason = Column(String(255), nullable=True)
     proposed_by = Column(Integer, ForeignKey("app_users.id", ondelete="SET NULL"), nullable=True, index=True)
-    proposed_at = Column(DateTime, default=datetime.datetime.utcnow)
+    proposed_at = Column(DateTime, default=utcnow)
     reviewed_by = Column(Integer, ForeignKey("app_users.id", ondelete="SET NULL"), nullable=True)
     reviewed_at = Column(DateTime, nullable=True)
     confirmations = Column(Integer, nullable=False, default=0, server_default="0")
@@ -400,7 +420,7 @@ class CatalogKey(Base):
     key_hash = Column(String(64), unique=True, index=True, nullable=False)
     note = Column(String(120), nullable=True)                 # who it is for, e.g. "Luis, home server"
     created_by = Column(Integer, nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utcnow, nullable=False)
     expires_at = Column(DateTime, nullable=True)              # None = does not expire (a paid key would carry a date)
     revoked = Column(Boolean, default=False, nullable=False, server_default="false")
     last_used_at = Column(DateTime, nullable=True)
@@ -420,7 +440,7 @@ class CatalogRemote(Base):
     last_sync_at = Column(DateTime, nullable=True)
     last_error = Column(String(255), nullable=True)
     entries = Column(Integer, nullable=False, default=0, server_default="0")
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
 
 class CatalogFitment(Base):
@@ -452,8 +472,8 @@ class MqttLink(Base):
     ha_discovery = Column(Boolean, default=True, nullable=False, server_default="true")
     ha_prefix = Column(String(60), nullable=False, default="homeassistant", server_default="homeassistant")
     enabled = Column(Boolean, default=True, nullable=False, server_default="true")
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
 
 class TraccarLink(Base):
@@ -475,7 +495,7 @@ class TraccarLink(Base):
     enabled = Column(Boolean, nullable=False, default=True, server_default="true")
     build_trips = Column(Boolean, nullable=False, default=False, server_default="false")
     stop_minutes = Column(Integer, nullable=False, default=5, server_default="5")
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
     last_position_at = Column(DateTime, nullable=True)
     last_latitude = Column(Float, nullable=True)
     last_longitude = Column(Float, nullable=True)
@@ -529,7 +549,7 @@ class ClimateSchedule(Base):
     label = Column(String(60), nullable=True)
     last_run_on = Column(Date, nullable=True)
     last_result = Column(String(255), nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
 
 class ChargePoint(Base):
@@ -581,7 +601,7 @@ class Geofence(Base):
     cost_margin = Column(Float, default=0.0)             # extra margin / tolls in €/kWh
     cost_fallback = Column(Float, default=0.15)          # fallback price if the external API does not answer
 
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
 
 class CommandAudit(Base):
@@ -590,7 +610,7 @@ class CommandAudit(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     vin = Column(String(32), ForeignKey("vehicles.vin", ondelete="CASCADE"), index=True, nullable=False)
-    timestamp = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    timestamp = Column(DateTime, default=utcnow, nullable=False)
 
     command = Column(String(50), nullable=False)
     params = Column(JSON, nullable=True)
@@ -598,6 +618,10 @@ class CommandAudit(Base):
     code = Column(String(20), nullable=True)
     message = Column(Text, nullable=True)
     client_ip = Column(String(50), nullable=True)
+    # What the CAR answered after trying to run it, when its confirmation arrived over the car channel (`success`, `code` and
+    # `message` are only the cloud accepting the order). None: no confirmation seen (channel stopped, or the car never answered)
+    car_result = Column(Text, nullable=True)
+    car_result_at = Column(DateTime, nullable=True)
 
     vehicle = relationship("Vehicle", back_populates="commands")
 
@@ -623,7 +647,7 @@ class MaintenanceItem(Base):
     notes = Column(Text, nullable=True)
     # custom = the user's own task; official = 'container' for the official service records (not listed as a task)
     origin = Column(String(12), default="custom", nullable=False, server_default="custom")
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     vehicle = relationship("Vehicle", back_populates="maintenance_items")
     logs = relationship("MaintenanceLog", back_populates="item", cascade="all, delete-orphan", order_by="desc(MaintenanceLog.service_date)")
@@ -635,7 +659,7 @@ class AppSetting(Base):
 
     key = Column(String(64), primary_key=True)
     value = Column(Text, nullable=True)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
 
 class MaintenancePlan(Base):
@@ -647,7 +671,7 @@ class MaintenancePlan(Base):
     # starting point of the official plan (steps are 15,000 km / 12 months from delivery)
     baseline_date = Column(DateTime, nullable=True)                         # delivery / registration date
     baseline_odometer = Column(Float, default=0.0, nullable=False)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
 
 class MaintenanceLog(Base):
@@ -656,7 +680,7 @@ class MaintenanceLog(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     item_id = Column(Integer, ForeignKey("maintenance_items.id", ondelete="CASCADE"), index=True, nullable=False)
-    service_date = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    service_date = Column(DateTime, default=utcnow, nullable=False)
     odometer = Column(Float, nullable=False)
     cost = Column(Float, default=0.0)
     workshop = Column(String(150), nullable=True)
@@ -690,8 +714,8 @@ class EbroAccount(Base):
     area_code = Column(String(8), default="34")
     is_active = Column(Boolean, default=True)
     token_data = Column(EncryptedJSON("ebro_accounts.token_data"), nullable=True)
-    last_login = Column(DateTime, default=datetime.datetime.utcnow)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    last_login = Column(DateTime, default=utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
 
 class AppUser(Base):
@@ -705,7 +729,7 @@ class AppUser(Base):
     username = Column(String(64), index=True, nullable=False)
     is_admin = Column(Boolean, default=False, nullable=False, server_default="false")     # mirrors role == "admin"; used by the unique name
     password_hash = Column(String(255), nullable=False)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
     last_login = Column(DateTime, nullable=True)
     # "admin" (runs the server from the admin console; owns nothing) | "manager" (owns cars, creates member accounts) | "member"
     role = Column(String(10), default="member", nullable=False, server_default="member")
@@ -723,6 +747,7 @@ class AppUser(Base):
     invited_by = Column(Integer, nullable=True)                                          # admin who issued the invitation used to register
     language = Column(String(5), nullable=False, default="es", server_default="es")       # es | en | pt (app.i18n): texts of the app and of the notices
     home_layout = Column(JSON, nullable=True)       # {"widgets": [keys in order]}: the widgets shown on Inicio (None = the default ones)
+    notifications_seen_at = Column(DateTime, nullable=True)   # last time the account opened its notification centre: newer notices are unread
 
 
 class Invite(Base):
@@ -733,7 +758,7 @@ class Invite(Base):
     token_hash = Column(String(64), unique=True, index=True, nullable=False)
     note = Column(String(120), nullable=True)                 # who it is for, e.g. "Maria (beta)"
     created_by = Column(Integer, nullable=False)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utcnow, nullable=False)
     expires_at = Column(DateTime, nullable=False)
     vehicle_limit = Column(Integer, nullable=True)            # limits the new manager starts with (None = server defaults)
     member_limit = Column(Integer, nullable=True)
@@ -755,7 +780,7 @@ class DeviceAccess(Base):
     vin = Column(String(32), ForeignKey("vehicles.vin", ondelete="CASCADE"), index=True, nullable=False)
     level = Column(String(10), nullable=False)                 # view | edit | control
     granted_by = Column(Integer, nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
 
 class AuthSession(Base):
@@ -765,8 +790,8 @@ class AuthSession(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("app_users.id", ondelete="CASCADE"), index=True, nullable=False)
     token_hash = Column(String(64), unique=True, index=True, nullable=False)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    last_seen = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
+    last_seen = Column(DateTime, default=utcnow)
     expires_at = Column(DateTime, nullable=False, index=True)
     ip = Column(String(64), nullable=True)
     user_agent = Column(String(255), nullable=True)
@@ -787,7 +812,7 @@ class ChargePlan(Base):
     last_action = Column(String(30), nullable=True)
     last_action_at = Column(DateTime, nullable=True)
     last_error = Column(Text, nullable=True)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
 
 class NotificationConfig(Base):
@@ -823,7 +848,7 @@ class NotificationConfig(Base):
     notify_security_alerts = Column(Boolean, default=True)
     notify_low_battery = Column(Boolean, default=True)
 
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
 
 class PushSubscription(Base):
@@ -839,7 +864,7 @@ class PushSubscription(Base):
     user_id = Column(Integer, nullable=True, index=True)
     subscription = Column(EncryptedJSON("push_subscriptions.subscription"), nullable=False)
     label = Column(String(120), nullable=True)           # «Chrome en Android», to recognise it in the list
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
     last_success = Column(DateTime, nullable=True)
     last_error = Column(Text, nullable=True)
 
@@ -850,11 +875,11 @@ class NotificationLog(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, nullable=True, index=True)       # the account it was sent to
-    timestamp = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+    timestamp = Column(DateTime, default=utcnow, index=True)
     category = Column(String(50), nullable=False)   # geofence, maintenance, charging, security, test
     title = Column(String(255), nullable=False)
     message = Column(Text, nullable=False)
-    channel = Column(String(50), nullable=False)    # telegram, webpush, pushover, webhook
+    channel = Column(String(50), nullable=False)    # telegram, webpush, pushover, webhook; `app` = only kept in the history (no channel)
     success = Column(Boolean, default=True)
     error = Column(Text, nullable=True)
 
@@ -875,7 +900,7 @@ class VehicleDocument(Base):
     original_name = Column(String(200), nullable=False)
     content_type = Column(String(40), nullable=False)
     size = Column(Integer, nullable=False)
-    uploaded_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    uploaded_at = Column(DateTime, default=utcnow, nullable=False)
     uploaded_by = Column(Integer, ForeignKey("app_users.id", ondelete="SET NULL"), nullable=True)
 
 
@@ -893,7 +918,7 @@ class PasskeyCredential(Base):
     sign_count = Column(BigInteger, default=0, nullable=False)                     # clone detection (0 = the authenticator does not count)
     transports = Column(JSON, nullable=True)                                       # ["internal", "hybrid"...]: hints for the browser
     label = Column(String(120), nullable=True)                                     # «Chrome en Android», to recognise it in the list
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
     last_used_at = Column(DateTime, nullable=True)
 
 
@@ -913,8 +938,8 @@ class TelemetryLocalError(Base):
     location = Column(String(240), nullable=True)             # file:line:function of EVBro's own code
     frames = Column(JSON, nullable=True)                      # ["app/services/poller.py:310 poll_vehicle", ...]
     count = Column(Integer, default=0, nullable=False)
-    first_seen = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
-    last_seen = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    first_seen = Column(DateTime, default=utcnow, nullable=False)
+    last_seen = Column(DateTime, default=utcnow, nullable=False)
 
 
 class TelemetryInstall(Base):
@@ -923,8 +948,8 @@ class TelemetryInstall(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     install_id = Column(String(40), unique=True, index=True, nullable=False)
-    first_seen = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
-    last_seen = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    first_seen = Column(DateTime, default=utcnow, nullable=False)
+    last_seen = Column(DateTime, default=utcnow, nullable=False)
     version = Column(String(40), nullable=True)
     commit = Column(String(40), nullable=True)
     reports = Column(Integer, default=0, nullable=False)
@@ -945,8 +970,8 @@ class TelemetryErrorGroup(Base):
     frames = Column(JSON, nullable=True)
     total_count = Column(BigInteger, default=0, nullable=False)
     versions = Column(JSON, nullable=True)                    # the last versions that reported it
-    first_seen = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
-    last_seen = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    first_seen = Column(DateTime, default=utcnow, nullable=False)
+    last_seen = Column(DateTime, default=utcnow, nullable=False)
     resolved_at = Column(DateTime, nullable=True)             # marked as fixed in the console; reopened if it comes back
 
 
@@ -960,4 +985,4 @@ class TelemetryErrorHit(Base):
     install_id = Column(String(40), index=True, nullable=False)
     count = Column(BigInteger, default=0, nullable=False)
     version = Column(String(40), nullable=True)
-    last_seen = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    last_seen = Column(DateTime, default=utcnow, nullable=False)

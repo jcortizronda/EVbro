@@ -136,14 +136,14 @@ function partsUsedHtml(parts) {
 async function loadMaintenanceLogs() {
   if (!currentVin) return;
   const tbody = document.getElementById('maintLogsTableBody');
-  tbody.innerHTML = '<tr><td class="u-text-align-center" colspan="8">Cargando historial...</td></tr>';
+  tbody.innerHTML = '<tr><td class="u-text-align-center" colspan="9">Cargando historial...</td></tr>';
 
   try {
     const res = await fetch(`/api/vehicles/${currentVin}/maintenance/logs`);
     const logs = await res.json();
 
     if (!logs || logs.length === 0) {
-      tbody.innerHTML = '<tr><td class="u-text-align-center_color-var-text-muted" colspan="8">No hay intervenciones registradas en el historial.</td></tr>';
+      tbody.innerHTML = '<tr><td class="u-text-align-center_color-var-text-muted" colspan="9">No hay intervenciones registradas en el historial.</td></tr>';
       return;
     }
 
@@ -185,16 +185,17 @@ async function loadMaintenanceLogs() {
         <td><strong>${dt}</strong></td>
         <td><strong>${escapeHtml(l.item_name)}</strong></td>
         <td><span class="maint-category-badge">${escapeHtml(l.category)}</span></td>
-        <td>${Math.round(l.odometer).toLocaleString()} km</td>
-        <td><strong>${l.cost ? l.cost.toFixed(2) + ' €' : '--'}</strong></td>
+        <td>${localNum(Math.round(l.odometer))} km</td>
+        <td><strong>${l.cost ? historyNum(l.cost, 2) + ' €' : '--'}</strong></td>
         <td>${escapeHtml(l.workshop)}</td>
         <td>${escapeHtml(l.notes)}${partsUsedHtml(l.parts_used)}</td>
         <td>${invHtml}</td>
+        <td class="u-text-align-center"><button class="btn-sm btn-secondary is-danger" data-on-click="deleteMaintenanceLog(${l.id})" title="Borrar este registro" aria-label="Borrar este registro">${icon('trash', 16)}</button></td>
       `;
       tbody.appendChild(tr);
     });
   } catch (e) {
-    tbody.innerHTML = `<tr><td class="u-color-var-accent-red_text-align-center" colspan="8">Error al cargar registro: ${escapeHtml(e)}</td></tr>`;
+    tbody.innerHTML = `<tr><td class="u-color-var-accent-red_text-align-center" colspan="9">Error al cargar registro: ${escapeHtml(e)}</td></tr>`;
   }
 }
 
@@ -317,6 +318,20 @@ async function saveMaintItem() {
     loadMaintenance();
   } catch (e) {
     showToast(`No se pudo guardar la tarea: ${e.message || e}`, 'error');
+  }
+}
+
+// Any entry of the history, official steps included (one recorded by mistake could not be undone)
+async function deleteMaintenanceLog(logId) {
+  if (!await confirmDialog('¿Borrar este registro del historial? Si es una revisión oficial, volverá a contar como pendiente. Su factura también se borra.', { confirmText: 'Borrar', danger: true })) return;
+  try {
+    const res = await fetch(`/api/maintenance/logs/${logId}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error(res.status);
+    showToast('Registro borrado.', 'success');
+    loadMaintenance();
+    loadMaintenanceLogs();
+  } catch (e) {
+    showToast(t('No se pudo borrar: {p0}', {p0: e.message || e}), 'error');
   }
 }
 

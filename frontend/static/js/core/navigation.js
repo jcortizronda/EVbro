@@ -29,12 +29,16 @@ function switchTab(tabName) {
       if (liveMap) liveMap.invalidateSize();
     }, 200);
     if (typeof refreshGpsPosition === 'function') refreshGpsPosition(true);
+    if (typeof showAccountChannelNotice === 'function') showAccountChannelNotice();     // the live channel may have stopped meanwhile
   } else if (tabName === 'drives') {
     loadDrives();
     if (window.Journeys) Journeys.load();                  // «Viajes largos»
     loadGeofencesForFilter();
     if (typeof loadPlaces === 'function') loadPlaces();
   } else if (tabName === 'charges') {
+    // Charge control: what EVBro stores paints the state and the buttons at once; the car's real schedule (a cloud query,
+    // seconds) completes it after. It used to wait for the 3 s refresh timer and then for that query.
+    if (window.ChargeControl) ChargeControl.load(false).then(() => ChargeControl.load(true));
     loadLatestCharge();
     loadCharges();
     setTimeout(() => {

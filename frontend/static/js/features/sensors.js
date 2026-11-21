@@ -80,7 +80,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Potencia de Carga en Vivo (kW)',
       key: 'charge_power_kw',
       haEntity: 'sensor.ebro_potencia_carga',
-      value: data.charge_power_kw ? `${data.charge_power_kw} kW` : (data.is_charging ? 'Activa' : '0.0 kW'),
+      value: data.charge_power_kw ? `${historyNum(data.charge_power_kw)} kW` : (data.is_charging ? 'Activa' : `${historyNum(0)} kW`),
       tone: data.charge_power_kw > 0 ? 'on' : '',
       details: 'Cálculo dinámico: (Tensión × Intensidad) / 1000'
     },

@@ -3,11 +3,12 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import logging
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,6 +22,8 @@ from app.security.access import space_owner_id
 from app.services import command_policy
 from app.services.command_policy import requires_pin
 from app.services.poller import VehiclePoller
+
+_LOGGER = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Commands"])
 
@@ -40,9 +43,10 @@ class CommandAuditOut(BaseModel):
     success: bool
     code: Optional[str] = None
     message: Optional[str] = None
+    car_result: Optional[str] = None                    # what the car answered over its channel, if its confirmation was seen
+    car_result_at: Optional[datetime.datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 @router.get("/commands/catalog")
@@ -134,7 +138,13 @@ async def get_alarm_state(vin: str, session: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Vehículo no encontrado.")
     ctx = VehiclePoller.get_instance()._get_or_create_ctx(vin)
     loop = asyncio.get_running_loop()
-    value = await loop.run_in_executor(None, commands.query_theft_switch, ctx)
+    try:
+        value = await loop.run_in_executor(None, commands.query_theft_switch, ctx)
+    except OSError as exc:
+        # No Ebro session stored for this car (its account was never connected) or no network: «unknown», not a server error.
+        # The page asks every minute, so this used to fill the log with tracebacks (seen with the demo car, 09-11-2026).
+        _LOGGER.info("Alarm of %s not read: %s", vin[-6:], type(exc).__name__)
+        value = None
     return {"enabled": None if value is None else bool(value)}
 
 

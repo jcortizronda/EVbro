@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-import dataclasses
 import datetime
 import logging
 import os
@@ -12,41 +11,44 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.core import codes, commands, ebro_login
+from app.core import codes, ebro_login
 from app.core.context import CoreCtx
-from app.core.errors import CommandError
 from app.core.probe import probe_once
 from app.core.telemetry import parse_telemetry_data
-from app.db.models import AppUser, CommandAudit, EbroAccount, Geofence, GeofenceEvent, TelemetrySnapshot, Vehicle
+from app.db.models import EbroAccount, TelemetrySnapshot, Vehicle
 from app.db.session import async_session_factory
 from app.security.access import first_manager_id, foreign_vins, within_vehicle_limit
-from app.services import command_policy, energy_recalc, vehicle_profiles
+from app.services import energy_recalc, vehicle_profiles
 from app.services import telemetry as usage_reports
-from app.services.accounts import fetch_account_vehicles, vehicle_data_dir, write_token_file
+from app.services.accounts import fetch_account_vehicles, vehicle_data_dir
 from app.services.car_events import CarEventHub
-from app.services.charge_detector import ChargeDetector, grid_charging, lacks_charge_data
+from app.services.charge_detector import ChargeDetector, lacks_charge_data
 from app.services.charge_manager import ChargeManager
-from app.services.geofence import find_geofence
+from app.services.ebro_sessions import account_session_path, seed_account_session
 from app.services.mqtt_hub import MqttHub
 from app.services.mqtt_publisher import MqttPublisher
-from app.services.notification_service import NotificationService
+from app.services.poller_alerts import AlertsMixin
+from app.services.poller_commands import CommandsMixin
+from app.services.poller_position import PositionWatchMixin
+
+# SESSION_RELOGIN_* are re-exported: the tests read them from here
+from app.services.poller_session import (  # noqa: F401
+    SESSION_RELOGIN_INTERVAL,
+    SESSION_RELOGIN_NETWORK_RETRY,
+    LoginFailed,
+    SessionMixin,
+    connected_owner_ids,
+    pollable,
+    without_secrets,
+)
 from app.services.refuel_detector import RefuelDetector
 from app.services.trip_detector import TripDetector
+from app.timeutil import utcnow
 
 _LOGGER = logging.getLogger(__name__)
 
 # Longest poll interval while a trip is open (it only asks the cloud: it does not wake the car)
 OPEN_TRIP_POLL_SECONDS = 150
-# How long «car left with doors/windows open» or unlocked must last before alerting
-SECURITY_CONFIRM_SECONDS = 5 * 60
-# Tyre pressure: it must stay out of range this long (when starting off or with a warm tyre it rises 10 % without being a problem)
-# and the alert is not repeated before TYRE_ALERT_COOLDOWN
-TYRE_CONFIRM_SECONDS = 10 * 60
-# A LOW pressure only has to hold this long: the cold reading is the one that matters and it lasts a few minutes, because rolling
-# warms the tyre and raises it (03 and 04-11-2026: 2.31 bar for 2-4 minutes, never 10). A lone reading of one sensor is not enough.
-TYRE_LOW_CONFIRM_SECONDS = 2 * 60
-TYRE_ALERT_COOLDOWN = datetime.timedelta(hours=12)
-UNEXPECTED_COMMAND_ERROR = "No se pudo enviar la orden al coche por un error inesperado del servidor (mira el log)."
 # Cars polled at the same time in one pass of the loop: a manager whose cloud answers slowly must not delay everybody else's reads,
 # but the Chery cloud is shared, so the fan-out stays small.
 POLL_CONCURRENCY = 4
@@ -54,50 +56,25 @@ POLL_CONCURRENCY = 4
 # twice over the same snapshot (04-11-2026: a push from the car 2 s after the scheduled read duplicated trips and charges).
 # A read requested while one is running joins it; one requested this soon after an answer gets that answer.
 POLL_COALESCE_SECONDS = 5
-# A session the cloud no longer accepts (the refresh token rejected too) is opened again with the password the manager saved when
-# connecting the account, at most once a day per account. A rejected password stops the retries until the account is reconnected:
-# hammering the login with a wrong password is how accounts get locked. (07-11-2026: a car went dark for 36 hours this way.)
-SESSION_RELOGIN_INTERVAL = datetime.timedelta(hours=24)
 # Raw keys remembered per car (`vehicles.reported_keys`); the cloud sends about a hundred
 MAX_REPORTED_KEYS = 300
-# The cloud's answer when a car has no permission for a command («No vehicle control command permission»): remembered per car
-NO_COMMAND_PERMISSION = "A00084"
 
 
-async def connected_owner_ids(session: AsyncSession) -> Set[int]:
-    """Managers with an active Ebro account: the only cars that can be read."""
-    return {uid for (uid,) in (await session.execute(select(EbroAccount.user_id).where(EbroAccount.is_active == True))).all() if uid is not None}  # noqa: E712
+_NETWORK_MARKERS = ("NameResolutionError", "Max retries exceeded", "ConnectionError", "ConnectTimeout", "ReadTimeout", "timed out")
 
 
-class LoginFailed(RuntimeError):
-    """The Ebro cloud could not be entered with an account's password. `rejected` tells a refusal (wrong password, blocked
-    account: the manager has to act) from a network failure (nothing to conclude)."""
-
-    def __init__(self, message: str, rejected: bool) -> None:
-        super().__init__(message)
-        self.rejected = rejected
-
-
-def pollable(vehicle: Vehicle, connected: Set[int], lost: Set[int] = frozenset()) -> bool:
-    """Whether a car can be read: its manager keeps an Ebro account connected, or the server runs on the account of its `.env`
-    (cars of nobody, or installs without any account in the database). `lost`: managers whose account the cloud rejected
-    (password included); their cars wait for the account to be reconnected instead of failing every hour."""
-    if vehicle.is_manual:
-        return False
-    if vehicle.owner_id is not None and vehicle.owner_id in lost:
-        return False
-    if vehicle.owner_id in connected:
-        return True
-    env_account = bool(settings.EBRO_PHONE and settings.EBRO_PASSWORD)
-    return env_account and (vehicle.owner_id is None or not connected)
+def read_failure_group(res: Dict) -> str:
+    """The cause of a read without data, to keep each one in its own group of the project's reports: `session` (the cloud no
+    longer accepts the session), `network` (DNS, connection or timeout before reaching the cloud) or the probe's own reason."""
+    reason = str(res.get("reason") or "unknown")
+    if reason == "no_usertoken":
+        return "session"
+    if reason == "exception" and any(m in str(res.get("error") or "") for m in _NETWORK_MARKERS):
+        return "network"
+    return reason
 
 
-def _without_secrets(text: str) -> str:
-    """The cloud's answer for the log: its sentence, never a token or a number it may echo."""
-    return text.split("access_token")[0][:160]
-
-
-class VehiclePoller:
+class VehiclePoller(SessionMixin, CommandsMixin, AlertsMixin, PositionWatchMixin):
     _instance: Optional["VehiclePoller"] = None
     _contexts: Dict[str, CoreCtx] = {}
     _running: bool = False
@@ -117,14 +94,10 @@ class VehiclePoller:
     _last_renewal_check_at: Dict[str, datetime.datetime] = {}
     _last_retention_run: Optional[datetime.datetime] = None
     _last_catalog_sync: Optional[datetime.datetime] = None
+    # Cars whose last read found the Ebro session dead: the loop leaves them alone until there is a new session (`reads_paused`)
+    _session_paused: Dict[str, Dict] = {}
     # Alert situations not yet confirmed: (vin, key) -> since when they are seen
     _pending_since: Dict[tuple, datetime.datetime] = {}
-    _last_tyre_alert_time: Dict[str, datetime.datetime] = {}
-    _maint_alert_sent: Dict[str, datetime.datetime] = {}
-    _last_security_alert_time: Dict[str, datetime.datetime] = {}
-    _last_fuel_alert_time: Dict[str, datetime.datetime] = {}
-    _last_windows_alert_time: Dict[str, datetime.datetime] = {}
-    _last_fault_alert_time: Dict[str, datetime.datetime] = {}
     # Polls requested by car events (one at a time per vehicle)
     _poll_requests: Dict[str, "asyncio.Task"] = {}
     _poll_semaphore: Optional[asyncio.Semaphore] = None
@@ -136,6 +109,7 @@ class VehiclePoller:
     _session_lost: Dict[int, Optional[datetime.datetime]] = {}
     # Cars left out of the loop because their manager has no connected Ebro account (said once in the log)
     _unpolled_logged: Set[str] = set()
+    _position_watch: Dict[str, Dict] = {}            # per car: the point the cloud keeps returning and since when (frozen position)
     # What the location endpoint answered the last time a car was read without a position (logged when it changes)
     _last_location_code: Dict[str, Optional[str]] = {}
 
@@ -212,6 +186,7 @@ class VehiclePoller:
 
             for v in vehicles:
                 self._get_or_create_ctx(v.vin)
+                await self._backfill_reported_keys(session, v)
                 # A sheet nobody filled in gets the figures of its model (services/vehicle_profiles.py); a new capacity re-estimates
                 # the energy of its drives and charges, as saving the sheet by hand does
                 changed = vehicle_profiles.fill_defaults(v)
@@ -231,6 +206,11 @@ class VehiclePoller:
                 if acc and acc.pin and acc.pin.strip() and not (ctx.pin or "").strip():
                     ctx.pin = acc.pin.strip()
 
+        # One Ebro session per account, shared by its cars (services/ebro_sessions.py)
+        await self.bind_sessions()
+
+        async with async_session_factory() as session:
+            accounts = (await session.execute(select(EbroAccount).where(EbroAccount.is_active == True).order_by(EbroAccount.id))).scalars().all()  # noqa: E712
             # 2. Auto-discover the cars of every account whose manager has none yet (or the .env account if there is nothing else)
             owners_with_cars = {v.owner_id for v in vehicles}
             for acc in accounts:
@@ -241,35 +221,43 @@ class VehiclePoller:
                 _LOGGER.info("Auto-discovering vehicles from the environment's Ebro account...")
                 await self.discover_vehicles(account=None)
 
+    @staticmethod
+    async def _backfill_reported_keys(session: AsyncSession, vehicle: Vehicle, days: int = 30, limit: int = 3000) -> None:
+        """Adds to `reported_keys` the raw keys found in the car's stored readings. The list is built read by read, and some keys
+        only come in some states (`remainChargeTime` only while charging): a car that has not charged since the list began looked
+        like one that never sends it (09-11-2026, an S900 charged every day). The history already knows better."""
+        since = utcnow() - datetime.timedelta(days=days)
+        rows = (await session.execute(select(TelemetrySnapshot.raw_data).where(TelemetrySnapshot.vin == vehicle.vin, TelemetrySnapshot.timestamp >= since)
+                                      .order_by(TelemetrySnapshot.timestamp.desc()).limit(limit))).scalars().all()
+        seen = set(vehicle.reported_keys or [])
+        fresh = {k for raw in rows if isinstance(raw, dict) for k in raw if isinstance(k, str)} - seen
+        if fresh and len(seen) < MAX_REPORTED_KEYS:
+            vehicle.reported_keys = sorted(seen | fresh)[:MAX_REPORTED_KEYS]
+            _LOGGER.info("Reported keys of %s completed from its readings: %d added", vehicle.vin[-6:], len(fresh))
+
     async def discover_vehicles(self, account: Optional[EbroAccount] = None, strict: bool = False) -> List[Vehicle]:
         """Discovers the vehicles linked to the account. With the session the account already holds when it still works (Chery
-        keeps one session per account: a password login throws the official app out, so it is the last resort); otherwise it
+        may keep one session per account, unverified: a password login could throw the official app out, so it is the last resort); otherwise it
         logs in with the stored password. `strict` raises `LoginFailed` instead of returning an empty list, so a request made
         by the manager can tell «no new car» from «the cloud refuses the password» (09-11-2026: a manager whose password the
-        cloud rejected pressed «Buscar vehículos» twice and was told there were none)."""
+        cloud rejected pressed «Sincronizar» twice and was told there were none)."""
         phone = None
         password = None
         area_code = "34"
 
         acc_user_id = None
         token_data: Optional[dict] = None
-        if account:
+        if account is None:
+            async with async_session_factory() as session:
+                acc_stmt = select(EbroAccount).where(EbroAccount.is_active == True)  # noqa: E712
+                account = (await session.execute(acc_stmt)).scalars().first()
+        session_path: Optional[str] = None                   # the account's session, shared by its cars (ebro_sessions.py)
+        if account is not None:
             phone = account.phone
             password = account.password
             area_code = account.area_code or "34"
             acc_user_id = account.user_id
-            if isinstance(account.token_data, dict) and account.token_data.get("access_token") \
-                    and not self.session_lost(account.id, account.last_login):
-                token_data = account.token_data
-        else:
-            async with async_session_factory() as session:
-                acc_stmt = select(EbroAccount).where(EbroAccount.is_active == True)
-                db_acc = (await session.execute(acc_stmt)).scalars().first()
-                if db_acc:
-                    phone = db_acc.phone
-                    password = db_acc.password
-                    area_code = db_acc.area_code or "34"
-                    acc_user_id = db_acc.user_id
+            session_path = account_session_path(account.id)
 
         if not phone or not password:
             phone = settings.EBRO_PHONE
@@ -296,23 +284,31 @@ class VehiclePoller:
         loop = asyncio.get_running_loop()
         skip = await foreign_vins(owner_for_skip)
         v_list: Optional[List[dict]] = None
-        if token_data is not None:
-            try:
-                v_list = await loop.run_in_executor(None, fetch_account_vehicles, token_data, skip)
-            except Exception as e:                            # noqa: BLE001 — a dead session: the password decides below
-                _LOGGER.info("The stored Ebro session of user %s could not list the cars (%s): logging in again", acc_user_id, type(e).__name__)
-                v_list = None
+        if account is not None:
+            # The session the account's cars already share, when it still opens: no password login (it might close the official app's)
+            async with async_session_factory() as session:
+                cars = [vin for (vin,) in (await session.execute(select(Vehicle.vin).where(Vehicle.owner_id == account.user_id,
+                                                                                          Vehicle.is_manual.is_(False)))).all()]
+            copies = [os.path.join(vehicle_data_dir(vin), "token.json") for vin in cars]
+            await loop.run_in_executor(None, seed_account_session, account.id, copies, account.token_data, account.last_login)
+            if os.path.exists(session_path) and not self.session_lost(account.id, account.last_login):
+                try:
+                    v_list = await loop.run_in_executor(None, fetch_account_vehicles, None, skip, session_path)
+                except Exception as e:                        # noqa: BLE001 — a dead session: the password decides below
+                    _LOGGER.info("The stored Ebro session of user %s could not list the cars (%s): logging in again", acc_user_id, type(e).__name__)
+                    v_list = None
         if v_list is None:
             try:
                 token_data = await loop.run_in_executor(None, _do_login)
             except RuntimeError as e:
                 # The cloud answered and said no: a manager's wrong or changed password, not a failure of EVBro
                 who = f"of user {acc_user_id}" if acc_user_id is not None else "of the environment"
-                _LOGGER.warning("The Ebro cloud rejected the password of the account %s: %s", who, _without_secrets(str(e)))
+                _LOGGER.warning("The Ebro cloud rejected the password of the account %s: %s", who, without_secrets(str(e)),
+                                extra={"telemetry": False})
                 if strict and account is not None:
                     self._session_lost[account.id] = account.last_login
                 if strict:
-                    raise LoginFailed(_without_secrets(str(e)), rejected=True) from e
+                    raise LoginFailed(without_secrets(str(e)), rejected=True) from e
                 return []
             except Exception as e:                            # noqa: BLE001 — network or cryptography: the text may name hosts, it stays in the log
                 _LOGGER.warning("Could not log in to Ebro: %s", type(e).__name__)
@@ -328,17 +324,17 @@ class VehiclePoller:
                 return []
 
             try:
-                v_list = await loop.run_in_executor(None, fetch_account_vehicles, token_data, skip)
+                v_list = await loop.run_in_executor(None, fetch_account_vehicles, token_data, skip, session_path)
             except Exception as e:                            # noqa: BLE001
                 _LOGGER.error(f"Error fetching the vehicle list: {e}")
                 v_list = []
             if account is not None:
-                # The account carries the session just opened (the one the poller and the car's MQTT channel read)
+                # The copy kept in the account: it only seeds the session file if that file is ever lost
                 async with async_session_factory() as session:
                     acc = await session.get(EbroAccount, account.id)
                     if acc is not None:
                         acc.token_data = token_data
-                        acc.last_login = datetime.datetime.utcnow()
+                        acc.last_login = utcnow()
                         await session.commit()
                 self._session_lost.pop(account.id, None)
 
@@ -397,6 +393,7 @@ class VehiclePoller:
                     await session.delete(dummy_v)
                     await session.commit()
 
+        await self.bind_sessions()                              # the new cars read the account's session from the start
         return discovered
 
     async def poll_vehicle(self, vin: str, force: bool = False) -> Optional[Dict]:
@@ -407,7 +404,7 @@ class VehiclePoller:
         if running is not None:
             return await asyncio.shield(running)
         last = self._last_poll_times.get(vin)
-        if last is not None and (datetime.datetime.utcnow() - last).total_seconds() < POLL_COALESCE_SECONDS:
+        if last is not None and (utcnow() - last).total_seconds() < POLL_COALESCE_SECONDS:
             return self._latest_snapshots.get(vin)
         task = asyncio.create_task(self._poll_vehicle(vin, force))
         self._inflight[vin] = task
@@ -415,7 +412,7 @@ class VehiclePoller:
             return await task
         finally:
             self._inflight.pop(vin, None)
-            self._last_poll_times[vin] = datetime.datetime.utcnow()
+            self._last_poll_times[vin] = utcnow()
 
     async def _poll_vehicle(self, vin: str, force: bool = False, _retry: bool = True) -> Optional[Dict]:
         """Asks the cloud, saves the snapshot and runs the detectors. Always through `poll_vehicle`."""
@@ -442,7 +439,21 @@ class VehiclePoller:
             if await self._recover_session(vin):
                 return await self._poll_vehicle(vin, force=True, _retry=False)
         if isinstance(res, dict) and res.get("ok") is False and res.get("reason") != "cooldown":
-            _LOGGER.warning("Read of %s brought no data: %s", vin[-6:], res.get("reason"))
+            # With the probe's error text: «exception» alone left 194 reports in the project's console impossible to diagnose
+            detail = f" ({without_secrets(str(res.get('error')))[:200]})" if res.get("error") else ""
+            group = read_failure_group(res)
+            # A session the cloud keeps closing is the account's (its owner signed in elsewhere, e.g. the official app): it stays
+            # in the local log but is not reported to the project as a fault of the code
+            extra = {"telemetry_group": group, "telemetry": group != "session"}
+            # Without a session every read fails the same way: the loop stops reading the car until there is a new one, and it is
+            # said once (16-11-2026: 276 identical lines, and as many requests to the cloud, in five hours for one car)
+            first = self._pause_reads(vin) if group == "session" else True
+            pause = "; reads paused until there is a new session" if group == "session" else ""
+            _LOGGER.log(logging.WARNING if first else logging.DEBUG, "Read of %s brought no data: %s%s%s", vin[-6:],
+                        res.get("reason"), detail, pause, extra=extra)
+        if not (isinstance(res, dict) and res.get("reason") in ("no_usertoken", "cooldown")):
+            if self._session_paused.pop(vin, None) is not None:
+                _LOGGER.info("Reads of %s resumed: the Ebro session works again", vin[-6:])
 
         # With no real-time data (e.g. the car is asleep), use the probe's "rich" summary.
         # Coordinates do NOT travel in the result of `probe_once` (see core/probe.py):
@@ -493,7 +504,7 @@ class VehiclePoller:
 
             # Update the quick fields on the vehicle
             vehicle.state = telemetry["state"]
-            vehicle.last_seen = datetime.datetime.utcnow()
+            vehicle.last_seen = utcnow()
             if telemetry.get("battery_level") is not None:
                 vehicle.battery_level = telemetry["battery_level"]
             if telemetry.get("electric_range_km") is not None:
@@ -557,6 +568,7 @@ class VehiclePoller:
 
         # Charge control: battery target, pauses and their renewal
         await ChargeManager.get_instance().on_snapshot(vin, telemetry)
+        await self._watch_frozen_position(vin, telemetry)
 
         # Publish to MQTT if enabled
         if publish_mqtt:
@@ -566,294 +578,6 @@ class VehiclePoller:
         self.broadcast_telemetry(vin, telemetry)
 
         return telemetry
-
-    # ───────────────────────── Ebro session recovery ─────────────────────────
-    async def lost_owner_ids(self, session: AsyncSession) -> Set[int]:
-        """Managers whose active Ebro account the cloud rejected (session and stored password): their cars are not read until
-        the account is reconnected."""
-        rows = (await session.execute(select(EbroAccount.id, EbroAccount.user_id, EbroAccount.last_login)
-                                      .where(EbroAccount.is_active == True))).all()  # noqa: E712
-        return {uid for (acc_id, uid, last_login) in rows if uid is not None and self.session_lost(acc_id, last_login)}
-
-    def session_lost(self, account_id: int, last_login: Optional[datetime.datetime]) -> bool:
-        """True while the cloud rejects the stored password of this account (until the manager reconnects it)."""
-        return account_id in self._session_lost and self._session_lost[account_id] == last_login
-
-    async def _recover_session(self, vin: str) -> bool:
-        """Signs in again with the password the manager saved when connecting the account, and hands the new token to every car of
-        that account. At most one attempt per account and day; none at all once the cloud has rejected the password (the manager is
-        told once and has to reconnect the account). Returns True when the car can be read again."""
-        async with async_session_factory() as session:
-            vehicle = (await session.execute(select(Vehicle).where(Vehicle.vin == vin))).scalar_one_or_none()
-            if vehicle is None or vehicle.owner_id is None:
-                return False
-            account = (await session.execute(
-                select(EbroAccount).where(EbroAccount.is_active == True, EbroAccount.user_id == vehicle.owner_id).order_by(EbroAccount.id.desc())  # noqa: E712
-            )).scalars().first()
-            if account is None or self.session_lost(account.id, account.last_login):
-                return False
-            now = datetime.datetime.utcnow()
-            last = self._relogin_attempt_at.get(account.id)
-            if last is not None and now - last < SESSION_RELOGIN_INTERVAL:
-                return False
-            self._relogin_attempt_at[account.id] = now
-            acc_id, owner_id, last_login = account.id, account.user_id, account.last_login
-            phone, password, area = account.phone, account.password, account.area_code or "34"
-            names = [v.name for (v,) in (await session.execute(select(Vehicle).where(Vehicle.owner_id == owner_id, Vehicle.is_manual.is_(False)))).all()]
-
-        loop = asyncio.get_running_loop()
-        try:
-            token_data = await loop.run_in_executor(None, lambda: ebro_login.login_with_password(phone, password, area))
-        except RuntimeError as exc:
-            # The cloud answered and said no (wrong password, blocked account…): stop until the account is reconnected
-            _LOGGER.warning("The Ebro cloud rejected the stored password of the account of user %s: %s", owner_id, _without_secrets(str(exc)))
-            self._session_lost[acc_id] = last_login
-            await NotificationService.notify_account_session_lost(owner_id, names)
-            return False
-        except Exception as exc:                              # noqa: BLE001 — network: nothing to conclude, the next day's try tells
-            _LOGGER.warning("Could not reopen the Ebro session of the account of user %s: %s", owner_id, type(exc).__name__)
-            return False
-        if not isinstance(token_data, dict) or "access_token" not in token_data:
-            self._session_lost[acc_id] = last_login
-            await NotificationService.notify_account_session_lost(owner_id, names)
-            return False
-
-        async with async_session_factory() as session:
-            account = await session.get(EbroAccount, acc_id)
-            if account is not None:
-                account.token_data = token_data
-                account.last_login = datetime.datetime.utcnow()
-            vins = [v for (v,) in (await session.execute(select(Vehicle.vin).where(Vehicle.owner_id == owner_id, Vehicle.is_manual.is_(False)))).all()]
-            await session.commit()
-        for other in vins:
-            try:
-                write_token_file(os.path.join(vehicle_data_dir(other), "token.json"), token_data)
-            except OSError as exc:
-                _LOGGER.warning("Could not write the renewed token of %s: %s", other[-6:], exc)
-        self._session_lost.pop(acc_id, None)
-        _LOGGER.info("Ebro session of the account of user %s reopened with the stored password", owner_id)
-        asyncio.create_task(CarEventHub.get_instance().restart_owner(owner_id, self))       # the car's MQTT channel needs the new session too
-        return True
-
-    async def _check_and_dispatch_alerts(
-        self, session: AsyncSession, vehicle: Vehicle, telemetry: Dict
-    ) -> None:
-        """Checks state transitions and sends alerts to Android and iOS."""
-        vin = vehicle.vin
-        lat = telemetry.get("latitude")
-        lon = telemetry.get("longitude")
-        battery = telemetry.get("battery_level")
-        odo = telemetry.get("odometer_km")
-        fuel = telemetry.get("fuel_level")
-        fuel_range = telemetry.get("fuel_range_km")
-
-        # What each account wants to receive is decided when sending (per account); here only the car's own settings matter.
-
-        # 1. Geofence alerts (enter / exit - configurable per user)
-        if lat is not None and lon is not None:
-            current_gf = await find_geofence(session, lat, lon, owner_id=vehicle.owner_id)
-            current_gf_id = current_gf.id if current_gf else None
-
-            if vin not in self._last_geofence_by_vin:
-                # Initialise the state without a spurious alert on the first start
-                self._last_geofence_by_vin[vin] = current_gf_id
-            else:
-                last_gf_id = self._last_geofence_by_vin.get(vin)
-                if current_gf_id != last_gf_id:
-                    await self._geofence_transition(session, vehicle, current_gf, last_gf_id, lat, lon, battery, odo)
-                    self._last_geofence_by_vin[vin] = current_gf_id
-
-        # 2. Charging alerts (start / end / interruption); from the grid only, the engine charging on the road is not news
-        is_charging = grid_charging(telemetry)
-        if vin in self._last_charging_by_vin:
-            was_charging = self._last_charging_by_vin[vin]
-            if not was_charging and is_charging:
-                await NotificationService.notify_charging_started(
-                    vehicle.name, battery or 0.0, telemetry.get("electric_range_km"), vin=vin
-                )
-            elif was_charging and not is_charging:
-                # If it stopped before completing (< 95%) and EVBro did not stop it itself (target reached, «Parar carga»)
-                if battery is not None and battery < 95 and not ChargeManager.get_instance().holds_charge(vin):
-                    await NotificationService.notify_charge_interrupted(
-                        vehicle.name, battery, "Suministro eléctrico cortado o manguera desconectada.", vin=vin
-                    )
-                else:
-                    await NotificationService.notify_charging_completed(
-                        vehicle.name, battery or 0.0, telemetry.get("electric_range_km"), vin=vin
-                    )
-        self._last_charging_by_vin[vin] = is_charging
-
-        # 3. Low fuel / reserve alert
-        if fuel is not None:
-            if fuel <= (vehicle.fuel_low_threshold or 15):         # the car's own threshold (a car setting, not an account one)
-                now = datetime.datetime.utcnow()
-                last_fuel_alert = self._last_fuel_alert_time.get(vin)
-                if not last_fuel_alert or (now - last_fuel_alert).total_seconds() > 7200:
-                    self._last_fuel_alert_time[vin] = now
-                    await NotificationService.notify_fuel_low(vehicle.name, fuel, fuel_range, vin=vin)
-
-        # 4. Maintenance alerts (EBRO's official plan or custom tasks, depending on the car's mode).
-        #    Checked every 200 km or every 6 h (month-based deadlines expire without the car moving) and each alert
-        #    is sent at most once a day.
-        if odo is not None:
-            now = datetime.datetime.utcnow()
-            last_km = self._last_maint_check_km.get(vin, 0.0)
-            last_at = self._last_maint_check_at.get(vin)
-            if abs(odo - last_km) >= 200 or not last_at or (now - last_at).total_seconds() >= 6 * 3600:
-                self._last_maint_check_km[vin] = odo
-                self._last_maint_check_at[vin] = now
-                try:
-                    from app.services.maintenance_alerts import collect_alerts
-                    async with async_session_factory() as m_session:
-                        pending = await collect_alerts(m_session, vin, odo, now)
-                    for alert in pending:
-                        sent = self._maint_alert_sent.get(f"{vin}:{alert['key']}")
-                        if sent and (now - sent).total_seconds() < 24 * 3600:
-                            continue
-                        self._maint_alert_sent[f"{vin}:{alert['key']}"] = now
-                        await NotificationService.notify_maintenance_alert(
-                            vehicle.name, alert["label"], alert["remaining_km"], alert["is_overdue"],
-                            alert["items"], alert["labor_hours"], remaining_days=alert["remaining_days"], vin=vin,
-                        )
-                except Exception as ex:
-                    _LOGGER.debug(f"Warning while checking maintenance alerts: {ex}")
-
-        # 4b. Dated renewals (insurance, taxes…): checked every 6 h; each alert repeats according to its urgency
-        now = datetime.datetime.utcnow()
-        last_r = self._last_renewal_check_at.get(vin)
-        if not last_r or (now - last_r).total_seconds() >= 6 * 3600:
-            self._last_renewal_check_at[vin] = now
-            try:
-                from app.services.renewal_alerts import collect_renewals
-                async with async_session_factory() as r_session:
-                    due = await collect_renewals(r_session, vin, now)
-                for alert in due:
-                    k = f"{vin}:{alert['key']}"
-                    sent = self._maint_alert_sent.get(k)
-                    if sent and (now - sent).total_seconds() < alert["repeat_hours"] * 3600:
-                        continue
-                    self._maint_alert_sent[k] = now
-                    await NotificationService.notify_renewal(vehicle.name, alert["label"], alert["remaining_days"], vin=vin)
-            except Exception as ex:
-                _LOGGER.debug(f"Warning while checking renewals: {ex}")
-
-        # «The car has been left»: stopped AND switched off (high voltage at 0; without that signal, just stopped). With the car on
-        # (traffic light, you just arrived and are getting out) there is no alert about doors or locking.
-        left_car = telemetry.get("state") == "parked" and telemetry.get("high_voltage_on") is not True
-
-        # 5. Windows / sunroof left open when parking (the situation must last SECURITY_CONFIRM_SECONDS)
-        windows = telemetry.get("windows") or {}
-        open_windows = [k for k, v in windows.items() if v]
-        # Off as well as locked: the car locks itself on the road, and a window lowered while driving is no forgotten window
-        # (every alert up to 05-11-2026 came with the car moving). The car may also raise them when locked: hence the wait.
-        is_parked = telemetry.get("high_voltage_on") is not True and (left_car or telemetry.get("is_locked") is True)
-        if self._confirmed(vin, "windows", is_parked and bool(open_windows), datetime.datetime.utcnow()):
-            now = datetime.datetime.utcnow()
-            last_win_alert = self._last_windows_alert_time.get(vin)
-            if not last_win_alert or (now - last_win_alert).total_seconds() > 1800:
-                self._last_windows_alert_time[vin] = now
-                win_names = {
-                    "fl": "Delantera Izquierda", "fr": "Delantera Derecha",
-                    "rl": "Trasera Izquierda", "rr": "Trasera Derecha",
-                    "sunroof": "Techo Solar"
-                }
-                desc = [win_names.get(k, k) for k in open_windows]
-                await NotificationService.notify_windows_open_alert(vehicle.name, desc, vin=vin)
-
-        # 6. Vehicle fault / DTC alerts
-        faults = telemetry.get("dtcs") or telemetry.get("fault_messages") or []
-        if faults:
-            now = datetime.datetime.utcnow()
-            last_fault_alert = self._last_fault_alert_time.get(vin)
-            if not last_fault_alert or (now - last_fault_alert).total_seconds() > 3600:
-                self._last_fault_alert_time[vin] = now
-                await NotificationService.notify_vehicle_fault(vehicle.name, ", ".join(faults), vin=vin)
-
-        # 7. Security alerts when parked (doors open or not locked). They used to fire on the first «parked» reading
-        #    (you arrive, open the door and get out: false alarm); now the car must be off and the situation must last
-        #    SECURITY_CONFIRM_SECONDS.
-        issues = []
-        if left_car:
-            if telemetry.get("is_locked") is False:
-                issues.append("Vehículo sin cerrar con llave.")
-            open_doors = [k for k, v in (telemetry.get("doors") or {}).items() if v]
-            if open_doors:
-                issues.append(f"Puertas abiertas: {', '.join(open_doors)}")
-        if self._confirmed(vin, "security", bool(issues), datetime.datetime.utcnow()):
-            now = datetime.datetime.utcnow()
-            last_alert = self._last_security_alert_time.get(vin)
-            if not last_alert or (now - last_alert).total_seconds() > 1800:
-                self._last_security_alert_time[vin] = now
-                await NotificationService.notify_security_alert(vehicle.name, issues, vin=vin)
-
-        # 8. Tyre pressure outside the range set on the vehicle
-        await self._check_tyre_pressure(vehicle, telemetry)
-
-    @staticmethod
-    def tyre_pressure_issues(vehicle: Vehicle, telemetry: Dict) -> list:
-        """Tyres whose pressure differs from the vehicle's reference (front/rear) by more than the configured %."""
-        ref = {"fl": vehicle.tyre_front_pressure_bar, "fr": vehicle.tyre_front_pressure_bar,
-               "rl": vehicle.tyre_rear_pressure_bar, "rr": vehicle.tyre_rear_pressure_bar}
-        names = {"fl": "Delantero izquierdo", "fr": "Delantero derecho", "rl": "Trasero izquierdo", "rr": "Trasero derecho"}
-        tol = vehicle.tyre_pressure_tolerance_pct or 10.0
-        out = []
-        for key, pressure in (telemetry.get("tyre_pressures") or {}).items():
-            target = ref.get(key)
-            if not target or not pressure or pressure <= 0:
-                continue
-            dev = (pressure - target) / target * 100.0
-            if abs(dev) > tol:
-                out.append(f"{names.get(key, key)}: {pressure:.2f} bar ({dev:+.0f} % sobre los {target:.2f} bar de referencia)")
-        return out
-
-    async def _geofence_transition(self, session, vehicle: Vehicle, current_gf, last_gf_id, lat, lon, battery, odo) -> None:
-        """The car changed geofence: record the exit and/or entry (always) and notify (per geofence switch)."""
-        now = datetime.datetime.utcnow()
-        vin = vehicle.vin
-        if last_gf_id is not None:
-            # It just left the previous geofence (also when it went straight into another one)
-            prev_gf = await session.get(Geofence, last_gf_id)
-            if prev_gf is not None:
-                session.add(GeofenceEvent(vin=vin, geofence_id=prev_gf.id, geofence_name=prev_gf.name, kind="exit", timestamp=now,
-                                          latitude=lat, longitude=lon, battery_pct=battery, odometer_km=odo))
-                if prev_gf.notify_exit is not False:
-                    await NotificationService.notify_geofence_exit(vehicle.name, prev_gf.name, battery, odo, vin=vin)
-        if current_gf is not None:
-            session.add(GeofenceEvent(vin=vin, geofence_id=current_gf.id, geofence_name=current_gf.name, kind="enter", timestamp=now,
-                                      latitude=lat, longitude=lon, battery_pct=battery, odometer_km=odo))
-            # Each geofence says whether it wants the alert (the account's own switches filter again when sending)
-            if current_gf.notify_enter is not False:
-                await NotificationService.notify_geofence_enter(vehicle.name, current_gf.name, battery, odo, vin=vin)
-        await session.commit()
-
-    async def _check_tyre_pressure(self, vehicle: Vehicle, telemetry: Dict) -> None:
-        """Alerts when a tyre stays out of the configured range TYRE_CONFIRM_SECONDS, or below it TYRE_LOW_CONFIRM_SECONDS (once every 12 h)."""
-        issues = self.tyre_pressure_issues(vehicle, telemetry)
-        low = any(" (-" in issue for issue in issues)
-        now = datetime.datetime.utcnow()
-        low_confirmed = self._confirmed(vehicle.vin, "tyres_low", low, now, TYRE_LOW_CONFIRM_SECONDS)
-        if self._confirmed(vehicle.vin, "tyres", bool(issues), now, TYRE_CONFIRM_SECONDS) or low_confirmed:
-            last = self._last_tyre_alert_time.get(vehicle.vin)
-            if not last or now - last >= TYRE_ALERT_COOLDOWN:
-                self._last_tyre_alert_time[vehicle.vin] = now
-                await NotificationService.notify_tyre_pressure(vehicle.name, issues, vin=vehicle.vin)
-
-    def _confirmed(self, vin: str, key: str, active: bool, now: datetime.datetime, confirm_s: int = SECURITY_CONFIRM_SECONDS) -> bool:
-        """True when `active` has held for SECURITY_CONFIRM_SECONDS in a row. On the first sighting a read is scheduled for when the
-        delay expires (with the car parked the poll is every 60 min, so otherwise the alert would arrive late)."""
-        k = (vin, key)
-        if not active:
-            self._pending_since.pop(k, None)
-            return False
-        since = self._pending_since.get(k)
-        if since is None:
-            self._pending_since[k] = now
-            try:
-                asyncio.get_running_loop().call_later(confirm_s + 5, lambda: self.request_poll(vin, force=True))
-            except RuntimeError:
-                pass                       # no event loop (synchronous tests)
-            return False
-        return (now - since).total_seconds() >= confirm_s
 
     def _calculate_sleep_seconds(self, state: str, telemetry: Optional[Dict] = None) -> int:
         """Picks the dynamic poll interval from the vehicle's state."""
@@ -876,7 +600,7 @@ class VehiclePoller:
 
     def get_polling_status(self) -> Dict:
         """Returns the current state of the poll timers for each vehicle."""
-        now = datetime.datetime.utcnow()
+        now = utcnow()
         vehicles_status = []
         for vin in self._contexts:
             latest = self.get_latest(vin) or {}
@@ -938,11 +662,15 @@ class VehiclePoller:
         _LOGGER.info("Starting the EVBro smart polling loop...")
         while self._running:
             try:
+                await self.bind_sessions()                    # a connected, changed or new account takes effect on the next pass
                 async with async_session_factory() as session:
                     vehicles = (await session.execute(select(Vehicle).where(Vehicle.is_manual.is_(False)))).scalars().all()
                     connected = await connected_owner_ids(session)
                     lost = await self.lost_owner_ids(session)
                     stored_states = {v.vin: v.state for v in vehicles if pollable(v, connected, lost)}
+                    owners = {v.vin: v.owner_id for v in vehicles}
+                    account_of = {uid: acc_id for (acc_id, uid) in (await session.execute(     # the newest account of a manager wins
+                        select(EbroAccount.id, EbroAccount.user_id).where(EbroAccount.is_active == True).order_by(EbroAccount.id))).all()}  # noqa: E712
                     for v in vehicles:
                         if v.vin not in stored_states and v.vin not in self._unpolled_logged:
                             # A disconnected account: its token is dead and the cloud would only say so every hour (seen on a real install, 2026-11-08)
@@ -956,12 +684,14 @@ class VehiclePoller:
 
                 due = []
                 for vin, stored_state in stored_states.items():
+                    if self.reads_paused(vin, account_of.get(owners.get(vin))):
+                        continue                              # its session is dead: asking again would only get another «no»
                     latest = self.get_latest(vin) or {}
                     # After a restart nothing is in memory: a car left plugged in stays on the plugged interval while the
                     # reads come back empty (05-11-2026: read hourly as «parked», a charge went unseen for 2.5 hours)
                     current_state = latest.get("state") or ("plugged" if stored_state in ("plugged", "charging") else "parked")
                     last_poll = self._last_poll_times.get(vin)
-                    now = datetime.datetime.utcnow()
+                    now = utcnow()
 
                     interval = self._calculate_sleep_seconds(current_state, latest)
                     if ChargeManager.get_instance().wants_fast_poll(vin):
@@ -1016,7 +746,7 @@ class VehiclePoller:
 
     async def _maybe_apply_retention(self) -> None:
         """Applies the history retention periods once every 24 h (and at start-up)."""
-        now = datetime.datetime.utcnow()
+        now = utcnow()
         if self._last_retention_run and (now - self._last_retention_run).total_seconds() < 24 * 3600:
             return
         self._last_retention_run = now
@@ -1031,7 +761,7 @@ class VehiclePoller:
 
     async def _maybe_sync_catalog(self) -> None:
         """Mirror of the online catalogue once a day (and at start-up) when the server is set to use one."""
-        now = datetime.datetime.utcnow()
+        now = utcnow()
         if self._last_catalog_sync and (now - self._last_catalog_sync).total_seconds() < 24 * 3600:
             return
         self._last_catalog_sync = now
@@ -1066,143 +796,3 @@ class VehiclePoller:
         await CarEventHub.get_instance().stop()
         await MqttPublisher.stop()
         await MqttHub.get_instance().stop()
-
-    async def execute_command(
-        self,
-        vin: str,
-        command_key: str,
-        pin: str,
-        params: Optional[Dict] = None,
-        client_ip: Optional[str] = None,
-    ) -> Dict:
-        """Runs a remote command on the vehicle.
-
-        Returns `{"success", "message", "reason", "retry_after"}`. `reason` is stable (the UI
-        acts on it): `pin_required`, `pin_invalid`, `pin_locked`, `params_invalid` (rejected
-        before sending), or the core's `reason` (`pin`, `reauth`, `config`) if sending failed.
-        The PIN and parameter rules live in `command_policy`."""
-        ctx = self._get_or_create_ctx(vin)
-        stored_pin = await self._stored_pin(ctx)
-        policy = await self._pin_policy(vin)
-
-        try:
-            clean_params = command_policy.sanitize_params(command_key, params)
-            effective_pin = command_policy.authorize(command_key, pin, stored_pin, vin=vin, policy=policy)
-        except command_policy.CommandRejected as rej:
-            await self._audit_command(vin, command_key, params, False, rej.reason, rej.message, client_ip)
-            return {"success": False, "message": rej.message, "reason": rej.reason, "retry_after": rej.retry_after}
-
-        # The typed PIN is good for THIS send only: a copy of the context (it shares the vehicle's
-        # state: lock-out guard and taskId cache). It used to be assigned to `ctx.pin` for good,
-        # so a mistyped PIN stayed and used up attempts on the following commands.
-        cmd_ctx = dataclasses.replace(ctx, pin=effective_pin)
-        if command_policy.requires_pin(command_key, policy) and not stored_pin:
-            # Without a stored PIN, the cached taskId no longer proves the sender knows the PIN:
-            # Chery is forced to check the typed one.
-            ctx.invalidate_taskid()
-
-        loop = asyncio.get_running_loop()
-        success, code, reason = False, None, None
-
-        def _send():
-            return commands.send(cmd_ctx, command_key, emit=lambda m: None, params=clean_params)
-
-        try:
-            message = await loop.run_in_executor(None, _send)
-            success = True
-        except CommandError as e:
-            message, code, reason = str(e), e.code, e.reason
-        except Exception:
-            # The text of an unexpected exception (library internals, hosts) is for the log, not for the client.
-            _LOGGER.exception("Unexpected failure sending '%s' to %s", command_key, vin[-6:])
-            message = UNEXPECTED_COMMAND_ERROR
-
-        await self._audit_command(vin, command_key, clean_params, success, code or reason, message, client_ip)
-        await self._remember_rejection(vin, command_key, success, code)
-
-        # If the command succeeded, trigger a quick poll to refresh the state
-        if success:
-            asyncio.create_task(self.poll_vehicle(vin, force=True))
-
-        return {"success": success, "message": message, "reason": reason, "code": code, "retry_after": 0}
-
-    async def execute_internal(self, vin: str, command_key: str, params: Optional[Dict], origin: str) -> Dict:
-        """A command EVBro sends itself (e.g. the charge manager): it uses the stored PIN and does NOT go through the
-        API's parameter whitelist, which exists to restrain a client, not EVBro. It is audited all the same."""
-        ctx = self._get_or_create_ctx(vin)
-        stored_pin = await self._stored_pin(ctx)
-        if not stored_pin:
-            msg = "Falta el PIN de la cuenta Ebro: guárdalo en Ajustes → Cuenta Ebro para que EVBro pueda gestionar la carga."
-            await self._audit_command(vin, command_key, params, False, "pin", msg, origin)
-            return {"success": False, "message": msg, "reason": "pin"}
-        cmd_ctx = dataclasses.replace(ctx, pin=stored_pin)
-        loop = asyncio.get_running_loop()
-        success, code, reason = False, None, None
-        try:
-            message = await loop.run_in_executor(None, lambda: commands.send(cmd_ctx, command_key, emit=lambda m: None, params=params))
-            success = True
-        except CommandError as e:
-            message, code, reason = str(e), e.code, e.reason
-        except Exception:
-            _LOGGER.exception("Unexpected failure sending '%s' (%s) to %s", command_key, origin, vin[-6:])
-            message = UNEXPECTED_COMMAND_ERROR
-        await self._audit_command(vin, command_key, params, success, code or reason, message, origin)
-        await self._remember_rejection(vin, command_key, success, code)
-        if success:
-            asyncio.create_task(self.poll_vehicle(vin, force=True))
-        return {"success": success, "message": message, "reason": reason, "code": code}
-
-    @staticmethod
-    async def _remember_rejection(vin: str, command_key: str, success: bool, code: Optional[str]) -> None:
-        """`A00084` is the cloud saying this car has no permission for the command (the S900 answers it to the rear window
-        heater, 08-11-2026, five tries by its owner). Kept per car in `vehicles.rejected_commands` so the interface and the
-        Home Assistant discovery can say so; an accepted send takes the command off the list again."""
-        if not success and code != NO_COMMAND_PERMISSION:
-            return
-        async with async_session_factory() as session:
-            vehicle = (await session.execute(select(Vehicle).where(Vehicle.vin == vin))).scalar_one_or_none()
-            if vehicle is None:
-                return
-            current = list(vehicle.rejected_commands or [])
-            if success and command_key in current:
-                current.remove(command_key)
-            elif not success and command_key not in current:
-                current.append(command_key)
-            else:
-                return
-            vehicle.rejected_commands = sorted(current)
-            await session.commit()
-
-    @staticmethod
-    async def _pin_policy(vin: str) -> str:
-        """When the car's owner wants the PIN asked for (AppUser.pin_policy); the default when the owner is unknown."""
-        async with async_session_factory() as session:
-            policy = (await session.execute(select(AppUser.pin_policy).join(Vehicle, Vehicle.owner_id == AppUser.id).where(Vehicle.vin == vin))).scalar_one_or_none()
-        return policy if policy in command_policy.POLICIES else command_policy.DEFAULT_POLICY
-
-    async def _stored_pin(self, ctx: CoreCtx) -> str:
-        """The stored PIN of THIS car: the context's, or its owner's Ebro account, or (admin's cars only) the environment's ('' if none)."""
-        if (ctx.pin or "").strip():
-            return ctx.pin.strip()
-        async with async_session_factory() as session:
-            owner_id = (await session.execute(select(Vehicle.owner_id).where(Vehicle.vin == ctx.vin))).scalar_one_or_none()
-            acc = None
-            if owner_id is not None:
-                acc = (await session.execute(select(EbroAccount).where(EbroAccount.is_active == True, EbroAccount.user_id == owner_id)  # noqa: E712
-                                             .order_by(EbroAccount.id.desc()))).scalars().first()
-            is_server_owner_car = owner_id is not None and owner_id == await first_manager_id(session)
-        if acc and (acc.pin or "").strip():
-            ctx.pin = acc.pin.strip()
-        elif is_server_owner_car and (settings.EBRO_PIN or "").strip():
-            ctx.pin = settings.EBRO_PIN.strip()
-        return (ctx.pin or "").strip()
-
-    @staticmethod
-    async def _audit_command(vin, command_key, params, success, code, message, client_ip) -> None:
-        """Records the attempt in the audit log, rejected ones too (wrong PIN, etc.)."""
-        async with async_session_factory() as session:
-            session.add(CommandAudit(
-                vin=vin, command=command_key, params=params, success=success,
-                code=(str(code)[:20] if code else None), message=message, client_ip=client_ip,
-            ))
-            await session.commit()

@@ -10,6 +10,7 @@ function applyTelemetry(data) {
     currentVin = data.vin;
   }
   updateVehicleHeaderInfo();
+  syncTargetTempFromCar(data);
 
   // 1. Circular battery gauge
   const pct = data.battery_level !== undefined && data.battery_level !== null ? Math.round(data.battery_level) : null;
@@ -97,7 +98,7 @@ function applyTelemetry(data) {
       chargeStateBadge.style.background = charging ? "rgba(0,230,118,0.18)" : "rgba(0,229,255,0.18)";
     }
     if (chargeKw) {
-      chargeKw.innerText = data.charge_power_kw ? `${data.charge_power_kw} kW` : (charging ? "Activa" : "0.0 kW");
+      chargeKw.innerText = data.charge_power_kw ? `${historyNum(data.charge_power_kw)} kW` : (charging ? "Activa" : `${historyNum(0)} kW`);
     }
     if (chargeVoltCurr) {
       const v = data.battery_voltage ? `${Math.round(data.battery_voltage)} V` : null;
@@ -141,11 +142,11 @@ function applyTelemetry(data) {
   }
   if (data.odometer_km !== null && data.odometer_km !== undefined) {
     const el = document.getElementById('odometer');
-    if (el) el.innerText = `${Math.round(data.odometer_km).toLocaleString()} km`;
+    if (el) el.innerText = `${Math.round(data.odometer_km).toLocaleString(I18n.locale)} km`;
   }
   if (data.ev_odometer_km !== null && data.ev_odometer_km !== undefined) {
     const el = document.getElementById('evOdometer');
-    if (el) el.innerText = `${Math.round(data.ev_odometer_km).toLocaleString()} km`;
+    if (el) el.innerText = `${Math.round(data.ev_odometer_km).toLocaleString(I18n.locale)} km`;
   }
   if (data.fuel_level !== null && data.fuel_level !== undefined) {
     const el = document.getElementById('fuelLevelPct');
@@ -228,7 +229,7 @@ function applyTelemetry(data) {
   }
   const energyPower = document.getElementById('energyPowerKw');
   if (energyPower) {
-    energyPower.innerText = data.charge_power_kw ? `${data.charge_power_kw} kW` : (charging ? 'Activa' : '0,0 kW');
+    energyPower.innerText = data.charge_power_kw ? `${historyNum(data.charge_power_kw)} kW` : (charging ? 'Activa' : `${historyNum(0)} kW`);
   }
   refreshEvConsumptionKpi();
   const energyHeroBadge = document.getElementById('chargeHeroStateBadge');
@@ -291,7 +292,7 @@ function setTyre(presId, val) {
   const pElem = document.getElementById(presId);
   if (pElem && val !== null && val !== undefined) {
     const num = Number(val);
-    const bar = num > 50 ? (num / 100.0).toFixed(2) : num.toFixed(2);
+    const bar = num > 50 ? historyNum(num / 100.0, 2) : historyNum(num, 2);
     pElem.innerText = `${bar} bar`;
   }
 }
@@ -313,10 +314,20 @@ function adjustTargetTemp(delta) {
   syncClimateUI();
 }
 
+/** The climate card starts at the temperature set in the car. Only a NEW value from the car replaces it, so a temperature the user
+ *  has just chosen is not overwritten by the next reading. */
+function syncTargetTempFromCar(data) {
+  const temp = Number(data.target_temp_left || data.target_temp);
+  if (!Number.isFinite(temp) || temp < 16 || temp > 30 || temp === lastCarTargetTemp) return;
+  lastCarTargetTemp = temp;
+  currentTargetTemp = temp;
+  syncClimateUI();
+}
+
 // onClimateSliderChange, toggleClimatePower and the presets live in features/comfort.js
 function syncClimateUI() {
   const display = document.getElementById('targetTempDisplay');
-  if (display) display.innerText = `${currentTargetTemp.toFixed(1)}°C`;
+  if (display) display.innerText = `${historyNum(currentTargetTemp, 1)}°C`;
   const dial = document.getElementById('climateDialTemp');
   if (dial) dial.innerText = `${Math.round(currentTargetTemp)}°C`;
   const slider = document.getElementById('climateSlider');
@@ -328,5 +339,5 @@ function onClimateSliderInput(val) {
   const dial = document.getElementById('climateDialTemp');
   if (dial) dial.innerText = `${Math.round(currentTargetTemp)}°C`;
   const display = document.getElementById('targetTempDisplay');
-  if (display) display.innerText = `${currentTargetTemp.toFixed(1)}°C`;
+  if (display) display.innerText = `${historyNum(currentTargetTemp, 1)}°C`;
 }

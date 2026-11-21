@@ -34,14 +34,17 @@
     ctx.fillText(text, width / 2, height / 2);
   }
 
-  /** Vertical bars (one or two series) with month labels; `series` = [{values, color}], values aligned with `labels`. */
-  function bars(canvas, labels, series, unit, height = 180) {
+  /** Vertical bars (one or two series) with month labels; `series` = [{values, color}], values aligned with `labels`.
+   *  `stacked`: the series pile up in one bar per month (parts of a whole, like electric and petrol km). */
+  function bars(canvas, labels, series, unit, height = 180, stacked = false) {
     if (!labels.length) { empty(canvas); return; }
     const { ctx, width } = setup(canvas, height);
     const pad = { l: 36, r: 8, t: 14, b: 26 };
     const plotW = width - pad.l - pad.r, plotH = height - pad.t - pad.b;
-    const max = Math.max(1, ...series.flatMap((s) => s.values.map((v) => v || 0)));
-    const groupW = plotW / labels.length, barW = Math.max(3, (groupW * 0.7) / series.length);
+    const totals = labels.map((_, i) => series.reduce((sum, s) => sum + (s.values[i] || 0), 0));
+    const max = Math.max(1, ...(stacked ? totals : series.flatMap((s) => s.values.map((v) => v || 0))));
+    const slots = stacked ? 1 : series.length;
+    const groupW = plotW / labels.length, barW = Math.max(3, (groupW * 0.7) / slots);
     ctx.font = '11px system-ui, sans-serif'; ctx.fillStyle = css('--text-muted'); ctx.strokeStyle = css('--line'); ctx.lineWidth = 1;
     for (let i = 0; i <= 3; i++) {
       const y = pad.t + plotH - (plotH * i) / 3;
@@ -49,12 +52,16 @@
       ctx.textAlign = 'right'; ctx.fillText(num((max * i) / 3, max >= 100 ? 0 : 1), pad.l - 4, y + 4);
     }
     labels.forEach((label, i) => {
+      let base = 0;                                   // stacked: height already used in this bar
       series.forEach((s, k) => {
         const v = s.values[i] || 0;
         const h = (v / max) * plotH;
-        const x = pad.l + i * groupW + (groupW - barW * series.length) / 2 + k * barW;
+        const x = pad.l + i * groupW + (groupW - barW * slots) / 2 + (stacked ? 0 : k * barW);
+        const y = pad.t + plotH - h - (stacked ? (base / max) * plotH : 0);
+        if (stacked) base += v;
+        if (h <= 0) return;
         ctx.fillStyle = s.color;
-        ctx.beginPath(); ctx.roundRect(x, pad.t + plotH - h, barW - 1, h, 3); ctx.fill();
+        ctx.beginPath(); ctx.roundRect(x, y, barW - 1, h, stacked ? 2 : 3); ctx.fill();
       });
       if (labels.length <= 13 || i % Math.ceil(labels.length / 12) === 0) {
         ctx.fillStyle = css('--text-muted'); ctx.textAlign = 'center';
@@ -134,7 +141,10 @@
     const red = css('--accent-red') || '#ff453a';
     const months = d.monthly.map((m) => m.month);
     const labels = months.map(monthLabel);
-    bars(el('stKm'), labels, [{ values: d.monthly.map((m) => m.km), color: accent }], 'km');
+    // Km split by the car's EV odometer: electric (green) and petrol (amber); trips without it (older readings) stay in the accent
+    const known = d.monthly.map((m) => (m.ev_km || 0) + (m.fuel_km || 0));
+    bars(el('stKm'), labels, [{ values: d.monthly.map((m) => m.ev_km), color: green }, { values: d.monthly.map((m) => m.fuel_km), color: amber },
+      { values: d.monthly.map((m, i) => Math.max(0, (m.km || 0) - known[i])), color: accent }], 'km', 180, true);
     bars(el('stEnergy'), labels, [{ values: d.monthly.map((m) => m.kwh_charged), color: green }, { values: d.monthly.map((m) => m.liters), color: amber }], 'kWh cargados · litros');
     bars(el('stCost'), labels, [{ values: d.monthly.map((m) => m.cost_total), color: red }], '€');
     line(el('stCostKm'), d.monthly.map((m) => ({ label: monthLabel(m.month), value: m.cost_per_km })), '€/km', red, 170, 3);
@@ -148,9 +158,24 @@
     el('stTotals').innerHTML = [
       ['Km', num(t.km, 0)], ['kWh a la batería', num(t.kwh_charged)], ['Litros', num(t.liters)], ['Gasto total', `${num(t.cost_total, 2)} €`],
       ['€/km', t.cost_per_km === null || t.cost_per_km === undefined ? '--' : num(t.cost_per_km, 3)],
+      ['En eléctrico', t.ev_pct === null || t.ev_pct === undefined ? '--' : `${num(t.ev_pct, 0)} %`],
       ['Viajes', String(t.drives || 0)], ['Cargas', String(t.charges || 0)],
     ].map(([k, v]) => `<div><small>${k}</small><strong>${v}</strong></div>`).join('');
     el('stHint').textContent = d.notes || '';
+    lifetimeEv();
+  }
+
+  /** «Desde nuevo: 6.645 de 10.977 km en eléctrico (61 %)»: the car's two odometers, the whole life of the car. */
+  function lifetimeEv() {
+    const box = el('stLifetimeEv');
+    if (!box) return;
+    const data = typeof latestTelemetryData !== 'undefined' ? latestTelemetryData : null;
+    const ev = data && data.vin === currentVin ? Number(data.ev_odometer_km) : 0;
+    const total = data && data.vin === currentVin ? Number(data.odometer_km) : 0;
+    box.hidden = !(ev > 0 && total >= ev);
+    if (box.hidden) return;
+    box.textContent = t('Desde nuevo: {p0} de {p1} km en eléctrico ({p2} %), según el cuentakilómetros EV del coche.',
+      { p0: num(ev, 0), p1: num(total, 0), p2: num((ev / total) * 100, 0) });
   }
 
   async function load() {

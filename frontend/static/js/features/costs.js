@@ -44,9 +44,9 @@ function renderCosts() {
   cEl('costsPurchaseSub').textContent = v.purchase_price ? (v.purchase_date ? t('Entrega: {p0}', {p0: serverDate(v.purchase_date).toLocaleDateString(I18n.locale)}) : '')
     : 'Indícala en la ficha del coche';
   cEl('costsCharges').textContent = money(tot.charges);
-  cEl('costsChargesSub').textContent = t('{p0} kWh a la batería', {p0: String(d.energy.kwh).replace('.', ',')});
+  cEl('costsChargesSub').textContent = t('{p0} kWh a la batería', {p0: localNum(d.energy.kwh)});
   cEl('costsRefuels').textContent = money(tot.refuels);
-  cEl('costsRefuelsSub').textContent = `${String(d.energy.liters).replace('.', ',')} L`;
+  cEl('costsRefuelsSub').textContent = `${localNum(d.energy.liters)} L`;
   cEl('costsMaint').textContent = money(tot.maintenance);
   cEl('costsMaintSub').textContent = 'Revisiones, ITV y arreglos';
   cEl('costsExpenses').textContent = money(tot.expenses);

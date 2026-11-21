@@ -69,8 +69,8 @@
   }
 
   async function enable() {
-    const btn = $('btnPushToggle');
-    btn.disabled = true;
+    const btn = $('btnPushToggle');                     // absent when it is called from the bell or after connecting the account
+    if (btn) btn.disabled = true;
     try {
       if ((await Notification.requestPermission()) !== 'granted') {
         toast('No has permitido las notificaciones.', 'error');
@@ -111,6 +111,21 @@
 
   async function toggle() {
     return (await state()) === 'on' ? disable() : enable();
+  }
+
+  /* After connecting the Ebro account: offer push once on this device when no device of the account receives it yet. An account
+     without any channel used to lose every notice (09-11-2026: five of seven accounts of a server had none). */
+  async function suggest() {
+    try { if (localStorage.getItem('evbro_push_suggested')) return; } catch (e) { /* private mode: it may ask again */ }
+    if ((await state()) !== 'off') return;
+    try {
+      const devices = await (await api('/push/devices')).json();
+      if (Array.isArray(devices) && devices.length) return;
+    } catch (e) { return; }
+    try { localStorage.setItem('evbro_push_suggested', '1'); } catch (e) { /* private mode */ }
+    const yes = await confirmDialog(t('¿Activar los avisos en este dispositivo?\n\nTe llegarán como notificaciones del sistema, también con la app cerrada: cargas, alertas del coche o si la cuenta Ebro deja de funcionar.'),
+      { confirmText: t('Activar') });
+    if (yes) await enable();
   }
 
   async function test() {
@@ -154,7 +169,7 @@
     } catch (e) { /* no session or no network: the list stays as it was */ }
   }
 
-  window.EbroPush = { refresh, toggle, test };
+  window.EbroPush = { refresh, toggle, test, state, enable, suggest };
   document.addEventListener('DOMContentLoaded', () => {
     const btn = $('btnPushToggle');
     if (btn) { btn.addEventListener('click', toggle); $('btnPushTest').addEventListener('click', test); }

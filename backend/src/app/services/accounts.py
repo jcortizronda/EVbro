@@ -1,9 +1,8 @@
-"""Ebro account sign-up: lists the account's vehicles and leaves one token per VIN.
+"""Ebro account sign-up: lists the account's vehicles on the account's session (services/ebro_sessions.py).
 
 The login and the poller used to discover the vehicles each with its own copy of this code, and both
 left a stray `token.json` in the working directory (outside the data volume). Here it is done
-once and leaves no trace: the provisional token lives in a temporary folder
-inside DATA_DIR that is deleted at the end.
+once and leaves no trace.
 """
 from __future__ import annotations
 
@@ -13,11 +12,13 @@ import os
 import re
 import shutil
 import tempfile
+from typing import Optional
 
 from app.config import get_data_dir, settings
 from app.core.context import CoreCtx
 from app.core.vehicles import iter_vehicles, query_list
 from app.core.wake import _bff_login
+from app.services.ebro_sessions import session_lock, store_session, write_token_file  # noqa: F401  (write_token_file: re-exported)
 
 _LOGGER = logging.getLogger("app.services.accounts")
 
@@ -37,22 +38,40 @@ def vehicle_data_dir(vin: str) -> str:
     return path
 
 
-def write_token_file(path: str, token_data: dict) -> None:
-    """Writes the token atomically with 0600 permissions."""
-    tmp = f"{path}.tmp"
-    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w", encoding="utf-8") as fh:
-        json.dump(token_data, fh)
-    os.replace(tmp, path)
+def remove_vehicle_data(vin: str) -> None:
+    """A deleted car takes its folder with it: its old session copy and its taskId are credentials."""
+    if not _VIN_RE.fullmatch(vin or ""):
+        raise ValueError("invalid VIN")
+    shutil.rmtree(os.path.join(get_data_dir(), vin), ignore_errors=True)
 
 
-def fetch_account_vehicles(token_data: dict, skip_vins: frozenset = frozenset()) -> list[dict]:
-    """Lists the account's vehicles and stores the token in `data/<vin>/token.json`.
+def fetch_account_vehicles(token_data: Optional[dict], skip_vins: frozenset = frozenset(), session_path: Optional[str] = None) -> list[dict]:
+    """Lists the account's vehicles.
 
-    `skip_vins`: cars that already belong to ANOTHER manager; their token is left alone (another Ebro account that sees them cannot overwrite the owner's).
+    With `session_path` (an account connected in the web: the normal case) it works on that file, the session every car of the
+    account shares (services/ebro_sessions.py): `token_data`, if given, is a session just obtained with the password and is kept there
+    first; without it the stored one is used, renewed in place when it expired. Raises if that session does not open, so the caller can
+    try the password.
 
-    BLOCKING (network): call it from a thread (`run_in_executor`). Raises if the
-    BFF login or the query fails; the caller decides how to report it."""
+    Without `session_path` (the server's own `.env` account) the old way: a provisional copy that is handed to each car's
+    `data/<vin>/token.json`. `skip_vins`: cars of ANOTHER manager, whose token is left alone.
+
+    BLOCKING (network): call it from a thread (`run_in_executor`). Raises if the BFF login or the query fails; the caller decides
+    how to report it."""
+    if session_path is not None:
+        if token_data is not None:
+            store_session(session_path, token_data)
+        ctx = CoreCtx(tsp_host=settings.EBRO_TSP_HOST, bff=settings.EBRO_BFF_HOST, channel_id=settings.EBRO_CHANNEL_ID,
+                      token_path=session_path)
+        ctx.state.token_lock = session_lock(session_path)        # a renewal here and one of a car never overlap
+        user_token, t_user_id = _bff_login(ctx)
+        if not user_token:
+            raise RuntimeError("no_usertoken")
+        if t_user_id:
+            ctx.tuserid = str(t_user_id)
+        body = {"channelId": ctx.channel_id, "tUserId": str(t_user_id)} if t_user_id else None
+        return iter_vehicles(query_list(ctx, body=body))
+
     data_dir = get_data_dir()
     os.makedirs(data_dir, exist_ok=True)
     work = tempfile.mkdtemp(prefix=".login-", dir=data_dir)

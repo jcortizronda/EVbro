@@ -160,7 +160,7 @@ def py_keys() -> dict[str, str]:
     keys: dict[str, str] = {}
     for sub in _PY_DIRS:
         for path in sorted((BACKEND / sub).rglob("*.py")):
-            if path.name in _PY_SKIP or path.name.startswith("routes_admin"):
+            if path.name in _PY_SKIP or path.name.startswith(("routes_admin", "poller_")):      # poller_*.py: parts of poller.py
                 continue
             src = re.sub(r'"""[\s\S]*?"""', '""', path.read_text(encoding="utf-8"))      # docstrings are for developers
             for m in _PY_STRING.finditer(src):

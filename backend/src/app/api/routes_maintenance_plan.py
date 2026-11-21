@@ -20,6 +20,7 @@ from app.db.session import get_db
 from app.i18n import _
 from app.services import maintenance_official as official
 from app.services.parts import PartIn
+from app.timeutil import utcnow
 
 router = APIRouter(tags=["Maintenance plan"])
 
@@ -131,14 +132,16 @@ async def build_plan(session: AsyncSession, vin: str, today: Optional[datetime.d
     vehicle = await _vehicle(session, vin)
     plan = await get_or_create_plan(session, vin)
     odo = vehicle.odometer or 0.0
-    now = datetime.datetime.utcnow()
+    now = utcnow()
     today = today or now.date()
 
     logs = await _official_logs(session, vin)
     done_by_km = {log.revision_km: log for log in logs}
     last_done = max(done_by_km) if done_by_km else None
     delivery = vehicle.delivery_date or plan.baseline_date          # (plan.baseline_date: data from before the date moved to the vehicle)
-    nxt = official.official_next(odo, today, last_done, delivery, plan.baseline_odometer or 0.0, vehicle.model)
+    last_log = done_by_km.get(last_done) if last_done is not None else None
+    nxt = official.official_next(odo, today, last_done, delivery, plan.baseline_odometer or 0.0, vehicle.model,
+                                 last_log.odometer if last_log else None, last_log.service_date if last_log else None)
 
     items = (await session.execute(
         select(MaintenanceItem).where(MaintenanceItem.vin == vin, MaintenanceItem.origin == "custom").order_by(MaintenanceItem.id)
@@ -247,7 +250,7 @@ async def complete_official_step(vin: str, req: OfficialCompleteRequest, session
 
     log = MaintenanceLog(
         item_id=holder.id,
-        service_date=(req.service_date or datetime.datetime.utcnow()).replace(tzinfo=None),
+        service_date=(req.service_date or utcnow()).replace(tzinfo=None),
         odometer=req.odometer if req.odometer is not None else (vehicle.odometer or 0.0),
         cost=req.cost, workshop=req.workshop or "Taller Oficial Ebro", notes=notes, revision_km=req.step_km,
     )
@@ -262,7 +265,7 @@ async def complete_official_step(vin: str, req: OfficialCompleteRequest, session
 async def complete_itv(vin: str, req: ItvCompleteRequest, session: AsyncSession = Depends(get_db)):
     """Records a passed ITV. With `valid_until` (the one on the sticker) that is the next one; otherwise it is computed from the car's age."""
     vehicle = await _vehicle(session, vin)
-    when = (req.service_date or datetime.datetime.utcnow()).replace(tzinfo=None)
+    when = (req.service_date or utcnow()).replace(tzinfo=None)
     holder = await _holder(session, vin, "itv", "Inspección técnica (ITV)", "Legal")
     nxt = official.itv_next_due(vehicle.registration_date, when, req.valid_until.replace(tzinfo=None) if req.valid_until else None)
     log = MaintenanceLog(
@@ -281,7 +284,7 @@ async def add_event(vin: str, req: EventRequest, session: AsyncSession = Depends
     vehicle = await _vehicle(session, vin)
     holder = await _holder(session, vin, "oneoff", "Intervenciones puntuales", "Puntual")
     log = MaintenanceLog(
-        item_id=holder.id, service_date=(req.service_date or datetime.datetime.utcnow()).replace(tzinfo=None),
+        item_id=holder.id, service_date=(req.service_date or utcnow()).replace(tzinfo=None),
         odometer=req.odometer if req.odometer is not None else (vehicle.odometer or 0.0),
         cost=req.cost, workshop=req.workshop, notes=req.notes, title=req.title.strip(), category=req.category,
     )

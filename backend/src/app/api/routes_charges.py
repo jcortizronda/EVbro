@@ -5,7 +5,7 @@ import datetime
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -38,8 +38,7 @@ class ChargeOut(BaseModel):
     effective_cost_per_kwh: Optional[float] = None
     charge_type: Optional[str] = None          # ac | dc (None = unknown, shown as AC)
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 COST_SOURCES = {"manual": "Introducida por ti", "default": "Sin tarifa: 0 €/kWh por defecto"}
@@ -125,7 +124,7 @@ def _serialize_session_details(charge: ChargingSession, points: List[ChargePoint
             "charge_cost": round(charge.charge_cost or 0.0, 2),
             "cost_mode": charge.cost_mode or "Sin tarifa",
             "cost_source": COST_SOURCES.get(charge.cost_mode or "", "Geocerca" if charge.geofence_id else "Sin tarifa"),
-            "has_cost": bool(charge.cost_mode),
+            "has_cost": bool(charge.cost_mode) or (charge.charge_cost or 0) > 0,
             "effective_cost_per_kwh": charge.effective_cost_per_kwh,
         },
         "curve": curve,

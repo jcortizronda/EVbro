@@ -6,6 +6,7 @@
 let currentVin = null;
 
 let currentTargetTemp = 21.0;
+let lastCarTargetTemp = null;   // last target temperature the car reported; a new one replaces the selection
 
 let pendingCommand = null;
 

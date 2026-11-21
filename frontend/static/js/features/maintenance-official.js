@@ -30,13 +30,16 @@ function renderOfficialPlan(plan) {
     card.dataset.status = next.status;
     document.getElementById('maintNextPill').textContent = { ok: 'Próxima revisión', warning: 'Toca pronto', due: 'Vencida' }[next.status];
     document.getElementById('maintNextTitle').textContent = t('Revisión de {p0}', {p0: next.label});
-    document.getElementById('maintNextLabor').textContent = t('{p0} h de mano de obra', {p0: String(next.labor_hours).replace('.', ',')});
+    document.getElementById('maintNextLabor').textContent = t('{p0} h de mano de obra', {p0: localNum(next.labor_hours)});
 
     // Kilometres
     const kmOver = next.remaining_km <= 0;
     document.getElementById('maintMeterKmText').textContent = kmOver
       ? t('Pasada por {p0} km', {p0: fmtKm(Math.abs(next.remaining_km))}) : t('Faltan {p0} km', {p0: fmtKm(next.remaining_km)});
-    document.getElementById('maintMeterKmSub').textContent = t('A los {p0} km (llevas {p1})', {p0: fmtKm(next.km), p1: fmtKm(plan.vehicle.odometer)});
+    // Counted from the last service when there is one (15.000 km after it), not at the step's fixed mileage
+    document.getElementById('maintMeterKmSub').textContent = next.since_last
+      ? t('A los {p0} km, {p1} km después de la anterior (llevas {p2})', {p0: fmtKm(next.due_km), p1: fmtKm(next.interval_km), p2: fmtKm(plan.vehicle.odometer)})
+      : t('A los {p0} km (llevas {p1})', {p0: fmtKm(next.due_km ?? next.km), p1: fmtKm(plan.vehicle.odometer)});
     setMeter('maintMeterKmBar', next.progress_km_pct, kmOver ? 'due' : (next.remaining_km <= 1500 ? 'warning' : 'ok'));
 
     // Date (only if there is a delivery date)
@@ -48,7 +51,9 @@ function renderOfficialPlan(plan) {
       const dOver = next.remaining_days <= 0;
       document.getElementById('maintMeterDateText').textContent = dOver
         ? t('Pasada por {p0} días', {p0: Math.abs(next.remaining_days)}) : t('Faltan {p0} días', {p0: next.remaining_days});
-      document.getElementById('maintMeterDateSub').textContent = t('Vence el {p0} ({p1} meses)', {p0: fmtDate(next.due_date), p1: next.months});
+      document.getElementById('maintMeterDateSub').textContent = next.since_last
+        ? t('Vence el {p0} ({p1} meses después de la anterior)', {p0: fmtDate(next.due_date), p1: next.interval_months})
+        : t('Vence el {p0} ({p1} meses)', {p0: fmtDate(next.due_date), p1: next.months});
       setMeter('maintMeterDateBar', next.progress_time_pct, dOver ? 'due' : (next.remaining_days <= 30 ? 'warning' : 'ok'));
     }
 

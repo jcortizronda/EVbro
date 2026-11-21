@@ -155,7 +155,7 @@ function toggleGeofenceMenu(event, id) {
 function geofenceTariffText(gf) {
   if (gf.is_charging_spot !== true) return '';
   const mode = (gf.cost_mode || 'fixed').toLowerCase();
-  const eur = (v, d) => `${(v ?? d).toFixed(3).replace('.', ',')} €/kWh`;
+  const eur = (v, d) => `${historyNum(v ?? d, 3)} €/kWh`;
   if (mode === 'free') return 'Carga gratis';
   if (mode === 'time_of_use') return `2.0TD ${eur(gf.cost_valle, 0.08)} / ${eur(gf.cost_llano, 0.14)} / ${eur(gf.cost_punta, 0.22)}`;
   if (mode === 'pvpc') return `PVPC ${gf.pvpc_zone || 'Península'}${gf.cost_margin ? ` +${eur(gf.cost_margin, 0)}` : ''}`;

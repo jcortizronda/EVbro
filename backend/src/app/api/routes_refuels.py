@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import Refuel, Vehicle
 from app.db.session import get_db
 from app.services import periods, refuel_stats
+from app.timeutil import utcnow
 
 router = APIRouter(tags=["Refuels"])
 
@@ -96,7 +97,7 @@ async def create_refuel(vin: str, req: RefuelCreate, session: AsyncSession = Dep
     vehicle = (await session.execute(select(Vehicle).where(Vehicle.vin == vin))).scalar_one_or_none()
     if vehicle is None:
         raise HTTPException(status_code=404, detail="Vehículo no encontrado.")
-    r = Refuel(vin=vin, timestamp=(req.timestamp or datetime.datetime.utcnow()).replace(tzinfo=None), liters=req.liters,
+    r = Refuel(vin=vin, timestamp=(req.timestamp or utcnow()).replace(tzinfo=None), liters=req.liters,
                odometer=req.odometer if req.odometer is not None else vehicle.odometer, station=req.station, notes=req.notes, detected=False,
                full_tank=req.full_tank)
     _apply_cost(r, req.price_per_liter, req.total_cost)

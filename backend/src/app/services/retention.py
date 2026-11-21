@@ -23,6 +23,7 @@ from app.db.models import (
     GpsPosition,
     TelemetrySnapshot,
 )
+from app.timeutil import utcnow
 
 KEYS = {"trips_days": "retention.trips_days", "charges_days": "retention.charges_days", "snapshots_days": "retention.snapshots_days"}
 DEFAULTS = {"trips_days": 0, "charges_days": 0, "snapshots_days": 365}
@@ -67,7 +68,7 @@ async def counts(session: AsyncSession) -> Dict[str, Any]:
 
 async def apply(session: AsyncSession, now: Optional[datetime.datetime] = None) -> Dict[str, int]:
     """Deletes whatever is older than each kind's period. Returns how many rows of each kind were deleted."""
-    now = now or datetime.datetime.utcnow()
+    now = now or utcnow()
     cfg = await get_config(session)
     deleted = {"trips": 0, "charges": 0, "snapshots": 0}
 

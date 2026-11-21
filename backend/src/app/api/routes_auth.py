@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-import datetime
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -18,6 +17,7 @@ from app.i18n import _
 from app.security import auth, passwords
 from app.security.throttle import LoginThrottle
 from app.services import invites
+from app.timeutil import utcnow
 
 _LOGGER = logging.getLogger("app.api.auth")
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -103,7 +103,7 @@ async def register(req: RegisterRequest, request: Request, response: Response, d
                    vehicle_limit=invite.vehicle_limit if invite.vehicle_limit is not None else settings.DEFAULT_VEHICLE_LIMIT,
                    member_limit=invite.member_limit if invite.member_limit is not None else settings.DEFAULT_MEMBER_LIMIT,
                    storage_limit_mb=invite.storage_limit_mb,            # None = follows the server default
-                   privacy_accepted_at=datetime.datetime.utcnow())
+                   privacy_accepted_at=utcnow())
     db.add(user)
     try:
         await db.flush()

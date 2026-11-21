@@ -2,7 +2,6 @@
 answer: "who touched this account"). Logs actions, never secrets."""
 from __future__ import annotations
 
-import datetime
 from typing import Any, Dict, List, Optional
 
 from fastapi import Request
@@ -11,12 +10,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import AdminAudit, AppUser
 from app.security import auth
+from app.timeutil import utcnow
 
 
 async def log(db: AsyncSession, admin: Optional[AppUser], action: str, target: str = "", detail: str = "",
               request: Optional[Request] = None, commit: bool = True) -> None:
     db.add(AdminAudit(admin_id=admin.id if admin else None, username=admin.username if admin else "?", action=action[:60], target=(target or "")[:120],
-                      detail=(detail or "")[:255], ip=auth.client_ip(request)[:64] if request else None, created_at=datetime.datetime.utcnow()))
+                      detail=(detail or "")[:255], ip=auth.client_ip(request)[:64] if request else None, created_at=utcnow()))
     if commit:
         await db.commit()
 

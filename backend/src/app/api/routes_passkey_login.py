@@ -6,7 +6,6 @@ the password login uses.
 """
 from __future__ import annotations
 
-import datetime
 import logging
 from typing import Any, Dict, Optional
 
@@ -24,6 +23,7 @@ from app.db.models import AppUser, PasskeyCredential
 from app.db.session import get_db
 from app.security import auth
 from app.security import passkeys as pk
+from app.timeutil import utcnow
 
 _LOGGER = logging.getLogger("app.api.passkeys")
 router = APIRouter(prefix="/auth/passkeys", tags=["Auth"])
@@ -108,7 +108,7 @@ async def login_verify(req: LoginVerifyRequest, request: Request, response: Resp
         raise fail("account not usable")
 
     row.sign_count = verified.new_sign_count
-    row.last_used_at = datetime.datetime.utcnow()
+    row.last_used_at = utcnow()
     await db.commit()
     token = await auth.create_session(db, user, request)
     auth.set_session_cookie(response, request, token)

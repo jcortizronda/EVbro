@@ -15,6 +15,7 @@ from typing import Optional, Tuple
 from fastapi import HTTPException
 
 from app.config import get_timezone
+from app.timeutil import utcnow
 
 PRESETS = ("all", "month", "last_month", "year", "last_year", "6m", "12m", "7d", "30d", "90d", "custom")
 _MONTH = re.compile(r"^(\d{4})-(\d{2})$")
@@ -49,7 +50,7 @@ def _parse_edge(value: str, *, end: bool) -> datetime.datetime:
 def resolve(period: Optional[str], frm: Optional[str] = None, to: Optional[str] = None, now: Optional[datetime.datetime] = None) -> Bounds:
     """[start, end) for a preset or a custom range. Unknown presets are a 422, like the old per-route checks."""
     tz = get_timezone()
-    now_utc = now or datetime.datetime.utcnow()
+    now_utc = now or utcnow()
     local_now = now_utc.replace(tzinfo=datetime.timezone.utc).astimezone(tz).replace(tzinfo=None)
     key = "custom" if (frm or to) else ((period or "").strip() or "all")         # explicit dates always win over a preset
     if key not in PRESETS:

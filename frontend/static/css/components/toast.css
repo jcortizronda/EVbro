@@ -72,6 +72,16 @@
 .offline-banner[hidden] { display: none; }
 .offline-banner:not([hidden]) + .app-header { padding-top: 0; }   /* the strip already clears the status bar */
 
+/* Inicio: the live channel with the car is stopped until the manager syncs (features/account.js) */
+.channel-banner {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 12px; padding: 10px 14px;
+  border: 1px solid var(--warning, #ffd60a); border-radius: var(--radius-md); background: var(--surface);
+  color: var(--text-primary); font-size: 0.86rem; line-height: 1.35;
+}
+.channel-banner[hidden] { display: none; }
+.channel-banner span { flex: 1 1 220px; min-width: 0; }
+.channel-banner .btn-sm { flex: none; }
+
 /* In-app notification banners (features/notifications.js): they live in the toast column, under the toasts */
 .app-banner {
   pointer-events: auto;

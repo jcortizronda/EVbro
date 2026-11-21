@@ -66,8 +66,9 @@ def ebro(monkeypatch):
     def login(phone, password, area_code="34", **kw):
         return {"access_token": "t"}
 
-    def list_cars(token_data, skip_vins=frozenset()):
+    def list_cars(token_data, skip_vins=frozenset(), session_path=None):
         state["skipped"] = set(skip_vins)
+        state["session_path"] = session_path
         return [{"vin": v, "nickname": f"Nuevo {v[-2:]}", "fullName": "S900", "brandName": "Ebro"} for v in state["cars"]]
 
     for mod in (poller_mod, routes_account):

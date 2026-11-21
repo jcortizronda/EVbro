@@ -6,9 +6,14 @@
 const HISTORY_PAGE_SIZE = 30;
 const HISTORY_MONTHS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
-/** Number in Spanish format with a fixed number of decimals («3,1»). */
+/** Number with a fixed number of decimals and the decimal separator of the chosen language («3,1» in Spanish, «3.1» in English). */
 function historyNum(value, decimals = 1) {
   return Number(value || 0).toLocaleString(I18n.locale, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
+
+/** A number as stored (no fixed decimals) with the decimal separator of the chosen language: 8.4 → «8,4» in Spanish, «8.4» in English. */
+function localNum(value) {
+  return Number(value || 0).toLocaleString(I18n.locale, { maximumFractionDigits: 3 });
 }
 
 /** «2026-10» of a timestamp, in the browser's local time (the server groups with the configured zone). */

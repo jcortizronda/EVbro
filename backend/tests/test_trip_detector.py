@@ -311,8 +311,8 @@ async def test_the_end_of_a_trip_moves_where_the_cloud_places_the_parked_car(car
     (d,) = await drives()
     assert (d.end_lat, d.end_lon) == HOME and d.end_address == "Calle 40.000"
     await process(car, reading(0, 9640, DESTINATION, high_voltage_on=False), T0 + 110 * m)    # another odometer: not this trip
-    (d,) = await drives()
-    assert (d.end_lat, d.end_lon) == HOME
+    d, unseen = await drives()                                                                # (9 km nobody saw: a trip of their own)
+    assert (d.end_lat, d.end_lon) == HOME and unseen.unseen is True and unseen.distance_km == 9.0
 
 
 # ───────────────────────── cars the cloud never places (two S800, 08-11-2026) ─────────────────────────
@@ -344,3 +344,51 @@ async def test_a_late_detected_trip_without_a_position_still_recovers_its_start_
     (d,) = await drives()
     assert d.start_estimated and d.start_odometer == 9417.0 and d.start_battery_pct == 62.0 and d.start_lat is None
     assert T0 - datetime.timedelta(minutes=40) <= d.start_time < T0
+
+
+# ───────────────────────── trips EVBro did not see ─────────────────────────
+async def _a_closed_trip(car, km=98):
+    await process(car, reading(0, 22768, HOME, soc=80.0), T0)
+    await process(car, reading(60, 22768 + km // 2, (40.002, -2.998), soc=50.0), T0 + datetime.timedelta(minutes=40))
+    await process(car, reading(0, 22768 + km, DESTINATION, soc=21.0), T0 + datetime.timedelta(minutes=81))      # stopped long ago: closes
+    (d,) = await drives()
+    assert d.distance_km == km and d.end_battery_pct == 21.0 and d.unseen is False
+    return T0 + datetime.timedelta(minutes=81)
+
+
+def car_time(at: datetime.datetime) -> dict:
+    return {"time": str(int(at.replace(tzinfo=datetime.timezone.utc).timestamp() * 1000))}
+
+
+async def test_a_trip_between_two_readings_of_a_sleeping_car_is_recorded_as_unseen(car) -> None:
+    """16-11-2026: 77 minutes after a 98 km trip the car, asleep in the same spot, read 4 km and 3 battery points more, with data
+    it had produced 72 minutes after parking: a short round trip between two hourly readings, its live channel stopped. The km
+    were in no trip; they are a trip of their own, never added to the previous one."""
+    closed = await _a_closed_trip(car)
+    asleep = reading(0, 22866, DESTINATION, soc=21.0, state="asleep")
+    await process(car, asleep, closed + datetime.timedelta(minutes=14))
+    back = reading(0, 22870, DESTINATION, soc=18.0, fuel=27.0, state="asleep", raw_data=car_time(closed + datetime.timedelta(minutes=72)))
+    await process(car, back, closed + datetime.timedelta(minutes=77))
+    first, ghost = await drives()
+    assert (first.distance_km, first.end_odometer, first.end_battery_pct) == (98.0, 22866, 21.0)       # untouched
+    assert ghost.unseen is True and ghost.start_estimated is True
+    assert (ghost.start_odometer, ghost.end_odometer, ghost.distance_km) == (22866, 22870, 4.0)
+    assert (ghost.start_battery_pct, ghost.end_battery_pct, ghost.battery_used_pct) == (21.0, 18.0, 3.0)
+    assert ghost.end_time == closed + datetime.timedelta(minutes=72)                                # when the car says it arrived
+    assert closed + datetime.timedelta(minutes=14) <= ghost.start_time < ghost.end_time and ghost.duration_seconds == round(4 / 35 * 3600)
+    assert (ghost.start_lat, ghost.end_lat) == (DESTINATION[0], DESTINATION[0]) and ghost.speed_avg_kmh == 0.0
+    await process(car, back, closed + datetime.timedelta(minutes=137))                                # the same reading again: nothing more
+    assert len(await drives()) == 2
+
+
+async def test_what_is_not_an_unseen_trip(car) -> None:
+    closed = await _a_closed_trip(car)
+    minutes = datetime.timedelta(minutes=1)
+    await process(car, reading(0, 22867, DESTINATION, state="asleep"), closed + 60 * minutes)        # 1 km: the odometer ticking
+    await process(car, reading(0, 22869, DESTINATION, state="asleep"), closed + 61 * minutes)        # 2 km in a minute: a reading that ran behind
+    await process(car, {**reading(0, 22875, HOME), "state": "ready", "high_voltage_on": True}, closed + 180 * minutes)   # on: about to drive
+    assert len(await drives()) == 1
+    await process(car, reading(50, 22880, HOME), closed + 185 * minutes)                              # and it does: an ordinary trip
+    await process(car, reading(0, 22890, DESTINATION), closed + 200 * minutes)
+    await process(car, reading(0, 22890, DESTINATION), closed + 206 * minutes)
+    assert [d.unseen for d in await drives()] == [False, False]
