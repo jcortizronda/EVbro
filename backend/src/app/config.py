@@ -109,7 +109,7 @@ class Settings(BaseSettings):
     # EXPERIMENT (09-11-2026): some days the cloud repeats the same position for hours while the car drives (docs/trips.md,
     # «Posición congelada»). With this on, EVBro sends «Localizar coche (GPS)» itself when it sees it (same point for 3 min with the
     # odometer advancing, at most one every 5 min, with the stored PIN). Off by default until it proves to bring the position back.
-    AUTO_LOCATE_ENABLED: bool = False
+    AUTO_LOCATE_ENABLED: bool = True                  # seen working on 21-11-2026 (docs/trips.md, «Posición congelada»)
     CAR_MQTT_HOST: str = "tspemqx-app-eu.ebroauto.com"
     CAR_MQTT_PORT: int = 8083
     CAR_MQTT_CERTS_SRC: str = ""   # folder with ca.pem/client.pem/client.key if the bundle is not used
