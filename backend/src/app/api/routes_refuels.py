@@ -16,6 +16,8 @@ from app.timeutil import utcnow
 
 router = APIRouter(tags=["Refuels"])
 
+LITERS_CHANGED = 0.005                     # litres are kept with two decimals: less than this is the same figure
+
 
 class RefuelCreate(BaseModel):
     timestamp: Optional[datetime.datetime] = None
@@ -46,7 +48,8 @@ def serialize(r: Refuel) -> dict:
         "liters": r.liters, "price_per_liter": r.price_per_liter, "total_cost": r.total_cost,
         "station": r.station, "address": r.address, "notes": r.notes, "detected": r.detected,
         "needs_price": r.total_cost is None,
-        "liters_estimated": bool(r.detected and r.fuel_before_pct is not None),     # the litres of a detected refuel are estimated
+        # the litres of a detected refuel are the gauge's estimate until the user types others
+        "liters_estimated": bool(r.detected and r.fuel_before_pct is not None and not r.liters_entered),
         "full_tank": refuel_stats.is_full(r),
         "full_tank_stated": r.full_tank is not None,
     }
@@ -125,6 +128,10 @@ async def update_refuel(refuel_id: int, req: RefuelUpdate, session: AsyncSession
     if req.full_tank is not None:
         r.full_tank = req.full_tank
     if req.liters is not None:
+        # The form always sends the litres it shows, the estimate included: only a different figure is the ticket's (21-11-2026: the
+        # «estimados» tag stayed on refuels whose litres had been corrected)
+        if r.liters is None or abs(req.liters - r.liters) >= LITERS_CHANGED:
+            r.liters_entered = True
         r.liters = req.liters
     if req.total_cost is not None or req.price_per_liter is not None:
         _apply_cost(r, req.price_per_liter, req.total_cost)

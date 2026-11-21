@@ -96,3 +96,28 @@ async def test_0016_truncates_the_gps_decimals_of_odometer_drives_only(scratch_u
         await engine.dispose()
     assert rows == [12.0, 6.0, 4.35]
     assert await _version(scratch_url) == migrate.head_revision()
+
+
+async def test_0034_marks_the_refuels_whose_litres_were_corrected(scratch_url) -> None:
+    """A detected refuel whose litres are no longer the gauge's estimate had them typed from the ticket: it loses the «estimados» tag."""
+    import asyncio
+
+    from alembic import command
+    await asyncio.to_thread(command.upgrade, migrate.alembic_config(scratch_url), "0033_drive_unseen")
+    engine = create_async_engine(scratch_url)
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("INSERT INTO vehicles (vin, name, fuel_tank_liters) VALUES ('LSJA0000000000034', 'Coche', 40)"))
+            await conn.execute(text(
+                "INSERT INTO refuels (vin, timestamp, fuel_before_pct, fuel_after_pct, liters, detected) VALUES "
+                "('LSJA0000000000034', '2026-11-01 10:00:00', 20, 90, 28.0, 1), "     # 70 % of 40 l: still the estimate
+                "('LSJA0000000000034', '2026-11-08 10:00:00', 10, 95, 33.41, 1), "    # 34.0 estimated, 33.41 from the ticket
+                "('LSJA0000000000034', '2026-11-15 10:00:00', NULL, NULL, 30.0, 0), "  # added by hand
+                "('LSJA0000000000034', '2026-11-20 10:00:00', 30, 80, 25.0, 1), "     # estimated with a 50 l tank, the sheet says 40 now
+                "('LSJA0000000000034', '2026-11-21 10:00:00', 5, 43, 23.54, 1)"))      # a 62 l tank would give it, but two decimals: a ticket
+        await migrate.upgrade_to_head(scratch_url)
+        async with engine.connect() as conn:
+            typed = (await conn.execute(text("SELECT liters FROM refuels WHERE liters_entered = :yes"), {"yes": True})).scalars().all()
+    finally:
+        await engine.dispose()
+    assert sorted(typed) == [23.54, 33.41]

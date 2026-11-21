@@ -90,7 +90,7 @@ class RefuelDetector:
 
         lat, lon = at["lat"], at["lon"]
         address = await reverse_geocode(lat, lon) if lat is not None and lon is not None else None
-        liters = round((fuel - low) / 100.0 * (vehicle.fuel_tank_liters or 50.0), 1)
+        liters = round((fuel - low) / 100.0 * (vehicle.fuel_tank_liters or 50.0), 2)     # two decimals, like a ticket (one until 21-11-2026)
         refuel = Refuel(vin=vin, timestamp=at["time"], odometer=at["odometer"], fuel_before_pct=low, fuel_after_pct=fuel,
                         liters=liters, latitude=lat, longitude=lon, address=address, detected=True,
                         full_tank=None)                 # the gauge decides (>= 95 %) until the user says otherwise

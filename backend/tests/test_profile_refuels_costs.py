@@ -228,10 +228,12 @@ async def test_a_detected_refuel_is_completed_with_the_price_and_the_real_litres
     rid = (await web.get(f"/api/vehicles/{VIN}/refuels")).json()[0]["id"]
     d = (await web.put(f"/api/refuels/{rid}", json={"price_per_liter": 1.6})).json()
     assert d["total_cost"] == 56.0 and d["liters_estimated"] is True and d["needs_price"] is False
+    # the form sends back the litres it shows: the same estimate is not the ticket's figure
+    assert (await web.put(f"/api/refuels/{rid}", json={"liters": 35.0, "station": "Repsol"})).json()["liters_estimated"] is True
     d = (await web.put(f"/api/refuels/{rid}", json={"liters": 34.2})).json()                       # real litres from the receipt
-    assert d["liters"] == 34.2 and d["total_cost"] == round(1.6 * 34.2, 2)
-    d = (await web.put(f"/api/refuels/{rid}", json={"total_cost": 60.0, "station": "BP"})).json()
-    assert d["price_per_liter"] == round(60 / 34.2, 3) and d["station"] == "BP"
+    assert d["liters"] == 34.2 and d["total_cost"] == round(1.6 * 34.2, 2) and d["liters_estimated"] is False
+    d = (await web.put(f"/api/refuels/{rid}", json={"total_cost": 60.0, "station": "BP", "liters": 34.2})).json()
+    assert d["price_per_liter"] == round(60 / 34.2, 3) and d["station"] == "BP" and d["liters_estimated"] is False
     assert (await web.delete(f"/api/refuels/{rid}")).json()["status"] == "ok" and (await web.get(f"/api/vehicles/{VIN}/refuels")).json() == []
     assert (await web.put("/api/refuels/9999", json={"liters": 3})).status_code == 404
 

@@ -79,7 +79,7 @@ function renderRefuelList() {
     return `
     <button type="button" class="costs-row costs-row-btn rf-row" data-on-click="openRefuelModal(${r.id})">
       <div class="costs-row-main">
-        <strong>${rfDay(r.timestamp)} · ${rfNum(r.liters)} l${r.liters_estimated ? ' <span class="rf-tag">estimados</span>' : ''}${r.full_tank ? ' <span class="rf-tag rf-tag-full">lleno</span>' : ''}</strong>
+        <strong>${rfDay(r.timestamp)} · ${rfNum(r.liters, 2)} l${r.liters_estimated ? ' <span class="rf-tag">estimados</span>' : ''}${r.full_tank ? ' <span class="rf-tag rf-tag-full">lleno</span>' : ''}</strong>
         <small>${where}${meta.length ? ' · ' + meta.join(' · ') : ''}</small>
       </div>
       <span class="costs-row-amount ${r.needs_price ? 'is-pending' : ''}">${r.needs_price ? 'Añadir precio' : rfMoney(r.total_cost)}</span>
