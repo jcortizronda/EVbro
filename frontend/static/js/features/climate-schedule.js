@@ -46,9 +46,9 @@
           <small>${escapeHtml(daysText(s.days))}${s.label ? ' · ' + escapeHtml(s.label) : ''}</small>
           ${s.last_result ? `<small class="csched-last">Última vez (${escapeHtml(s.last_run_on || '')}): ${escapeHtml(s.last_result)}</small>` : ''}
         </div>
-        <label class="csched-switch" title="${s.enabled ? 'Activa' : 'En pausa'}">
+        <label class="csched-switch" title="${s.enabled ? 'Activado' : 'Desactivado'}">
           <input type="checkbox" ${s.enabled ? 'checked' : ''} data-on-change="ClimateSchedule.toggle(${s.id}, this.checked)">
-          <span>${s.enabled ? 'Activa' : 'En pausa'}</span>
+          <span>${s.enabled ? 'Activado' : 'Desactivado'}</span>
         </label>
         <button type="button" class="btn-secondary btn-sm is-danger" data-on-click="ClimateSchedule.remove(${s.id})" aria-label="Borrar programación">Borrar</button>
       </div>`).join('');

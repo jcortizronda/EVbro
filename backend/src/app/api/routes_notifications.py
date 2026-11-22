@@ -65,6 +65,7 @@ class NotificationConfigUpdate(BaseModel):
     notify_renewals: Optional[bool] = None
     notify_security_alerts: Optional[bool] = None
     notify_low_battery: Optional[bool] = None
+    notify_admin_messages: Optional[bool] = None       # off = silenced: kept in the notice centre, not sent
 
 
 class TestNotificationRequest(BaseModel):
@@ -189,6 +190,7 @@ async def get_notification_config(session: AsyncSession = Depends(get_db), user:
         "notify_renewals": getattr(config, "notify_renewals", True),
         "notify_security_alerts": config.notify_security_alerts,
         "notify_low_battery": config.notify_low_battery,
+        "notify_admin_messages": config.notify_admin_messages is not False,
         "updated_at": config.updated_at.isoformat() if config.updated_at else None,
     }
 

@@ -1127,7 +1127,7 @@
         <div class="home-widget" data-widget="schedule">
         <!-- Transparency: what each button sends to the car -->
         <div class="native-climate-panel comfort-section" id="climateSchedulePanel">
-          <div class="climate-headline"><small>CLIMATIZACIÓN PROGRAMADA</small><h3>Encender a una hora</h3></div>
+          <div class="climate-headline"><small>CLIMATIZADOR</small><h3>Climatización programada</h3></div>
           <p class="comfort-hint">El servidor enciende el climatizador a la hora y los días que elijas, aunque tengas la app cerrada.</p>
           <p class="comfort-hint csched-pin-hint" id="climateSchedulePinHint" hidden>Hace falta el PIN guardado en Ajustes → Cuenta.</p>
           <div id="climateScheduleList"></div>
@@ -1145,10 +1145,10 @@
         </div>
         </div>
         <div class="home-widget" data-widget="departure">
-        <!-- Scheduled departure («Reserva tu viaje» in the official app): the plan lives in the car (features/departure.js) -->
+        <!-- Scheduled battery preheating («Reserva tu viaje» in the official app): the plan lives in the car (features/departure.js) -->
         <div class="native-climate-panel comfort-section" id="departurePanel">
-          <div class="climate-headline"><small>SALIDA PROGRAMADA <span id="departureBadge" class="comfort-state" data-state="unknown">—</span></small><h3>Batería lista a tu hora</h3></div>
-          <p class="comfort-hint">Según la app oficial de Ebro, el coche mantiene la batería a temperatura desde hora y media antes de la salida. Conviene dejarlo enchufado.</p>
+          <div class="climate-headline"><small>BATERÍA <span id="departureBadge" class="comfort-state" data-state="unknown">—</span></small><h3>Precalentamiento de batería programado</h3></div>
+          <p class="comfort-hint">El coche calienta la batería desde hora y media antes de la hora de salida, los días que elijas. Conviene dejarlo enchufado.</p>
           <p class="comfort-hint csched-pin-hint" id="departurePinHint" hidden>Hace falta el PIN guardado en Ajustes → Cuenta.</p>
           <div id="departureList"><p class="comfort-hint">Cargando…</p></div>
           <div class="csched-form-row dep-actions">
@@ -2224,6 +2224,20 @@
                   </div>
                   <label class="ios-switch">
                     <input type="checkbox" id="notifEvtRenewals" checked />
+                    <span class="ios-slider"></span>
+                  </label>
+                </div>
+                <!-- 13. Messages from the server administrator: off = silenced (kept in the bell, not sent) -->
+                <div class="notif-trigger-card">
+                  <div class="notif-trigger-left">
+                    <div class="notif-trigger-icon u-color-64d2ff"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg></div>
+                    <div>
+                      <div class="notif-trigger-title">Mensajes del administrador</div>
+                      <div class="notif-trigger-desc">Avisos de mantenimiento y novedades del servidor. Apagado, quedan silenciados: se guardan en la campana de avisos, pero no se envían al móvil ni a tus otros canales.</div>
+                    </div>
+                  </div>
+                  <label class="ios-switch">
+                    <input type="checkbox" id="notifEvtAdminMessages" checked />
                     <span class="ios-slider"></span>
                   </label>
                 </div>

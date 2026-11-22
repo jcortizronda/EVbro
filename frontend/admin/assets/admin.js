@@ -144,11 +144,12 @@ document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click',
   if (tab.dataset.tab === 'stats') loadStats();
   document.querySelectorAll('.tab').forEach((t) => { const on = t === tab; t.classList.toggle('is-active', on); t.setAttribute('aria-selected', String(on)); });
   if (tab.dataset.tab === 'audit') loadAudit();
+  if (tab.dataset.tab === 'messages') { loadManagers().then(drawMessageManagers); loadMessages(); }
   if (tab.dataset.tab === 'reports') loadReports();
-  for (const name of ['managers', 'stats', 'invites', 'server', 'catalog', 'reports', 'audit']) $('tab' + name[0].toUpperCase() + name.slice(1)).hidden = tab.dataset.tab !== name;
+  for (const name of ['managers', 'stats', 'invites', 'messages', 'server', 'catalog', 'reports', 'audit']) $('tab' + name[0].toUpperCase() + name.slice(1)).hidden = tab.dataset.tab !== name;
 }));
 
-async function loadAll() { await Promise.all([loadManagers(), loadStats(), loadInvites(), loadServer(), loadCatalog(), loadCatalogSource(), loadCatalogKeys(), loadAudit(), loadTelemetry()]); }
+async function loadAll() { await Promise.all([loadManagers().then(drawMessageManagers), loadStats(), loadInvites(), loadMessages(), loadServer(), loadCatalog(), loadCatalogSource(), loadCatalogKeys(), loadAudit(), loadTelemetry()]); }
 
 // ───────────────────────── managers ─────────────────────────
 async function loadManagers() {
@@ -340,6 +341,73 @@ async function revokeInvite(id) {
   if (!await confirmAsk('¿Anular esta invitación? Dejará de funcionar.', { title: 'Anular invitación', okText: 'Anular', danger: true })) return;
   api(`/api/admin/invites/${id}`, 'DELETE').then(loadInvites).catch((e) => toast(e.message, true));
 }
+
+// ───────────────────────── messages to the accounts (services/admin_messages.py) ─────────────────────────
+// Plain text to the managers' notice centre and channels. The console only ever learns how many accounts received it.
+const msgAudience = () => document.querySelector('input[name="msgAudience"]:checked').value;
+/** Managers that can receive a message: the server skips deactivated and expired accounts. */
+const msgCandidates = () => managers.filter((u) => u.role === 'manager' && u.is_active && !(u.expires_at && new Date(u.expires_at + (u.expires_at.endsWith('Z') ? '' : 'Z')) <= new Date()));
+const msgChosen = () => [...$('msgManagers').querySelectorAll('input:checked')].map((c) => Number(c.value));
+
+function drawMessageManagers() {
+  const chosen = new Set(msgChosen());
+  $('msgManagers').replaceChildren(...msgCandidates().map((u) => h('label', { class: 'choice', 'data-i18n-skip': true },
+    h('input', { type: 'checkbox', value: u.id, checked: chosen.has(u.id), onchange: drawMessageSummary }), h('span', {}, u.username))));
+  drawMessageSummary();
+}
+
+/** Who will get it, before sending: managers, and how many member accounts at most (the console does not know which ones can sign in). */
+function drawMessageSummary() {
+  const selected = msgAudience() === 'selected';
+  $('msgManagers').hidden = !selected;
+  const ids = new Set(msgChosen());
+  const list = msgCandidates().filter((u) => !selected || ids.has(u.id));
+  const members = $('msgMembers').checked ? list.reduce((n, u) => n + (u.member_count || 0), 0) : 0;
+  $('msgCount').textContent = `${$('msgBody').value.length} / ${$('msgBody').maxLength}`;
+  $('btnMsgSend').disabled = list.length === 0;
+  if (!list.length) $('msgSummary').textContent = selected ? t('Elige al menos un gestor.') : t('No hay ningún gestor activo al que enviarlo.');
+  else if (members) $('msgSummary').textContent = t('Gestores que lo recibirán: {p0}. Cuentas asociadas: hasta {p1}.', { p0: list.length, p1: members });
+  else $('msgSummary').textContent = t('Gestores que lo recibirán: {p0}.', { p0: list.length });
+  return list;
+}
+
+async function loadMessages() {
+  let list;
+  try { list = await api('/api/admin/messages'); } catch (e) { return; }
+  const body = $('tblMessages').querySelector('tbody');
+  body.replaceChildren();
+  $('emptyMessages').hidden = list.length > 0;
+  for (const m of list) {
+    const who = m.audience === 'all' ? t('Todos los gestores') : (m.targets || '—');
+    body.append(h('tr', {},
+      h('td', { class: 'num' }, m.created_at ? new Date(m.created_at + (m.created_at.endsWith('Z') ? '' : 'Z')).toLocaleString(I18n.locale, { dateStyle: 'short', timeStyle: 'short' }) : '—'),
+      h('td', { class: 'msg-cell', 'data-i18n-skip': true }, h('strong', {}, m.title), h('span', {}, m.body)),
+      h('td', {}, h('span', m.audience === 'all' ? {} : { 'data-i18n-skip': true }, who), m.include_members ? h('small', {}, ' ', t('y sus cuentas asociadas')) : null),
+      h('td', { class: 'num' }, num(m.recipients)), h('td', { class: 'num' }, num(m.pushed)), h('td', { class: 'num' }, num(m.silenced)),
+      h('td', { 'data-i18n-skip': true }, m.username)));
+  }
+}
+
+document.querySelectorAll('input[name="msgAudience"]').forEach((r) => r.addEventListener('change', drawMessageSummary));
+$('msgMembers').addEventListener('change', drawMessageSummary);
+$('msgBody').addEventListener('input', drawMessageSummary);
+$('formMessage').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const list = drawMessageSummary();
+  const title = $('msgTitle').value.trim(), body = $('msgBody').value.trim();
+  if (!list.length || !title || !body) return;
+  if (!await confirmAsk(`«${title}» ${$('msgSummary').textContent} ${t('No se puede retirar una vez enviado.')}`, { title: t('Enviar mensaje'), okText: t('Enviar') })) return;
+  $('btnMsgSend').disabled = true;
+  try {
+    const sent = await api('/api/admin/messages', 'POST', { title, body, manager_ids: msgAudience() === 'selected' ? list.map((u) => u.id) : null, include_members: $('msgMembers').checked });
+    toast(t('Mensaje enviado. Cuentas que lo han recibido: {p0}.', { p0: sent.recipients }));
+    $('msgTitle').value = '';
+    $('msgBody').value = '';
+    loadMessages();
+    loadAudit();
+  } catch (e) { toast(e.message, true, 7000); }
+  drawMessageSummary();
+});
 
 // ───────────────────────── server ─────────────────────────
 const info = (x) => (x.count ? `${x.count.toLocaleString(I18n.locale)} guardados${x.oldest ? `, el más antiguo del ${fmtDate(x.oldest)}` : ''}` : 'Nada guardado');
@@ -642,7 +710,7 @@ const AUDIT_LABELS = { login: 'Entrada en la consola', 'manager.create': 'Gestor
   'telemetry.enabled': 'Informes activados', 'telemetry.disabled': 'Informes desactivados', 'telemetry.send': 'Informe enviado', 'telemetry.new_id': 'Informes: identificador nuevo',
   'telemetry.resolve': 'Informes: fallo resuelto', 'telemetry.reopen': 'Informes: fallo reabierto',
   'catalog.key.create': 'Catálogo: clave creada', 'catalog.key.revoke': 'Catálogo: clave anulada', 'catalog.public_url': 'Catálogo: URL pública', 'catalog.source': 'Catálogo: origen cambiado', 'catalog.sync': 'Catálogo: sincronizado',
-  'catalog.connect': 'Catálogo: conectado al del proyecto' };
+  'catalog.connect': 'Catálogo: conectado al del proyecto', 'message.send': 'Mensaje enviado a las cuentas' };
 async function loadAudit() {
   let list;
   try { list = await api('/api/admin/audit?limit=300'); } catch (e) { return; }

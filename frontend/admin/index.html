@@ -53,6 +53,7 @@
         <button type="button" role="tab" class="tab is-active" data-tab="managers" aria-selected="true">Gestores</button>
         <button type="button" role="tab" class="tab" data-tab="stats" aria-selected="false">Estadísticas</button>
         <button type="button" role="tab" class="tab" data-tab="invites" aria-selected="false">Invitaciones</button>
+        <button type="button" role="tab" class="tab" data-tab="messages" aria-selected="false">Mensajes</button>
         <button type="button" role="tab" class="tab" data-tab="server" aria-selected="false">Servidor</button>
         <button type="button" role="tab" class="tab" data-tab="catalog" aria-selected="false">Catálogo</button>
         <button type="button" role="tab" class="tab" data-tab="reports" aria-selected="false" id="tabBtnReports" hidden>Informes</button>
@@ -133,6 +134,32 @@
           <h2>Invitaciones</h2>
           <div class="table-wrap"><table id="tblInvites"><thead><tr><th>Para</th><th>Estado</th><th>Creada</th><th>Caduca</th><th>Usada por</th><th></th></tr></thead><tbody></tbody></table></div>
           <p class="empty" id="emptyInvites" hidden>No hay invitaciones.</p>
+        </div>
+      </section>
+
+      <section id="tabMessages" class="pane" hidden>
+        <div class="card">
+          <h2>Enviar un mensaje a las cuentas</h2>
+          <p class="hint">Para avisar de un mantenimiento o de una novedad. Cada cuenta lo recibe en su campana de avisos y por los canales que tenga activos (notificación del móvil, Telegram…). Quien haya silenciado estos mensajes solo lo verá en la campana. Va tal como lo escribas, solo texto, y no se puede retirar una vez enviado.</p>
+          <form id="formMessage" class="msg-form">
+            <label><span>Título</span><input id="msgTitle" maxlength="80" required autocomplete="off" placeholder="Ej. Mantenimiento el sábado"></label>
+            <label><span>Texto</span><textarea id="msgBody" maxlength="1000" rows="5" required placeholder="Ej. El sábado de 22:00 a 23:00 el servidor estará parado para actualizarlo."></textarea><small id="msgCount" data-i18n-skip>0 / 1000</small></label>
+            <fieldset class="choices">
+              <legend>Para quién</legend>
+              <label class="choice"><input type="radio" name="msgAudience" value="all" checked><span>Todos los gestores</span></label>
+              <label class="choice"><input type="radio" name="msgAudience" value="selected"><span>Solo los gestores que elija</span></label>
+              <div class="msg-managers" id="msgManagers" hidden></div>
+              <label class="choice"><input type="checkbox" id="msgMembers"><span>Enviar también a sus cuentas asociadas</span></label>
+            </fieldset>
+            <p class="hint" id="msgSummary"></p>
+            <div class="actions"><button type="submit" class="primary" id="btnMsgSend">Enviar mensaje</button></div>
+          </form>
+        </div>
+        <div class="card">
+          <h2>Mensajes enviados</h2>
+          <p class="hint">«Recibido» son las cuentas que lo tienen en su campana; «al móvil o a un canal», a cuántas de ellas les llegó además por notificación, Telegram, Pushover o webhook.</p>
+          <div class="table-wrap"><table id="tblMessages"><thead><tr><th>Cuándo</th><th>Mensaje</th><th>Para</th><th>Recibido</th><th>Al móvil o a un canal</th><th>Silenciado</th><th>Enviado por</th></tr></thead><tbody></tbody></table></div>
+          <p class="empty" id="emptyMessages" hidden>Todavía no se ha enviado ningún mensaje.</p>
         </div>
       </section>
 

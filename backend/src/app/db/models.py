@@ -535,6 +535,26 @@ class AdminAudit(Base):
     created_at = Column(DateTime, nullable=False, index=True)
 
 
+class AdminMessage(Base):
+    """A message the administrator sent from the console to manager accounts (maintenance windows, news). What each account
+    received lives in its own `notification_logs`; this row is the administrator's record of what was sent, to whom and how far
+    it got. Plain text, never HTML."""
+    __tablename__ = "admin_messages"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    created_at = Column(DateTime, nullable=False, default=utcnow, index=True)
+    admin_id = Column(Integer, nullable=True)
+    username = Column(String(64), nullable=False)             # the administrator who sent it
+    title = Column(String(120), nullable=False)
+    body = Column(Text, nullable=False)
+    audience = Column(String(20), nullable=False)             # "all" managers or the "selected" ones
+    targets = Column(Text, nullable=True)                     # usernames chosen, comma-separated; null for "all"
+    include_members = Column(Boolean, nullable=False, default=False)
+    recipients = Column(Integer, nullable=False, default=0)   # accounts that got it in their notice centre
+    pushed = Column(Integer, nullable=False, default=0)       # of those, accounts where at least one channel delivered it
+    silenced = Column(Integer, nullable=False, default=0)     # of those, accounts that had these messages silenced
+
+
 class ClimateSchedule(Base):
     """Pre-conditioning on a timetable: at `time_local` on the chosen weekdays EVBro sends `clima_on` with `temperature`.
 
@@ -848,6 +868,9 @@ class NotificationConfig(Base):
     notify_renewals = Column(Boolean, default=True)       # due dates: insurance renewal and dated expenses
     notify_security_alerts = Column(Boolean, default=True)
     notify_low_battery = Column(Boolean, default=True)
+    # Messages from the server administrator (maintenance, news). Off = SILENCED, not dropped: the message is still kept in the
+    # account's notice centre, but nothing is sent through its channels (services/admin_messages.py).
+    notify_admin_messages = Column(Boolean, default=True)
 
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 

@@ -121,3 +121,30 @@ async def test_0034_marks_the_refuels_whose_litres_were_corrected(scratch_url) -
     finally:
         await engine.dispose()
     assert sorted(typed) == [23.54, 33.41]
+
+
+async def test_0035_adds_the_admin_messages_and_their_switch_to_a_database_that_lacks_them(scratch_url) -> None:
+    """The baseline builds a new database from the models, so here the table and the column are taken away first: the revision
+    must put them back (an existing server), with the accounts that already had their settings left with the messages on."""
+    import asyncio
+
+    from alembic import command
+    await asyncio.to_thread(command.upgrade, migrate.alembic_config(scratch_url), "0034_refuel_liters_entered")
+    engine = create_async_engine(scratch_url)
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("DROP TABLE admin_messages"))
+            await conn.execute(text("ALTER TABLE notification_configs DROP COLUMN notify_admin_messages"))
+            await conn.execute(text("INSERT INTO notification_configs (user_id, telegram_enabled) VALUES (7, 0)"))
+        before = await _tables(scratch_url)
+        assert "admin_messages" not in before and "notify_admin_messages" not in before["notification_configs"]
+        await migrate.upgrade_to_head(scratch_url)
+        async with engine.connect() as conn:
+            kept = (await conn.execute(text("SELECT notify_admin_messages FROM notification_configs WHERE user_id = 7"))).scalar_one()
+    finally:
+        await engine.dispose()
+    after = await _tables(scratch_url)
+    assert after["admin_messages"] == {c.name for c in Base.metadata.tables["admin_messages"].columns}
+    assert "notify_admin_messages" in after["notification_configs"] and bool(kept) is True
+    await migrate.upgrade_to_head(scratch_url)                 # and again: nothing to do, nothing breaks
+    assert await _version(scratch_url) == migrate.head_revision()

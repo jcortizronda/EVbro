@@ -52,6 +52,14 @@ def test_price_cost_per_100km_and_implausible_segments() -> None:
     assert [m["month"] for m in s["months"]] == ["2026-01"] and s["months"][0]["liters"] == 110.0
 
 
+def test_a_plug_in_hybrid_that_barely_burns_petrol_still_gets_its_consumption() -> None:
+    rows = [R(1, 1, 10000, 40.0), R(2, 20, 13000, 21.0)]                  # 21 L over 3000 km, mostly electric: 0.7 l/100 km
+    s = refuel_stats.compute(rows, 60.0)
+    assert s["l_per_100km"] == 0.7 and s["per_refuel"][2]["l_per_100km"] == 0.7
+    barely = [R(1, 1, 10000, 40.0), R(2, 20, 13000, 6.0)]                 # 0.2 l/100 km: a fill-up was surely left unmarked
+    assert refuel_stats.compute(barely, 60.0)["l_per_100km"] is None
+
+
 def test_period_filter_keeps_the_previous_refuel_for_the_segment() -> None:
     rows = [R(1, 1, 10000, 40.0), R(2, 20, 11000, 50.0)]
     s = refuel_stats.compute(rows, 50.0, since=D(2026, 1, 10))

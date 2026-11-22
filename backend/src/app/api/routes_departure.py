@@ -1,7 +1,7 @@
 """Scheduled departure («Reserva tu viaje»): what the car has and changing it. services/departure.py."""
 from __future__ import annotations
 
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -22,6 +22,7 @@ router = APIRouter(prefix="/vehicles/{vin}/departure", tags=["Departure"])
 class Departure(BaseModel):
     time: str = Field(max_length=5)        # "HH:MM", local time
     enabled: bool = False
+    days: Optional[List[int]] = Field(default=None, max_length=7)      # 1 = Monday … 7 = Sunday; left out = as the car has them
 
 
 class DepartureRequest(BaseModel):
@@ -42,13 +43,14 @@ async def _raw(vin: str, session: AsyncSession) -> dict:
 
 @router.get("")
 async def get_departure(vin: str, session: AsyncSession = Depends(get_db)):
-    """The scheduled departures the car has (local time). `known` is False if the cloud has not returned them for this car."""
+    """The scheduled departure the car has (local time; the first one, if it holds several). `known` is False if the cloud has
+    not returned it for this car."""
     return departure.read_plan(await _raw(vin, session), get_timezone())
 
 
 @router.put("")
 async def put_departure(vin: str, req: DepartureRequest, request: Request, session: AsyncSession = Depends(get_db)):
-    """Changes the time and the switch of the car's scheduled departures (their days stay as the car has them). It is sent with
+    """Changes the time, the days and the switch of the car's scheduled departure (one, like the official app). It is sent with
     the PIN stored on the account, like the charge schedule."""
     raw = await _raw(vin, session)
     tz = get_timezone()

@@ -17,7 +17,9 @@ from typing import Any, Dict, Iterable, List, Optional
 
 FULL_TANK_PCT = 95.0
 MIN_SEGMENT_KM = 20.0            # shorter stretches between full tanks are noise (odometer rounding, a top-up next door)
-PLAUSIBLE_L_PER_100 = (1.0, 30.0)
+# The floor is low on purpose: a plug-in hybrid driven mostly on electricity really does burn well under 1 l/100 km over a
+# stretch between fill-ups (it was 1.0 until 2026-11-22, and such a stretch showed no consumption at all).
+PLAUSIBLE_L_PER_100 = (0.3, 30.0)
 
 
 def is_full(refuel) -> bool:

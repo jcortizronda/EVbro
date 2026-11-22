@@ -40,6 +40,7 @@ async function loadNotificationConfig() {
     setCheck('notifEvtSecurity', cfg.notify_security_alerts);
     setCheck('notifEvtTyres', cfg.notify_tyre_pressure);
     setCheck('notifEvtRenewals', cfg.notify_renewals);
+    setCheck('notifEvtAdminMessages', cfg.notify_admin_messages);
     const tolEl = document.getElementById('notifTyreTol');
     if (tolEl) { tolEl.value = veh?.tyre_pressure_tolerance_pct ?? 10; tolEl.disabled = !isOwner; }
     setCheck('notifEvtLowBattery', cfg.notify_low_battery);
@@ -69,6 +70,7 @@ async function saveNotificationConfig() {
     notify_security_alerts: document.getElementById('notifEvtSecurity')?.checked ?? true,
     notify_tyre_pressure: document.getElementById('notifEvtTyres')?.checked ?? true,
     notify_renewals: document.getElementById('notifEvtRenewals')?.checked ?? true,
+    notify_admin_messages: document.getElementById('notifEvtAdminMessages')?.checked ?? true,
     notify_low_battery: document.getElementById('notifEvtLowBattery')?.checked ?? true,
   };
 
@@ -171,6 +173,7 @@ const NOTICE_KIND = {
   geofence_enter: ['pin', 'place'], geofence_exit: ['pin', 'place'],
   maintenance: ['wrench', 'maint'], renewals: ['clock', 'maint'],
   security: ['siren', 'alarm'], vehicle_fault: ['alert', 'alarm'], account: ['key', 'alarm'],
+  admin_message: ['megaphone', 'admin'],
 };
 
 /** A notice sent through several channels leaves one row per channel, written in the same second: here they are one notice. */
@@ -221,10 +224,12 @@ function renderNotices(list, logs) {
     }
     const [ico, kind] = NOTICE_KIND[n.category] || ['bell', 'info'];
     const time = when.toLocaleTimeString(I18n.locale, { hour: '2-digit', minute: '2-digit' });
+    // A message typed by the server administrator says so: it is not something the car did
+    const from = n.category === 'admin_message' ? `<small class="notice-from">${t('Mensaje del administrador del servidor')}</small>` : '';
     const failures = n.failures.map((f) => `<small class="notice-fail">${escapeHtml(t('No se pudo enviar por {p0}: {p1}', {p0: noticeChannel(f.channel), p1: f.error || '—'}))}</small>`);
     html.push(`<div class="notice-row notice-${kind}${n.unread ? ' is-unread' : ''}" data-id="${Number(n.id)}">
       <span class="notice-ico" aria-hidden="true">${icon(ico, 16)}</span>
-      <span class="notice-main"><strong>${escapeHtml(n.title)}</strong><span class="notice-text">${escapeHtml(n.message)}</span>${failures.join('')}</span>
+      <span class="notice-main">${from}<strong>${escapeHtml(n.title)}</strong><span class="notice-text">${escapeHtml(n.message)}</span>${failures.join('')}</span>
       <span class="notice-time">${n.unread ? `<span class="notice-new">${t('Nuevo')}</span>` : ''}${escapeHtml(time)}<button type="button" class="notice-dismiss" aria-label="${t('Descartar aviso')}" title="${t('Descartar aviso')}">${icon('x', 14)}</button></span>
     </div>`);
   }

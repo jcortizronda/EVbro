@@ -135,3 +135,18 @@ label.choice { display: flex !important; flex-direction: row !important; gap: 10
 label.choice input { width: auto; margin-top: 4px; flex: 0 0 auto; }
 label.choice > span { display: block; font-weight: 400; color: var(--text); }
 label.choice > span span { display: inline; font-weight: inherit; color: inherit; margin: 0; }
+
+/* Messages to the accounts */
+.msg-form { display: flex; flex-direction: column; gap: 4px; max-width: 720px; }
+.msg-form textarea { font: inherit; padding: 8px 10px; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; resize: vertical; min-height: 110px; }
+.msg-form textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.msg-form small { align-self: flex-end; font-variant-numeric: tabular-nums; }
+.msg-form .hint { margin: 12px 0 6px; }
+.msg-managers { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 8px 0 4px 26px; }
+.msg-managers[hidden] { display: none; }
+.msg-managers label.choice { margin: 0; }
+#tblMessages td { white-space: normal; vertical-align: top; }
+#tblMessages td.msg-cell { min-width: 260px; max-width: 520px; }
+#tblMessages td.msg-cell strong { display: block; }
+#tblMessages td.msg-cell span { display: block; color: var(--muted); font-size: 0.86rem; white-space: pre-line; overflow-wrap: anywhere; }
+#tblMessages td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }

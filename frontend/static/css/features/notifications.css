@@ -64,6 +64,9 @@
 .notice-warn .notice-ico { color: var(--accent-amber); background: rgba(255, 159, 10, 0.14); }
 .notice-alarm .notice-ico { color: var(--accent-red); background: rgba(255, 69, 58, 0.12); }
 .notice-maint .notice-ico { color: var(--accent-purple); background: rgba(139, 92, 246, 0.14); }
+.notice-admin .notice-ico { color: #64d2ff; background: rgba(100, 210, 255, 0.14); }
+[data-theme="light"] .notice-admin .notice-ico { color: #0a7ea4; background: rgba(10, 126, 164, 0.12); }
+.notice-from { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-secondary); }
 .notice-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .notice-main strong { font-size: 0.92rem; font-weight: 650; letter-spacing: -0.01em; color: var(--text-primary); }
 .notice-row.is-unread .notice-main strong { font-weight: 750; }

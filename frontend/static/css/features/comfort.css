@@ -109,11 +109,13 @@
 .csched-pin-hint { color: var(--accent-amber); }
 .csched-pin-hint[hidden] { display: none; }
 
-/* Scheduled departure: one row per departure the car has (time, days as the car has them, switch) and one button to send it */
+/* Scheduled battery preheating: the car's schedule (time, switch, day chips) and one button to send it */
 .dep-row { grid-template-columns: minmax(0, 1fr) auto; }
 .dep-row.is-off .csched-main { opacity: 1; }                 /* the time stays editable while the departure is paused */
 .dep-row.is-off .dep-time input { opacity: 0.6; }
 .dep-time input { max-width: 170px; }
+.dep-days { grid-column: 1 / -1; }
+.dep-row.is-off .dep-days { opacity: 0.6; }
 .dep-actions { grid-template-columns: 1fr; margin-top: 10px; }
 .dep-actions button { justify-self: start; }
 .dep-actions button:disabled { opacity: 0.5; cursor: not-allowed; }

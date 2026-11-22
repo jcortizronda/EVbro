@@ -45,7 +45,7 @@ with sync_playwright() as p:
     pg.screenshot(path=f"{OUT}/climate-schedule.png", full_page=True)
     pg.click("#climateScheduleList input[type=checkbox]")
     pg.wait_for_timeout(800)
-    ok("En pausa" in txt("#climateScheduleList"), "the switch pauses it")
+    ok("Desactivado" in txt("#climateScheduleList"), "the switch turns it off")
     api = ctx.request.get(f"{BASE}/api/vehicles/" + pg.evaluate("currentVin") + "/climate-schedules").json()
     ok(len(api) == 1 and api[0]["enabled"] is False and api[0]["time_local"] == "07:45" and api[0]["days"] == [0, 1, 2, 3, 4, 5], f"the server stores it the same way ({api})")
     pg.click("#climateScheduleList >> text=Borrar")

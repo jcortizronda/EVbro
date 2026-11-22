@@ -57,7 +57,7 @@ const WidgetBoards = (function () {
     defrost: { label: 'Lunas, volante y aire', desc: 'Desempañado, lunas y volante calefactados, purificador y calefacción rápida.' },
     seats: { label: 'Asientos', desc: 'Calefacción y ventilación de cada asiento.' },
     schedule: { label: 'Climatización programada', desc: 'Encender el clima a una hora y unos días.' },
-    departure: { label: 'Salida programada', desc: 'La hora de salida para la que el coche prepara la batería.' },
+    departure: { label: 'Precalentamiento de batería', desc: 'La hora y los días de salida para los que el coche calienta la batería.' },
   };
   const LOADERS = {};                  // key → async (vin) => html; filled in below
   const RELOAD_MS = 60 * 1000;         // a widget is not asked again for the same car within a minute (unless forced)

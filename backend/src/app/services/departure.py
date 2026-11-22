@@ -8,10 +8,13 @@ docs/ebro-protocol.md, «Salida programada».
 What is known and what is not (2026-11-21):
   * `travelTime` is minutes of the day in UTC, like the scheduled charge: the official app passes both through the same
     time-zone helper (`CommonUtils::dateTimeZone`). Checked on 2026-11-22: the app showed 08:00 (UTC+1) for a stored 420.
-  * A car can hold several departures (an S800 had two). EVBro changes the time and the switch of the ones the car has and
-    does not add or remove any.
-  * The numbering of the weekdays (`travelWeekday` / `travelDate`, 1..7) has not been established, and a departure near
-    midnight may move to another day in UTC. So the days are kept exactly as the car has them and are not editable here.
+  * ONE schedule, like the official app, which offers a single time with its days (not a time per day). The reading is a
+    list and a car can hold more than one entry (an S800 had two): EVBro shows the first and, on saving, sends that one alone,
+    as the official app does. What the cloud does with the other entries then has not been observed.
+  * Weekdays (`travelWeekday` / `travelDate`) are taken as 1 = Monday … 7 = Sunday: the week picker of the official app lists
+    them from Monday to Sunday. DEDUCED from that picker, not yet checked against a car with a single day chosen. The
+    days travel as chosen: a departure so close to midnight that its UTC time falls on another day is not corrected (it is not
+    known whether the car reads the days in local time or in UTC).
 """
 from __future__ import annotations
 
@@ -24,7 +27,7 @@ from app.vehicle.charging import local_minutes_to_utc, utc_minutes_to_local
 
 ALL_DAYS = [1, 2, 3, 4, 5, 6, 7]
 DEFAULT_TIME_UTC_MIN = 420            # what every car has before anybody touches it
-MAX_DEPARTURES = 4                    # more than any car has shown; a body with a hundred entries is not a plan
+MAX_DEPARTURES = 1                    # one schedule (a time and its days), like the official app
 _HHMM = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
 
 
@@ -70,19 +73,24 @@ def read_plan(raw: Optional[Dict[str, Any]], tz: ZoneInfo, now: Optional[datetim
 
 def build_order(wanted: List[Dict[str, Any]], raw: Optional[Dict[str, Any]], tz: ZoneInfo,
                 now: Optional[datetime.datetime] = None) -> Tuple[str, Dict[str, Any]]:
-    """The order (catalogue key, params) that leaves the car with `wanted`: one {time "HH:MM", enabled} per departure the car
-    has, in its order (one, if the car has none yet). The days of each departure stay as the car has them."""
+    """The order (catalogue key, params) that leaves the car with `wanted`: a list with the one schedule, {time "HH:MM",
+    enabled, days}. `days` (1 = Monday … 7 = Sunday) may be left out: the schedule then keeps the days the car has."""
     current = _entries(raw) or []
-    expected = max(1, min(len(current), MAX_DEPARTURES))
-    if not isinstance(wanted, list) or len(wanted) != expected:
-        raise DepartureError("plan_invalid", f"Este coche tiene {expected} salida(s) programada(s): envía una hora para cada una.")
+    if not isinstance(wanted, list) or len(wanted) != MAX_DEPARTURES:
+        raise DepartureError("plan_invalid", "Envía una sola programación: la hora, los días y si está activada.")
     entries = []
     for i, item in enumerate(wanted):
         match = _HHMM.match(str(item.get("time") or "").strip())
         if not match:
             raise DepartureError("time_invalid", "La hora de salida no es válida (usa HH:MM).")
         local = int(match.group(1)) * 60 + int(match.group(2))
-        days = _days(current[i].get("travelDate")) if i < len(current) else list(ALL_DAYS)
+        if item.get("days") is not None:
+            chosen = item["days"] if isinstance(item["days"], list) else []
+            if not chosen or any(isinstance(d, bool) or not isinstance(d, int) or not 1 <= d <= 7 for d in chosen):
+                raise DepartureError("days_invalid", "Elige al menos un día de la semana.")
+            days = sorted(set(chosen))
+        else:
+            days = _days(current[i].get("travelDate")) if i < len(current) else list(ALL_DAYS)
         entries.append({"switcher": 1 if item.get("enabled") else 0, "travelTime": local_minutes_to_utc(local, tz, now),
                         "travelWeekday": days})
     master = 1 if any(e["switcher"] for e in entries) else 0

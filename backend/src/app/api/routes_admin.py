@@ -14,7 +14,17 @@ from app.config import settings
 from app.db.models import AppUser, EbroAccount, Invite, Vehicle
 from app.db.session import get_db
 from app.security import auth, passwords
-from app.services import admin_audit, admin_stats, catalog, catalog_remote, invites, storage, telemetry, tenant
+from app.services import (
+    admin_audit,
+    admin_messages,
+    admin_stats,
+    catalog,
+    catalog_remote,
+    invites,
+    storage,
+    telemetry,
+    tenant,
+)
 from app.services.parts import PART_CATEGORIES, POSITIONS
 
 STORAGE_MAX_MB = 1_000_000
@@ -191,6 +201,31 @@ async def delete_manager(user_id: int, confirm: str = "", admin: AppUser = Depen
 
 
 # ───────────────────────── shared catalogue: the approval queue ─────────────────────────
+class MessageIn(BaseModel):
+    title: str = Field(min_length=1, max_length=admin_messages.TITLE_MAX)
+    body: str = Field(min_length=1, max_length=admin_messages.BODY_MAX)
+    manager_ids: Optional[List[int]] = Field(default=None, max_length=1000)      # None = every manager
+    include_members: bool = False
+
+
+@router.get("/messages")
+async def list_messages(db: AsyncSession = Depends(get_db)):
+    """Messages sent from the console to the accounts, newest first, with how many accounts got each one."""
+    return await admin_messages.recent(db)
+
+
+@router.post("/messages")
+async def send_message(req: MessageIn, request: Request, admin: AppUser = Depends(auth.require_admin), db: AsyncSession = Depends(get_db)):
+    """Sends a plain-text message to the managers (all or the chosen ones) and, if asked, to their member accounts. It reaches
+    each account's notice centre and the channels that account set up; an account may have these messages silenced."""
+    try:
+        record = await admin_messages.send(db, admin, req.title, req.body, req.manager_ids, req.include_members)
+    except admin_messages.MessageError as ex:
+        raise HTTPException(status_code=422, detail=str(ex)) from ex
+    await admin_audit.log(db, admin, "message.send", record.targets or "todos los gestores", f"{record.title} ({record.recipients})", request=request)
+    return admin_messages.out(record)
+
+
 class RejectIn(BaseModel):
     reason: Optional[str] = Field(default=None, max_length=255)
 

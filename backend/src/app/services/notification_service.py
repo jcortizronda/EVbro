@@ -55,6 +55,10 @@ def webhook_url_problem(url: Optional[str]) -> Optional[str]:
             return "El webhook no puede apuntar a una dirección interna."
     return None
 
+# Categories an account can SILENCE instead of switching off: with the flag off the notice is still kept in its notice centre
+# (the bell), but nothing is sent through its channels. Messages from the administrator (services/admin_messages.py).
+QUIET_FLAG: Dict[str, str] = {"admin_message": "notify_admin_messages"}
+
 
 class NotificationService:
     """Sends alerts to mobile devices and external channels."""
@@ -247,7 +251,8 @@ class NotificationService:
 
     @classmethod
     async def _dispatch_to_user(cls, session: AsyncSession, uid: int, category: str, title: Union[str, Message],
-                                message: Union[str, Message]) -> List[Dict[str, Any]]:
+                                message: Union[str, Message], tag: Optional[str] = None) -> List[Dict[str, Any]]:
+        """`tag`: notices with the same tag replace each other on the phone (default: one per category)."""
         results: List[Dict[str, Any]] = []
         config = await cls.get_or_create_config(session, uid)
         # The texts come as `Message`s (Spanish with placeholders): each account reads them in its own language (app.i18n)
@@ -264,9 +269,15 @@ class NotificationService:
         def log(channel: str, success: bool, error: Optional[str]) -> None:
             session.add(NotificationLog(user_id=uid, category=category, title=title, message=message, channel=channel, success=success, error=error))
 
+        # Silenced kinds are kept in the notice centre and go no further
+        quiet = QUIET_FLAG.get(category)
+        if quiet and getattr(config, quiet, True) is False:
+            log("app", True, None)
+            return []
+
         # 2. Send through each of ITS active channels
         # --- Web Push (Google FCM / Mozilla / Apple) ---
-        for r in await cls.send_webpush(session, title, message, category, user_id=uid):
+        for r in await cls.send_webpush(session, title, message, category, tag, user_id=uid):
             log("webpush", r["success"], f"{r['device']}: {r['error']}" if r["error"] else None)
             results.append(r)
 
