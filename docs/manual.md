@@ -54,7 +54,7 @@ Lo que se puede encender desde el sofá.
   - *Calefacción rápida*: de una vez, el climatizador a 30 °C, los cuatro asientos, el volante y el parabrisas térmico durante 15 minutos. Al apagarla se apaga todo.
 - **Asientos**: calefacción y ventilación por plaza.
 - **Climatización programada**: el servidor enciende el climatizador a la hora y los días que elijas, aunque la app esté cerrada. Necesita el PIN guardado en la cuenta.
-- **Precalentamiento de batería programado** (el «Reserva tu viaje» de la app oficial): eliges la hora a la que sales y los días de la semana, y el coche calienta la batería desde hora y media antes; conviene dejarlo enchufado. La programación vive en el coche: EVBro enseña la que tiene, con su estado (**Activado** o **Desactivado**, tal como lo dice el coche), y te deja cambiar la hora, los días y el interruptor con «Guardar en el coche». Necesita el PIN guardado en la cuenta.
+- **Precalentamiento de batería programado** (el «Reserva tu viaje» de la app oficial): eliges la hora a la que sales y los días de la semana, y el coche calienta la batería desde hora y media antes; conviene dejarlo enchufado. La programación vive en el coche: EVBro enseña la que tiene, con su estado (**Activado** o **Desactivado**, tal como lo dice el coche), y te deja cambiar la hora, los días y el interruptor con «Programar». Necesita el PIN guardado en la cuenta.
 - Cada botón muestra el estado real del coche; tras una orden aparece «esperando confirmación» hasta que el coche la confirma.
 
 ## Más

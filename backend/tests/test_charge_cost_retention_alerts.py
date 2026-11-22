@@ -237,7 +237,7 @@ async def poller(db, monkeypatch):
     alerts = []
 
     async def security(cls, name, problems, **kwargs):
-        alerts.append(("security", problems))
+        alerts.append(("security", [str(p) for p in problems]))
 
     async def windows(cls, name, windows, **kwargs):
         alerts.append(("windows", [str(w) for w in windows]))
@@ -265,7 +265,7 @@ async def test_a_door_opened_on_arrival_does_not_alarm_until_it_stays_five_minut
     await check(poller, t + datetime.timedelta(minutes=2))
     assert poller.alerts_sent == []                                              # it used to alert on the first reading
     await check(poller, t + datetime.timedelta(minutes=5, seconds=1))
-    assert poller.alerts_sent == [("security", ["Puertas abiertas: fl"])]
+    assert poller.alerts_sent == [("security", ["Puerta delantera izquierda abierta."])]
 
 
 async def test_closing_the_door_earlier_gives_no_alert_and_the_count_restarts(poller) -> None:
@@ -304,7 +304,7 @@ async def test_an_open_window_with_the_car_locked_alerts_after_the_wait(poller) 
     await check(poller, t, doors={}, windows={"fl": 1})
     assert poller.alerts_sent == []
     await check(poller, t + datetime.timedelta(minutes=6), doors={}, windows={"fl": 1})
-    assert poller.alerts_sent == [("windows", ["Delantera izquierda: entreabierta"])]
+    assert poller.alerts_sent == [("windows", ["Ventanilla delantera izquierda entreabierta."])]
 
 
 async def test_an_open_window_alerts_once_until_it_is_closed_or_the_car_drives_off(poller) -> None:
@@ -313,14 +313,14 @@ async def test_an_open_window_alerts_once_until_it_is_closed_or_the_car_drives_o
     ajar = {"doors": {}, "windows": {"fl": 1, "fr": 0, "sunshade": 1}}
     for minutes in (0, 6, 40, 70, 300):
         await check(poller, t + datetime.timedelta(minutes=minutes), **ajar)
-    assert poller.alerts_sent == [("windows", ["Delantera izquierda: entreabierta"])]         # once; the sunshade is not an opening
+    assert poller.alerts_sent == [("windows", ["Ventanilla delantera izquierda entreabierta."])]         # once; the sunshade is not an opening
     charging = {**ajar, "state": "charging", "high_voltage_on": True}
     await check(poller, t + datetime.timedelta(minutes=310), **charging)                         # charging at night: same episode
     for minutes in (500, 506, 540):
         await check(poller, t + datetime.timedelta(minutes=minutes), **ajar)
     assert len(poller.alerts_sent) == 1
     await check(poller, t + datetime.timedelta(minutes=545), doors={}, windows={"fl": 1, "sunroof": 3})   # another one opens
-    assert poller.alerts_sent[-1] == ("windows", ["Delantera izquierda: entreabierta", "Techo solar: abierta"]) and len(poller.alerts_sent) == 2
+    assert poller.alerts_sent[-1] == ("windows", ["Ventanilla delantera izquierda entreabierta.", "Techo solar abierto."]) and len(poller.alerts_sent) == 2
     await check(poller, t + datetime.timedelta(minutes=600), doors={}, windows={"fl": 0, "sunroof": 0})   # closed: the episode ends
     await check(poller, t + datetime.timedelta(minutes=700), **ajar)
     await check(poller, t + datetime.timedelta(minutes=706), **ajar)
@@ -340,8 +340,8 @@ async def test_fully_open_windows_read_3_on_the_drivers_and_10_on_the_others(pol
     opened = {"fl": 3, "fr": 10, "rl": 10, "rr": 2}
     await check(poller, t + datetime.timedelta(minutes=20), doors={}, windows=opened)
     await check(poller, t + datetime.timedelta(minutes=26), doors={}, windows=opened)
-    assert poller.alerts_sent == [("windows", ["Delantera izquierda: abierta", "Delantera derecha: abierta", "Trasera izquierda: abierta",
-                                               "Trasera derecha: entreabierta"])]
+    assert poller.alerts_sent == [("windows", ["Ventanilla delantera izquierda abierta.", "Ventanilla delantera derecha abierta.", "Ventanilla trasera izquierda abierta.",
+                                               "Ventanilla trasera derecha entreabierta."])]
 
 
 async def test_an_alert_already_sent_survives_a_restart(poller) -> None:
@@ -350,7 +350,7 @@ async def test_an_alert_already_sent_survives_a_restart(poller) -> None:
     t = D(2026, 10, 28, 12, 0)
     await check(poller, t, doors={}, windows={"fl": 3})
     await check(poller, t + datetime.timedelta(minutes=6), doors={}, windows={"fl": 3})
-    assert poller.alerts_sent == [("windows", ["Delantera izquierda: abierta"])]
+    assert poller.alerts_sent == [("windows", ["Ventanilla delantera izquierda abierta."])]
     poller._pending_since.clear()                                                                # a restart forgets the waits…
     await check(poller, t + datetime.timedelta(minutes=30), doors={}, windows={"fl": 3})
     await check(poller, t + datetime.timedelta(minutes=36), doors={}, windows={"fl": 3})
@@ -365,7 +365,7 @@ async def test_an_unlocked_car_alerts_once_until_it_is_locked(poller) -> None:
         await check(poller, t + datetime.timedelta(minutes=minutes), is_locked=False, doors={})
     assert poller.alerts_sent == [("security", ["Vehículo sin cerrar con llave."])]
     await check(poller, t + datetime.timedelta(minutes=210), is_locked=False, doors={"rl": 1})    # and now a door too: news
-    assert poller.alerts_sent[-1] == ("security", ["Vehículo sin cerrar con llave.", "Puertas abiertas: rl"]) and len(poller.alerts_sent) == 2
+    assert poller.alerts_sent[-1] == ("security", ["Vehículo sin cerrar con llave.", "Puerta trasera izquierda abierta."]) and len(poller.alerts_sent) == 2
     await check(poller, t + datetime.timedelta(minutes=220), doors={})                           # locked and closed
     await check(poller, t + datetime.timedelta(minutes=300), is_locked=False, doors={})
     await check(poller, t + datetime.timedelta(minutes=306), is_locked=False, doors={})
@@ -447,3 +447,28 @@ async def test_a_charge_is_ac_unless_the_car_says_dc_and_it_can_be_corrected(web
     # an old charge without the column is shown as AC
     old = await add_charge()
     assert (await web.get(f"/api/charges/{old}")).json()["charge"]["charge_type"] == "ac"
+
+
+async def test_the_notice_names_each_door_in_full_and_in_the_language_of_the_account(monkeypatch) -> None:
+    """It used to print the internal keys («Puertas abiertas: fl»)."""
+    from app.core.telemetry import parse_telemetry_data
+    from app.i18n import render
+    from app.services.poller_alerts import DOOR_OPEN
+
+    assert set(DOOR_OPEN) == set(parse_telemetry_data({})["doors"])                 # every door the car reports has its name
+    seen = {}
+
+    async def dispatch(cls, **kwargs):
+        seen.update(kwargs)
+
+    monkeypatch.setattr(NotificationService, "dispatch", classmethod(dispatch))
+    await NotificationService.notify_security_alert("Ebro", [DOOR_OPEN["fl"], DOOR_OPEN["rr"], DOOR_OPEN["trunk"]], vin=VIN)
+    assert render(seen["message"], "es").splitlines()[1:] == ["• Puerta delantera izquierda abierta.", "• Puerta trasera derecha abierta.", "• Maletero abierto."]
+    assert render(seen["message"], "en").splitlines()[1:] == ["• Front left door open.", "• Rear right door open.", "• Boot open."]
+    # the windows speak the same way: one whole sentence per window
+    from app.services.poller_alerts import WINDOW_AJAR, WINDOW_OPEN, WINDOW_TEXT
+
+    assert set(WINDOW_TEXT) == set(parse_telemetry_data({})["windows"]) - {"sunshade"}
+    await NotificationService.notify_windows_open_alert("Ebro", [WINDOW_TEXT["fl"][WINDOW_AJAR], WINDOW_TEXT["sunroof"][WINDOW_OPEN]], vin=VIN)
+    assert render(seen["message"], "es").splitlines()[1:3] == ["• Ventanilla delantera izquierda entreabierta.", "• Techo solar abierto."]
+    assert render(seen["message"], "pt").splitlines()[1:3] == ["• Vidro dianteiro esquerdo entreaberto.", "• Teto de abrir aberto."]

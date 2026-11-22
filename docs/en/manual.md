@@ -54,7 +54,7 @@ What can be switched on from the sofa.
   - *Quick heating*: in one go, the climate control at 30 °C, the four seats, the steering wheel and the heated windscreen for 15 minutes. Turning it off turns everything off.
 - **Seats**: heating and ventilation per seat.
 - **Scheduled climate**: the server turns the climate control on at the time and days you choose, even with the app closed. It needs the PIN saved in the account.
-- **Scheduled battery preheating** (the official app's «Schedule departure»): you choose the time you leave and the weekdays, and the car warms the battery from an hour and a half before; it is best left plugged in. The schedule lives in the car: EVBro shows the one it has, with its state (**On** or **Off**, as the car reports it), and lets you change the time, the days and the switch with «Save to the car». It needs the PIN saved in the account.
+- **Scheduled battery preheating** (the official app's «Schedule departure»): you choose the time you leave and the weekdays, and the car warms the battery from an hour and a half before; it is best left plugged in. The schedule lives in the car: EVBro shows the one it has, with its state (**On** or **Off**, as the car reports it), and lets you change the time, the days and the switch with «Schedule». It needs the PIN saved in the account.
 - Every button shows the car's real state; after a command it shows "waiting for confirmation" until the car confirms.
 
 ## More

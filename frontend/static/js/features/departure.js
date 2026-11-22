@@ -40,16 +40,13 @@
   function render() {
     const list = el('departureList');
     if (!list) return;
-    const badge = el('departureBadge');
     const pinHint = el('departurePinHint');
     if (pinHint) pinHint.hidden = !(typeof currentAccountInfo !== 'undefined' && currentAccountInfo && currentAccountInfo.has_pin === false);
     if (!plan || !plan.known) {
-      if (badge) { badge.dataset.state = 'unknown'; badge.textContent = '—'; }
       list.innerHTML = `<p class="comfort-hint">${plan ? t('Este coche todavía no ha informado de su precalentamiento programado.') : t('No se pudo leer el precalentamiento programado.')}</p>`;
       el('departureSave').disabled = true;
       return;
     }
-    if (badge) { badge.dataset.state = plan.enabled ? 'on' : 'off'; badge.textContent = plan.enabled ? 'ON' : 'OFF'; }
     list.innerHTML = draft.map((d, i) => `
       <div class="csched-row dep-row ${d.enabled ? '' : 'is-off'}">
         <div class="csched-main">

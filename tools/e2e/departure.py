@@ -1,6 +1,6 @@
 """Browser test (Playwright) of Confort → «Precalentamiento de batería programado»: the state comes from what the car reports
 (Activado / Desactivado), the schedule has its time, its weekday chips and its switch (one, like the official app, even for a
-car that holds two entries), and «Guardar en el coche» sends it.
+car that holds two entries), and «Programar» sends it.
 The departure API is simulated (the demo car reports no plan). See tools/e2e/README.md."""
 import json
 import os
@@ -55,7 +55,8 @@ with sync_playwright() as p:
         pg.wait_for_timeout(300)
         panel = pg.inner_text("#departurePanel")
         ok("Precalentamiento de batería programado" in panel and "app oficial" not in panel, f"{theme}: the panel has its new title and no «según la app oficial»")
-        ok(pg.inner_text("#departureBadge") == "OFF", f"{theme}: the badge shows what the car reports")
+        ok(pg.locator("#departurePanel .comfort-state").count() == 0 and pg.inner_text("#departureSave") == "Programar",
+           f"{theme}: no ON/OFF badge, and the button says «Programar», like the scheduled climate")
         rows = pg.locator("#departurePanel .dep-row")
         ok(rows.count() == 1 and rows.locator(".csched-switch span").inner_text() == "Desactivado", f"{theme}: one schedule, and it says Desactivado")
         on = [rows.nth(0).locator(".csched-day").nth(k).get_attribute("aria-pressed") for k in range(7)]
@@ -71,14 +72,14 @@ with sync_playwright() as p:
         rows.nth(0).locator(".csched-day").nth(5).click()
         rows.nth(0).locator(".csched-day").nth(4).click()
         pg.locator("#departurePanel .dep-row .csched-switch input").check()
-        ok(pg.is_enabled("#departureSave"), f"{theme}: a change enables «Guardar en el coche»")
+        ok(pg.is_enabled("#departureSave"), f"{theme}: a change enables «Programar»")
         pg.click("#departureSave")
         pg.wait_for_timeout(800)
         ok(len(puts) == 1 and puts[0] == {"departures": [{"time": "07:30", "days": [1, 2, 3, 4, 6], "enabled": True}]},
            f"{theme}: one order with the time, the days and the switch ({puts})")
         row = pg.locator("#departurePanel .dep-row")
-        ok(row.locator(".csched-switch span").inner_text() == "Activado" and pg.inner_text("#departureBadge") == "ON" and pg.is_disabled("#departureSave"),
-           f"{theme}: saved: it reads Activado and the badge is ON")
+        ok(row.locator(".csched-switch span").inner_text() == "Activado" and pg.is_disabled("#departureSave"),
+           f"{theme}: saved: it reads Activado")
         pg.locator("#departurePanel").screenshot(path=f"{OUT}/departure-on-{theme}.png")
 
         # the last day cannot be taken away

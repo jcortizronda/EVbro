@@ -7,7 +7,7 @@ from __future__ import annotations
 import asyncio
 import datetime
 import logging
-from typing import Dict, Iterable, List, Optional, Set
+from typing import Any, Dict, Iterable, List, Optional, Set
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -40,8 +40,19 @@ FUEL_REARM_MARGIN = 5
 # Any other value that is not 0 counts as open too: better one alert too many than a window left open unnoticed.
 WINDOW_AJAR, WINDOW_OPEN = "ajar", "open"
 WINDOW_AJAR_VALUES = (1, 2)
-WINDOW_NAMES = {"fl": M("Delantera izquierda"), "fr": M("Delantera derecha"), "rl": M("Trasera izquierda"),
-                "rr": M("Trasera derecha"), "sunroof": M("Techo solar")}
+# What the notice says for each window (and the sunroof) left ajar or open: whole sentences, like the doors below
+WINDOW_TEXT = {
+    "fl": {WINDOW_AJAR: M("Ventanilla delantera izquierda entreabierta."), WINDOW_OPEN: M("Ventanilla delantera izquierda abierta.")},
+    "fr": {WINDOW_AJAR: M("Ventanilla delantera derecha entreabierta."), WINDOW_OPEN: M("Ventanilla delantera derecha abierta.")},
+    "rl": {WINDOW_AJAR: M("Ventanilla trasera izquierda entreabierta."), WINDOW_OPEN: M("Ventanilla trasera izquierda abierta.")},
+    "rr": {WINDOW_AJAR: M("Ventanilla trasera derecha entreabierta."), WINDOW_OPEN: M("Ventanilla trasera derecha abierta.")},
+    "sunroof": {WINDOW_AJAR: M("Techo solar entreabierto."), WINDOW_OPEN: M("Techo solar abierto.")},
+}
+# What the notice says for each thing left open (the keys of `doors` in core/telemetry.py). Until 2026-11-22 the notice
+# printed the keys themselves: «Puertas abiertas: fl».
+DOOR_OPEN = {"fl": M("Puerta delantera izquierda abierta."), "fr": M("Puerta delantera derecha abierta."),
+             "rl": M("Puerta trasera izquierda abierta."), "rr": M("Puerta trasera derecha abierta."),
+             "trunk": M("Maletero abierto."), "hood": M("Capó abierto.")}
 
 
 def open_windows(telemetry: Dict) -> Dict[str, str]:
@@ -52,7 +63,7 @@ def open_windows(telemetry: Dict) -> Dict[str, str]:
             position = int(value) if value is not None else 0
         except (TypeError, ValueError):
             position = 0                                   # no data is not an opening
-        if key in WINDOW_NAMES and position:
+        if key in WINDOW_TEXT and position:
             out[key] = WINDOW_AJAR if position in WINDOW_AJAR_VALUES else WINDOW_OPEN
     return out
 
@@ -178,8 +189,7 @@ class AlertsMixin:
         if not opened or driving:
             await self._fresh_alerts(session, vin, sent, "windows", [])
         elif windows_confirmed and await self._fresh_alerts(session, vin, sent, "windows", list(opened)):
-            desc = [M("{p0}: abierta", p0=WINDOW_NAMES[key]) if position == WINDOW_OPEN else M("{p0}: entreabierta", p0=WINDOW_NAMES[key])
-                    for key, position in opened.items()]
+            desc = [WINDOW_TEXT[key][position] for key, position in opened.items()]
             await NotificationService.notify_windows_open_alert(vehicle.name, desc, vin=vin)
 
         # 6. Vehicle fault / DTC alerts
@@ -190,18 +200,18 @@ class AlertsMixin:
         # 7. Security alerts when parked (doors open or not locked). They used to fire on the first «parked» reading
         #    (you arrive, open the door and get out: false alarm); now the car must be off and the situation must last
         #    SECURITY_CONFIRM_SECONDS. One alert per episode: it ends when the car is locked and closed, or drives off.
-        issues: Dict[str, str] = {}
+        issues: Dict[str, List[Any]] = {}                 # kind of problem → the lines of the notice (one per door)
         if left_car:
             if telemetry.get("is_locked") is False:
-                issues["unlocked"] = "Vehículo sin cerrar con llave."
+                issues["unlocked"] = [M("Vehículo sin cerrar con llave.")]
             open_doors = [k for k, v in (telemetry.get("doors") or {}).items() if v]
             if open_doors:
-                issues["doors"] = f"Puertas abiertas: {', '.join(open_doors)}"
+                issues["doors"] = [DOOR_OPEN.get(k) or M("Puerta abierta: {p0}", p0=k) for k in open_doors]
         security_confirmed = self._confirmed(vin, "security", bool(issues), utcnow())
         if driving or (left_car and not issues):
             await self._fresh_alerts(session, vin, sent, "security", [])
         elif security_confirmed and await self._fresh_alerts(session, vin, sent, "security", list(issues)):
-            await NotificationService.notify_security_alert(vehicle.name, list(issues.values()), vin=vin)
+            await NotificationService.notify_security_alert(vehicle.name, [line for lines in issues.values() for line in lines], vin=vin)
 
         # 8. Tyre pressure outside the range set on the vehicle
         await self._check_tyre_pressure(session, vehicle, telemetry, sent)

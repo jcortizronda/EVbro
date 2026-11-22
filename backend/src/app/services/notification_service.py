@@ -499,13 +499,13 @@ class NotificationService:
         )
 
     @classmethod
-    async def notify_security_alert(cls, vehicle_name: str, issues: List[str], vin: Optional[str] = None):
-        """Notifies when the car was left parked with doors open or unlocked."""
+    async def notify_security_alert(cls, vehicle_name: str, issues: List[Any], vin: Optional[str] = None):
+        """Notifies when the car was left parked with doors open or unlocked (`issues`: one text or `Message` per line)."""
         await cls.dispatch(
             vin=vin,
             category="security",
             title=M("Alerta de Seguridad: {p0}", p0=vehicle_name),
-            message=Message.join("\n", [M("El vehículo está estacionado pero se han detectado los siguientes avisos:"), *(f"• {i}" for i in issues)]),
+            message=Message.join("\n", [M("El vehículo está estacionado pero se han detectado los siguientes avisos:"), *(Message.join(" ", ["•", i]) for i in issues)]),
             tags=["lock", "rotating_light"],
             priority="high",
         )
