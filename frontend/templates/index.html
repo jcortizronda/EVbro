@@ -2382,13 +2382,19 @@
           </div>
           <div class="form-group">
             <label>Teléfono móvil</label>
-            <input type="tel" id="accPhone" class="form-control" placeholder="600000000" autocomplete="username" />
+            <input type="tel" id="accPhone" class="form-control" placeholder="600000000" autocomplete="off" inputmode="tel" />
           </div>
         </div>
 
         <div class="form-group u-margin-bottom-0p85rem">
           <label>Contraseña</label>
-          <input type="password" id="accPassword" class="form-control" placeholder="Tu contraseña de la app Ebro" autocomplete="current-password" />
+          <!-- `new-password`: the browser must not fill in (or offer to overwrite) the password of the EVBro account, saved for this
+               same site; with «Mostrar» the manager sees what is about to be sent -->
+          <div class="acc-password-row">
+            <input type="password" id="accPassword" class="form-control" placeholder="Tu contraseña de la app Ebro" autocomplete="new-password" autocapitalize="none" autocorrect="off" spellcheck="false" />
+            <button type="button" class="btn-secondary acc-password-show" id="accPasswordShow" aria-pressed="false" data-on-click="toggleEbroPassword()">Mostrar</button>
+          </div>
+          <small class="u-color-var-text-muted_font-size-0p75rem_margin-top-0p2rem">Es la de la app oficial de Ebro, no el PIN del coche ni la contraseña de EVBro. Si en la app oficial entras con un código por SMS, puede que no tengas contraseña: créala antes allí. Tras cinco intentos fallidos, Ebro bloquea la cuenta 5 minutos.</small>
         </div>
 
         <div class="form-group u-margin-bottom-1p25rem">

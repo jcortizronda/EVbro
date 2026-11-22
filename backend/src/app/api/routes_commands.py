@@ -19,7 +19,7 @@ from app.db.session import get_db
 from app.i18n import _
 from app.security import auth
 from app.security.access import space_owner_id
-from app.services import command_policy
+from app.services import cloud_usage, command_policy
 from app.services.command_policy import requires_pin
 from app.services.poller import VehiclePoller
 
@@ -136,10 +136,13 @@ async def get_alarm_state(vin: str, session: AsyncSession = Depends(get_db)):
     The alarm is not part of the telemetry: the car has to be asked. `enabled` is `None` if it could not be read."""
     if (await session.execute(select(Vehicle.vin).where(Vehicle.vin == vin))).first() is None:
         raise HTTPException(status_code=404, detail="Vehículo no encontrado.")
-    ctx = VehiclePoller.get_instance()._get_or_create_ctx(vin)
+    poller = VehiclePoller.get_instance()
+    ctx = poller._get_or_create_ctx(vin)
     loop = asyncio.get_running_loop()
     try:
-        value = await loop.run_in_executor(None, commands.query_theft_switch, ctx)
+        cloud_usage.count(cloud_usage.QUERY)
+        async with poller.cloud_lock(vin):                   # one conversation with the cloud per account at a time
+            value = await loop.run_in_executor(None, commands.query_theft_switch, ctx)
     except OSError as exc:
         # No Ebro session stored for this car (its account was never connected) or no network: «unknown», not a server error.
         # The page asks every minute, so this used to fill the log with tracebacks (seen with the demo car, 09-11-2026).

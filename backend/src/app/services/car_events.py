@@ -442,6 +442,11 @@ class CarEventHub:
     def status_for(self, owner_id: int) -> dict:
         return self.service_for(owner_id).status()
 
+    def listening(self, vin: str) -> bool:
+        """True when the live channel of that car is subscribed AND the car has already been heard on it since it connected:
+        a channel that is subscribed but silent (an account that is not the owner's gets nothing) proves nothing."""
+        return any(s.vin == vin and s.state == "subscribed" and s.messages > 0 for s in self._services.values())
+
 
 @dataclasses.dataclass
 class _ServiceError(Exception):

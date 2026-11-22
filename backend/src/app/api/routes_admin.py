@@ -20,6 +20,7 @@ from app.services import (
     admin_stats,
     catalog,
     catalog_remote,
+    cloud_usage,
     exit_survey,
     invites,
     storage,
@@ -225,6 +226,12 @@ async def send_message(req: MessageIn, request: Request, admin: AppUser = Depend
         raise HTTPException(status_code=422, detail=str(ex)) from ex
     await admin_audit.log(db, admin, "message.send", record.targets or "todos los gestores", f"{record.title} ({record.recipients})", request=request)
     return admin_messages.out(record)
+
+
+@router.get("/cloud-usage")
+async def cloud_usage_daily(days: int = 14, db: AsyncSession = Depends(get_db)):
+    """What this server asked of the Ebro cloud per day: reads (with data, empty, failed), other questions and orders."""
+    return await cloud_usage.daily(db, min(max(days, 1), 90))
 
 
 @router.get("/exit-surveys")

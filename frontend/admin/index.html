@@ -113,6 +113,12 @@
           <div class="card"><h2>Altas de cuentas por semana</h2><svg id="chartGrowth" class="chart" viewBox="0 0 480 160" role="img" aria-label="Altas de cuentas por semana"></svg></div>
         </div>
         <div class="card">
+          <h2>Lecturas y órdenes a la nube de Ebro</h2>
+          <p class="hint">Lo que este servidor le pide cada día a la nube de Ebro, todo desde una misma dirección. Una lectura son unas 4 peticiones; «Consultas» son las preguntas sueltas por la alarma y el plan de carga. Las horas son UTC. Si las fallidas suben de golpe, la nube puede estar frenando al servidor.</p>
+          <div class="table-wrap"><table id="tblCloud"><thead><tr><th>Día</th><th>Lecturas</th><th>Con datos</th><th>Vacías</th><th>Fallidas</th><th>Consultas</th><th>Órdenes</th><th>Órdenes fallidas</th><th>Peticiones (aprox.)</th></tr></thead><tbody></tbody></table></div>
+          <p class="empty" id="emptyCloud" hidden>Todavía no hay datos: se cuentan desde esta versión.</p>
+        </div>
+        <div class="card">
           <h2>Uso por gestor</h2>
           <div class="table-wrap"><table id="tblUsage"><thead><tr><th>Gestor</th><th>Coches</th><th>Cuentas asociadas</th><th>Órdenes (7 días)</th><th>Espacio usado</th><th>Último acceso</th></tr></thead><tbody></tbody></table></div>
         </div>

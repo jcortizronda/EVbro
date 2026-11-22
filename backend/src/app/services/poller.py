@@ -5,6 +5,7 @@ import asyncio
 import datetime
 import logging
 import os
+import weakref
 from typing import Callable, Dict, List, Optional, Set
 
 from sqlalchemy import select
@@ -18,7 +19,7 @@ from app.core.telemetry import parse_telemetry_data
 from app.db.models import EbroAccount, TelemetrySnapshot, Vehicle
 from app.db.session import async_session_factory
 from app.security.access import first_manager_id, foreign_vins, within_vehicle_limit
-from app.services import energy_recalc, vehicle_profiles
+from app.services import cloud_usage, energy_recalc, vehicle_profiles
 from app.services import telemetry as usage_reports
 from app.services.accounts import fetch_account_vehicles, vehicle_data_dir
 from app.services.car_events import CarEventHub
@@ -61,6 +62,14 @@ MAX_REPORTED_KEYS = 300
 
 
 _NETWORK_MARKERS = ("NameResolutionError", "Max retries exceeded", "ConnectionError", "ConnectTimeout", "ReadTimeout", "timed out")
+# Failures in which the question never left this server (the name did not resolve, the connection was not made): asking once
+# more costs the cloud nothing. A read timeout is not one of them: the cloud may have received that one.
+_UNSENT_MARKERS = ("NameResolutionError", "Temporary failure in name resolution", "Failed to establish a new connection", "ConnectTimeout")
+UNSENT_RETRY_SECONDS = 3.0
+# Paused at the charge target, the car is read often to learn early that it gets plugged in. With its live channel listening
+# the cable arrives on its own (and forces a read), so the frequent read is only a safety net.
+HOLD_POLL_SECONDS = 300
+HOLD_POLL_LIVE_SECONDS = 1800
 
 
 def read_failure_group(res: Dict) -> str:
@@ -101,6 +110,8 @@ class VehiclePoller(SessionMixin, CommandsMixin, AlertsMixin, PositionWatchMixin
     # Polls requested by car events (one at a time per vehicle)
     _poll_requests: Dict[str, "asyncio.Task"] = {}
     _poll_semaphore: Optional[asyncio.Semaphore] = None
+    # One conversation with the Ebro cloud at a time per ACCOUNT (see `cloud_lock`); kept per event loop (the tests use several)
+    _cloud_locks: "weakref.WeakKeyDictionary" = weakref.WeakKeyDictionary()
     # The read in progress per vehicle: whoever asks meanwhile waits for it instead of asking the cloud again
     _inflight: Dict[str, "asyncio.Task"] = {}
     # Sessions reopened with the stored password: the last attempt per Ebro account, and the accounts whose password the cloud
@@ -151,6 +162,22 @@ class VehiclePoller(SessionMixin, CommandsMixin, AlertsMixin, PositionWatchMixin
         self._latest_snapshots[vin] = telemetry
         self.broadcast_telemetry(vin, telemetry)
         return telemetry
+
+    def cloud_lock(self, vin: str) -> asyncio.Lock:
+        """The lock of the Ebro ACCOUNT this car is read with. Every conversation with the cloud (a read, an order, a question
+        about the charge plan or the alarm) starts by signing in, and each sign-in of an account makes the token of the previous
+        one worthless: two at once and one of them gets `A00000` «token caducado». Seen on 21/22-11-2026: the read that follows
+        an order came back empty while the charge manager asked for the plan (seven times in two days), and an order sent
+        seconds after another was refused. Held only around the talk with the cloud, never around what is done with the answer."""
+        locks = self._cloud_locks.setdefault(asyncio.get_running_loop(), {})
+        key = getattr(self._get_or_create_ctx(vin), "token_path", None) or vin
+        if key not in locks:
+            locks[key] = asyncio.Lock()
+        return locks[key]
+
+    def hold_poll_seconds(self, vin: str) -> int:
+        """How often a car paused at its charge target is read: seldom when its live channel would tell of the cable anyway."""
+        return HOLD_POLL_LIVE_SECONDS if CarEventHub.get_instance().listening(vin) else HOLD_POLL_SECONDS
 
     def request_poll(self, vin: str, force: bool = False) -> None:
         """Requests a poll now, without waiting for the loop. Does nothing if one is already running for that vehicle."""
@@ -439,17 +466,28 @@ class VehiclePoller(SessionMixin, CommandsMixin, AlertsMixin, PositionWatchMixin
             return res, captured_data
 
         try:
-            res, raw_data = await loop.run_in_executor(None, _probe)
+            async with self.cloud_lock(vin):
+                res, raw_data = await loop.run_in_executor(None, _probe)
         except Exception as e:
             usage_reports.count_poll("error")
+            cloud_usage.count(cloud_usage.READ_FAILED)
             _LOGGER.error(f"Exception polling {vin}: {e}", exc_info=True)
             return None
+
+        failed = isinstance(res, dict) and res.get("ok") is False and res.get("reason") != "cooldown"
+        if failed and _retry and res.get("reason") == "exception" and any(m in str(res.get("error") or "") for m in _UNSENT_MARKERS):
+            # The question never left (no DNS, no connection: every restart of the server left one or two of these): once more
+            cloud_usage.count(cloud_usage.READ_FAILED)
+            _LOGGER.info("Read of %s could not reach the cloud (%s): trying once more", vin[-6:], read_failure_group(res))
+            await asyncio.sleep(UNSENT_RETRY_SECONDS)
+            return await self._poll_vehicle(vin, force=True, _retry=False)
 
         if isinstance(res, dict) and res.get("ok") is False and res.get("reason") == "no_usertoken" and _retry:
             # The session is dead and the refresh token did not bring it back: sign in again with the stored password and retry once
             if await self._recover_session(vin):
+                cloud_usage.count(cloud_usage.READ_FAILED)
                 return await self._poll_vehicle(vin, force=True, _retry=False)
-        if isinstance(res, dict) and res.get("ok") is False and res.get("reason") != "cooldown":
+        if failed:
             # With the probe's error text: «exception» alone left 194 reports in the project's console impossible to diagnose
             detail = f" ({without_secrets(str(res.get('error')))[:200]})" if res.get("error") else ""
             group = read_failure_group(res)
@@ -475,10 +513,15 @@ class VehiclePoller(SessionMixin, CommandsMixin, AlertsMixin, PositionWatchMixin
         cloud_codes = res.get("codes") if isinstance(res, dict) else None
         if not raw_data:
             usage_reports.count_poll("empty")
+            if failed:
+                cloud_usage.count(cloud_usage.READ_FAILED)
+            elif not (isinstance(res, dict) and res.get("reason") == "cooldown"):     # a read held back by the cooldown asked nothing
+                cloud_usage.count(cloud_usage.READ_EMPTY)
             if cloud_codes:
                 _LOGGER.info("Read of %s came back empty, cloud codes (realtime, location, trips): %s", vin[-6:], cloud_codes)
             return None
         usage_reports.count_poll("ok")
+        cloud_usage.count(cloud_usage.READ_OK)
 
         # Normalise the telemetry
         # The MQTT push wins over the poll when both carry the same key: the poll sometimes returns
@@ -706,7 +749,7 @@ class VehiclePoller(SessionMixin, CommandsMixin, AlertsMixin, PositionWatchMixin
 
                     interval = self._calculate_sleep_seconds(current_state, latest)
                     if ChargeManager.get_instance().wants_fast_poll(vin):
-                        interval = min(interval, 300)        # paused at the target: learn early that it gets plugged in
+                        interval = min(interval, self.hold_poll_seconds(vin))     # paused at the target: learn early that it gets plugged in
                     if TripDetector.has_open_trip(vin):
                         interval = min(interval, OPEN_TRIP_POLL_SECONDS)     # open trip: close it soon after parking
 
@@ -727,6 +770,10 @@ class VehiclePoller(SessionMixin, CommandsMixin, AlertsMixin, PositionWatchMixin
                 _LOGGER.error(f"Error in a polling iteration: {e}")
 
             await ChargeManager.get_instance().tick()
+            try:
+                await cloud_usage.flush()
+            except Exception as e:                            # noqa: BLE001 — only a counter
+                _LOGGER.debug("Could not write the cloud usage counter: %s", e)
             await self._run_climate_schedules()
             await self._maybe_apply_retention()
             await self._maybe_sync_catalog()
@@ -804,6 +851,10 @@ class VehiclePoller(SessionMixin, CommandsMixin, AlertsMixin, PositionWatchMixin
                 await self._task
             except asyncio.CancelledError:
                 pass
+        try:
+            await cloud_usage.flush(force=True)
+        except Exception as e:                                # noqa: BLE001 — only a counter
+            _LOGGER.debug("Could not write the cloud usage counter: %s", e)
         await CarEventHub.get_instance().stop()
         await MqttPublisher.stop()
         await MqttHub.get_instance().stop()

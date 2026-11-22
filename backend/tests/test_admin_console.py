@@ -428,6 +428,20 @@ async def test_the_statistics_count_accounts_cars_usage_and_data_without_leaking
         assert private not in blob, private
 
 
+async def test_the_console_shows_what_the_server_asks_of_the_ebro_cloud(admin) -> None:
+    from app.services import cloud_usage
+
+    cloud_usage._pending.clear()
+    assert (await admin.get("/api/admin/cloud-usage")).json() == []
+    for kind in ("read_ok", "read_ok", "read_failed", "query"):
+        cloud_usage.count(kind)
+    (today,) = (await admin.get("/api/admin/cloud-usage?days=3")).json()
+    assert (today["reads"], today["read_ok"], today["read_failed"], today["query"], today["requests"]) == (3, 2, 1, 1, 3 * 4 + 2)
+    cloud_usage._pending.clear()
+    async with the_app() as a:
+        assert (await a.get("/api/admin/cloud-usage")).status_code in (401, 404)
+
+
 async def test_the_console_shows_why_accounts_were_deleted(admin) -> None:
     from app.services import exit_survey
 

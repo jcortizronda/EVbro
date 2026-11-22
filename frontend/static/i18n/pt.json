@@ -2342,5 +2342,20 @@
  "Nadie ha contestado todavía.": "Ainda ninguém respondeu.",
  "{p0} coches · {p1} cuentas asociadas": "{p0} carros · {p1} contas associadas",
  "Nos ayuda a mejorar EVBro.": "Ajuda-nos a melhorar o EVBro.",
- "Lo que contestan, si quieren, los gestores que borran su propia cuenta desde la app. Es lo único que queda de la cuenta, con su nombre de usuario.": "O que respondem, se quiserem, os gestores que apagam a própria conta a partir da app. É a única coisa que fica da conta, com o nome de utilizador."
+ "Lo que contestan, si quieren, los gestores que borran su propia cuenta desde la app. Es lo único que queda de la cuenta, con su nombre de usuario.": "O que respondem, se quiserem, os gestores que apagam a própria conta a partir da app. É a única coisa que fica da conta, com o nome de utilizador.",
+ "Lecturas y órdenes a la nube de Ebro": "Leituras e ordens à nuvem da Ebro",
+ "Lo que este servidor le pide cada día a la nube de Ebro, todo desde una misma dirección. Una lectura son unas 4 peticiones; «Consultas» son las preguntas sueltas por la alarma y el plan de carga. Las horas son UTC. Si las fallidas suben de golpe, la nube puede estar frenando al servidor.": "O que este servidor pede todos os dias à nuvem da Ebro, tudo a partir do mesmo endereço. Uma leitura são cerca de 4 pedidos; «Consultas» são as perguntas avulsas sobre o alarme e o plano de carga. Os dias são UTC. Se as falhadas subirem de repente, a nuvem pode estar a travar o servidor.",
+ "Día": "Dia",
+ "Lecturas": "Leituras",
+ "Con datos": "Com dados",
+ "Vacías": "Vazias",
+ "Fallidas": "Falhadas",
+ "Consultas": "Consultas",
+ "Órdenes": "Ordens",
+ "Órdenes fallidas": "Ordens falhadas",
+ "Peticiones (aprox.)": "Pedidos (aprox.)",
+ "Todavía no hay datos: se cuentan desde esta versión.": "Ainda não há dados: contam-se a partir desta versão.",
+ "Mostrar": "Mostrar",
+ "Ocultar": "Ocultar",
+ "Es la de la app oficial de Ebro, no el PIN del coche ni la contraseña de EVBro. Si en la app oficial entras con un código por SMS, puede que no tengas contraseña: créala antes allí. Tras cinco intentos fallidos, Ebro bloquea la cuenta 5 minutos.": "É a da app oficial da Ebro, não o PIN do carro nem a palavra-passe do EVBro. Se na app oficial entras com um código por SMS, talvez não tenhas palavra-passe: cria-a lá primeiro. Após cinco tentativas falhadas, a Ebro bloqueia a conta durante 5 minutos."
 }

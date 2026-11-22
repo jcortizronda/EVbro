@@ -56,6 +56,11 @@ def send(monkeypatch) -> FakeSend:
     async def _no_poll(self, vin, force=False):          # the poll after a success would hit the network
         return None
     monkeypatch.setattr(VehiclePoller, "poll_vehicle", _no_poll)
+
+    async def _no_recovery(self, vin):                    # reopening a refused session would sign in to the real cloud
+        return False
+    monkeypatch.setattr(VehiclePoller, "_recover_session", _no_recovery)
+    monkeypatch.setattr("app.services.poller_commands.BUSY_WAIT_SECONDS", 0.0)
     return fake
 
 

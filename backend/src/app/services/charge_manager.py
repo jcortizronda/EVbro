@@ -41,6 +41,7 @@ from app.config import get_timezone
 from app.core import commands
 from app.db.models import ChargePlan, Vehicle
 from app.db.session import async_session_factory
+from app.services import cloud_usage
 from app.services.charge_detector import grid_charging
 from app.services.notification_service import NotificationService
 from app.vehicle import charging
@@ -436,9 +437,12 @@ class ChargeManager:
 
     async def _read_car_schedule(self, vin: str) -> Optional[dict]:
         from app.services.poller import VehiclePoller
-        ctx = VehiclePoller.get_instance()._get_or_create_ctx(vin)
+        poller = VehiclePoller.get_instance()
+        ctx = poller._get_or_create_ctx(vin)
         loop = asyncio.get_running_loop()
-        payload = await loop.run_in_executor(None, commands.query_charge_schedule, ctx)
+        cloud_usage.count(cloud_usage.QUERY)
+        async with poller.cloud_lock(vin):                   # one conversation with the cloud per account at a time
+            payload = await loop.run_in_executor(None, commands.query_charge_schedule, ctx)
         sched = charging.parse_schedule(payload, get_timezone(), self._clock())
         if sched is None:
             return None

@@ -114,6 +114,10 @@ evbro.example.com {
 2. **Ajustes → Cuenta**: conecta tu teléfono, contraseña y PIN de Ebro (se guardan cifrados).
 3. **Ajustes → Avisos → Activar en este dispositivo** para las notificaciones.
 
+## El reloj del servidor
+
+EVBro fecha todo con el reloj de la máquina y no lo pone en duda. Si el equipo arranca con el reloj atrasado (una pila de placa agotada: el 22-11-2026 el servidor del proyecto arrancó creyendo que era abril, y la hora de red tardó menos de un minuto en corregirlo), lo que se guarde entretanto lleva una fecha falsa: aquel día fueron seis lecturas, un punto de una curva de carga, un punto de una ruta y una orden, que se borraron a mano. Conviene que el equipo tenga la sincronización de hora activa y que el contenedor no arranque antes de que el reloj esté en hora.
+
 ## Registro
 
 Además de la salida de `docker compose logs app`, EVBro escribe el registro en el **volumen de datos**, `logs/evbro.log`: el de Docker se pierde cada vez que se recrea el contenedor, es decir, en cada actualización. El fichero rota a los 5 MB y guarda cuatro anteriores (`evbro.log.1` … `evbro.log.4`), y entra en la copia diaria del volumen. Para leerlo:

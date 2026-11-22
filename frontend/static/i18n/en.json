@@ -2342,5 +2342,20 @@
  "Nadie ha contestado todavía.": "Nobody has answered yet.",
  "{p0} coches · {p1} cuentas asociadas": "{p0} cars · {p1} linked accounts",
  "Nos ayuda a mejorar EVBro.": "It helps us improve EVBro.",
- "Lo que contestan, si quieren, los gestores que borran su propia cuenta desde la app. Es lo único que queda de la cuenta, con su nombre de usuario.": "What managers answer, if they wish, when they delete their own account from the app. It is the only thing left of the account, with its username."
+ "Lo que contestan, si quieren, los gestores que borran su propia cuenta desde la app. Es lo único que queda de la cuenta, con su nombre de usuario.": "What managers answer, if they wish, when they delete their own account from the app. It is the only thing left of the account, with its username.",
+ "Lecturas y órdenes a la nube de Ebro": "Reads and orders sent to the Ebro cloud",
+ "Lo que este servidor le pide cada día a la nube de Ebro, todo desde una misma dirección. Una lectura son unas 4 peticiones; «Consultas» son las preguntas sueltas por la alarma y el plan de carga. Las horas son UTC. Si las fallidas suben de golpe, la nube puede estar frenando al servidor.": "What this server asks of the Ebro cloud each day, all from one address. A read is about 4 requests; “Queries” are the single questions about the alarm and the charge plan. Days are UTC. If failed reads jump, the cloud may be slowing this server down.",
+ "Día": "Day",
+ "Lecturas": "Reads",
+ "Con datos": "With data",
+ "Vacías": "Empty",
+ "Fallidas": "Failed",
+ "Consultas": "Queries",
+ "Órdenes": "Orders",
+ "Órdenes fallidas": "Failed orders",
+ "Peticiones (aprox.)": "Requests (approx.)",
+ "Todavía no hay datos: se cuentan desde esta versión.": "No data yet: they are counted from this version on.",
+ "Mostrar": "Show",
+ "Ocultar": "Hide",
+ "Es la de la app oficial de Ebro, no el PIN del coche ni la contraseña de EVBro. Si en la app oficial entras con un código por SMS, puede que no tengas contraseña: créala antes allí. Tras cinco intentos fallidos, Ebro bloquea la cuenta 5 minutos.": "It is the one of the official Ebro app, not the car's PIN or your EVBro password. If you sign in to the official app with an SMS code, you may not have a password: create one there first. After five failed attempts, Ebro locks the account for 5 minutes."
 }

@@ -141,7 +141,7 @@ $('btnPassword').addEventListener('click', async () => {
 
 // ───────────────────────── tabs ─────────────────────────
 document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click', () => {
-  if (tab.dataset.tab === 'stats') loadStats();
+  if (tab.dataset.tab === 'stats') { loadStats(); loadCloudUsage(); }
   document.querySelectorAll('.tab').forEach((t) => { const on = t === tab; t.classList.toggle('is-active', on); t.setAttribute('aria-selected', String(on)); });
   if (tab.dataset.tab === 'audit') loadAudit();
   if (tab.dataset.tab === 'managers') loadExitSurveys();
@@ -150,7 +150,7 @@ document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click',
   for (const name of ['managers', 'stats', 'invites', 'messages', 'server', 'catalog', 'reports', 'audit']) $('tab' + name[0].toUpperCase() + name.slice(1)).hidden = tab.dataset.tab !== name;
 }));
 
-async function loadAll() { await Promise.all([loadManagers().then(drawMessageManagers), loadExitSurveys(), loadStats(), loadInvites(), loadMessages(), loadServer(), loadCatalog(), loadCatalogSource(), loadCatalogKeys(), loadAudit(), loadTelemetry()]); }
+async function loadAll() { await Promise.all([loadManagers().then(drawMessageManagers), loadExitSurveys(), loadStats(), loadCloudUsage(), loadInvites(), loadMessages(), loadServer(), loadCatalog(), loadCatalogSource(), loadCatalogKeys(), loadAudit(), loadTelemetry()]); }
 
 // ───────────────────────── managers ─────────────────────────
 async function loadManagers() {
@@ -278,7 +278,25 @@ async function loadStats() {
     h('td', {}, h('strong', {}, m.username), m.is_active ? '' : ' (desactivado)'), h('td', {}, num(m.vehicles)), h('td', {}, num(m.members)),
     h('td', {}, num(m.commands_7d)), h('td', {}, bytes(m.storage_bytes)), h('td', {}, fmtDate(m.last_login)))));
 }
-$('btnRefreshStats').addEventListener('click', loadStats);
+$('btnRefreshStats').addEventListener('click', () => { loadStats(); loadCloudUsage(); });
+
+// What the server asks of the Ebro cloud per day (services/cloud_usage.py)
+async function loadCloudUsage() {
+  let rows;
+  try { rows = await api('/api/admin/cloud-usage?days=14'); } catch (e) { return; }
+  const body = $('tblCloud').querySelector('tbody');
+  body.replaceChildren();
+  $('emptyCloud').hidden = rows.length > 0;
+  for (const r of rows) {
+    const failedShare = r.reads ? r.read_failed / r.reads : 0;
+    body.append(h('tr', {},
+      h('td', { class: 'limit' }, new Date(r.day + 'T00:00:00Z').toLocaleDateString(I18n.locale, { timeZone: 'UTC' })),
+      h('td', { class: 'limit' }, num(r.reads)), h('td', { class: 'limit' }, num(r.read_ok)), h('td', { class: 'limit' }, num(r.read_empty)),
+      h('td', { class: 'limit' }, failedShare > 0.1 ? h('span', { class: 'chip off' }, num(r.read_failed)) : num(r.read_failed)),
+      h('td', { class: 'limit' }, num(r.query)), h('td', { class: 'limit' }, num(r.commands_ok + r.commands_failed)),
+      h('td', { class: 'limit' }, num(r.commands_failed)), h('td', { class: 'limit' }, num(r.requests))));
+  }
+}
 
 /** Bars of new accounts per week, as SVG built with attributes (the page's CSP forbids inline styles). */
 function drawGrowth(weeks) {

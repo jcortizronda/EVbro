@@ -555,6 +555,15 @@ class AdminMessage(Base):
     silenced = Column(Integer, nullable=False, default=0)     # of those, accounts that had these messages silenced
 
 
+class CloudUsage(Base):
+    """What this server asked of the Ebro cloud on one day, by kind (services/cloud_usage.py): reads with data, empty and failed."""
+    __tablename__ = "cloud_usage"
+
+    day = Column(Date, primary_key=True)
+    kind = Column(String(20), primary_key=True)
+    count = Column(Integer, nullable=False, default=0)
+
+
 class AccountExitSurvey(Base):
     """What a manager answered, if anything, when deleting its own account: why it leaves and a free comment. It is the one
     thing that outlives the account, with its USERNAME (/legal says so); the administrator reads it in the console.

@@ -122,6 +122,20 @@ async function openAccountModal() {
 function closeAccountModal() {
   const modal = document.getElementById('accountModal');
   if (modal) modal.classList.remove('open');
+  showEbroPassword(false);                                  // never left readable behind a closed dialog
+}
+
+/** «Mostrar»: the manager sees the Ebro password about to be sent (the cloud blocks the account for 5 minutes after five wrong ones). */
+function showEbroPassword(show) {
+  const field = document.getElementById('accPassword');
+  const btn = document.getElementById('accPasswordShow');
+  if (!field || !btn) return;
+  field.type = show ? 'text' : 'password';
+  btn.textContent = show ? t('Ocultar') : t('Mostrar');
+  btn.setAttribute('aria-pressed', String(show));
+}
+function toggleEbroPassword() {
+  showEbroPassword(document.getElementById('accPassword').type === 'password');
 }
 
 async function submitEbroLogin() {
