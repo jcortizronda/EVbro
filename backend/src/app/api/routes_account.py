@@ -19,7 +19,7 @@ from app.db.session import get_db
 from app.i18n import _
 from app.security import auth, passwords
 from app.security.access import foreign_vins, is_root, space_owner_id, within_vehicle_limit
-from app.services import command_policy, mqtt_hub, storage, tenant, vehicle_profiles
+from app.services import command_policy, exit_survey, mqtt_hub, storage, tenant, vehicle_profiles
 from app.services.accounts import fetch_account_vehicles
 from app.services.car_events import CarEventHub
 from app.services.command_policy import pin_throttle, pin_throttle_key
@@ -489,6 +489,10 @@ async def test_mqtt_link(req: MqttLinkIn, session: AsyncSession = Depends(get_db
 class AccountDelete(BaseModel):
     confirm: str = Field(max_length=80)        # the username, typed by hand
     password: str = Field(max_length=256)
+    # Optional: why it leaves (services/exit_survey.py). Kept with the username, for the administrator. Any value is taken
+    # and the unknown ones are dropped there: a mangled survey must never stop somebody from deleting their account.
+    reasons: List[Any] = Field(default_factory=list, max_length=20)
+    comment: Optional[str] = Field(default=None, max_length=exit_survey.COMMENT_MAX)
 
 
 @router.post("/delete")
@@ -497,7 +501,7 @@ async def delete_own_account(req: AccountDelete, request: Request, response: Res
     """The manager deletes its own account and everything in its space: cars with their history, member accounts, geofences, the
     Ebro account and its session, notification channels and the stored files. It cannot be undone, so it asks twice: the
     username typed by hand (against a slip) and the password (against somebody else at an open session)."""
-    user_id, username = user.id, user.username
+    user_id, username, created_at = user.id, user.username, user.created_at
     ip = auth.client_ip(request)
     _check_throttle((ip_throttle, f"ip:{ip}"))
     if req.confirm.strip().lower() != username:
@@ -507,6 +511,7 @@ async def delete_own_account(req: AccountDelete, request: Request, response: Res
         raise HTTPException(status_code=403, detail="La contraseña no es correcta.")
     vins = await tenant.vins_of(session, user_id)
     removed = await tenant.delete_manager_space(session, user_id)
+    await exit_survey.record(session, username, req.reasons, req.comment, created_at, removed)      # why it leaves, if it said so
     await session.commit()
     await tenant.release_manager_runtime(user_id, vins)
     auth.clear_session_cookie(response)

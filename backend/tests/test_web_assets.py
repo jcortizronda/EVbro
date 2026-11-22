@@ -118,6 +118,7 @@ def test_the_headers_carry_a_small_image() -> None:
         file = WEB / path.removeprefix("/")
         assert file.is_file() and file.stat().st_size < 100_000, f"{path} is too heavy for a strip"
     assert re.search(r"\.page-banner \{[^}]*min-height: 9\d?px", CSS)
+
     for ident in ("vehicleName", "vehicleStatusBadge", "vehicleVin", "heroPlateBadge", "energyHeroTitle",
                   "chargeHeroStateBadge", "energyHeroPlateBadge", "climateHeroTitle", "climateStatusBadge"):
         assert f'id="{ident}"' in text, ident
@@ -260,3 +261,15 @@ def test_every_copy_of_the_logo_is_the_current_one() -> None:
     current = (WEB / "static" / "icons" / "icon.svg").read_bytes()
     for copy in (WEB / "static" / "icons" / "favicon.svg", WEB / "admin" / "assets" / "logo.svg"):
         assert copy.read_bytes() == current, f"{copy.name} is not the current logo: copy static/icons/icon.svg over it"
+
+
+def test_a_replaced_picture_is_not_served_from_a_stale_browser_copy() -> None:
+    """The sheets name the pictures without `?v=`: without `no-cache` a browser kept a replaced banner for days."""
+    from starlette.testclient import TestClient
+
+    from app.main import app
+    with TestClient(app) as client:
+        r = client.get("/static/images/banner-dashboard.jpg")
+        assert r.status_code == 200 and r.headers["cache-control"] == "no-cache" and r.headers.get("etag")
+        again = client.get("/static/images/banner-dashboard.jpg", headers={"If-None-Match": r.headers["etag"]})
+        assert again.status_code == 304                                    # asking again costs no download

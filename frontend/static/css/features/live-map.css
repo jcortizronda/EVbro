@@ -44,3 +44,6 @@
 }
 .map-card.map-expanded .map-fabs { bottom: 14px; }
 body.map-open { overflow: hidden; }
+/* On a computer the map's block is sticky, and a sticky box is a stacking context of its own: the expanded map stayed UNDER the
+   header and the side menu, which covered its close and zoom buttons. With the map open, its block goes above them. */
+body.map-open .home-widget[data-widget="map"] { z-index: 1500; }

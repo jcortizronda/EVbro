@@ -148,3 +148,20 @@ async def test_0035_adds_the_admin_messages_and_their_switch_to_a_database_that_
     assert "notify_admin_messages" in after["notification_configs"] and bool(kept) is True
     await migrate.upgrade_to_head(scratch_url)                 # and again: nothing to do, nothing breaks
     assert await _version(scratch_url) == migrate.head_revision()
+
+
+async def test_0036_adds_the_exit_surveys_to_a_database_that_lacks_them(scratch_url) -> None:
+    import asyncio
+
+    from alembic import command
+    await asyncio.to_thread(command.upgrade, migrate.alembic_config(scratch_url), "0035_admin_messages")
+    engine = create_async_engine(scratch_url)
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("DROP TABLE account_exit_surveys"))
+    finally:
+        await engine.dispose()
+    assert "account_exit_surveys" not in await _tables(scratch_url)
+    await migrate.upgrade_to_head(scratch_url)
+    assert (await _tables(scratch_url))["account_exit_surveys"] == {c.name for c in Base.metadata.tables["account_exit_surveys"].columns}
+    assert await _version(scratch_url) == migrate.head_revision()

@@ -428,6 +428,23 @@ async def test_the_statistics_count_accounts_cars_usage_and_data_without_leaking
         assert private not in blob, private
 
 
+async def test_the_console_shows_why_accounts_were_deleted(admin) -> None:
+    from app.services import exit_survey
+
+    empty = (await admin.get("/api/admin/exit-surveys")).json()
+    assert empty["total"] == 0 and empty["entries"] == [] and set(empty["reasons"]) == set(exit_survey.REASONS)
+    async with async_session_factory() as s:
+        await exit_survey.record(s, "ana", ["not_working", "other"], "No leía mi coche.", None, {"vehicles": 2, "members": 0})
+        await exit_survey.record(s, "beto", ["not_working"], None, None, {"vehicles": 1, "members": 3})
+        await s.commit()
+    data = (await admin.get("/api/admin/exit-surveys")).json()
+    assert data["total"] == 2 and data["reasons"]["not_working"] == 2 and data["reasons"]["other"] == 1
+    assert [(e["username"], e["reasons"], e["comment"], e["vehicles"], e["members"]) for e in data["entries"]] == [
+        ("beto", ["not_working"], None, 1, 3), ("ana", ["not_working", "other"], "No leía mi coche.", 2, 0)]      # newest first
+    async with the_app() as a:
+        assert (await a.get("/api/admin/exit-surveys")).status_code in (401, 404)
+
+
 async def test_the_statistics_work_on_an_empty_server(admin) -> None:
     d = (await admin.get("/api/admin/stats")).json()
     assert d["accounts"]["total"] == 0 and d["vehicles"]["total"] == 0 and d["managers"] == [] and d["data"]["oldest_snapshot"] is None

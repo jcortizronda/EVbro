@@ -182,3 +182,40 @@ async def test_deleting_the_account_removes_its_whole_space_and_nobody_elses(wor
     assert (await world[3].get("/api/vehicles")).status_code == 401
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://testserver") as c:
         assert (await c.post("/api/auth/login", json={"username": "juan", "password": PW})).status_code == 401
+
+
+# ───────────────────────── the optional survey: why the account is deleted ─────────────────────────
+async def test_the_answers_outlive_the_account_with_its_username_for_the_administrator(world) -> None:
+    from app.db.models import AccountExitSurvey
+    from app.services import exit_survey
+
+    async with async_session_factory() as s:                                   # the account is 40 days old
+        (await s.get(AppUser, 1)).created_at = datetime.datetime.utcnow() - datetime.timedelta(days=40, hours=3)
+        await s.commit()
+    body = {"confirm": "juan", "password": PW, "reasons": ["other", "dislike", "dislike", "se-lo-inventa", 7],
+            "comment": "  Me iba lento.\r\n<b>Y esto no es HTML</b>\x00  "}
+    assert (await world[1].post("/api/account/delete", json={**body, "password": "no-es-esta"})).status_code == 403
+    assert await count(AccountExitSurvey) == 0                                 # nothing deleted, nothing kept
+    r = await world[1].post("/api/account/delete", json=body)
+    assert r.status_code == 200, r.text
+    async with async_session_factory() as s:
+        row = (await s.execute(select(AccountExitSurvey))).scalar_one()
+        assert row.reasons == ["dislike", "other"]                              # known ones, once each, in the order of the dialog
+        assert row.comment == "Me iba lento.\n<b>Y esto no es HTML</b>"         # as text, without control characters
+        assert (row.account_age_days, row.vehicles, row.members) == (40, 1, 1)
+        assert row.username == "juan"                                           # who said it: the one thing left of the account
+        assert not {"user_id", "vin"} & set(AccountExitSurvey.__table__.c.keys())      # but no id: the account is gone
+        data = await exit_survey.summary(s)
+    assert data["total"] == 1 and data["reasons"]["dislike"] == 1 and data["reasons"]["other"] == 1 and data["reasons"]["privacy"] == 0
+    assert data["entries"][0]["comment"].startswith("Me iba lento.") and data["entries"][0]["username"] == "juan"
+
+
+async def test_no_answer_keeps_nothing_and_a_long_comment_does_not_delete(world) -> None:
+    from app.db.models import AccountExitSurvey
+
+    r = await world[1].post("/api/account/delete", json={"confirm": "juan", "password": PW, "comment": "x" * 1001})
+    assert r.status_code == 422 and await count(AppUser) == 3                  # a refused form deletes nothing
+    r = await world[1].post("/api/account/delete", json={"confirm": "juan", "password": PW, "reasons": [], "comment": "   "})
+    assert r.status_code == 200 and await count(AccountExitSurvey) == 0        # the survey is optional
+    r = await world[2].post("/api/account/delete", json={"confirm": "otro", "password": PW, "reasons": ["sold_car"]})
+    assert r.status_code == 200 and await count(AccountExitSurvey) == 1        # a reason alone is an answer

@@ -20,6 +20,7 @@ from app.services import (
     admin_stats,
     catalog,
     catalog_remote,
+    exit_survey,
     invites,
     storage,
     telemetry,
@@ -224,6 +225,12 @@ async def send_message(req: MessageIn, request: Request, admin: AppUser = Depend
         raise HTTPException(status_code=422, detail=str(ex)) from ex
     await admin_audit.log(db, admin, "message.send", record.targets or "todos los gestores", f"{record.title} ({record.recipients})", request=request)
     return admin_messages.out(record)
+
+
+@router.get("/exit-surveys")
+async def exit_surveys(db: AsyncSession = Depends(get_db)):
+    """Why managers deleted their own accounts: who, the reasons they ticked and what they wrote."""
+    return await exit_survey.summary(db)
 
 
 class RejectIn(BaseModel):

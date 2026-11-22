@@ -71,11 +71,13 @@
   function openDelete() {
     el('adDeleteConfirm').value = '';
     el('adDeletePassword').value = '';
+    el('adDeleteComment').value = '';
+    document.querySelectorAll('input[name="adReason"]').forEach((box) => { box.checked = false; });
     el('adDeleteConfirmLabel').textContent = t('Escribe «{p0}» para confirmar', {p0: EbroAuth.username || ''});
     deleteError('');
     checkDelete();
     el('accountDeleteModal').classList.add('open');
-    setTimeout(() => el('adDeleteConfirm').focus(), 50);
+    el('accountDeleteModal').querySelector('.modal-card').scrollTop = 0;
   }
 
   function closeDelete() {
@@ -106,7 +108,12 @@
       const res = await fetch('/api/account/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ confirm: typedName(), password: el('adDeletePassword').value }),
+        body: JSON.stringify({
+          confirm: typedName(), password: el('adDeletePassword').value,
+          // the optional survey: why the account is deleted
+          reasons: [...document.querySelectorAll('input[name="adReason"]:checked')].map((box) => box.value),
+          comment: el('adDeleteComment').value.trim() || null,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {

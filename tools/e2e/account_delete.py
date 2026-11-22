@@ -1,5 +1,7 @@
 """Browser test (Playwright): Ajustes → Cuenta → «Borrar la cuenta». The dialog asks for the username typed by hand and for the
 password; a wrong password deletes nothing; the real deletion ends on the sign-in screen and the account no longer opens.
+The dialog also carries an optional survey (why the account is deleted): what is answered reaches the admin console, with
+the username.
 
 DESTRUCTIVE for the demo server: it deletes the demo manager, so it starts its own demo server and stops it at the end (run it
 last, or on its own). See tools/e2e/README.md."""
@@ -11,6 +13,8 @@ import tempfile
 from playwright.sync_api import sync_playwright
 
 BASE = os.environ.get("EVBRO_URL", "http://127.0.0.1:8099")
+CONSOLE = os.environ.get("EVBRO_ADMIN_URL", "http://127.0.0.1:8098")
+ADMIN, ADMIN_PW = "admin", "contraseña-del-admin-1"
 USER = os.environ.get("EVBRO_USER", "juan")
 PASSWORD = os.environ.get("EVBRO_PASSWORD", "una-contraseña-larga-1")
 OUT = sys.argv[1] if len(sys.argv) > 1 else tempfile.mkdtemp(prefix="evbro-e2e-")
@@ -53,6 +57,9 @@ try:
             pg.wait_for_timeout(300)
             ok(pg.is_visible("#accountDeleteModal.open") and f"«{USER}»" in pg.inner_text("#adDeleteConfirmLabel"), f"{theme}: the dialog asks to type the username")
             ok(pg.is_disabled("#adDeleteSubmit"), f"{theme}: «Borrar todo» starts disabled")
+            ok(pg.locator("input[name='adReason']").count() == 10 and pg.is_visible("#adDeleteComment") and "opcional" in pg.inner_text(".ad-survey legend"),
+               f"{theme}: the dialog offers the optional survey (reasons and a comment)")
+            pg.screenshot(path=f"{OUT}/account-delete-survey-{theme}.png")
             pg.fill("#adDeleteConfirm", "borrar")
             pg.fill("#adDeletePassword", PASSWORD)
             ok(pg.is_disabled("#adDeleteSubmit"), f"{theme}: another word does not enable it")
@@ -87,6 +94,9 @@ try:
         pg.evaluate("localStorage.setItem('evbro_vehicle', 'X'); localStorage.setItem('evbro_theme', 'dark')")
         open_card(pg)
         pg.click("#accountDeleteCard >> text=Borrar mi cuenta")
+        pg.check("input[name='adReason'][value='not_working']")
+        pg.check("input[name='adReason'][value='other']")
+        pg.fill("#adDeleteComment", "No leía bien mi coche.\n<b>esto no es HTML</b>")
         pg.fill("#adDeleteConfirm", USER)
         pg.fill("#adDeletePassword", PASSWORD)
         pg.click("#adDeleteSubmit")
@@ -101,6 +111,26 @@ try:
         pg.screenshot(path=f"{OUT}/account-deleted.png")
         ok(not errs, f"deleted: no JS errors {errs}")
         ctx.close()
+
+        # 3. The administrator reads the answer in the console, with the username
+        con = browser.new_context(viewport={"width": 1280, "height": 900}, locale="es-ES")
+        cp = con.new_page()
+        cerrs = []
+        cp.on("pageerror", lambda e: cerrs.append(str(e)))
+        cp.goto(CONSOLE)
+        cp.wait_for_selector("#viewAuth:not([hidden])")
+        cp.fill("#authUser", ADMIN)
+        cp.fill("#authPass", ADMIN_PW)
+        cp.click("#authSubmit")
+        cp.wait_for_selector("#tblExit tbody tr")
+        row = cp.inner_text("#tblExit tbody tr")
+        ok("No funciona bien con mi coche" in row and "Otro motivo" in row and "<b>esto no es HTML</b>" in row and USER in row,
+           f"console: the answer is there, as text and with the username ({row!r})")
+        ok("No funciona bien con mi coche" in cp.inner_text("#exitReasons"), "console: the reasons are counted")
+        cp.locator("#tblExit").scroll_into_view_if_needed()
+        cp.screenshot(path=f"{OUT}/account-delete-console.png", full_page=True)
+        ok(not cerrs, f"console: no JS errors {cerrs}")
+        con.close()
         browser.close()
 finally:
     subprocess.run([DEMO, "stop"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

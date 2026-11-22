@@ -58,5 +58,17 @@
 .ad-delete-lead { margin: 0 0 0.5rem; font-size: 0.92rem; color: var(--text-secondary); }
 .ad-delete-list { margin: 0 0 0.75rem; padding-left: 1.2rem; font-size: 0.88rem; line-height: 1.45; color: var(--text-secondary); }
 .ad-delete-list li { margin-bottom: 0.25rem; }
+/* The optional survey of the dialog: why the account is deleted */
+.ad-survey { margin: 0 0 1rem; padding: 0.7rem 0.85rem 0.2rem; border: 1px solid var(--border-color); border-radius: 14px; min-width: 0; }
+.ad-survey legend { padding: 0 0.4rem; font-size: 0.9rem; font-weight: 700; color: var(--text-primary); }
+.ad-survey-opt { display: flex; align-items: center; gap: 0.6rem; min-height: 40px; font-size: 0.9rem; color: var(--text-primary); cursor: pointer; }
+.ad-survey-opt input { flex: 0 0 auto; width: 20px; height: 20px; accent-color: var(--accent-bright); }
+.ad-survey-comment { margin: 0.5rem 0 0.4rem; }
+.ad-survey-comment textarea {
+  width: 100%; min-height: 76px; padding: 0.7rem 0.9rem; font: inherit; font-size: 1rem; resize: vertical; box-sizing: border-box;
+  color: var(--text-primary); background: var(--surface-secondary); border: 1px solid var(--border-color); border-radius: 14px; outline: none;
+}
+.ad-survey-comment textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+.ad-survey .setting-hint { margin: 0 0 0.5rem; }
 #accountDeleteModal .btn-danger:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
 #adDeleteConfirmLabel { text-transform: none; font-size: 0.85rem; }   /* it shows the username: as it is written */

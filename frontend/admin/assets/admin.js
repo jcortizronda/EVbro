@@ -144,12 +144,13 @@ document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click',
   if (tab.dataset.tab === 'stats') loadStats();
   document.querySelectorAll('.tab').forEach((t) => { const on = t === tab; t.classList.toggle('is-active', on); t.setAttribute('aria-selected', String(on)); });
   if (tab.dataset.tab === 'audit') loadAudit();
+  if (tab.dataset.tab === 'managers') loadExitSurveys();
   if (tab.dataset.tab === 'messages') { loadManagers().then(drawMessageManagers); loadMessages(); }
   if (tab.dataset.tab === 'reports') loadReports();
   for (const name of ['managers', 'stats', 'invites', 'messages', 'server', 'catalog', 'reports', 'audit']) $('tab' + name[0].toUpperCase() + name.slice(1)).hidden = tab.dataset.tab !== name;
 }));
 
-async function loadAll() { await Promise.all([loadManagers().then(drawMessageManagers), loadStats(), loadInvites(), loadMessages(), loadServer(), loadCatalog(), loadCatalogSource(), loadCatalogKeys(), loadAudit(), loadTelemetry()]); }
+async function loadAll() { await Promise.all([loadManagers().then(drawMessageManagers), loadExitSurveys(), loadStats(), loadInvites(), loadMessages(), loadServer(), loadCatalog(), loadCatalogSource(), loadCatalogKeys(), loadAudit(), loadTelemetry()]); }
 
 // ───────────────────────── managers ─────────────────────────
 async function loadManagers() {
@@ -340,6 +341,40 @@ $('btnCopy').addEventListener('click', async () => {
 async function revokeInvite(id) {
   if (!await confirmAsk('¿Anular esta invitación? Dejará de funcionar.', { title: 'Anular invitación', okText: 'Anular', danger: true })) return;
   api(`/api/admin/invites/${id}`, 'DELETE').then(loadInvites).catch((e) => toast(e.message, true));
+}
+
+// ───────────────────────── why accounts are deleted (services/exit_survey.py) ─────────────────────────
+// The optional answers of the managers who deleted their own account, with the username they had.
+const EXIT_REASONS = {
+  not_interested: 'No me interesa el servicio',
+  dislike: 'No me gusta el servicio',
+  not_working: 'No funciona bien con mi coche',
+  missing_features: 'Le faltan funciones que necesito',
+  hard_to_use: 'Es difícil de usar',
+  privacy: 'Me preocupan mis datos o la seguridad',
+  other_app: 'Prefiero la app oficial u otra aplicación',
+  sold_car: 'Ya no tengo el coche',
+  just_testing: 'Solo estaba probando',
+  other: 'Otro motivo',
+};
+async function loadExitSurveys() {
+  let data;
+  try { data = await api('/api/admin/exit-surveys'); } catch (e) { return; }
+  const ticked = Object.entries(data.reasons).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
+  $('exitReasons').replaceChildren(...ticked.map(([key, n]) => h('span', { class: 'chip' }, t(EXIT_REASONS[key] || key), h('strong', {}, String(n)))));
+  const body = $('tblExit').querySelector('tbody');
+  body.replaceChildren();
+  $('emptyExit').hidden = data.entries.length > 0;
+  $('tblExit').hidden = data.entries.length === 0;
+  for (const e of data.entries) {
+    body.append(h('tr', {},
+      h('td', { class: 'num' }, e.created_at ? new Date(e.created_at + (e.created_at.endsWith('Z') ? '' : 'Z')).toLocaleString(I18n.locale, { dateStyle: 'short', timeStyle: 'short' }) : '—'),
+      h('td', { 'data-i18n-skip': true }, h('strong', {}, e.username || '—')),
+      h('td', {}, e.reasons.length ? h('ul', {}, e.reasons.map((key) => h('li', {}, t(EXIT_REASONS[key] || key)))) : '—'),
+      h('td', { class: 'exit-comment', 'data-i18n-skip': true }, e.comment || '—'),
+      h('td', { class: 'num' }, t('{p0} coches · {p1} cuentas asociadas', { p0: e.vehicles, p1: e.members })),
+      h('td', { class: 'num' }, e.account_age_days === null ? '—' : t('{p0} días', { p0: e.account_age_days }))));
+  }
 }
 
 // ───────────────────────── messages to the accounts (services/admin_messages.py) ─────────────────────────

@@ -96,6 +96,26 @@ with sync_playwright() as p:
         ok(over <= 0, f"{tag}: no horizontal overflow ({over} px)")
         ok(not errs, f"{tag}: no JS errors {errs[:2]}")
         ctx.close()
+
+    # On a computer the expanded map must sit ABOVE the header and the side menu: its close and zoom buttons were covered by them
+    ctx = b.new_context(viewport={"width": 1440, "height": 800}, locale="es-ES", service_workers="block")
+    ctx.request.post(f"{BASE}/api/auth/login", headers={"Origin": BASE}, data={"username": USER, "password": PASSWORD})
+    pg = ctx.new_page()
+    pg.goto(BASE)
+    pg.wait_for_load_state("networkidle")
+    pg.wait_for_timeout(1200)
+    pg.evaluate("setMapExpanded(true)")
+    pg.wait_for_timeout(500)
+    on_top = pg.evaluate("""() => ['#btnMapClose', '.leaflet-control-zoom-in', '.leaflet-control-zoom-out', '#btnMapGo'].map((sel) => {
+        const el = document.querySelector(sel), r = el.getBoundingClientRect();
+        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        return el.contains(hit); })""")
+    ok(on_top == [True] * 4, f"desktop: close, zoom and «Ir a» are reachable over the header and the side menu ({on_top})")
+    pg.screenshot(path=f"{OUT}/map-desktop-expanded.png")
+    pg.click("#btnMapClose")
+    pg.wait_for_timeout(400)
+    ok(not pg.evaluate("mapExpanded") and pg.is_visible(".app-header"), "desktop: the cross closes the map and the header is back")
+    ctx.close()
     b.close()
 print("FAILURES:", fails if fails else "none")
 sys.exit(1 if fails else 0)

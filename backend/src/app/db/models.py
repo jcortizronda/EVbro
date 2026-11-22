@@ -555,6 +555,22 @@ class AdminMessage(Base):
     silenced = Column(Integer, nullable=False, default=0)     # of those, accounts that had these messages silenced
 
 
+class AccountExitSurvey(Base):
+    """What a manager answered, if anything, when deleting its own account: why it leaves and a free comment. It is the one
+    thing that outlives the account, with its USERNAME (/legal says so); the administrator reads it in the console.
+    No account id: the account is gone and its id means nothing."""
+    __tablename__ = "account_exit_surveys"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    created_at = Column(DateTime, nullable=False, default=utcnow, index=True)
+    username = Column(String(64), nullable=True)              # who answered (the account it had)
+    reasons = Column(JSON, nullable=False, default=list)      # keys of services/exit_survey.py REASONS
+    comment = Column(Text, nullable=True)                     # plain text, as typed
+    account_age_days = Column(Integer, nullable=True)         # how long the account lived
+    vehicles = Column(Integer, nullable=False, default=0)     # what its space had when it left
+    members = Column(Integer, nullable=False, default=0)
+
+
 class ClimateSchedule(Base):
     """Pre-conditioning on a timetable: at `time_local` on the chosen weekdays EVBro sends `clima_on` with `temperature`.
 

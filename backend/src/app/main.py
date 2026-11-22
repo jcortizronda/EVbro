@@ -146,6 +146,11 @@ async def security_headers(request: Request, call_next):
     response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
     if request.url.path.startswith("/api/") and "no-store" not in response.headers.get("Cache-Control", ""):
         response.headers["Cache-Control"] = "no-store"        # uploaded files already say `private, no-store`
+    elif request.url.path.startswith("/static/images/"):
+        # The style sheets name these pictures without the `?v=` the scripts and sheets carry, and with no header a browser
+        # keeps a picture for days on its own guess (a tenth of its age): a replaced banner kept showing the old one. `no-cache`
+        # is «ask before using it»: one cheap 304 per picture.
+        response.headers.setdefault("Cache-Control", "no-cache")
     if request.url.scheme == "https":
         response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
     return response

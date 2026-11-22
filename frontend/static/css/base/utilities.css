@@ -4,7 +4,7 @@
    Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; it goes last in base/. */
 .u---banner-url-static-images-banner-chargingpjpg:not(#u1):not(#u2):not(#u3) { --banner: url('/static/images/banner-charging.jpg'); }
 .u---banner-url-static-images-banner-exteriorpjpg:not(#u1):not(#u2):not(#u3) { --banner: url('/static/images/banner-exterior.jpg'); }
-.u---banner-url-static-images-banner-interiorpjpg:not(#u1):not(#u2):not(#u3) { --banner: url('/static/images/banner-interior.jpg'); }
+.u---banner-url-static-images-banner-dashboardpjpg:not(#u1):not(#u2):not(#u3) { --banner: url('/static/images/banner-dashboard.jpg'); }
 .u-accent-color-var-primary_width-16px_height-16px:not(#u1):not(#u2):not(#u3) { accent-color: var(--primary); width: 16px; height: 16px; }
 .u-background-00e5ff_color-000_border-none_border-radius-6px_padding-0p4rem-0p65rem_font-size-0p8rem_font-weight-600_cursor-pointer_width-100pct:not(#u1):not(#u2):not(#u3) { background: var(--accent); color: #000; border: none; border-radius: 6px; padding: 0.4rem 0.65rem; font-size: 0.8rem; font-weight: 600; cursor: pointer; width: 100%; }
 .u-background-00e5ff_width-16px_height-16px_border-radius-50pct_border-3px-solid-fff_box-shadow-0-0-12px-00e5ff:not(#u1):not(#u2):not(#u3) { background: var(--accent); width: 16px; height: 16px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 12px var(--accent); }

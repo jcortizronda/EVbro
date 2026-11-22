@@ -1044,7 +1044,7 @@
       <div class="native-app-container">
         
         <!-- Hero Car Interior Banner -->
-        <div class="native-section-header page-head page-banner u---banner-url-static-images-banner-interiorpjpg">
+        <div class="native-section-header page-head page-banner u---banner-url-static-images-banner-dashboardpjpg">
           <span class="section-tag">CONFORT · EVBRO</span>
           <div class="page-head-main">
             <h2 class="section-title" id="climateHeroTitle">Confort</h2>
@@ -3291,6 +3291,22 @@
       </ul>
       <p class="setting-hint">Tu coche y tu cuenta de Ebro no cambian: solo se borra lo que hay en EVBro. Si quieres conservar una copia, descarga antes el ZIP de «Tus datos».</p>
       <form id="accountDeleteForm" novalidate>
+        <!-- Optional: why the account is deleted. Kept with the username, for the administrator (services/exit_survey.py) -->
+        <fieldset class="ad-survey">
+          <legend>¿Por qué te vas? (opcional)</legend>
+          <label class="ad-survey-opt"><input type="checkbox" name="adReason" value="not_interested"><span>No me interesa el servicio</span></label>
+          <label class="ad-survey-opt"><input type="checkbox" name="adReason" value="dislike"><span>No me gusta el servicio</span></label>
+          <label class="ad-survey-opt"><input type="checkbox" name="adReason" value="not_working"><span>No funciona bien con mi coche</span></label>
+          <label class="ad-survey-opt"><input type="checkbox" name="adReason" value="missing_features"><span>Le faltan funciones que necesito</span></label>
+          <label class="ad-survey-opt"><input type="checkbox" name="adReason" value="hard_to_use"><span>Es difícil de usar</span></label>
+          <label class="ad-survey-opt"><input type="checkbox" name="adReason" value="privacy"><span>Me preocupan mis datos o la seguridad</span></label>
+          <label class="ad-survey-opt"><input type="checkbox" name="adReason" value="other_app"><span>Prefiero la app oficial u otra aplicación</span></label>
+          <label class="ad-survey-opt"><input type="checkbox" name="adReason" value="sold_car"><span>Ya no tengo el coche</span></label>
+          <label class="ad-survey-opt"><input type="checkbox" name="adReason" value="just_testing"><span>Solo estaba probando</span></label>
+          <label class="ad-survey-opt"><input type="checkbox" name="adReason" value="other"><span>Otro motivo</span></label>
+          <label class="auth-field ad-survey-comment"><span>¿Algún comentario más?</span><textarea id="adDeleteComment" maxlength="1000" rows="3"></textarea></label>
+          <p class="setting-hint">Nos ayuda a mejorar EVBro.</p>
+        </fieldset>
         <label class="auth-field"><span id="adDeleteConfirmLabel">Escribe tu nombre de usuario para confirmar</span><input type="text" id="adDeleteConfirm" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" /></label>
         <label class="auth-field"><span>Contraseña</span><input type="password" id="adDeletePassword" autocomplete="current-password" /></label>
         <div id="adDeleteError" class="auth-error" role="alert" hidden></div>

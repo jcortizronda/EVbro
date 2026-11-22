@@ -150,3 +150,12 @@ label.choice > span span { display: inline; font-weight: inherit; color: inherit
 #tblMessages td.msg-cell strong { display: block; }
 #tblMessages td.msg-cell span { display: block; color: var(--muted); font-size: 0.86rem; white-space: pre-line; overflow-wrap: anywhere; }
 #tblMessages td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Why accounts are deleted (exit survey) */
+.exit-reasons { display: flex; flex-wrap: wrap; gap: 6px 8px; margin: 0 0 12px; }
+.exit-reasons:empty { display: none; }
+.exit-reasons .chip strong { color: var(--text); margin-left: 6px; }
+#tblExit td { white-space: normal; vertical-align: top; }
+#tblExit td.exit-comment { min-width: 240px; max-width: 520px; white-space: pre-line; overflow-wrap: anywhere; }
+#tblExit td.num { white-space: nowrap; font-variant-numeric: tabular-nums; }
+#tblExit ul { margin: 0; padding-left: 18px; }
