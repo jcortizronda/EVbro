@@ -306,5 +306,8 @@
  "Capacidad útil medida por mes": "Usable capacity measured per month",
  "Energía que entró en la batería (la curva de potencia de la carga) entre los puntos ganados, en cargas de al menos {p0} puntos; la cifra actual es la media de las últimas cargas medidas.": "Energy that went into the battery (the charge's power curve) divided by the points gained, in charges of at least {p0} points; the current figure is the average of the latest charges measured.",
  "Kilómetros por mes": "Kilometres per month",
- "Gasto por mes": "Spending per month"
+ "Gasto por mes": "Spending per month",
+ "Aviso no encontrado.": "Notice not found.",
+ "Escribe tu nombre de usuario exacto para confirmar.": "Type your exact username to confirm.",
+ "La contraseña no es correcta.": "The password is not correct."
 }

@@ -24,6 +24,7 @@ PIN_REQUIRED = frozenset({
     "ventanillas_abrir",
     "ventilar_ventanillas",
     "techo_abrir",
+    "techo_ventilar",        # tilting the roof opens it too
     "alarma_off",
 })
 
@@ -31,8 +32,13 @@ PIN_REQUIRED = frozenset({
 # catalogue body, so without this list `bloquear` + `{"lockType": "1"}` would UNLOCK without a PIN.
 _TEMPERATURE_RANGE = (16.0, 32.0)
 _MINUTES_RANGE = (1, 60)
+# The purifier and the demisting travel inside the climate order, so they carry its temperature: the one the car has set, or
+# turning the purifier off would also move the climate to the catalogue's default.
+_CLIMATE_PARAMS = {"temperature", "times"}
 ALLOWED_PARAMS = {
-    "clima_on": {"temperature", "times"},
+    "clima_on": _CLIMATE_PARAMS,
+    "purificador_on": _CLIMATE_PARAMS, "purificador_off": _CLIMATE_PARAMS,
+    "desempanar_on": _CLIMATE_PARAMS, "desempanar_off": _CLIMATE_PARAMS,
 }
 
 # Wrong-PIN retries (against the stored PIN): 5 in 10 minutes, counted PER CAR: the PIN belongs to the car's

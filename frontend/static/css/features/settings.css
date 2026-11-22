@@ -24,6 +24,11 @@
 
 /* Ajustes sections fold like the car sheet's (.vp-section in vehicle-profile.css); a status badge sits before the chevron */
 #tabSettings .set-section { margin: 0; padding: 6px 16px 12px; }
+/* Avisos: each channel and the list of events are sections; saving and the history stay in sight under them */
+.notif-sec-badge { margin-bottom: 12px; }
+.notif-sec-toggle { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.75rem; font-size: 0.9rem; cursor: pointer; }
+.notif-save-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; }
+#settingsSubTabNotifs > .acc-hint { margin-bottom: 10px; }
 #tabSettings .set-section:not([open]) { padding-bottom: 6px; }
 #tabSettings .set-section > .vp-section-title .status-badge { margin-left: auto; flex: none; }
 #tabSettings .set-section > .vp-section-title .status-badge + .vp-chev { margin-left: 6px; }
@@ -48,3 +53,10 @@
 .ad-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 8px 0; }
 .ad-report { margin: 10px 0 0; padding: 10px 12px; border-radius: 10px; background: var(--surface-secondary); border: 1px solid var(--border-color); font: inherit; font-size: 0.82rem; white-space: pre-wrap; overflow-wrap: anywhere; }
 .ad-report[hidden] { display: none; }
+/* Deleting the account: what goes, said before asking for the name and the password */
+.ad-delete-title { margin-bottom: 0.5rem; font-size: 1.3rem; }
+.ad-delete-lead { margin: 0 0 0.5rem; font-size: 0.92rem; color: var(--text-secondary); }
+.ad-delete-list { margin: 0 0 0.75rem; padding-left: 1.2rem; font-size: 0.88rem; line-height: 1.45; color: var(--text-secondary); }
+.ad-delete-list li { margin-bottom: 0.25rem; }
+#accountDeleteModal .btn-danger:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
+#adDeleteConfirmLabel { text-transform: none; font-size: 0.85rem; }   /* it shows the username: as it is written */

@@ -100,6 +100,7 @@ ACCOUNT_RULES: Dict[Tuple[str, str], str] = {
     ("GET", "/api/account/mqtt"): "root", ("PUT", "/api/account/mqtt"): "root", ("DELETE", "/api/account/mqtt"): "root",
     ("POST", "/api/account/mqtt/test"): "root",     # the manager's own MQTT broker (Home Assistant)
     ("GET", "/api/account/status"): "root",
+    ("POST", "/api/account/delete"): "root",        # the manager's own account with its whole space; asks for username and password
     ("GET", "/api/account/storage"): "any",         # space of the caller's manager (a member sees its manager's numbers)
     ("GET", "/api/account/home-layout"): "any", ("PUT", "/api/account/home-layout"): "any", ("DELETE", "/api/account/home-layout"): "any",   # each account's own Inicio
     ("POST", "/api/telemetry/client-error"): "any",   # a JavaScript error of the caller's own page (services/telemetry.py)
@@ -116,6 +117,7 @@ ACCOUNT_RULES: Dict[Tuple[str, str], str] = {
     # Notifications are per account: every account manages its own configuration, channels, devices and history.
     ("GET", "/api/notifications/config"): "any", ("PUT", "/api/notifications/config"): "any",
     ("GET", "/api/notifications/logs"): "any", ("DELETE", "/api/notifications/logs"): "any",
+    ("DELETE", "/api/notifications/logs/{log_id}"): "any",                  # the route checks the notice is this account's
     ("GET", "/api/notifications/unread"): "any", ("POST", "/api/notifications/seen"): "any",
     ("GET", "/api/notifications/push/devices"): "any", ("DELETE", "/api/notifications/push/devices/{device_id}"): "any",
     ("GET", "/api/notifications/push/public-key"): "any", ("POST", "/api/notifications/push/status"): "any",
@@ -141,6 +143,7 @@ VEHICLE_LEVELS: Dict[Tuple[str, str], str] = {
     ("PUT", "/api/vehicles/{vin}/charge/schedule"): "control", ("DELETE", "/api/vehicles/{vin}/charge/schedule"): "control",
     ("POST", "/api/vehicles/{vin}/charge/start"): "control", ("POST", "/api/vehicles/{vin}/charge/stop"): "control",
     ("PUT", "/api/vehicles/{vin}/charge/target"): "control",
+    ("PUT", "/api/vehicles/{vin}/departure"): "control",                    # the scheduled departure is an order to the car
     ("POST", "/api/vehicles/{vin}/documents"): "owner", ("DELETE", "/api/documents/{document_id}"): "owner",    # invoice, policy...: the owner's papers
     # Timetabled pre-conditioning sends orders to the car: same level as sending one by hand
     ("POST", "/api/vehicles/{vin}/climate-schedules"): "control",
@@ -156,6 +159,7 @@ CONNECTED_ONLY = {
     ("GET", "/api/vehicles/{vin}/charge/plan"), ("PUT", "/api/vehicles/{vin}/charge/schedule"), ("DELETE", "/api/vehicles/{vin}/charge/schedule"),
     ("POST", "/api/vehicles/{vin}/charge/start"), ("POST", "/api/vehicles/{vin}/charge/stop"), ("PUT", "/api/vehicles/{vin}/charge/target"),
     ("POST", "/api/vehicles/{vin}/climate-schedules"),
+    ("GET", "/api/vehicles/{vin}/departure"), ("PUT", "/api/vehicles/{vin}/departure"),
 }
 
 

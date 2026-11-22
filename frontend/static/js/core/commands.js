@@ -45,7 +45,8 @@ function openWindowsActionSheet() {
 }
 
 function openSunroofActionSheet() {
-  const statusStr = "Estado actual: " + openClosedText(latestTelemetryData?.windows?.sunroof, "Abierto", "Cerrado").replace(/^./, (c) => c.toUpperCase());
+  const sunroof = latestTelemetryData?.windows?.sunroof;                       // 0 closed, 2 tilted («Ventilar»), 3 open
+  const statusStr = "Estado actual: " + openClosedText(sunroof, sunroof === 2 ? "Entreabierto" : "Abierto", "Cerrado").replace(/^./, (c) => c.toUpperCase());
 
   openActionSheet("Control de Techo Solar", statusStr, [
     {
@@ -58,6 +59,11 @@ function openSunroofActionSheet() {
       label: "Cerrar Techo Solar",
       desc: "Cierre y recogida del cristal",
       action: "executeCommandDirect('techo_cerrar', 'Cerrar techo solar'); closeActionSheet();"
+    },
+    {
+      label: "Ventilar (Techo Entreabierto)",
+      desc: "Levanta el cristal para renovar el aire",
+      action: "executeCommandDirect('techo_ventilar', 'Ventilar techo solar'); closeActionSheet();"
     }
   ]);
 }
@@ -240,6 +246,7 @@ function getCommandButtonId(commandKey) {
     'ventilar_ventanillas': 'btnWindowsCard',
     'techo_abrir': 'btnSunroofCard',
     'techo_cerrar': 'btnSunroofCard',
+    'techo_ventilar': 'btnSunroofCard',
     'clima_on': 'btnClimatePowerToggle',
     'clima_off': 'btnClimatePowerToggle',
     'encontrar_coche_luces': 'btnFindCar',

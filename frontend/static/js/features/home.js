@@ -72,7 +72,7 @@
     tile(doors.trunk, 'btnTrunkCard', ICONS.trunk, 'cardTrunkStatus', 'Abierto', 'Cerrado');
     const open = openWindows(windows);
     tile(open === null ? null : open > 0, 'btnWindowsCard', ICONS.windows, 'cardWindowsStatus', windowsText(open), 'Cerradas');
-    tile(windows.sunroof, 'btnSunroofCard', ICONS.sunroof, 'cardSunroofStatus', 'Abierto', 'Cerrado');
+    tile(windows.sunroof, 'btnSunroofCard', ICONS.sunroof, 'cardSunroofStatus', windows.sunroof === 2 ? 'Entreabierto' : 'Abierto', 'Cerrado');   // 2 = tilted
     if (window.WidgetBoards) WidgetBoards.onTelemetry(data);     // the climate widget shows the temperatures the car just sent
   }
 

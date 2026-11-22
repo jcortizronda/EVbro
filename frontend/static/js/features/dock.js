@@ -28,7 +28,7 @@ const Dock = (function () {
     costs: { label: 'Costes', tab: 'costs' },
     vehicle: { label: 'Coches', tab: 'vehicle', click: 'openVehicleSettings()' },
     settings: { label: 'Ajustes', tab: 'settings' },
-    sensors: { label: 'Sensores', name: 'Sensores y cables', click: 'openAllSensorsModal()' },
+    sensors: { label: 'Sensores', name: 'Sensores', click: 'openAllSensorsModal()' },
   };
   const $ = (id) => document.getElementById(id);
   const clean = (list) => (Array.isArray(list) ? list.filter((k, i) => ITEMS[k] && list.indexOf(k) === i).slice(0, MAX) : DEFAULT.slice());

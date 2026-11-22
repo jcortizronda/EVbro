@@ -306,5 +306,8 @@
  "Capacidad útil medida por mes": "Capacidade útil medida por mês",
  "Energía que entró en la batería (la curva de potencia de la carga) entre los puntos ganados, en cargas de al menos {p0} puntos; la cifra actual es la media de las últimas cargas medidas.": "Energia que entrou na bateria (a curva de potência do carregamento) dividida pelos pontos ganhos, em carregamentos de pelo menos {p0} pontos; o valor atual é a média dos últimos carregamentos medidos.",
  "Kilómetros por mes": "Quilómetros por mês",
- "Gasto por mes": "Gasto por mês"
+ "Gasto por mes": "Gasto por mês",
+ "Aviso no encontrado.": "Aviso não encontrado.",
+ "Escribe tu nombre de usuario exacto para confirmar.": "Escreva o seu nome de utilizador exato para confirmar.",
+ "La contraseña no es correcta.": "A palavra-passe não está correta."
 }

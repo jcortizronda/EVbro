@@ -159,6 +159,17 @@ class VehiclePoller(SessionMixin, CommandsMixin, AlertsMixin, PositionWatchMixin
             return
         self._poll_requests[vin] = asyncio.create_task(self.poll_vehicle(vin, force=force))
 
+    def forget_vehicle(self, vin: str) -> None:
+        """Drops everything kept in memory about a deleted car (services/tenant.py): its session context and PIN, its last reading
+        and the marks of the loop."""
+        for store in (self._contexts, self._latest_snapshots, self._last_poll_times, self._last_geofence_by_vin,
+                      self._last_charging_by_vin, self._last_maint_check_km, self._last_maint_check_at, self._last_renewal_check_at,
+                      self._session_paused, self._position_watch, self._last_location_code):
+            store.pop(vin, None)
+        self._unpolled_logged.discard(vin)
+        for key in [k for k in self._pending_since if k[0] == vin]:
+            self._pending_since.pop(key, None)
+
     def _get_or_create_ctx(self, vin: str) -> CoreCtx:
         """Creates or returns the CoreCtx for a given VIN."""
         if vin not in self._contexts:

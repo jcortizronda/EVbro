@@ -81,7 +81,7 @@ with sync_playwright() as p:
         # ───── no images and compact headers ─────
         ok(pg.evaluate("document.querySelectorAll('.native-hero-banner, .hero-img').length")==0,"no banners with an image left")
         ok(pg.evaluate("[...document.images].filter(i=>i.src.includes('/static/images/')).length")==0,"no image from /static/images on the page")
-        ok(pg.locator('#comfortDefrost .comfort-icon svg').count()==3,"the 3 demister/steering wheel buttons carry an SVG icon")
+        ok(pg.locator('#comfortDefrost .comfort-icon svg').count()==6,"the 6 glass, steering wheel and air buttons carry an SVG icon")
         pg.evaluate("switchTab('overview')"); pg.wait_for_timeout(300)
         ok(pg.is_visible("#vehicleName") and pg.is_visible("#vehicleVin") and pg.is_visible("#vehicleStatusBadge"),"home tab header: name, VIN and status")
         # ───── home tab: alarm with real state and PIN ─────

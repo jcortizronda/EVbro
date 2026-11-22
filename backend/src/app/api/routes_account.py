@@ -11,14 +11,15 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.routes_auth import _check_throttle, ip_throttle
 from app.config import settings
 from app.core import ebro_login
 from app.db.models import AppUser, EbroAccount, MqttLink, Vehicle
 from app.db.session import get_db
 from app.i18n import _
-from app.security import auth
+from app.security import auth, passwords
 from app.security.access import foreign_vins, is_root, space_owner_id, within_vehicle_limit
-from app.services import command_policy, mqtt_hub, storage, vehicle_profiles
+from app.services import command_policy, mqtt_hub, storage, tenant, vehicle_profiles
 from app.services.accounts import fetch_account_vehicles
 from app.services.car_events import CarEventHub
 from app.services.command_policy import pin_throttle, pin_throttle_key
@@ -483,6 +484,34 @@ async def test_mqtt_link(req: MqttLinkIn, session: AsyncSession = Depends(get_db
     config = MqttLinkConfig(host=req.host.strip(), port=req.port or (8883 if req.use_tls else 1883), username=(req.username or "").strip() or None,
                             password=password, use_tls=req.use_tls, topic_prefix=req.topic_prefix, client_id=f"evbro_{user.id}")
     return await mqtt_hub.test_connection(config)
+
+
+class AccountDelete(BaseModel):
+    confirm: str = Field(max_length=80)        # the username, typed by hand
+    password: str = Field(max_length=256)
+
+
+@router.post("/delete")
+async def delete_own_account(req: AccountDelete, request: Request, response: Response, session: AsyncSession = Depends(get_db),
+                             user: AppUser = Depends(auth.require_auth)):
+    """The manager deletes its own account and everything in its space: cars with their history, member accounts, geofences, the
+    Ebro account and its session, notification channels and the stored files. It cannot be undone, so it asks twice: the
+    username typed by hand (against a slip) and the password (against somebody else at an open session)."""
+    user_id, username = user.id, user.username
+    ip = auth.client_ip(request)
+    _check_throttle((ip_throttle, f"ip:{ip}"))
+    if req.confirm.strip().lower() != username:
+        raise HTTPException(status_code=409, detail="Escribe tu nombre de usuario exacto para confirmar.")
+    if not await asyncio.to_thread(passwords.verify_password, req.password, user.password_hash):
+        ip_throttle.record_failure(f"ip:{ip}")
+        raise HTTPException(status_code=403, detail="La contraseña no es correcta.")
+    vins = await tenant.vins_of(session, user_id)
+    removed = await tenant.delete_manager_space(session, user_id)
+    await session.commit()
+    await tenant.release_manager_runtime(user_id, vins)
+    auth.clear_session_cookie(response)
+    _LOGGER.info("Manager #%s deleted its own account from %s.", user_id, ip)
+    return {"status": "ok", "removed": removed}
 
 
 @router.post("/logout")

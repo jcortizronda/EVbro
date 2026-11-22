@@ -20,6 +20,7 @@ from app.api.routes_charges import router as charges_router
 from app.api.routes_climate_schedules import router as climate_schedules_router
 from app.api.routes_commands import router as commands_router
 from app.api.routes_costs import router as costs_router
+from app.api.routes_departure import router as departure_router
 from app.api.routes_documents import router as documents_router
 from app.api.routes_drives import router as drives_router
 from app.api.routes_expenses import router as expenses_router
@@ -70,6 +71,7 @@ protected.include_router(refuels_router)
 protected.include_router(timeline_router)
 protected.include_router(stats_router)
 protected.include_router(climate_schedules_router)
+protected.include_router(departure_router)
 protected.include_router(traccar_router)
 protected.include_router(catalog_router)
 protected.include_router(account_data_router)

@@ -176,7 +176,7 @@
       <button type="button" class="side-item" data-tab="settings" data-on-click="switchTab('settings')"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg><span>Ajustes</span></button>
     </div>
     <div class="side-group side-group-bottom">
-      <button type="button" class="side-item" data-on-click="openAllSensorsModal()"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg><span>Sensores y cables</span></button>
+      <button type="button" class="side-item" data-on-click="openAllSensorsModal()"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg><span>Sensores</span></button>
     </div>
   </aside>
 
@@ -1111,7 +1111,7 @@
         <div class="home-widget" data-widget="defrost">
         <!-- Demister and steering wheel -->
         <div class="native-climate-panel comfort-section">
-          <div class="climate-headline"><small>LUNAS Y VOLANTE</small><h3>Desempañado y calefacción</h3></div>
+          <div class="climate-headline"><small>LUNAS, VOLANTE Y AIRE</small><h3>Desempañado y calefacción</h3></div>
           <div class="comfort-grid" id="comfortDefrost"></div>
         </div>
 
@@ -1141,6 +1141,18 @@
               <input type="text" id="climateScheduleLabel" class="form-control" maxlength="60" placeholder="Nombre (opcional)">
               <button type="button" class="btn-primary" data-on-click="ClimateSchedule.add()">Programar</button>
             </div>
+          </div>
+        </div>
+        </div>
+        <div class="home-widget" data-widget="departure">
+        <!-- Scheduled departure («Reserva tu viaje» in the official app): the plan lives in the car (features/departure.js) -->
+        <div class="native-climate-panel comfort-section" id="departurePanel">
+          <div class="climate-headline"><small>SALIDA PROGRAMADA <span id="departureBadge" class="comfort-state" data-state="unknown">—</span></small><h3>Batería lista a tu hora</h3></div>
+          <p class="comfort-hint">Según la app oficial de Ebro, el coche mantiene la batería a temperatura desde hora y media antes de la salida. Conviene dejarlo enchufado.</p>
+          <p class="comfort-hint csched-pin-hint" id="departurePinHint" hidden>Hace falta el PIN guardado en Ajustes → Cuenta.</p>
+          <div id="departureList"><p class="comfort-hint">Cargando…</p></div>
+          <div class="csched-form-row dep-actions">
+            <button type="button" class="btn-primary" id="departureSave" data-on-click="Departure.save()" disabled>Guardar en el coche</button>
           </div>
         </div>
         </div>
@@ -1307,7 +1319,7 @@
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
               </div>
               <div class="card-text-block">
-                <strong class="card-title">Sensores y cables</strong>
+                <strong class="card-title">Sensores</strong>
                 <span class="card-subtitle">Todos los datos del coche, en directo</span>
               </div>
             </button>
@@ -1899,7 +1911,7 @@
             <button type="button" class="btn-primary passkey-add" id="btnPasskeyAdd">Añadir este dispositivo</button>
           </details>
 
-          <details class="glass details-card vp-section set-section" data-tone="green" data-key="ebro">
+          <details class="glass details-card vp-section set-section" data-tone="green" data-key="ebro" data-open-default>
             <summary class="vp-section-title"><span class="vp-section-icon"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>Cuenta de Ebro<span id="settingsAccountBadge" class="status-badge parked">Comprobando...</span><span class="vp-chev" aria-hidden="true"></span></summary>
             <p class="u-color-var-text-secondary_font-size-0p9rem_margin-bottom-1p25rem">
               La cuenta de la app oficial de Ebro (teléfono y contraseña): con ella se ve el coche y se le mandan órdenes.
@@ -1954,44 +1966,39 @@
             <pre class="ad-report" id="adImportReport" hidden></pre>
             <p class="setting-hint"><a href="/legal" target="_blank" rel="noopener">Qué datos guarda este servidor y qué puedes pedir</a>.</p>
           </details>
+          <details class="glass details-card vp-section set-section needs-root" id="accountDeleteCard" data-tone="red" data-key="delete">
+            <summary class="vp-section-title"><span class="vp-section-icon"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg></span>Borrar la cuenta<span class="vp-chev" aria-hidden="true"></span></summary>
+            <p class="setting-hint">Borra tu cuenta y todo lo que este servidor guarda de ella: tus coches con su historial, las cuentas asociadas, los documentos y las fotos. No se puede deshacer.</p>
+            <div class="ad-actions">
+              <button type="button" class="btn-danger" data-on-click="AccountData.openDelete()">Borrar mi cuenta</button>
+            </div>
+          </details>
           </div>
         </div>
 
         <!-- Sub-panel: linked accounts -->
         <div id="settingsSubTabAccounts" class="sub-tab-panel">
-          <div class="glass acc-card">
-            <div class="acc-head"><div class="card-title u-margin-0">Cuentas asociadas</div>
+          <div class="vp-form">
+          <details class="glass details-card vp-section set-section" data-tone="violet" data-key="members" data-open-default>
+            <summary class="vp-section-title"><span class="vp-section-icon"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>Cuentas asociadas<span class="vp-chev" aria-hidden="true"></span></summary>
+            <div class="acc-head"><div class="acc-limit" id="accMembersLimit"></div>
               <button type="button" class="btn-primary" data-on-click="openMemberModal()">Añadir cuenta</button></div>
-            <div class="acc-limit" id="accMembersLimit"></div>
             <p class="acc-hint">Personas que usan tus coches con su propio usuario. Tú eliges qué coche ve cada una y con qué permiso. No pueden añadir coches ni ver tu cuenta de Ebro.</p>
             <ul class="acc-levels"><li><strong>Ver:</strong> consulta los datos del coche.</li><li><strong>Ver y editar:</strong> además anota gastos, cargas, repostajes, mantenimiento y piezas.</li><li><strong>Ver y controlar:</strong> consulta los datos y manda órdenes al coche, sin anotar nada.</li><li><strong>Ver, editar y controlar:</strong> además manda órdenes al coche (sigue pidiendo el PIN, que tendrás que darle).</li></ul>
             <div id="accMembers"></div>
+          </details>
           </div>
         </div>
 
         <!-- Sub-panel 2: smart cloud polling (adaptive) -->
         <div id="settingsSubTabNotifs" class="sub-tab-panel">
           <p class="acc-hint u-padding-0-4px-10px_margin-0">Estos avisos y canales son <strong>de tu cuenta</strong>: cada persona elige lo que recibe. Los umbrales de combustible, batería y presión son <strong>del coche</strong> (ahora: <strong id="notifCarName">—</strong>) y solo los cambia su propietario.</p>
-          <div class="glass details-card">
-            <div class="card-title u-justify-content-space-between">
-              <div class="u-display-flex_align-items-center_gap-0p5rem">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-                Notificaciones
-              </div>
-            </div>
-            <p class="u-color-var-text-secondary_font-size-0p88rem_margin-bottom-1p25rem_line-height-1p5">
-              Recibe avisos inmediatos en tu smartphone o tablet ante entradas/salidas de geocercas, revisiones según el libro oficial de EBRO y avisos de carga o seguridad.
-            </p>
-
-            <!-- Channel 1: Web Push (Google FCM on Android) -->
-            <div class="push-card">
-              <div class="push-card-head">
-                <span class="push-card-icon" aria-hidden="true"><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/></svg></span>
-                <div>
-                  <strong>Este dispositivo</strong>
-                  <span class="maint-category-badge u-background-rgba-0-230-118-0p15_color-var-accent-green">Gratis · sin apps extra</span>
-                </div>
-              </div>
+          <div class="vp-form">
+          <!-- Every card is a collapsible section, like the rest of Ajustes; which ones are open is remembered on the device (core/navigation.js) -->
+          <!-- Channel 1: Web Push (Google FCM on Android) -->
+          <details class="glass details-card vp-section set-section" data-tone="green" data-key="notif-device" data-open-default>
+            <summary class="vp-section-title"><span class="vp-section-icon"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/></svg></span>Este dispositivo<span class="vp-chev" aria-hidden="true"></span></summary>
+              <div class="notif-sec-badge"><span class="maint-category-badge u-background-rgba-0-230-118-0p15_color-var-accent-green">Gratis · sin apps extra</span></div>
               <div id="pushStatus" class="push-status" data-state="off">
                 <div class="push-status-dot" aria-hidden="true"></div>
                 <div>
@@ -2007,19 +2014,12 @@
                 <div class="push-devices-title">Dispositivos con avisos activos</div>
                 <ul id="pushDevices" class="push-devices"></ul>
               </div>
-            </div>
+          </details>
 
-            <!-- Channel 2: Telegram bot -->
-            <div class="u-background-var-bg-glass-inset_border-1px-solid-var-border-color_border-radius-var-radius-sm_padding-1rem_margin-bottom-1rem">
-              <div class="u-display-flex_justify-content-space-between_align-items-center_margin-bottom-0p6rem">
-                <div class="u-display-flex_align-items-center_gap-0p5rem">
-                  <span class="u-display-inline-flex"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg></span>
-                  <strong>Telegram Bot</strong>
-                </div>
-                <label class="u-display-flex_align-items-center_gap-0p4rem_cursor-pointer_font-size-0p85rem">
-                  <input type="checkbox" id="notifTelegramEnabled" /> Activo
-                </label>
-              </div>
+          <!-- Channel 2: Telegram bot -->
+          <details class="glass details-card vp-section set-section" data-tone="blue" data-key="notif-telegram">
+            <summary class="vp-section-title"><span class="vp-section-icon"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg></span>Telegram<span class="vp-chev" aria-hidden="true"></span></summary>
+              <label class="notif-sec-toggle"><input type="checkbox" id="notifTelegramEnabled" /> Activo</label>
               <div class="form-grid u-grid-template-columns-2fr-1fr_gap-0p75rem_margin-bottom-0p75rem">
                 <div class="form-group u-margin-0">
                   <label class="u-font-size-0p75rem">Bot Token (de @BotFather):</label>
@@ -2031,17 +2031,12 @@
                 </div>
               </div>
               <button class="btn-sm btn-secondary" data-on-click="testNotificationChannel('telegram')">Probar Telegram</button>
-            </div>
+          </details>
 
-            <!-- Notifiable events -->
-            <div class="u-background-var-bg-glass-inset_border-1px-solid-var-border-color_border-radius-var-radius-sm_padding-1p25rem_margin-bottom-1p25rem">
-              <div class="u-font-size-0p95rem_font-weight-700_margin-bottom-0p4rem_color-var-text-primary_display-flex_align-items-center_gap-0p5rem">
-                Disparadores y Eventos Configurables
-              </div>
-              <p class="u-color-var-text-secondary_font-size-0p8rem_margin-bottom-1rem">
-                Elige con total precisión qué eventos del vehículo deben generar una alerta push inmediata a tu smartphone.
-              </p>
-
+          <!-- Notifiable events -->
+          <details class="glass details-card vp-section set-section" data-tone="amber" data-key="notif-events">
+            <summary class="vp-section-title"><span class="vp-section-icon"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg></span>Qué avisos recibir<span class="vp-chev" aria-hidden="true"></span></summary>
+              <p class="setting-hint">Elige qué eventos del coche te avisan.</p>
               <div class="notif-triggers-grid">
                 <!-- 1. Geofence entry -->
                 <div class="notif-trigger-card">
@@ -2233,13 +2228,13 @@
                   </label>
                 </div>
               </div>
-            </div>
+          </details>
 
-            <div class="u-display-flex_justify-content-space-between_align-items-center_flex-wrap-wrap_gap-0p75rem">
+          <div class="notif-save-row">
               <button class="btn-primary" data-on-click="saveNotificationConfig()">Guardar Ajustes de Notificaciones</button>
               <!-- The history lives in the bell of the header (one list, not two) -->
               <button class="btn-secondary" data-on-click="openNotificationsModal()">Ver historial de avisos</button>
-            </div>
+          </div>
           </div>
         </div>
 
@@ -3100,7 +3095,7 @@
       <div class="u-display-flex_justify-content-space-between_align-items-center_margin-bottom-0p75rem">
         <div class="u-display-flex_align-items-center_gap-0p6rem">
           <div>
-            <h3 class="u-margin-0_font-size-1p25rem">Sensores y cables del coche</h3>
+            <h3 class="u-margin-0_font-size-1p25rem">Sensores</h3>
             <p class="u-margin-0p2rem-0-0_font-size-0p8rem_color-var-text-secondary">
               Todos los datos que envía el coche, tal cual llegan (<span class="u-font-family-monospace_color-var-primary" id="sensorsVinTag">VIN</span>)
             </p>
@@ -3269,6 +3264,30 @@
     </div>
   </div>
 
+  <!-- Deleting the account (Ajustes → Cuenta): asks for the username typed by hand and for the password -->
+  <div id="accountDeleteModal" class="modal-overlay">
+    <div class="modal-card">
+      <h3 class="ad-delete-title">Borrar la cuenta</h3>
+      <p class="ad-delete-lead">Se borrará para siempre todo lo que este servidor guarda de tu cuenta:</p>
+      <ul class="ad-delete-list">
+        <li>Tus coches con todo su historial: viajes, cargas, repostajes, gastos y mantenimiento.</li>
+        <li>Las cuentas asociadas que hayas creado.</li>
+        <li>Los documentos, las facturas y las fotos que hayas subido.</li>
+        <li>La conexión con tu cuenta de Ebro y tus canales de avisos.</li>
+      </ul>
+      <p class="setting-hint">Tu coche y tu cuenta de Ebro no cambian: solo se borra lo que hay en EVBro. Si quieres conservar una copia, descarga antes el ZIP de «Tus datos».</p>
+      <form id="accountDeleteForm" novalidate>
+        <label class="auth-field"><span id="adDeleteConfirmLabel">Escribe tu nombre de usuario para confirmar</span><input type="text" id="adDeleteConfirm" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" /></label>
+        <label class="auth-field"><span>Contraseña</span><input type="password" id="adDeletePassword" autocomplete="current-password" /></label>
+        <div id="adDeleteError" class="auth-error" role="alert" hidden></div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" data-on-click="AccountData.closeDelete()">Cancelar</button>
+          <button type="submit" class="btn-danger" id="adDeleteSubmit" disabled>Borrar todo</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Custom App JS -->
   <!-- Classic scripts (shared global scope): the order matters. core/ = app foundation; features/ = one feature per file.
        The server computes ?v= (content hash): it only changes when the frontend changes. -->
@@ -3314,6 +3333,7 @@
   <script src="/static/js/core/ui.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/comfort.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/climate-schedule.js?v={{ asset_version }}"></script>
+  <script src="/static/js/features/departure.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/traccar.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/account-data.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/car-book.js?v={{ asset_version }}"></script>

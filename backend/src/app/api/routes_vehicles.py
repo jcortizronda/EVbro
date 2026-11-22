@@ -179,7 +179,7 @@ async def delete_vehicle(vin: str, session: AsyncSession = Depends(get_db)):
     from app.services import tenant
     await tenant.delete_vehicles(session, [vin])
     await session.commit()
-    VehiclePoller.get_instance()._contexts.pop(vin, None)
+    tenant.forget_vehicle_state(vin)
     return {"ok": True}
 
 

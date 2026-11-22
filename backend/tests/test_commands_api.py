@@ -19,7 +19,7 @@ from app.services.poller import VehiclePoller
 VIN = "LSJA0000000000001"
 STORED_PIN = "1234"
 PASSWORD = "una-contraseña-larga-1"
-OPENING = {"desbloquear", "maletero_abrir", "ventanillas_abrir", "ventilar_ventanillas", "techo_abrir", "alarma_off"}
+OPENING = {"desbloquear", "maletero_abrir", "ventanillas_abrir", "ventilar_ventanillas", "techo_abrir", "techo_ventilar", "alarma_off"}
 
 
 class FakeSend:
@@ -348,3 +348,51 @@ async def test_the_alarm_of_a_car_without_an_ebro_session_is_unknown_not_a_serve
         assert r.status_code == 200 and r.json() == {"enabled": None}
     finally:
         await client.aclose()
+
+
+# ───────────────────────── orders captured from the official app on 2026-11-21 ─────────────────────────
+def test_the_bodies_of_the_new_orders_are_the_ones_the_official_app_sends() -> None:
+    """Purifier and demisting are fields of the climate order; quick heating is one order for everything; tilting the roof is
+    the third value of the roof order. Each body is what the official app sent and the car obeyed (an S900)."""
+    body = lambda key: (catalog.CMD_MAP[key]["endpoint"], catalog.CMD_MAP[key]["body"])        # noqa: E731
+    climate = {"airControlType": "1", "airType": "1", "temperature": "21.0", "times": "15"}
+    assert body("purificador_on") == ("airControl", {**climate, "airPurControlType": "1"})
+    assert body("purificador_off") == ("airControl", {**climate, "airPurControlType": "0"})          # the climate stays on
+    assert body("desempanar_on") == ("airControl", {**climate, "frontDefrosting": "1"})
+    assert body("desempanar_off") == ("airControl", {**climate, "frontDefrosting": "0"})
+    heat = {"airControlType": "1", "airType": "1", "temperature": "30", "duration": "15", "mSeatHeating": "3", "pSeatHeating": "3",
+            "blSeatHeating": "3", "brSeatHeating": "3", "steerWheelHeatSwitch": "1", "frontWindshieldHeat": "1"}
+    assert body("calefaccion_rapida") == ("heatingControl", heat)
+    assert body("calefaccion_rapida_off") == ("heatingControl", {k: (v if k in ("airType", "temperature", "duration") else "0") for k, v in heat.items()})
+    assert body("techo_ventilar") == ("skylightControl", {"controlType": "2", "skylightType": "1"})
+    assert body("salida_prog_on") == ("appointmentTravel", {"mainSwitcher": 1, "appointmentTravelAOS": [
+        {"switcher": 1, "travelTime": 420, "travelWeekday": [1, 2, 3, 4, 5, 6, 7]}]})
+    # the heated glass keeps its key and its order; only its name changed (it was called «Desempañar parabrisas»)
+    assert body("defrost_parabrisas") == ("frontWindshieldControl", {"frontWindshieldHeat": "1", "times": "15"})
+    assert catalog.CMD_MAP["defrost_parabrisas"]["name"] == "Parabrisas térmico"
+
+
+async def test_the_purifier_and_the_demisting_carry_the_climate_temperature_and_nothing_else(db, send) -> None:
+    """They travel in the climate order: without the temperature the car has set, turning the purifier off would move the
+    climate to the catalogue's default. No other field of that order can be slipped in."""
+    client = await prepare(db)
+    async with client:
+        for command in ("purificador_on", "purificador_off", "desempanar_on", "desempanar_off"):
+            assert (await send_command(client, command, params={"temperature": "23.0"})).status_code == 200, command
+        for command, params in [("purificador_off", {"airControlType": "0"}), ("desempanar_on", {"frontDefrosting": "0"}),
+                                ("purificador_on", {"temperature": "40"}), ("calefaccion_rapida", {"temperature": "20"}),
+                                ("techo_ventilar", {"controlType": "1"}), ("salida_prog_on", {"mainSwitcher": 0})]:
+            r = await send_command(client, command, pin=STORED_PIN, params=params)
+            assert r.status_code == 422 and r.json()["reason"] == "params_invalid", (command, r.text)
+    assert [(c["key"], c["params"]) for c in send.calls] == [(k, {"temperature": "23.0"}) for k in
+                                                             ("purificador_on", "purificador_off", "desempanar_on", "desempanar_off")]
+
+
+async def test_tilting_the_roof_asks_for_the_pin_like_opening_it(db, send) -> None:
+    client = await prepare(db)
+    async with client:
+        r = await send_command(client, "techo_ventilar")
+        assert r.status_code == 422 and r.json()["reason"] == "pin_required" and send.calls == []
+        assert (await send_command(client, "techo_ventilar", pin=STORED_PIN)).status_code == 200
+        assert (await send_command(client, "calefaccion_rapida")).status_code == 200                 # heating opens nothing: no PIN
+    assert [c["key"] for c in send.calls] == ["techo_ventilar", "calefaccion_rapida"]

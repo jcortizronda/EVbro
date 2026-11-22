@@ -108,8 +108,11 @@ async def test_the_publisher_announces_once_publishes_location_and_runs_commands
     telemetry = {"battery_level": 64, "latitude": 40.4, "longitude": -3.7, "speed_kmh": 0, "heading": 90, "target_temp": 23.0, "raw_data": {"x": 1}}
     MqttPublisher.publish_telemetry(VIN, telemetry, car)
     MqttPublisher.publish_telemetry(VIN, telemetry, car)
-    configs = [t for t, _, retain in fake.published if t.startswith("homeassistant/") and retain]
+    configs = [t for t, payload, retain in fake.published if t.startswith("homeassistant/") and retain and payload]
     assert len(configs) == len(ha_discovery.discovery_messages("evbro", "homeassistant", VIN, None, None, None))   # announced once, not twice
+    # an entity EVBro stopped publishing is deleted in Home Assistant: an empty retained message on its discovery topic
+    hybrid = f"homeassistant/sensor/ebro_{VIN}/rt_km_hibrido/config"
+    assert [(t, p, r) for t, p, r in fake.published if t == hybrid] == [(hybrid, "", True)] and hybrid not in configs
     js = json.loads(next(p for t, p, _ in fake.published if t == f"evbro/cars/{VIN}/json"))
     assert js["battery_level"] == 64 and "raw_data" not in js and js["last_contact"]
     loc = json.loads(next(p for t, p, _ in fake.published if t == f"evbro/cars/{VIN}/location"))

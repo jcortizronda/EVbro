@@ -181,7 +181,7 @@ function groupNotices(logs) {
     const key = [row.category, row.title, row.message, String(row.timestamp || '').slice(0, 19)].join('\u0000');
     let notice = byKey.get(key);
     if (!notice) {
-      notice = { category: row.category, title: row.title, message: row.message, timestamp: row.timestamp, unread: false, failures: [] };
+      notice = { id: row.id, category: row.category, title: row.title, message: row.message, timestamp: row.timestamp, unread: false, failures: [] };
       byKey.set(key, notice);
       notices.push(notice);
     }
@@ -222,13 +222,98 @@ function renderNotices(list, logs) {
     const [ico, kind] = NOTICE_KIND[n.category] || ['bell', 'info'];
     const time = when.toLocaleTimeString(I18n.locale, { hour: '2-digit', minute: '2-digit' });
     const failures = n.failures.map((f) => `<small class="notice-fail">${escapeHtml(t('No se pudo enviar por {p0}: {p1}', {p0: noticeChannel(f.channel), p1: f.error || '—'}))}</small>`);
-    html.push(`<div class="notice-row notice-${kind}${n.unread ? ' is-unread' : ''}">
+    html.push(`<div class="notice-row notice-${kind}${n.unread ? ' is-unread' : ''}" data-id="${Number(n.id)}">
       <span class="notice-ico" aria-hidden="true">${icon(ico, 16)}</span>
       <span class="notice-main"><strong>${escapeHtml(n.title)}</strong><span class="notice-text">${escapeHtml(n.message)}</span>${failures.join('')}</span>
-      <span class="notice-time">${n.unread ? `<span class="notice-new">${t('Nuevo')}</span>` : ''}${escapeHtml(time)}</span>
+      <span class="notice-time">${n.unread ? `<span class="notice-new">${t('Nuevo')}</span>` : ''}${escapeHtml(time)}<button type="button" class="notice-dismiss" aria-label="${t('Descartar aviso')}" title="${t('Descartar aviso')}">${icon('x', 14)}</button></span>
     </div>`);
   }
   list.innerHTML = html.join('');
+  attachNoticeSwipe(list);
+}
+
+// ───────────────────────── dismissing one notice ─────────────────────────
+// Like the notifications of Android: a notice swiped sideways goes away. With a mouse, the cross of the row does the same.
+const NOTICE_SWIPE_SHARE = 0.35;                 // of the row's width, or a quick flick
+const NOTICE_FLICK_PX_PER_MS = 0.6;
+
+function attachNoticeSwipe(list) {
+  if (list.dataset.swipe) return;
+  list.dataset.swipe = '1';
+  let drag = null;
+  list.addEventListener('click', (ev) => {
+    const btn = ev.target.closest('.notice-dismiss');
+    if (btn) dismissNotice(btn.closest('.notice-row'), 1);
+  });
+  list.addEventListener('pointerdown', (ev) => {
+    const row = ev.target.closest('.notice-row');
+    if (!row || ev.button > 0 || ev.target.closest('button') || row.classList.contains('is-leaving')) return;
+    drag = { row, pointer: ev.pointerId, x: ev.clientX, y: ev.clientY, dx: 0, active: false, at: performance.now() };
+  });
+  list.addEventListener('pointermove', (ev) => {
+    if (!drag || ev.pointerId !== drag.pointer) return;
+    const dx = ev.clientX - drag.x;
+    const dy = ev.clientY - drag.y;
+    if (!drag.active) {
+      if (Math.abs(dy) > 10 && Math.abs(dy) >= Math.abs(dx)) { drag = null; return; }   // scrolling the list, not swiping
+      if (Math.abs(dx) < 10) return;
+      drag.active = true;
+      drag.row.classList.add('is-dragging');
+      try { drag.row.setPointerCapture(ev.pointerId); } catch (e) { /* the pointer may already be gone */ }
+    }
+    drag.dx = dx;
+    drag.row.style.transform = `translateX(${dx}px)`;
+    drag.row.style.opacity = String(Math.max(0.15, 1 - Math.abs(dx) / drag.row.offsetWidth));
+  });
+  const end = (ev) => {
+    if (!drag || ev.pointerId !== drag.pointer) return;
+    const { row, dx, active, at } = drag;
+    drag = null;
+    if (!active) return;
+    row.classList.remove('is-dragging');
+    const flick = Math.abs(dx) > 40 && Math.abs(dx) / Math.max(1, performance.now() - at) > NOTICE_FLICK_PX_PER_MS;
+    if (ev.type === 'pointerup' && (Math.abs(dx) > row.offsetWidth * NOTICE_SWIPE_SHARE || flick)) {
+      dismissNotice(row, Math.sign(dx) || 1);
+    } else {
+      row.style.transform = '';
+      row.style.opacity = '';
+    }
+  };
+  list.addEventListener('pointerup', end);
+  list.addEventListener('pointercancel', end);
+}
+
+/** Slides the row out, removes the notice on the server (all its channels) and closes the gap; on failure the row comes back. */
+async function dismissNotice(row, direction) {
+  if (!row || row.classList.contains('is-leaving')) return;
+  row.classList.add('is-leaving');
+  row.style.transform = `translateX(${direction * 110}%)`;
+  row.style.opacity = '0';
+  let ok = false;
+  try {
+    ok = (await fetch(`/api/notifications/logs/${row.dataset.id}`, { method: 'DELETE' })).ok;
+  } catch (e) { ok = false; }
+  if (!ok) {
+    row.classList.remove('is-leaving');
+    row.style.transform = '';
+    row.style.opacity = '';
+    showToast(t('No se pudo descartar el aviso.'), 'error');
+    return;
+  }
+  row.style.height = `${row.offsetHeight}px`;
+  row.getBoundingClientRect();                                 // fix the height before collapsing it
+  row.classList.add('is-gone');
+  setTimeout(() => {
+    const list = row.parentElement;
+    row.remove();
+    if (!list) return;
+    // A day left without notices loses its heading; an empty history says so
+    list.querySelectorAll('.hist-month').forEach((head) => {
+      const next = head.nextElementSibling;
+      if (!next || !next.classList.contains('notice-row')) head.remove();
+    });
+    if (!list.querySelector('.notice-row')) list.innerHTML = `<div class="hist-empty">${t('Todavía no hay avisos.')}</div>`;
+  }, 220);
 }
 
 /** Paints the history in the bell's dialog. Returns whether it could (offline or without a session it could not). */

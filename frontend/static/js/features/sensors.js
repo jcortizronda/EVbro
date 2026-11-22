@@ -1,4 +1,4 @@
-/* EVBro — Modal «Todos los sensores y cables».
+/* EVBro — Modal «Sensores».
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
@@ -42,6 +42,10 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
   // Tones: '' plain, 'on' something working (charging, heating), 'warn' something open, 'alert' a warning from the car.
   const flag = (v, yes, no, yesTone = '', noTone = '') => (v === null || v === undefined
     ? { value: 'Sin datos', tone: 'unknown' } : { value: v ? yes : no, tone: v ? yesTone : noTone });
+
+  // `sunroofMoveState` as read off the stored readings (see its card below)
+  const SUNROOF_MOVE = { 1: t('Entreabierto'), 2: t('Cerrado, parado'), 3: t('Abriéndose'), 4: t('Cerrándose'), 8: t('Abierto del todo') };
+  const sunroofMove = raw.sunroofMoveState === undefined || raw.sunroofMoveState === null || raw.sunroofMoveState === '' ? null : String(raw.sunroofMoveState);
 
   const items = [
     // 1. Cables and charging
@@ -206,16 +210,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       statusClass: 'active',
       details: 'Kilómetros circulados exclusivamente con el motor eléctrico'
     },
-    {
-      category: 'battery',
-      catName: 'Batería & Rangos',
-      name: 'Odómetro Modo Híbrido',
-      key: 'hybridMileage',
-      haEntity: 'sensor.ebro_odometro_hibrido',
-      value: data.hybrid_odometer_km ? `${Math.round(data.hybrid_odometer_km).toLocaleString()} km` : (raw.hybridMileage ? `${Math.round(raw.hybridMileage).toLocaleString()} km` : 'Sin datos'),
-      statusClass: 'parked',
-      details: 'Kilómetros circulados en modo híbrido combinado'
-    },
+    // No «Odómetro Modo Híbrido» (`hybridMileage`): the cloud sends 0 for every car (eight cars, some 15,800 readings, 21-11-2026)
     {
       category: 'battery',
       catName: 'Batería & Rangos',
@@ -395,8 +390,20 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
       name: 'Techo Solar Panorámico',
       key: 'sunroofState',
       haEntity: 'cover.ebro_techo_solar',
-      ...flag(windows.sunroof, 'Abierto', 'Cerrado', 'warn', ''),
+      ...flag(windows.sunroof, windows.sunroof === 2 ? 'Entreabierto' : 'Abierto', 'Cerrado', 'warn', ''),   // 0 closed, 2 tilted, 3 open
       details: 'Estado del cristal del techo solar'
+    },
+    {
+      // Position or movement of the roof, next to `sunroofState`. Meanings read off the stored readings of S800 and S900
+      // (2026-11-21): 2 with the roof closed (some 15,000 readings), 1 tilted, 8 fully open, 3 and 4 while it opens and closes.
+      // 7 was seen twice with the roof open and is not identified: any other value is shown as the car sends it.
+      category: 'body',
+      catName: 'Carrocería & Cierres',
+      name: 'Movimiento del Techo Solar',
+      key: 'sunroofMoveState',
+      value: sunroofMove === null ? 'Sin datos' : (SUNROOF_MOVE[sunroofMove] || t('Valor {p0}', {p0: sunroofMove})),
+      tone: sunroofMove === null ? 'unknown' : (sunroofMove === '2' ? '' : 'warn'),
+      details: t('Posición o movimiento del techo según el coche (valor {p0}). Significados deducidos de las lecturas, sin confirmar.', {p0: sunroofMove ?? '—'})
     },
     {
       category: 'body',
@@ -450,11 +457,19 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
     {
       category: 'climate',
       catName: 'Climatización & Confort',
-      name: 'Desempañado Parabrisas Delantero',
-      key: 'fWinHeatingState / frontWindshieldHeat',
+      name: 'Desempañado del Parabrisas',
+      key: 'fWinHeatingState',
+      ...flag(data.front_defrost, 'Activo', 'Apagado', 'on', ''),
+      details: 'Aire del climatizador dirigido al parabrisas'
+    },
+    {
+      category: 'climate',
+      catName: 'Climatización & Confort',
+      name: 'Parabrisas Térmico',
+      key: 'frontWindshieldHeat',
       haEntity: 'switch.ebro_desempanado_delantero',
       ...flag(data.front_windshield_heat, 'Activo', 'Apagado', 'on', ''),
-      details: 'Ventilación y resistencias luna delantera'
+      details: 'Resistencias del cristal delantero'
     },
     {
       category: 'climate',
@@ -589,7 +604,7 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
   });
 
   if (countBadge) {
-    countBadge.innerText = t('Mostrando {p0} de {p1} sensores y cables integrados', {p0: filtered.length, p1: present.length});
+    countBadge.innerText = t('Mostrando {p0} de {p1} sensores', {p0: filtered.length, p1: present.length});
   }
   const unreportedHtml = missing.length && !filterQuery && filterCategory === 'all'
     ? `<details class="sensor-unreported"><summary>${escapeHtml(t('{p0} datos que este coche no envía', { p0: missing.length }))}</summary>

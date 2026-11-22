@@ -121,7 +121,11 @@ def parse_telemetry_data(
     out_temp = safe_float(raw.get("outsideTemperature") or raw.get("outCarTemperature"))
 
     air_purification = str(raw.get("airPurification", "")).strip() in ("1", "1.0")
-    front_windshield_heat = str(raw.get("frontWindshieldHeat") or raw.get("fWinHeatingState", "")).strip() in ("1", "1.0")
+    # Two different things the car reports apart (official app capture, 2026-11-21): `frontWindshieldHeat` is the heated glass
+    # (frontWindshieldControl) and `fWinHeatingState` is the demisting with air (airControl + frontDefrosting). They were
+    # read as one until then, so demisting showed the heated windscreen as on.
+    front_windshield_heat = str(raw.get("frontWindshieldHeat", "")).strip() in ("1", "1.0")
+    front_defrost = str(raw.get("fWinHeatingState", "")).strip() in ("1", "1.0")
     rear_windshield_heat = str(raw.get("rWinHeatingState", "")).strip() in ("1", "1.0")
     steer_wheel_heat = str(raw.get("steerWheelHeating", "")).strip() in ("1", "1.0")
 
@@ -247,6 +251,7 @@ def parse_telemetry_data(
         "target_temp_right": target_temp_right,
         "air_purification": air_purification,
         "front_windshield_heat": front_windshield_heat,
+        "front_defrost": front_defrost,
         "rear_windshield_heat": rear_windshield_heat,
         "steer_wheel_heat": steer_wheel_heat,
         "seat_heating": seat_heating,

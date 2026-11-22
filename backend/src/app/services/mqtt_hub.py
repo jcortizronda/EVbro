@@ -176,6 +176,8 @@ class MqttLinkClient:
         for topic, payload in ha_discovery.discovery_messages(self.config.topic_prefix, self.config.ha_prefix, vin, name, brand, model, reported_keys,
                                                               rejected_commands):
             self._client.publish(topic, json.dumps(payload), qos=1, retain=True)
+        for topic in ha_discovery.retired_topics(self.config.ha_prefix, vin):          # entities dropped since: Home Assistant deletes them
+            self._client.publish(topic, "", qos=1, retain=True)
         self._announced.add(vin)
         _LOGGER.info(f"Home Assistant discovery published for {vin[-6:]} on {self.config.host}")
 

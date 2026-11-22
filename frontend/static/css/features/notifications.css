@@ -34,7 +34,7 @@
 .notice-push[hidden] { display: none; }
 .notice-push p { margin: 0; font-size: 0.85rem; color: var(--text-secondary); }
 .notice-push .btn-sm { flex: none; }
-.notice-list { display: flex; flex-direction: column; gap: 6px; flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.notice-list { display: flex; flex-direction: column; gap: 6px; flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; }
 .notice-list .hist-month { margin-top: 10px; }
 .notice-list .hist-month:first-child { margin-top: 0; }
 .notice-row {
@@ -42,6 +42,20 @@
   padding: 10px; background: var(--surface-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm);
 }
 .notice-row.is-unread { border-color: rgba(var(--accent-rgb), 0.5); }
+/* Swiped sideways to dismiss it (the vertical scroll of the list stays with the browser) */
+.notice-row { touch-action: pan-y; user-select: none; transition: transform 0.2s ease, opacity 0.2s ease; }
+.notice-row.is-dragging { transition: none; }
+.notice-row.is-gone {
+  height: 0 !important; min-height: 0; padding-top: 0; padding-bottom: 0; margin-top: -6px; border-width: 0; overflow: hidden;
+  transition: height 0.2s ease, padding 0.2s ease, margin 0.2s ease;
+}
+.notice-dismiss {
+  display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; margin-right: -4px;
+  border: 0; border-radius: 50%; background: transparent; color: var(--text-muted); cursor: pointer;
+}
+.notice-dismiss:hover, .notice-dismiss:focus-visible { color: var(--text-primary); background: var(--surface-tertiary, rgba(127, 127, 127, 0.15)); }
+/* On a touch screen the gesture does it: no cross */
+@media (hover: none) { .notice-dismiss { display: none; } }
 .notice-ico {
   display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 10px;
   background: rgba(var(--accent-rgb), 0.12); color: var(--accent);

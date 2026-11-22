@@ -183,8 +183,10 @@ async def delete_manager(user_id: int, confirm: str = "", admin: AppUser = Depen
         raise HTTPException(status_code=404, detail="Gestor no encontrado.")
     if confirm.strip().lower() != user.username:
         raise HTTPException(status_code=409, detail="Para borrar el espacio escribe el nombre de usuario exacto en «confirm».")
+    vins = await tenant.vins_of(db, user.id)
     removed = await tenant.delete_manager_space(db, user.id)
     await db.commit()
+    await tenant.release_manager_runtime(user_id, vins)
     return {"ok": True, "removed": removed}
 
 

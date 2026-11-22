@@ -12,6 +12,7 @@
 .vp-section { --tone: var(--accent-bright); padding: 6px 16px 12px; margin: 0; border-left: 4px solid var(--tone); }
 .vp-section[data-tone="blue"] { --tone: #0a84ff; } .vp-section[data-tone="green"] { --tone: #30d158; } .vp-section[data-tone="violet"] { --tone: #bf5af2; }
 .vp-section[data-tone="amber"] { --tone: #ff9f0a; } .vp-section[data-tone="cyan"] { --tone: #64d2ff; }
+.vp-section[data-tone="red"] { --tone: #ff453a; }
 .vp-section-title { display: flex; align-items: center; gap: 10px; margin: 0; min-height: 44px; font-size: 1rem; font-weight: 700; color: var(--text-primary); cursor: pointer; list-style: none; -webkit-tap-highlight-color: transparent; }
 .vp-section-title::-webkit-details-marker { display: none; }
 .vp-section[open] > .vp-section-title { margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }

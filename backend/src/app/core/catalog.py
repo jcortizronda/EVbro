@@ -27,12 +27,31 @@ COMMANDS = [
     ("clima_off", {"endpoint": "airControl",
                    "body": {"airControlType": "0", "airType": "1", "temperature": "21.0", "times": "15"},
                    "name": "Clima apagado", "icon": "mdi:air-conditioner", "group": "Climatización"}),
+    # Air purifier and windscreen demisting are FIELDS of the climate order, not orders of their own (captured from the
+    # official app on 2026-11-21, S900; the car confirmed each one). Purifier: `airPurControlType` 1/0, reported back as
+    # `airPurification`. Demisting (air blown at the glass): `frontDefrosting` 1/0, reported back as `fWinHeatingState`.
+    # Both turn the climate on; the OFF ones keep `airControlType` "1", so only the purifier or the demisting stops and the
+    # climate stays on. The app sends the temperature the car has set: the interface passes it via `params`.
+    ("purificador_on",  {"endpoint": "airControl",
+                   "body": {"airControlType": "1", "airPurControlType": "1", "airType": "1", "temperature": "21.0", "times": "15"},
+                   "name": "Purificador de aire", "icon": "mdi:air-purifier", "group": "Climatización"}),
+    ("purificador_off", {"endpoint": "airControl",
+                   "body": {"airControlType": "1", "airPurControlType": "0", "airType": "1", "temperature": "21.0", "times": "15"},
+                   "name": "Purificador de aire OFF", "icon": "mdi:air-purifier", "group": "Climatización"}),
+    ("desempanar_on",  {"endpoint": "airControl",
+                   "body": {"airControlType": "1", "airType": "1", "frontDefrosting": "1", "temperature": "21.0", "times": "15"},
+                   "name": "Desempañar parabrisas", "icon": "mdi:car-defrost-front", "group": "Climatización"}),
+    ("desempanar_off", {"endpoint": "airControl",
+                   "body": {"airControlType": "1", "airType": "1", "frontDefrosting": "0", "temperature": "21.0", "times": "15"},
+                   "name": "Desempañar parabrisas OFF", "icon": "mdi:car-defrost-front", "group": "Climatización"}),
+    # HEATED windscreen (the resistive glass; «luneta térmica delantera» in the official app), reported back as
+    # `frontWindshieldHeat`. Until 2026-11-21 it was called «Desempañar parabrisas» here, which is the order above.
     ("defrost_parabrisas", {"endpoint": "frontWindshieldControl",
                    "body": {"frontWindshieldHeat": "1", "times": "15"},
-                   "name": "Desempañar parabrisas", "icon": "mdi:car-defrost-front", "group": "Climatización"}),
+                   "name": "Parabrisas térmico", "icon": "mdi:car-defrost-front", "group": "Climatización"}),
     ("defrost_parabrisas_off", {"endpoint": "frontWindshieldControl",
                    "body": {"frontWindshieldHeat": "0"},
-                   "name": "Desempañar parabrisas OFF", "icon": "mdi:car-defrost-front", "group": "Climatización"}),
+                   "name": "Parabrisas térmico OFF", "icon": "mdi:car-defrost-front", "group": "Climatización"}),
     ("defrost_luneta", {"endpoint": "backDefrostingControl",
                    "body": {"backDefrosting": "1", "times": "15"},
                    "name": "Desempañar luneta", "icon": "mdi:car-defrost-rear", "group": "Climatización"}),
@@ -97,10 +116,23 @@ COMMANDS = [
                    "body": {"brSeatAiry": "0"},
                    "name": "Asiento tras. der. ventilado OFF", "icon": "mdi:car-seat-cooler", "group": "Climatización"}),
 
-    # NB: the "all" climate macros (coolingControl/heatingControl: "Enfriar todo"/"Calentar todo")
-    # were REMOVED — this car rejects them with A00084 «comando no permitido» (permission denied,
-    # verified live 2026-07-31). Normal climate control (airControl) DOES work, and
-    # each seat/defroster/steering wheel has its own switch.
+    # Quick heating («Calefacción rápida» in the official app): ONE order that turns on the climate at 30 °C, the four seats
+    # at level 3, the steering wheel and the heated windscreen, for 15 minutes; the OFF one turns all of it off, climate
+    # included. Bodies 1:1 from the official app (2026-11-21, S900: accepted and seen on the car). It had been REMOVED on
+    # 2026-07-31 because the car answered A00084 «comando no permitido»: the body sent then was not this one.
+    # NB: note `duration` here, where airControl says `times`.
+    ("calefaccion_rapida", {"endpoint": "heatingControl",
+                   "body": {"airControlType": "1", "airType": "1", "temperature": "30", "duration": "15",
+                            "mSeatHeating": "3", "pSeatHeating": "3", "blSeatHeating": "3", "brSeatHeating": "3",
+                            "steerWheelHeatSwitch": "1", "frontWindshieldHeat": "1"},
+                   "name": "Calefacción rápida", "icon": "mdi:fire", "group": "Climatización"}),
+    ("calefaccion_rapida_off", {"endpoint": "heatingControl",
+                   "body": {"airControlType": "0", "airType": "1", "temperature": "30", "duration": "15",
+                            "mSeatHeating": "0", "pSeatHeating": "0", "blSeatHeating": "0", "brSeatHeating": "0",
+                            "steerWheelHeatSwitch": "0", "frontWindshieldHeat": "0"},
+                   "name": "Calefacción rápida OFF", "icon": "mdi:fire", "group": "Climatización"}),
+    # The cooling macro (coolingControl, «Enfriar todo») stays out: the car answered A00084 on 2026-07-31 and its body has
+    # not been captured from the official app.
 
     # — Doors / locks —
     ("desbloquear",   {"endpoint": "lockControl", "body": {"lockType": "1"},
@@ -123,6 +155,9 @@ COMMANDS = [
                    "name": "Abrir techo", "icon": "mdi:car-select", "group": "Ventanillas y techo"}),
     ("techo_cerrar", {"endpoint": "skylightControl", "body": {"controlType": "0", "skylightType": "1"},
                    "name": "Cerrar techo", "icon": "mdi:car-select", "group": "Ventanillas y techo"}),
+    # controlType "2" = tilt («Ventilar» in the official app, 2026-11-21): the car then reports `sunroofState` 2 (0 closed, 3 open)
+    ("techo_ventilar", {"endpoint": "skylightControl", "body": {"controlType": "2", "skylightType": "1"},
+                   "name": "Ventilar techo", "icon": "mdi:weather-windy", "group": "Ventanillas y techo"}),
 
     # — EV charging —
     # IMMEDIATE charge start/stop (endpoint chargeStartStopControl, bean CVChargeStartStopBean
@@ -145,6 +180,20 @@ COMMANDS = [
                        {"cycleData": [1, 2, 3, 4, 5, 6, 7], "startTime": 480,
                         "switchStatus": 0, "timeConsuming": 360}]},
                    "name": "Carga programada OFF", "icon": "mdi:calendar-remove", "group": "Carga"}),
+
+    # SCHEDULED DEPARTURE («Reserva tu viaje» in the official app; endpoint appointmentTravel, captured 2026-11-21). The app's
+    # own text: «El aislamiento de la batería comienza 1 hora y 30 minutos antes de su salida». Body with a nested ARRAY like
+    # the scheduled charge (signature verified on 2/2 real envelopes): `mainSwitcher` = master switch; one entry per departure
+    # with `switcher`, `travelTime` in MINUTES of the day and `travelWeekday` [1..7]. Read back with travelQuery
+    # (`appointmentTravelSetVOS`, where the days are called `travelDate`). The plan is passed by the interface via `params`.
+    ("salida_prog_on", {"endpoint": "appointmentTravel",
+                   "body": {"mainSwitcher": 1, "appointmentTravelAOS": [
+                       {"switcher": 1, "travelTime": 420, "travelWeekday": [1, 2, 3, 4, 5, 6, 7]}]},
+                   "name": "Salida programada ON", "icon": "mdi:calendar-clock", "group": "Salida programada"}),
+    ("salida_prog_off", {"endpoint": "appointmentTravel",
+                   "body": {"mainSwitcher": 0, "appointmentTravelAOS": [
+                       {"switcher": 0, "travelTime": 420, "travelWeekday": [1, 2, 3, 4, 5, 6, 7]}]},
+                   "name": "Salida programada OFF", "icon": "mdi:calendar-remove", "group": "Salida programada"}),
 
     # — Other —
     ("encontrar_coche_luces", {"endpoint": "findCar", "body": {},

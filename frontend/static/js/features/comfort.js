@@ -33,6 +33,10 @@
   const HEAT_WAVES = (y) => [8.5, 12, 15.5].map((x) => `<path d="M${x} ${y} q1.1 -1.2 0 -2.4 t0 -2.4"/>`).join('');
   const ICONS = {
     windshield: SVG(`<path d="M2.5 19 L5.8 6.2 Q12 3.2 18.2 6.2 L21.5 19 Z"/>${HEAT_WAVES(16)}`),
+    // the heated glass: the same windscreen with the heating wires across it, instead of the rising air
+    heated: SVG('<path d="M2.5 19 L5.8 6.2 Q12 3.2 18.2 6.2 L21.5 19 Z"/><path d="M6.4 10.5 H17.6 M5.6 13.5 H18.4 M4.9 16.3 H19.1"/>'),
+    // air purifier: a leaf
+    leaf: SVG('<path d="M5 19 C5 9 11 4 20 4 C20 13 15 19 5 19 Z"/><path d="M5 19 L13.5 10.5"/>'),
     rear: SVG(`<rect x="2.5" y="5" width="19" height="14" rx="3"/>${HEAT_WAVES(16)}`),
     // heat (flame) and ventilation (snowflake): simple pictograms, not relying on the device's emoji font
     flame: SVG('<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>'),
@@ -40,19 +44,44 @@
     wheel: SVG('<circle cx="12" cy="14.5" r="7"/><circle cx="12" cy="14.5" r="1.9"/><path d="M5.2 13.3 L10.1 14 M18.8 13.3 L13.9 14 M12 16.4 V21.5"/><path d="M9 6 q1 -1.1 0 -2.2 t0 -2.2"/><path d="M15 6 q1 -1.1 0 -2.2 t0 -2.2"/>'),
   };
 
+  /** The temperature the climate order carries: the purifier and the demisting travel in it, and without this they would move
+   *  the climate to the catalogue's default. */
+  const climateParams = () => ({ temperature: currentTargetTemp.toFixed(1) });
+
+  function quickHeatState() {
+    const t = (typeof latestTelemetryData !== 'undefined' && latestTelemetryData) || null;
+    const raw = t && (t.raw_data || t.raw);
+    if (!raw || !['frontHVACState', 'dSeatHeatingState', 'steerWheelHeating'].every((k) => k in raw)) return { on: null, level: null };
+    return { on: t.climate_on === true && ((t.seat_heating || {}).driver || 0) > 0 && t.steer_wheel_heat === true, level: null };
+  }
+
   const CONTROLS = [
     { id: 'ac', group: 'ac', label: 'Climatizador', rawKeys: ['frontHVACState'], read: (t) => t.climate_on,
       on: () => ['clima_on', t('Encender climatizador a {p0} °C', {p0: historyNum(currentTargetTemp, 1)}), { temperature: currentTargetTemp.toFixed(1) }],
       off: () => ['clima_off', 'Apagar climatizador', null] },
-    { id: 'windshield', group: 'defrost', icon: ICONS.windshield, label: 'Parabrisas', hint: 'Desempañar delantero',
-      rawKeys: ['frontWindshieldHeat', 'fWinHeatingState'], read: (t) => t.front_windshield_heat,
-      on: () => ['defrost_parabrisas', 'Desempañar parabrisas', null], off: () => ['defrost_parabrisas_off', 'Apagar desempañado del parabrisas', null] },
+    // Demisting (air blown at the glass: part of the climate order, which it turns on) and the heated glass are two things the
+    // car reports apart: `fWinHeatingState` and `frontWindshieldHeat`. They were one button, «Parabrisas», until 2026-11-21.
+    { id: 'defog', group: 'defrost', icon: ICONS.windshield, label: 'Desempañar', hint: 'Aire al parabrisas',
+      rawKeys: ['fWinHeatingState'], read: (t) => t.front_defrost,
+      on: () => ['desempanar_on', 'Desempañar parabrisas', climateParams()], off: () => ['desempanar_off', 'Apagar desempañado del parabrisas', climateParams()] },
+    { id: 'windshield', group: 'defrost', icon: ICONS.heated, label: 'Parabrisas térmico', hint: 'Cristal calefactado',
+      rawKeys: ['frontWindshieldHeat'], read: (t) => t.front_windshield_heat,
+      on: () => ['defrost_parabrisas', 'Encender parabrisas térmico', null], off: () => ['defrost_parabrisas_off', 'Apagar parabrisas térmico', null] },
     { id: 'rear', group: 'defrost', icon: ICONS.rear, label: 'Luneta trasera', hint: 'Desempañar trasera',
       rawKeys: ['rWinHeatingState'], read: (t) => t.rear_windshield_heat,
       on: () => ['defrost_luneta', 'Desempañar luneta trasera', null], off: () => ['defrost_luneta_off', 'Apagar desempañado de la luneta', null] },
     { id: 'wheel', group: 'defrost', icon: ICONS.wheel, label: 'Volante', hint: 'Calefactado',
       rawKeys: ['steerWheelHeating'], read: (t) => t.steer_wheel_heat,
       on: () => ['volante_caliente', 'Encender volante calefactado', null], off: () => ['volante_caliente_off', 'Apagar volante calefactado', null] },
+    // The purifier also travels in the climate order: turning it on turns the climate on, turning it off leaves the climate on
+    { id: 'purifier', group: 'defrost', icon: ICONS.leaf, label: 'Purificador', hint: 'Aire del habitáculo',
+      rawKeys: ['airPurification'], read: (t) => t.air_purification,
+      on: () => ['purificador_on', 'Encender purificador de aire', climateParams()], off: () => ['purificador_off', 'Apagar purificador de aire', climateParams()] },
+    // Quick heating: ONE order for the climate at 30 °C, the four seats, the steering wheel and the heated glass. The car has no
+    // field for it, so it counts as on while the car reports the climate, the driver's seat and the steering wheel on.
+    { id: 'quickheat', group: 'defrost', macro: true, icon: ICONS.flame, label: 'Calefacción rápida', hint: 'Clima a 30 °C, asientos, volante y parabrisas',
+      source: quickHeatState,
+      on: () => ['calefaccion_rapida', 'Encender calefacción rápida', null], off: () => ['calefaccion_rapida_off', 'Apagar calefacción rápida', null] },
   ];
   for (const seat of SEAT_NAMES) {
     for (const [kind, cmdWord, field, verb] of [['heat', 'caliente', 'seat_heating', 'Calefacción'], ['vent', 'ventilacion', 'seat_ventilation', 'Ventilación']]) {
@@ -179,7 +208,7 @@
     if (badge) { const st = effective(ac); badge.dataset.state = stateKey(ac, st); badge.textContent = stateText(ac, st); }
     const head = document.getElementById('climateStatusBadge');
     if (head) {
-      const known = CONTROLS.filter((c) => (c.group === 'defrost' || c.group === 'seats') && effective(c).on === true).length + (effective(ac).on ? 1 : 0);
+      const known = CONTROLS.filter((c) => (c.group === 'defrost' || c.group === 'seats') && !c.macro && effective(c).on === true).length + (effective(ac).on ? 1 : 0);
       head.textContent = effective(ac).on === null ? 'Sin datos' : (known ? `${known} activa${known > 1 ? 's' : ''}` : 'Todo apagado');
     }
   }

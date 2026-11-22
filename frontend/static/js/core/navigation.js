@@ -48,6 +48,7 @@ function switchTab(tabName) {
   } else if (tabName === 'climate') {
     if (typeof syncClimateUI === 'function') syncClimateUI();
     if (window.ClimateSchedule) ClimateSchedule.load();
+    if (window.Departure) Departure.load();
   } else if (tabName === 'expenses') {
     if (typeof loadExpenses === 'function') loadExpenses();
   } else if (tabName === 'costs') {
@@ -136,14 +137,28 @@ function switchSettingsSubTab(subTabName) {
 }
 
 /* Ajustes sections (<details class="set-section">): every card folds like the car sheet's, and which ones are open is
- * remembered on this device. By default only «Cuenta de Ebro» is open; the rest show just their title (and status badge). */
+ * remembered on this device. A section this device has not seen yet starts as the page says (`data-open-default` = open: «Cuenta
+ * de Ebro», the only card of Compartir and «Este dispositivo» of Avisos); the rest show just their title (and status badge). */
 const SETTINGS_FOLD_KEY = 'evbro_settings_open';
+const SETTINGS_SEEN_KEY = 'evbro_settings_seen';
 function initSettingsFolds() {
-  let open = ['ebro'];
-  try { const v = JSON.parse(localStorage.getItem(SETTINGS_FOLD_KEY)); if (Array.isArray(v)) open = v; } catch (e) { /* no storage */ }
-  const sections = document.querySelectorAll('#tabSettings .set-section');
+  let open = null;
+  let seen = null;
+  try {
+    open = JSON.parse(localStorage.getItem(SETTINGS_FOLD_KEY));
+    seen = JSON.parse(localStorage.getItem(SETTINGS_SEEN_KEY));
+  } catch (e) { /* no storage */ }
+  const sections = [...document.querySelectorAll('#tabSettings .set-section')];
+  if (!Array.isArray(open)) open = null;
+  if (!Array.isArray(seen)) {
+    // A device that remembered its sections before this list existed had seen every section that starts closed, and «ebro»
+    seen = open ? sections.filter((d) => !d.hasAttribute('data-open-default') || d.dataset.key === 'ebro').map((d) => d.dataset.key) : [];
+  }
   sections.forEach((d) => {
-    d.open = open.includes(d.dataset.key);
+    d.open = open && seen.includes(d.dataset.key) ? open.includes(d.dataset.key) : d.hasAttribute('data-open-default');
+  });
+  try { localStorage.setItem(SETTINGS_SEEN_KEY, JSON.stringify(sections.map((d) => d.dataset.key))); } catch (e) { /* does not matter */ }
+  sections.forEach((d) => {
     d.addEventListener('toggle', () => {
       const now = [...document.querySelectorAll('#tabSettings .set-section[open]')].map((s) => s.dataset.key);
       try { localStorage.setItem(SETTINGS_FOLD_KEY, JSON.stringify(now)); } catch (e) { /* does not matter */ }

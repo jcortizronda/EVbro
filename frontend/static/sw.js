@@ -107,6 +107,7 @@ const STATIC_ASSETS = [
   '/static/js/core/ui.js',
   '/static/js/features/comfort.js',
   '/static/js/features/climate-schedule.js',
+  '/static/js/features/departure.js',
   '/static/js/features/traccar.js',
   '/static/js/features/account-data.js',
   '/static/js/features/car-book.js',

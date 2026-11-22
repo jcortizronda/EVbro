@@ -54,9 +54,10 @@ const WidgetBoards = (function () {
   };
   const COMFORT_CATALOG = {
     temperature: { label: 'Climatización', desc: 'Encender o apagar el clima y su temperatura.' },
-    defrost: { label: 'Lunas y volante', desc: 'Desempañado de las lunas y volante calefactado.' },
+    defrost: { label: 'Lunas, volante y aire', desc: 'Desempañado, lunas y volante calefactados, purificador y calefacción rápida.' },
     seats: { label: 'Asientos', desc: 'Calefacción y ventilación de cada asiento.' },
     schedule: { label: 'Climatización programada', desc: 'Encender el clima a una hora y unos días.' },
+    departure: { label: 'Salida programada', desc: 'La hora de salida para la que el coche prepara la batería.' },
   };
   const LOADERS = {};                  // key → async (vin) => html; filled in below
   const RELOAD_MS = 60 * 1000;         // a widget is not asked again for the same car within a minute (unless forced)
@@ -487,7 +488,7 @@ const WidgetBoards = (function () {
     catalog: ENERGY_CATALOG, def: ['energy', 'kpis', 'control', 'charges', 'schedule', 'session'], onApply: fixCharts, aliases: { history: ['charges', 'session'] },
     resetText: '¿Volver a la página de siempre? Se quitan los widgets añadidos y se recupera el orden original.' });
   createBoard({ name: 'ComfortWidgets', page: 'climate', box: 'comfortWidgets', bar: 'comfortEditBar', customize: 'comfortCustomize', storeKey: 'evbro_comfort_layout',
-    catalog: COMFORT_CATALOG, def: ['temperature', 'defrost', 'seats', 'schedule'],
+    catalog: COMFORT_CATALOG, def: ['temperature', 'defrost', 'seats', 'schedule', 'departure'],
     resetText: '¿Volver a la página de siempre? Se quitan los widgets añadidos y se recupera el orden original.' });
 
   document.addEventListener('DOMContentLoaded', () => Object.values(boards).forEach((b) => b.init()));

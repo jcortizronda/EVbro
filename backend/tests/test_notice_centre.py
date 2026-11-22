@@ -107,3 +107,34 @@ async def test_the_notice_routes_need_a_session(db) -> None:
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://testserver") as anon:
         assert (await anon.get("/api/notifications/unread")).status_code == 401
         assert (await anon.post("/api/notifications/seen")).status_code == 401
+
+
+async def test_a_notice_swiped_away_leaves_the_history_with_all_its_channels(accounts) -> None:
+    """21-11-2026: notices could only be cleared all at once. One is now dismissed on its own, like the notifications of Android."""
+    t = datetime.datetime(2026, 11, 21, 9, 0, 0, 120000)
+    async with async_session_factory() as s:
+        s.add_all([
+            NotificationLog(user_id=3, timestamp=t, category="security", title="Coche abierto", message="Sin cerrar", channel="webpush"),
+            NotificationLog(user_id=3, timestamp=t + datetime.timedelta(milliseconds=300), category="security", title="Coche abierto",
+                            message="Sin cerrar", channel="telegram", success=False, error="sin chat"),
+            NotificationLog(user_id=3, timestamp=t + datetime.timedelta(minutes=30), category="security", title="Coche abierto",
+                            message="Sin cerrar", channel="webpush"),                     # the same text half an hour later: another notice
+            NotificationLog(user_id=3, timestamp=t, category="fuel_low", title="Depósito bajo", message="10 %", channel="webpush"),
+            NotificationLog(user_id=2, timestamp=t, category="security", title="Coche abierto", message="Sin cerrar", channel="app"),
+        ])
+        await s.commit()
+    beto, ana = await client_for(3), await client_for(2)
+    try:
+        logs = (await beto.get("/api/notifications/logs")).json()
+        target = next(r for r in logs if r["channel"] == "telegram")
+        foreign = (await ana.get("/api/notifications/logs")).json()[0]["id"]
+        assert (await beto.delete(f"/api/notifications/logs/{foreign}")).status_code == 404        # another account's notice
+        r = await beto.delete(f"/api/notifications/logs/{target['id']}")
+        assert r.status_code == 200, r.text
+        assert r.json()["removed"] == 2
+        assert (await beto.delete(f"/api/notifications/logs/{target['id']}")).status_code == 404
+        left = sorted((x.category, x.timestamp.minute) for x in await rows(3))
+        assert left == [("fuel_low", 0), ("security", 30)] and len(await rows(2)) == 1
+    finally:
+        await beto.aclose()
+        await ana.aclose()

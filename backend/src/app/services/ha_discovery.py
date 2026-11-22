@@ -74,8 +74,6 @@ SENSORS: List[Dict[str, Any]] = [
             state_class="measurement", icon="mdi:map-marker-distance"),
     _sensor("rt_odometro", "cuentakilometros", "Cuentakilómetros", "odometer_km", unit="km", device_class="distance", state_class="total_increasing",
             icon="mdi:counter"),
-    _sensor("rt_km_hibrido", "kilometraje_hibrido", "Kilometraje híbrido", "hybrid_odometer_km", unit="km", device_class="distance",
-            state_class="total_increasing", icon="mdi:counter", diagnostic=True),
     _sensor("rt_km_electrico", "cuentakilometros_ev", "Cuentakilómetros EV", "ev_odometer_km", unit="km", device_class="distance",
             state_class="total_increasing", icon="mdi:counter"),
     _sensor("rt_neumatico_del_izq_presion", "presion_neumatico_del_izquierdo", "Presión neumático del. izquierdo", "tyre_pressures.fl", unit="bar",
@@ -198,6 +196,17 @@ BUTTONS: List[Dict[str, Any]] = [
 
 # Command topics: <prefix>/cars/<VIN>/cmd/<entity>  → (catalogue command, params) per payload
 COVER_PAYLOADS = {"OPEN": "open", "CLOSE": "close"}
+
+
+# Entities EVBro no longer publishes, as (component, suffix). Their discovery topic gets an empty retained message, which is how
+# Home Assistant is told to delete an entity it had created; otherwise it would stay there for ever, unavailable.
+#   rt_km_hibrido («Kilometraje híbrido», `hybridMileage`): the cloud sends 0 for every car (eight cars, some 15,800 readings, 21-11-2026)
+RETIRED: List[Tuple[str, str]] = [("sensor", "rt_km_hibrido")]
+
+
+def retired_topics(ha_prefix: str, vin: str) -> List[str]:
+    """The discovery topics of the entities this car used to have and no longer does (see RETIRED)."""
+    return [f"{ha_prefix}/{component}/ebro_{vin}/{suffix}/config" for component, suffix in RETIRED]
 
 
 def vin4(vin: str) -> str:

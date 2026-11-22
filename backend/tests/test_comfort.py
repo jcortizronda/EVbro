@@ -39,6 +39,15 @@ def test_the_push_wins_over_the_probe_for_comfort() -> None:
     assert t["steer_wheel_heat"] is True
 
 
+def test_demisting_and_the_heated_windscreen_are_read_apart() -> None:
+    """21-11-2026, official app on an S900: demisting (air at the glass) came back as `fWinHeatingState` and the heated glass as
+    `frontWindshieldHeat`. They were read as one, so demisting showed the heated windscreen as on."""
+    t = parse_telemetry_data({"fWinHeatingState": "1", "frontWindshieldHeat": "0", "airPurification": "1"}, None, {})
+    assert t["front_defrost"] is True and t["front_windshield_heat"] is False and t["air_purification"] is True
+    t = parse_telemetry_data({"fWinHeatingState": "0", "frontWindshieldHeat": "1"}, None, {})
+    assert t["front_defrost"] is False and t["front_windshield_heat"] is True
+
+
 def test_every_comfort_command_in_the_catalogue_has_a_button() -> None:
     """If a «Climatización» command is added to the catalogue, the Confort tab must offer it."""
     web = FRONTEND / "static" / "js" / "features" / "comfort.js"

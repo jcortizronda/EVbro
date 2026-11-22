@@ -1,6 +1,7 @@
 """Routes to configure and test mobile notifications (Android, iOS and Web)."""
 from __future__ import annotations
 
+import datetime
 from typing import Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -340,6 +341,25 @@ async def mark_notifications_seen(session: AsyncSession = Depends(get_db), user:
     user.notifications_seen_at = utcnow()
     await session.commit()
     return {"status": "ok"}
+
+
+@router.delete("/logs/{log_id}")
+async def dismiss_notification(log_id: int, session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)):
+    """Removes one notice from this account's history (swiped away in the notification centre): the row given and the rows
+    the same notice left on its other channels."""
+    log = await session.get(NotificationLog, log_id)
+    if log is None or log.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Aviso no encontrado.")
+    key = notice_key(log)
+    start = key[3]
+    stmt = select(NotificationLog).where(NotificationLog.user_id == user.id, NotificationLog.category == log.category,
+                                         NotificationLog.title == log.title)
+    if start is not None:
+        stmt = stmt.where(NotificationLog.timestamp >= start, NotificationLog.timestamp < start + datetime.timedelta(seconds=1))
+    same = [row.id for row in (await session.execute(stmt)).scalars().all() if notice_key(row) == key]
+    await session.execute(delete(NotificationLog).where(NotificationLog.id.in_(same or [log.id])))
+    await session.commit()
+    return {"status": "ok", "removed": len(same) or 1}
 
 
 @router.delete("/logs")
