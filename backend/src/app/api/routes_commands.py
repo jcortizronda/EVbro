@@ -145,7 +145,7 @@ async def get_alarm_state(vin: str, session: AsyncSession = Depends(get_db)):
             value = await loop.run_in_executor(None, commands.query_theft_switch, ctx)
     except OSError as exc:
         # No Ebro session stored for this car (its account was never connected) or no network: «unknown», not a server error.
-        # The page asks every minute, so this used to fill the log with tracebacks (seen with the demo car, 09-11-2026).
+        # The page asks every few minutes while Inicio is on screen, so this used to fill the log with tracebacks (seen with the demo car, 09-11-2026).
         _LOGGER.info("Alarm of %s not read: %s", vin[-6:], type(exc).__name__)
         value = None
     return {"enabled": None if value is None else bool(value)}

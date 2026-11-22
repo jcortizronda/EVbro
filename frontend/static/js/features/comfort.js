@@ -235,9 +235,13 @@
     renderComfort();
   });
 
+  const ALARM_REFRESH_MS = 5 * 60 * 1000;
+  let alarmAskedAt = 0;                   // the last time it was asked, answered or not: a refused question is not repeated every 10 s
+
   /** Asks the car whether the alarm is armed (read only, no PIN). */
   async function refreshAlarm() {
     if (typeof currentVin === 'undefined' || !currentVin) return;
+    alarmAskedAt = Date.now();
     try {
       const res = await fetch(`/api/vehicles/${currentVin}/alarm`);
       if (!res.ok) return;
@@ -278,12 +282,16 @@
   document.addEventListener('DOMContentLoaded', () => {
     renderComfort();
     setInterval(renderComfort, 5000);       // expire the expected state even if no telemetry arrives
-    // The alarm is queried from the car: when the app opens and, while the home tab is visible, at most once a minute
+    // The alarm is asked of the cloud apart from the readings (two requests each time): when the app opens and then, while the
+    // home tab is selected AND the page is on screen, every ALARM_REFRESH_MS. It used to ask every minute without looking at
+    // whether anybody was watching: a browser tab forgotten on Inicio asked 1,440 times a day (22-11-2026).
     setTimeout(refreshAlarm, 3000);
-    setInterval(() => {
+    const alarmDue = () => {
       const home = document.getElementById('tabOverview');
-      if (home && home.classList.contains('active') && Date.now() - alarmState.ts > 60000) refreshAlarm();
-    }, 10000);
+      if (!document.hidden && home && home.classList.contains('active') && Date.now() - alarmAskedAt > ALARM_REFRESH_MS) refreshAlarm();
+    };
+    setInterval(alarmDue, 10000);
+    document.addEventListener('visibilitychange', alarmDue);      // back on screen with an old answer: ask now
   });
 
   Object.assign(window, { renderComfort, toggleComfort, comfortPreset, onClimateSliderChange, refreshAlarm,
