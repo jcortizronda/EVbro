@@ -2382,7 +2382,6 @@
  "Excel (.xlsx) o CSV, hasta 1.000 cargas": "Excel (.xlsx) ou CSV, até 1000 cargas",
  "Elegir fichero": "Escolher ficheiro",
  "Descargar una plantilla de ejemplo (.xlsx)": "Descarregar um modelo de exemplo (.xlsx)",
- "Cada fila solo necesita los kWh.": "Cada linha só precisa dos kWh.",
  "Las columnas pueden llamarse como quieras y estar en cualquier orden: en el paso siguiente ves cómo las ha entendido EVBro y lo corriges si hace falta.": "As colunas podem ter o nome que quiseres e estar em qualquer ordem: no passo seguinte vês como o EVBro as entendeu e corriges se for preciso.",
  "Atrás": "Voltar",
  "Salen en el historial con la etiqueta «Manual» y cuentan en los totales, los costes y las estadísticas por mes. No tienen curva de carga, así que no se usan para la salud de la batería.": "Aparecem no histórico com a etiqueta «Manual» e contam nos totais, nos custos e nas estatísticas por mês. Não têm curva de carga, por isso não são usadas para a saúde da bateria.",
@@ -2401,8 +2400,6 @@
  "Carga borrada.": "Carga apagada.",
  "No se pudo borrar la carga: {p0}": "Não foi possível apagar a carga: {p0}",
  "{p0} · {p1} filas. Así ha entendido EVBro las columnas:": "{p0} · {p1} linhas. Foi assim que o EVBro entendeu as colunas:",
- "No está en el fichero": "Não está no ficheiro",
- "Columna «{p0}»": "Coluna «{p0}»",
  "Fila {p0}": "Linha {p0}",
  "Se enseñan {p0} de {p1}.": "Mostram-se {p0} de {p1}.",
  "Las que ya estaban y las que hay que revisar no se importan.": "As que já existiam e as que é preciso rever não são importadas.",
@@ -2437,7 +2434,6 @@
  "Cargas importadas": "Cargas importadas",
  "Sin fecha, apuntadas como anteriores a EVBro: {p0}.": "Sem data, apontadas como anteriores ao EVBro: {p0}.",
  "kWh del cargador": "kWh do carregador",
- "Los kWh son los del cargador o la factura. Si los tienes, también: fecha, hora, precio por kWh o total pagado, lugar, batería cargada y si fue AC o DC.": "Os kWh são os do carregador ou da fatura. Se os tiveres, também: data, hora, preço por kWh ou total pago, local, bateria carregada e se foi AC ou DC.",
  "Del cargador": "Do carregador",
  "≈ {p0} kWh (estimada por el %)": "≈ {p0} kWh (estimada pela %)",
  "≈ {p0} % (estimada)": "≈ {p0} % (estimada)",
@@ -2456,5 +2452,8 @@
  "Con el total hace falta también el precio por kWh, los kWh o el % de batería.": "Com o total é preciso também o preço por kWh, os kWh ou a % de bateria.",
  "Indica los kWh del cargador, el total y el precio por kWh, o la batería cargada (%).": "Indica os kWh do carregador, o total e o preço por kWh, ou a bateria carregada (%).",
  "Indica qué columna tiene los kWh, o las del total y el precio por kWh, o la de la batería cargada.": "Indica que coluna tem os kWh, ou as do total e do preço por kWh, ou a da bateria carregada.",
- "faltan los kWh (o el total y el precio, o el % de batería)": "faltam os kWh (ou o total e o preço, ou a % de bateria)"
+ "faltan los kWh (o el total y el precio, o el % de batería)": "faltam os kWh (ou o total e o preço, ou a % de bateria)",
+ "Cada fila necesita la energía: los kWh del cargador, el total y el precio por kWh, o el % de batería.": "Cada linha precisa da energia: os kWh do carregador, o total e o preço por kWh, ou a % de bateria.",
+ "Si los tienes, también: fecha, hora, lugar y si fue AC o DC. Se aplican las mismas reglas que al añadir una carga a mano.": "Se os tiveres, também: data, hora, local e se foi AC ou DC. Aplicam-se as mesmas regras que ao adicionar uma carga à mão.",
+ "No está": "Não está"
 }

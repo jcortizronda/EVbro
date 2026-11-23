@@ -278,8 +278,8 @@
   function drawReview() {
     el('ciFileName').textContent = t('{p0} · {p1} filas. Así ha entendido EVBro las columnas:', {p0: review.filename || file.name, p1: review.total});
     el('ciMap').innerHTML = FIELD_ORDER.map((f) => {
-      const options = [`<option value="">${t('No está en el fichero')}</option>`]
-        .concat(review.columns.map((title, i) => `<option value="${i}" ${review.mapping[f] === i ? 'selected' : ''}>${escapeHtml(t('Columna «{p0}»', {p0: title}))}</option>`));
+      const options = [`<option value="">${t('No está')}</option>`]
+        .concat(review.columns.map((title, i) => `<option value="${i}" ${review.mapping[f] === i ? 'selected' : ''}>«${escapeHtml(title)}»</option>`));
       return `<div class="${f === 'kwh' ? 'is-wide' : ''}"><label for="ciMap-${f}">${t(FIELD_LABEL[f])}</label><select id="ciMap-${f}" class="form-control" data-on-change="ManualCharges.remap()">${options.join('')}</select></div>`;
     }).join('');
     const c = review.counts;

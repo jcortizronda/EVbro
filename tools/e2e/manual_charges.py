@@ -146,7 +146,7 @@ with sync_playwright() as p:
         pg.wait_for_selector("#ciStep2:not([hidden])")
         pg.wait_for_timeout(300)
         mapped = {f: pg.locator(f"#ciMap-{f} option:checked").inner_text() for f in ("kwh", "date", "total", "place", "time")}
-        ok(mapped == {"kwh": "Columna «Energía (kWh)»", "date": "Columna «Día»", "total": "Columna «Importe»", "place": "Columna «Sitio»", "time": "No está en el fichero"},
+        ok(mapped == {"kwh": "«Energía (kWh)»", "date": "«Día»", "total": "«Importe»", "place": "«Sitio»", "time": "No está"},
            f"{theme}: the columns are understood from their titles ({mapped})")
         counts = pg.inner_text("#ciCounts")
         # the row of 8 September is the charge just typed (21.5 against 18.8 kWh: not the same); two rows cannot be charges

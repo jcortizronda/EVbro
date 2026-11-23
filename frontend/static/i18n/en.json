@@ -2382,7 +2382,6 @@
  "Excel (.xlsx) o CSV, hasta 1.000 cargas": "Excel (.xlsx) or CSV, up to 1,000 charges",
  "Elegir fichero": "Choose file",
  "Descargar una plantilla de ejemplo (.xlsx)": "Download an example template (.xlsx)",
- "Cada fila solo necesita los kWh.": "Each row only needs the kWh.",
  "Las columnas pueden llamarse como quieras y estar en cualquier orden: en el paso siguiente ves cómo las ha entendido EVBro y lo corriges si hace falta.": "The columns can be called whatever you like and come in any order: in the next step you see how EVBro understood them and correct it if needed.",
  "Atrás": "Back",
  "Salen en el historial con la etiqueta «Manual» y cuentan en los totales, los costes y las estadísticas por mes. No tienen curva de carga, así que no se usan para la salud de la batería.": "They show in the history with the “Manual” tag and count in the totals, the costs and the monthly statistics. They have no charge curve, so they are not used for the battery health.",
@@ -2401,8 +2400,6 @@
  "Carga borrada.": "Charge deleted.",
  "No se pudo borrar la carga: {p0}": "The charge could not be deleted: {p0}",
  "{p0} · {p1} filas. Así ha entendido EVBro las columnas:": "{p0} · {p1} rows. This is how EVBro understood the columns:",
- "No está en el fichero": "Not in the file",
- "Columna «{p0}»": "Column “{p0}”",
  "Fila {p0}": "Row {p0}",
  "Se enseñan {p0} de {p1}.": "Showing {p0} of {p1}.",
  "Las que ya estaban y las que hay que revisar no se importan.": "The ones already there and the ones to review are not imported.",
@@ -2437,7 +2434,6 @@
  "Cargas importadas": "Charges imported",
  "Sin fecha, apuntadas como anteriores a EVBro: {p0}.": "Without a date, filed as earlier than EVBro: {p0}.",
  "kWh del cargador": "kWh from the charger",
- "Los kWh son los del cargador o la factura. Si los tienes, también: fecha, hora, precio por kWh o total pagado, lugar, batería cargada y si fue AC o DC.": "The kWh are the charger's or the invoice's. If you have them, also: date, time, price per kWh or total paid, place, battery charged and whether it was AC or DC.",
  "Del cargador": "From the charger",
  "≈ {p0} kWh (estimada por el %)": "≈ {p0} kWh (estimated from the %)",
  "≈ {p0} % (estimada)": "≈ {p0} % (estimated)",
@@ -2456,5 +2452,8 @@
  "Con el total hace falta también el precio por kWh, los kWh o el % de batería.": "With the total, the price per kWh, the kWh or the battery % is needed too.",
  "Indica los kWh del cargador, el total y el precio por kWh, o la batería cargada (%).": "Enter the charger's kWh, the total and the price per kWh, or the battery charged (%).",
  "Indica qué columna tiene los kWh, o las del total y el precio por kWh, o la de la batería cargada.": "Say which column holds the kWh, or the ones with the total and the price per kWh, or the one with the battery charged.",
- "faltan los kWh (o el total y el precio, o el % de batería)": "the kWh are missing (or the total and the price, or the battery %)"
+ "faltan los kWh (o el total y el precio, o el % de batería)": "the kWh are missing (or the total and the price, or the battery %)",
+ "Cada fila necesita la energía: los kWh del cargador, el total y el precio por kWh, o el % de batería.": "Each row needs the energy: the charger's kWh, the total and the price per kWh, or the battery %.",
+ "Si los tienes, también: fecha, hora, lugar y si fue AC o DC. Se aplican las mismas reglas que al añadir una carga a mano.": "If you have them, also: date, time, place and whether it was AC or DC. The same rules apply as when adding a charge by hand.",
+ "No está": "Not there"
 }
