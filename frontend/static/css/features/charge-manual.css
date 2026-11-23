@@ -1,0 +1,55 @@
+/* EVBro — Charges written down by the user: the two buttons of the history, the form and the three steps of the import.
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
+
+.mc-actions { display: flex; gap: 8px; margin: 10px 0 4px; }
+.mc-actions button { flex: 1 1 0; min-height: 44px; font-weight: 700; }
+.hist-tag.is-manual { color: #b39dff; background: rgba(139, 92, 246, 0.18); }
+[data-theme="light"] .hist-tag.is-manual { color: #6d3fe0; background: rgba(109, 63, 224, 0.12); }
+
+.mc-lead { margin: 0 0 14px; font-size: 0.88rem; line-height: 1.45; color: var(--text-secondary); overflow-wrap: anywhere; }
+.mc-tight { margin: -6px 0 0; }
+.mc-place-text { margin-top: 8px; }
+.mc-place-text[hidden] { display: none; }
+/* the third of kWh / price / total, worked out from the other two */
+.mc-trio.is-auto { color: var(--accent-bright); border-style: dashed; }
+.mc-how { margin: -4px 0 0; padding: 10px 12px; border-radius: 12px; background: var(--accent-soft); color: var(--text-primary); font-size: 0.82rem; line-height: 1.45; }
+.mc-how[hidden] { display: none; }
+
+/* Import: steps, file, columns, rows */
+.ci-steps { display: flex; gap: 6px; margin: 0 0 14px; padding: 0; list-style: none; font-size: 0.78rem; font-weight: 700; color: var(--text-muted); }
+.ci-steps li { flex: 1 1 0; padding: 7px 4px; text-align: center; border-radius: 10px; background: var(--surface-secondary); border: 1px solid var(--border-color); }
+.ci-steps li.is-done { color: var(--accent-green); }
+.ci-steps li.is-on { color: var(--accent-bright); border-color: var(--accent-bright); background: var(--accent-soft); }
+.ci-drop { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 22px 14px; border: 1.5px dashed var(--border-color); border-radius: 16px; text-align: center; color: var(--text-secondary); font-size: 0.88rem; }
+.ci-drop strong { color: var(--text-primary); font-size: 0.95rem; }
+.ci-drop button { min-height: 44px; padding: 0 22px; }
+.ci-template { display: inline-block; margin-top: 12px; font-size: 0.88rem; font-weight: 700; color: var(--accent-bright); text-decoration: underline; }
+.ci-help { margin: 14px 0 0; padding: 12px 14px; border-radius: 14px; background: var(--surface-secondary); font-size: 0.82rem; line-height: 1.5; color: var(--text-secondary); }
+.ci-help p { margin: 0 0 6px; }
+.ci-help p:last-child { margin-bottom: 0; }
+.ci-help .ci-strong { color: var(--text-primary); font-weight: 700; }
+/* each field over its own list: on a phone a column title needs the whole width */
+.ci-map { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; margin: 0 0 12px; font-size: 0.8rem; }
+.ci-map > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ci-map > div.is-wide { grid-column: 1 / -1; }
+.ci-map label { color: var(--text-secondary); font-weight: 600; }
+.ci-map select { min-height: 40px; min-width: 0; width: 100%; font-size: 0.85rem; }
+@media (max-width: 360px) { .ci-map { grid-template-columns: 1fr; } }
+.ci-counts { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+.ci-chip { padding: 4px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; white-space: nowrap; background: var(--surface-secondary); color: var(--text-secondary); }
+.ci-chip.is-ok { color: var(--accent-green); background: rgba(48, 209, 88, 0.14); }
+.ci-chip.is-dup { color: var(--accent-amber); background: rgba(255, 159, 10, 0.14); }
+.ci-chip.is-bad { color: var(--accent-red); background: rgba(255, 69, 58, 0.12); }
+.ci-rows { max-height: 260px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 14px; }
+.ci-rows:empty { display: none; }
+.ci-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; padding: 9px 12px; border-top: 1px solid var(--border-color); font-size: 0.84rem; color: var(--text-secondary); }
+.ci-row:first-child { border-top: 0; }
+.ci-row strong { color: var(--text-primary); }
+.ci-row small { grid-column: 1 / -1; color: var(--text-muted); font-size: 0.76rem; overflow-wrap: anywhere; }
+.ci-row.is-out > span:first-child, .ci-row.is-out small { opacity: 0.7; }
+.ci-row .ci-chip { align-self: start; }
+.ci-done { text-align: center; padding: 8px 0 4px; }
+.ci-done-count { font-size: 2.2rem; font-weight: 800; color: var(--accent-green); line-height: 1.1; }
+.ci-done p { margin: 6px 0 0; color: var(--text-secondary); font-size: 0.9rem; }
+.ci-done .ci-strong { color: var(--text-primary); font-weight: 700; }
+#ciStep1[hidden], #ciStep2[hidden], #ciStep3[hidden] { display: none; }

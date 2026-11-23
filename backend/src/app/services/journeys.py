@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_timezone
 from app.db.models import ChargingSession, Drive, Expense, Journey, MaintenanceItem, MaintenanceLog, Refuel
+from app.services.manual_charges import energy_kwh
 from app.services.stats import counts_for_ev_consumption
 
 MAX_DAYS = 400
@@ -66,7 +67,7 @@ async def summary(session: AsyncSession, vin: str, start: datetime.datetime, end
     ev_kwh = sum(d.energy_consumed_kwh or 0.0 for d in ev_drives)
     fuel_km = sum(d.distance_km or 0.0 for d in drives if (d.fuel_used_l or 0.0) > 0 and (d.distance_km or 0.0) >= 1.0)
     charge_cost = sum(c.charge_cost or 0.0 for c in charges)
-    charge_kwh = sum(c.kwh_added or 0.0 for c in charges)
+    charge_kwh = sum(energy_kwh(c) for c in charges)
     refuel_cost = sum(r.total_cost or 0.0 for r in refuels)
     refuel_l = sum(r.liters or 0.0 for r in refuels)
     expense_total = sum(e.amount or 0.0 for e in expenses)
@@ -102,7 +103,7 @@ async def summary(session: AsyncSession, vin: str, start: datetime.datetime, end
         out["items"] = {
             "drives": [{"id": d.id, "start_time": d.start_time.isoformat(), "from": d.start_address, "to": d.end_address, "km": _r(d.distance_km),
                         "kwh": _r(d.energy_consumed_kwh), "fuel_l": _r(d.fuel_used_l)} for d in drives],
-            "charges": [{"id": c.id, "start_time": c.start_time.isoformat(), "address": c.address, "kwh": _r(c.kwh_added), "cost": _r(c.charge_cost, 2),
+            "charges": [{"id": c.id, "start_time": c.start_time.isoformat(), "address": c.address, "kwh": _r(energy_kwh(c)), "cost": _r(c.charge_cost, 2),
                          "type": c.charge_type or "ac"} for c in charges],
             "refuels": [{"id": r.id, "timestamp": r.timestamp.isoformat(), "station": r.station, "liters": _r(r.liters), "cost": _r(r.total_cost, 2)} for r in refuels],
             "expenses": [{"id": e.id, "date": e.date.isoformat(), "title": e.title, "category": e.category, "amount": _r(e.amount, 2)} for e in expenses],

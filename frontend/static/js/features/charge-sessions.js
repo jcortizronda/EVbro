@@ -75,24 +75,39 @@ function chargeRow(c) {
   const pct = (v) => (v === null || v === undefined ? null : Math.round(v));
   const start = pct(c.start_battery_pct);
   const end = pct(c.end_battery_pct);
-  const added = start !== null && end !== null ? end - start : null;
+  // a charge written down by the user has no start and end, only what was gained (if it was said)
+  const added = c.manual ? pct(c.battery_gain_pct) : (start !== null && end !== null ? end - start : null);
   const cost = c.charge_cost !== null && c.charge_cost !== undefined ? c.charge_cost : null;
   const costText = c.cost_mode === 'free' ? 'Gratis' : (cost ? `${historyNum(cost, 2)} €` : '');
-  const figs = [added !== null ? `+${added} %` : '', costText].filter(Boolean).join(' · ') || historyDuration(c.duration_seconds);
+  const figs = [added !== null ? `+${added} %` : '', costText].filter(Boolean).join(' · ') || (c.manual ? '' : historyDuration(c.duration_seconds));
 
   const dc = c.charge_type === 'dc';                       // AC unless the car (or the user) said DC
   const head = {
-    when: escapeHtml(historyWhen(c.start_time)),
-    place: `<span class="hist-tag ${dc ? 'is-dc' : 'is-ac'}">${dc ? 'DC' : 'AC'}</span>${escapeHtml(c.address || 'Ubicación de recarga')}`,
-    big: `+${escapeHtml(historyNum(c.kwh_added))} kWh`,
+    when: escapeHtml(c.date_unknown ? t('Sin fecha · antes de EVBro') : (c.manual ? historyWhen(c.start_time).split(' · ')[0] : historyWhen(c.start_time))),
+    place: `${c.manual ? `<span class="hist-tag is-manual">${t('Manual')}</span>` : ''}<span class="hist-tag ${dc ? 'is-dc' : 'is-ac'}">${dc ? 'DC' : 'AC'}</span>${escapeHtml(c.address || (c.manual ? t('Sin sitio') : 'Ubicación de recarga'))}`,
+    // a manual charge shows the charger's kWh when it has them; only the battery estimate (from the %) carries «≈»
+    big: c.manual && !c.kwh_used ? `≈ +${escapeHtml(historyNum(c.kwh_added))} kWh` : `+${escapeHtml(historyNum(c.manual ? c.kwh_used : c.kwh_added))} kWh`,
     small: escapeHtml(figs),
   };
 
-  const facts = historyFacts([
+  // charger side (kWh of the charger, and the battery estimated from the % when given) or battery side (only the %)
+  const batteryEstimate = c.manual && c.kwh_added && (!c.kwh_used || Math.abs(c.kwh_added - c.kwh_used) > 0.005);
+  const efficiency = batteryEstimate && c.kwh_used ? Math.round(c.kwh_added / c.kwh_used * 100) : null;
+  const facts = c.manual ? historyFacts([
+    ['Añadida', t('A mano')],
+    ['Del cargador', c.kwh_used ? `${historyNum(c.kwh_used)} kWh` : null],
+    ['Batería', added !== null ? `+${added} %` : null],
+    ['A la batería', batteryEstimate ? t('≈ {p0} kWh (estimada por el %)', {p0: historyNum(c.kwh_added)}) : null],
+    ['Eficiencia', efficiency !== null ? t('≈ {p0} % (estimada)', {p0: efficiency}) : null],
+    ['Tipo', dc ? 'Corriente continua (rápida)' : 'Corriente alterna'],
+    ['Coste', costText || null],
+    ['Precio', c.effective_cost_per_kwh ? `${historyNum(c.effective_cost_per_kwh, 3)} €/kWh` : null],
+    ['Fecha', c.date_unknown ? t('No se sabe') : historyWhen(c.start_time)],
+  ]) : historyFacts([
     ['Duración', historyDuration(c.duration_seconds)],
     ['Batería', start !== null && end !== null ? `${start} % → ${end} %` : null],
     ['A la batería', t('{p0} kWh (estimada)', {p0: historyNum(c.kwh_added)})],
-    ['De la red', c.kwh_used ? `${historyNum(c.kwh_used)} kWh` : null],
+    ['Del cargador', c.kwh_used ? `${historyNum(c.kwh_used)} kWh` : null],
     ['Tipo', dc ? 'Corriente continua (rápida)' : 'Corriente alterna'],
     ['Potencia máx.', c.max_charge_power_kw ? `${historyNum(c.max_charge_power_kw)} kW` : null],
     ['Coste', costText || null],
@@ -100,7 +115,12 @@ function chargeRow(c) {
     ['Tarifa', CHARGE_MODE_LABEL[c.cost_mode] || null],
     ['Fin', c.end_time ? historyWhen(c.end_time) : 'En curso'],
   ]);
-  const detail = `
+  const detail = c.manual ? `
+    ${facts}
+    <div class="hist-actions needs-edit">
+      <button type="button" class="btn-secondary btn-sm" data-on-click="ManualCharges.open(${Number(c.id)})">${t('Editar')}</button>
+      <button type="button" class="btn-secondary btn-sm is-danger" data-on-click="ManualCharges.remove(${Number(c.id)})">${t('Borrar')}</button>
+    </div>` : `
     ${facts}
     <div class="hist-actions">
       <button type="button" class="btn-secondary btn-sm" data-on-click="viewChargeDetails(${Number(c.id)})">Ver detalle y gráfica</button>

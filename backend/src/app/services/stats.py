@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_timezone
 from app.db.models import ChargePoint, ChargingSession, Drive, Expense, MaintenanceItem, MaintenanceLog, Refuel, Vehicle
 from app.services import battery_capacity, periods
+from app.services.manual_charges import energy_kwh
 
 MIN_DRIVE_KM = 2.0     # below this, one battery point and the odometer's whole-km rounding give meaningless figures (measured 2026-11-01: 1–2 km drives averaged 52 kWh/100 km, 2–3 km ones 17.5)
 IDLE_GAP_H = 6.0
@@ -123,7 +124,7 @@ async def compute(session: AsyncSession, vin: str, period: str = "12m", frm: Opt
             m["ev_known_km"] += d.distance_km or 0.0
     for c in charges:
         m = months[_month(c.start_time, tz)]
-        m["kwh_charged"] += c.kwh_added or 0.0
+        m["kwh_charged"] += energy_kwh(c)
         m["cost_charges"] += c.charge_cost or 0.0
     for r in refuels:
         m = months[_month(r.timestamp, tz)]
@@ -171,7 +172,7 @@ async def compute(session: AsyncSession, vin: str, period: str = "12m", frm: Opt
     places: Dict[str, Dict[str, float]] = defaultdict(lambda: defaultdict(float))
     for c in charges:
         p = places[c.address or "Sin dirección"]
-        p["kwh"] += c.kwh_added or 0.0
+        p["kwh"] += energy_kwh(c)
         p["cost"] += c.charge_cost or 0.0
         p["count"] += 1
     charges_by_place = sorted(({"address": k, "kwh": _r(v["kwh"]), "cost": _r(v["cost"], 2), "count": int(v["count"])} for k, v in places.items()),

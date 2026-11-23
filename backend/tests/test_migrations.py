@@ -181,3 +181,25 @@ async def test_0037_adds_the_cloud_usage_counter_to_a_database_that_lacks_it(scr
     await migrate.upgrade_to_head(scratch_url)
     assert (await _tables(scratch_url))["cloud_usage"] == {"day", "kind", "count"}
     assert await _version(scratch_url) == migrate.head_revision()
+
+
+async def test_0038_marks_the_existing_charges_as_the_cars_own(scratch_url) -> None:
+    import asyncio
+
+    from alembic import command
+    await asyncio.to_thread(command.upgrade, migrate.alembic_config(scratch_url), "0037_cloud_usage")
+    engine = create_async_engine(scratch_url)
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("DROP INDEX ix_charging_sessions_import_batch"))         # a database from before 0038
+            for column in ("import_batch", "battery_gain_pct", "date_unknown", "manual"):
+                await conn.execute(text(f"ALTER TABLE charging_sessions DROP COLUMN {column}"))
+            await conn.execute(text("INSERT INTO vehicles (vin, name) VALUES ('LSJA0000000000038', 'Coche')"))
+            await conn.execute(text("INSERT INTO charging_sessions (vin, start_time, kwh_added) VALUES ('LSJA0000000000038', '2026-11-01 10:00:00', 12.5)"))
+        await migrate.upgrade_to_head(scratch_url)
+        async with engine.connect() as conn:
+            row = (await conn.execute(text("SELECT manual, date_unknown, battery_gain_pct, import_batch FROM charging_sessions"))).one()
+    finally:
+        await engine.dispose()
+    assert (bool(row[0]), bool(row[1]), row[2], row[3]) == (False, False, None, None)
+    assert await _version(scratch_url) == migrate.head_revision()

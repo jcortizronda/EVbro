@@ -28,6 +28,7 @@ from app.api.routes_geofences import router as geofences_router
 from app.api.routes_journeys import router as journeys_router
 from app.api.routes_maintenance import router as maintenance_router
 from app.api.routes_maintenance_plan import router as maintenance_plan_router
+from app.api.routes_manual_charges import router as manual_charges_router
 from app.api.routes_members import router as members_router
 from app.api.routes_notifications import router as notifications_router
 from app.api.routes_parts import router as parts_router
@@ -62,6 +63,7 @@ protected.include_router(vehicles_router)
 protected.include_router(car_events_router)
 protected.include_router(drives_router)
 protected.include_router(charges_router)
+protected.include_router(manual_charges_router)     # charges typed by the user or imported from a file
 protected.include_router(charge_plan_router)
 protected.include_router(commands_router)
 protected.include_router(geofences_router)

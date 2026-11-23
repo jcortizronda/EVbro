@@ -13,6 +13,7 @@ from app.config import get_timezone
 from app.db.models import ChargePoint, ChargingSession, Vehicle
 from app.db.session import get_db
 from app.services import periods
+from app.services.manual_charges import energy_kwh
 
 router = APIRouter(tags=["Charging"])
 
@@ -37,6 +38,10 @@ class ChargeOut(BaseModel):
     cost_mode: Optional[str] = None
     effective_cost_per_kwh: Optional[float] = None
     charge_type: Optional[str] = None          # ac | dc (None = unknown, shown as AC)
+    geofence_id: Optional[int] = None
+    manual: bool = False                       # typed by the user or imported (services/manual_charges.py)
+    date_unknown: bool = False                 # manual, and the user did not know the day
+    battery_gain_pct: Optional[float] = None   # manual: «+70 %» as typed
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -67,6 +72,8 @@ def _serialize_session_details(charge: ChargingSession, points: List[ChargePoint
     # "efficiency" always came out as 95 %: without a meter it cannot be measured and is shown as unknown.
     kwh_use = charge.kwh_used if charge.kwh_used and charge.kwh_used > 0 else None
     efficiency = round(kwh_add / kwh_use * 100.0, 1) if kwh_use and kwh_add > 0 else None
+    if charge.manual and kwh_use and abs(kwh_add - kwh_use) < 0.005:
+        efficiency = None             # a manual charge without the battery % has only the charger's side: nothing to compare
 
     # average and peak power (kW)
     valid_powers = [p.power_kw for p in points if p.power_kw and p.power_kw > 0.1]
@@ -126,6 +133,9 @@ def _serialize_session_details(charge: ChargingSession, points: List[ChargePoint
             "cost_source": COST_SOURCES.get(charge.cost_mode or "", "Geocerca" if charge.geofence_id else "Sin tarifa"),
             "has_cost": bool(charge.cost_mode) or (charge.charge_cost or 0) > 0,
             "effective_cost_per_kwh": charge.effective_cost_per_kwh,
+            "manual": bool(charge.manual),
+            "date_unknown": bool(charge.date_unknown),
+            "battery_gain_pct": charge.battery_gain_pct,
         },
         "curve": curve,
     }
@@ -165,7 +175,10 @@ async def update_charge_cost(charge_id: int, req: ChargeCostUpdate, session: Asy
         charge.effective_cost_per_kwh = req.price_per_kwh
         charge.charge_cost = round(req.price_per_kwh * energy, 2)
         charge.cost_mode = "manual"
-    elif charge.cost_mode == "manual" and charge.effective_cost_per_kwh:        # only the kWh change: the cost is recomputed
+    elif charge.cost_mode and charge.effective_cost_per_kwh is not None:
+        # only the meter kWh change: the cost is recomputed over them, whatever the price came from (the geofence's tariff
+        # or a price typed before). It used to be done only for a typed price: a charge priced by its geofence kept the cost
+        # of the battery's energy, some 10 % below what the charger billed.
         charge.charge_cost = round(charge.effective_cost_per_kwh * energy, 2)
     await session.commit()
     return _serialize_session_details(charge, [], await _capacity(session, charge.vin))["charge"]
@@ -212,10 +225,9 @@ async def list_vehicle_charges(
 async def charges_summary(vin: str, session: AsyncSession = Depends(get_db)):
     """Totals of every charge of the car and per local calendar month (newest first): the history list is paged,
     so its header and month separators cannot add up only what is on screen."""
-    rows = (await session.execute(
-        select(ChargingSession.start_time, ChargingSession.kwh_added, ChargingSession.charge_cost, ChargingSession.charge_type)
-        .where(ChargingSession.vin == vin)
-    )).all()
+    # each charge with the charger's kWh when known, otherwise what the car measured (manual_charges.energy_kwh)
+    rows = [(c.start_time, energy_kwh(c), c.charge_cost, c.charge_type)
+            for c in (await session.execute(select(ChargingSession).where(ChargingSession.vin == vin))).scalars()]
     tz = get_timezone()
     months: Dict[str, Dict[str, Any]] = {}
     for start, kwh, cost, _kind in rows:
@@ -240,9 +252,10 @@ async def charges_summary(vin: str, session: AsyncSession = Depends(get_db)):
 @router.get("/vehicles/{vin}/charges/latest")
 async def get_latest_charge(vin: str, session: AsyncSession = Depends(get_db)):
     """Gets the most recent charging session (active or last completed) together with previous sessions."""
+    # only what the car reported: a charge written down by hand has no curve to show (services/manual_charges.py)
     stmt_recent = (
         select(ChargingSession)
-        .where(ChargingSession.vin == vin)
+        .where(ChargingSession.vin == vin, ChargingSession.manual.is_(False))
         .order_by(desc(ChargingSession.start_time))
         .limit(15)
     )
@@ -288,7 +301,7 @@ async def get_charge_details(charge_id: int, session: AsyncSession = Depends(get
 
     stmt_recent = (
         select(ChargingSession)
-        .where(ChargingSession.vin == charge.vin)
+        .where(ChargingSession.vin == charge.vin, ChargingSession.manual.is_(False))
         .order_by(desc(ChargingSession.start_time))
         .limit(15)
     )

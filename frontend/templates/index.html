@@ -45,6 +45,7 @@
   <link rel="stylesheet" href="/static/css/features/costs.css?v={{ asset_version }}">
   <link rel="stylesheet" href="/static/css/features/expenses.css?v={{ asset_version }}">
   <link rel="stylesheet" href="/static/css/features/refuels.css?v={{ asset_version }}">
+  <link rel="stylesheet" href="/static/css/features/charge-manual.css?v={{ asset_version }}">
   <link rel="stylesheet" href="/static/css/features/timeline.css?v={{ asset_version }}">
   <link rel="stylesheet" href="/static/css/features/stats.css?v={{ asset_version }}">
   <link rel="stylesheet" href="/static/css/features/period-picker.css?v={{ asset_version }}">
@@ -1027,6 +1028,11 @@
             <button class="btn-sm btn-secondary u-font-size-0p78rem" data-on-click="loadCharges()">Actualizar</button>
           </div>
           <div id="chgPeriod"></div>
+          <!-- Charges the car did not report: typed one by one or brought from a spreadsheet (features/charge-manual.js) -->
+          <div class="mc-actions needs-edit">
+            <button type="button" class="btn-primary" data-on-click="ManualCharges.open()">Añadir carga</button>
+            <button type="button" class="btn-secondary" data-on-click="ManualCharges.openImport()">Importar</button>
+          </div>
           <div id="chargesList" class="hist-list">
             <p class="hist-empty">Cargando cargas...</p>
           </div>
@@ -2831,6 +2837,92 @@
     </div>
   </div>
 
+  <!-- Modal: a charge written down by the user (features/charge-manual.js). Only the kWh are required -->
+  <div id="chargeManualModal" class="modal-overlay">
+    <div class="modal-card u-max-width-460px">
+      <h3 id="mcTitle">Añadir una carga</h3>
+      <p class="mc-lead">Para apuntar cargas de antes de usar EVBro, o una que no llegó a registrarse. Rellena lo que sepas.</p>
+      <div class="form-grid">
+        <div class="form-group"><label for="mcDay">Fecha (opcional)</label><input type="date" id="mcDay" class="form-control" /></div>
+        <div class="form-group"><label for="mcHour">Hora de inicio (opcional)</label><input type="time" id="mcHour" class="form-control" /></div>
+        <div class="form-group full"><p class="vp-hint mc-tight">Sin fecha, la carga se apunta como anterior a tu primer día en EVBro: cuenta en los totales, pero no en un mes concreto.</p></div>
+        <!-- Any two of the three give the third (features/charge-manual.js) -->
+        <div class="form-group full"><label for="mcKwh">kWh del cargador</label><input type="number" id="mcKwh" class="form-control mc-trio" min="0" max="500" step="0.01" inputmode="decimal" placeholder="Los del cargador o la factura" /></div>
+        <div class="form-group"><label for="mcPrice">Precio por kWh (€)</label><input type="number" id="mcPrice" class="form-control mc-trio" min="0" max="5" step="0.001" inputmode="decimal" /></div>
+        <div class="form-group"><label for="mcTotal">Total pagado (€)</label><input type="number" id="mcTotal" class="form-control mc-trio" min="0" step="0.01" inputmode="decimal" /></div>
+        <div class="form-group full"><p class="vp-hint mc-tight">Con dos de los tres, el tercero se calcula solo. Pon 0 si fue gratis.</p></div>
+        <div class="form-group"><label for="mcBattery">Batería cargada (%)</label><input type="number" id="mcBattery" class="form-control" min="1" max="100" step="1" inputmode="numeric" placeholder="Opcional" /></div>
+        <div class="form-group"><label for="mcType">Tipo</label><select id="mcType" class="form-control"><option value="ac">Corriente alterna (AC)</option><option value="dc">DC rápida</option></select></div>
+        <div class="form-group full"><p class="mc-how" id="mcHow" hidden></p></div>
+        <div class="form-group full">
+          <label for="mcPlace">Dónde (opcional)</label>
+          <select id="mcPlace" class="form-control" data-on-change="ManualCharges.placeChanged()"></select>
+          <input type="text" id="mcPlaceText" class="form-control mc-place-text" maxlength="200" placeholder="Nombre del cargador o dirección" autocomplete="off" hidden />
+          <p class="vp-hint">Con una geocerca de tarifa fija o gratuita, el precio se rellena solo; lo puedes cambiar.</p>
+        </div>
+      </div>
+      <div class="auth-error" id="mcError" role="alert" hidden></div>
+      <div class="modal-actions">
+        <button class="btn-secondary u-color-var-accent-red_margin-right-auto" id="mcDelete" data-on-click="ManualCharges.remove()" hidden>Borrar</button>
+        <button class="btn-secondary" data-on-click="ManualCharges.close()">Cancelar</button>
+        <button class="btn-primary" id="mcSave" data-on-click="ManualCharges.save()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: charges from a spreadsheet, in three steps; nothing is stored before the last one (features/charge-manual.js) -->
+  <div id="chargeImportModal" class="modal-overlay">
+    <div class="modal-card u-max-width-460px">
+      <h3>Importar cargas</h3>
+      <ol class="ci-steps" aria-label="Pasos">
+        <li id="ciTab1" class="is-on">1. Fichero</li><li id="ciTab2">2. Revisar</li><li id="ciTab3">3. Listo</li>
+      </ol>
+
+      <div id="ciStep1">
+        <p class="mc-lead">Sube un Excel o un CSV con una carga por fila. No se guarda nada hasta que lo revises.</p>
+        <div class="ci-drop">
+          <strong>Elige el fichero</strong>
+          <span>Excel (.xlsx) o CSV, hasta 1.000 cargas</span>
+          <input type="file" id="ciFile" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" data-on-change="ManualCharges.fileChosen(this)" hidden />
+          <button type="button" class="btn-primary" data-on-click="ManualCharges.pickFile()">Elegir fichero</button>
+        </div>
+        <a class="ci-template" id="ciTemplate" href="#" download>Descargar una plantilla de ejemplo (.xlsx)</a>
+        <div class="ci-help">
+          <p class="ci-strong">Cada fila solo necesita los kWh.</p>
+          <p>Los kWh son los del cargador o la factura. Si los tienes, también: fecha, hora, precio por kWh o total pagado, lugar, batería cargada y si fue AC o DC.</p>
+          <p>Las columnas pueden llamarse como quieras y estar en cualquier orden: en el paso siguiente ves cómo las ha entendido EVBro y lo corriges si hace falta.</p>
+        </div>
+        <div class="auth-error" id="ciError1" role="alert" hidden></div>
+        <div class="modal-actions"><button class="btn-secondary" data-on-click="ManualCharges.closeImport()">Cancelar</button></div>
+      </div>
+
+      <div id="ciStep2" hidden>
+        <p class="mc-lead" id="ciFileName"></p>
+        <div class="ci-map" id="ciMap"></div>
+        <div class="ci-counts" id="ciCounts"></div>
+        <div class="ci-rows" id="ciRows"></div>
+        <p class="vp-hint" id="ciNote"></p>
+        <div class="auth-error" id="ciError2" role="alert" hidden></div>
+        <div class="modal-actions">
+          <button class="btn-secondary" data-on-click="ManualCharges.back()">Atrás</button>
+          <button class="btn-primary" id="ciImport" data-on-click="ManualCharges.runImport()">Importar</button>
+        </div>
+      </div>
+
+      <div id="ciStep3" hidden>
+        <div class="ci-done"><div class="ci-done-count" id="ciDoneCount">0</div><p class="ci-strong">Cargas importadas</p><p id="ciDoneText"></p></div>
+        <div class="ci-help">
+          <p>Salen en el historial con la etiqueta «Manual» y cuentan en los totales, los costes y las estadísticas por mes. No tienen curva de carga, así que no se usan para la salud de la batería.</p>
+          <p>Si algo no ha salido bien, puedes deshacer esta importación entera.</p>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-secondary u-color-var-accent-red_margin-right-auto" data-on-click="ManualCharges.undoImport()">Deshacer</button>
+          <button class="btn-primary" data-on-click="ManualCharges.closeImport()">Hecho</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal: add / edit a maintenance item -->
   <div id="itemMaintModal" class="modal-overlay">
     <div class="modal-card">
@@ -3348,6 +3440,7 @@
   <script src="/static/js/features/maintenance-official.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/maintenance-invoices.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/charge-sessions.js?v={{ asset_version }}"></script>
+  <script src="/static/js/features/charge-manual.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/geofences.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/account.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/notifications.js?v={{ asset_version }}"></script>

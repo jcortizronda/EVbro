@@ -14,6 +14,7 @@ from app.api.routes_expenses import CATEGORIES as EXPENSE_CATEGORIES
 from app.db.models import ChargingSession, Drive, Expense, MaintenanceItem, MaintenanceLog, Refuel, Vehicle
 from app.db.session import get_db
 from app.services import periods
+from app.services.manual_charges import energy_kwh  # the charger's kWh when known: an estimate of the energy paid for
 
 router = APIRouter(tags=["Costs"])
 
@@ -74,7 +75,7 @@ async def get_costs(vin: str, period: str = Query("all"), frm: Optional[str] = Q
 
     recent = (
         [{"type": "charge", "date": c.start_time.isoformat(), "title": c.address or "Carga", "amount": round(c.charge_cost or 0.0, 2),
-          "detail": f"{c.kwh_added or 0:.1f} kWh", "id": c.id, "pending": not c.cost_mode} for c in charges]
+          "detail": f"{energy_kwh(c):.1f} kWh", "id": c.id, "pending": not c.cost_mode} for c in charges]
         + [{"type": "refuel", "date": r.timestamp.isoformat(), "title": r.station or r.address or "Repostaje", "amount": round(r.total_cost or 0.0, 2),
             "detail": f"{r.liters or 0:.1f} L", "id": r.id, "pending": r.total_cost is None} for r in refuels]
         + [{"type": "maintenance", "date": m.service_date.isoformat(), "title": m.title or i.name, "amount": round(m.cost or 0.0, 2),
@@ -91,7 +92,7 @@ async def get_costs(vin: str, period: str = Query("all"), frm: Optional[str] = Q
                     "purchase_odometer": vehicle.purchase_odometer, "odometer": vehicle.odometer},
         "totals": {"purchase": round(purchase, 2), "charges": sum_charges, "refuels": sum_refuels, "maintenance": sum_maint, "expenses": sum_expenses,
                    "running": running, "all": round(running + purchase, 2)},
-        "energy": {"kwh": round(sum(c.kwh_added or 0.0 for c in charges), 1), "liters": round(sum(r.liters or 0.0 for r in refuels), 1)},
+        "energy": {"kwh": round(sum(energy_kwh(c) for c in charges), 1), "liters": round(sum(r.liters or 0.0 for r in refuels), 1)},
         "pending": {"charges": sum(1 for c in charges if not c.cost_mode), "refuels": sum(1 for r in refuels if r.total_cost is None)},
         "km": round(km, 0) if km else None,
         "per_100km": round(running / km * 100.0, 2) if km and km >= 50 else None,        # under 50 km the figure is meaningless

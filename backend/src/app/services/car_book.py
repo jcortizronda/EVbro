@@ -41,6 +41,7 @@ from app.db.models import (
 )
 from app.i18n import _, get_language
 from app.services import battery_capacity, refuel_stats, stats, uploads
+from app.services.manual_charges import energy_kwh
 from app.services.parts import CATEGORY_BY_KEY, POSITIONS
 
 SECTIONS = ("sheet", "maintenance", "parts", "drives", "charges", "refuels", "expenses", "geofences", "documents")
@@ -346,11 +347,11 @@ def _charges(d: Dict[str, Any], w: float) -> List[Any]:
     charges = d.get("charges") or []
     if not charges:
         return [Paragraph(_("Sin cargas registradas."), SMALL)]
-    kwh = sum(c.kwh_added or 0 for c in charges)
+    kwh = sum(energy_kwh(c) for c in charges)
     cost = sum(c.charge_cost or 0 for c in charges)
     months: Dict[str, float] = defaultdict(float)
     for c in charges:
-        months[c.start_time.strftime("%Y-%m")] += c.kwh_added or 0
+        months[c.start_time.strftime("%Y-%m")] += energy_kwh(c)
     out: List[Any] = [_kpis([(str(len(charges)), _("cargas")), (_n(kwh, 1, "kWh"), _("a la batería")), (_eur(cost), _("gastado")),
                              (_n(cost / kwh, 3, "€/kWh") if kwh else "—", _("precio medio")),
                              (_n(max((c.max_charge_power_kw or 0) for c in charges), 1, "kW"), _("potencia máxima")),
@@ -361,7 +362,7 @@ def _charges(d: Dict[str, Any], w: float) -> List[Any]:
     out.append(_table(["Inicio", "Lugar", "Tipo", "Batería", "kWh", "Duración", "Coste"],
                       [[_dt(c.start_time), c.address or "—", "DC" if c.charge_type == "dc" else "AC",
                         f"{_n(c.start_battery_pct, 0)} → {_n(c.end_battery_pct, 0)} %" if c.start_battery_pct is not None and c.end_battery_pct is not None else "—",
-                        _n(c.kwh_added, 1), _dur(c.duration_seconds), _eur(c.charge_cost) if c.charge_cost else "—"] for c in charges[:40]],
+                        _n(energy_kwh(c), 1), _dur(c.duration_seconds), _eur(c.charge_cost) if c.charge_cost else "—"] for c in charges[:40]],
                       [w * 0.15, w * 0.3, w * 0.07, w * 0.13, w * 0.09, w * 0.13, w * 0.13], align_right=(4, 6)))
     return out
 

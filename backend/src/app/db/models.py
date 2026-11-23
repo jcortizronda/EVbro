@@ -268,6 +268,12 @@ class ChargingSession(Base):
     # AC (slow, the default) or DC fast charge: detected from the fast-charging gun flag or a power above AC levels, editable by hand
     charge_type = Column(String(4), nullable=True)
     effective_cost_per_kwh = Column(Float, nullable=True)
+    # Typed by the user or imported from a file (services/manual_charges.py), not detected from the car: a charge from before
+    # EVBro, or one it missed. `kwh_added` is then what the charger or the invoice says; there is no curve and no start/end %.
+    manual = Column(Boolean, default=False, nullable=False, server_default="false")
+    date_unknown = Column(Boolean, default=False, nullable=False, server_default="false")     # the user did not know the day: `start_time` is a placeholder
+    battery_gain_pct = Column(Float, nullable=True)                   # «+70 %» as typed (manual charges have no start and end)
+    import_batch = Column(String(32), nullable=True, index=True)      # the file import it came with, to undo it whole
 
     points = relationship("ChargePoint", back_populates="charging_session", cascade="all, delete-orphan", order_by="ChargePoint.timestamp")
     vehicle = relationship("Vehicle", back_populates="charging_sessions")
