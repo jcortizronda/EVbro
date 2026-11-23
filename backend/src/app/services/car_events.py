@@ -320,10 +320,16 @@ class CarEventService:
             task = asyncio.ensure_future(save_car_result(self.vin, message.data.get("seq"), self.last_command_result))
             _RESULT_TASKS.add(task)
             task.add_done_callback(_RESULT_TASKS.discard)
+            applied = "✅" in self.last_command_result
             self._poller.broadcast_event({
                 "type": "command_result", "vin": self.vin, "message": self.last_command_result,
-                "applied": "✅" in self.last_command_result, "failed": "❌" in self.last_command_result,
+                "applied": applied, "failed": "❌" in self.last_command_result,
             })
+            if applied:
+                # The read made right after sending can come before the cloud has the change: on 23-11-2026 a departure plan
+                # read 1 s after the order still had the old one, the car confirmed 6 s later, and the panel showed it as not
+                # applied. Reading again once the car confirms brings what it now has.
+                self._poller.request_poll(self.vin, force=True)
             return                                    # a confirmation is not telemetry
 
         if message.meaningful:

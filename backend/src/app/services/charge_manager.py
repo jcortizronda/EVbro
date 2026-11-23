@@ -131,6 +131,7 @@ class ChargeManager:
         self._reader = reader or self._read_car_schedule
         self._verify_delay = verify_delay_s          # None = do not verify (tests)
         self._tasks: set[asyncio.Task] = set()
+        self._orders: dict[str, int] = {}            # orders sent per car: a check only looks at the latest one
         self._clock = clock
         self._locks: dict[str, asyncio.Lock] = {}
         self._holds: dict[str, Optional[str]] = {}   # why EVBro is holding each car's charge (None = it is not)
@@ -208,8 +209,9 @@ class ChargeManager:
             row.hold_reason = row.hold_start_utc = None
         self._remember_hold(row)
         await session.commit()
+        self._orders[row.vin] = order = self._orders.get(row.vin, 0) + 1
         if verify and self._verify_delay is not None:
-            task = asyncio.create_task(self._verify_later(row.vin))
+            task = asyncio.create_task(self._verify_later(row.vin, order))
             self._tasks.add(task)
             task.add_done_callback(self._tasks.discard)
 
@@ -218,13 +220,18 @@ class ChargeManager:
         """Should the car have an active schedule? (the pause is an active window too)."""
         return row.mode in (MODE_HOLD, MODE_SCHEDULED)
 
-    async def _verify_later(self, vin: str) -> None:
+    async def _verify_later(self, vin: str, order: int) -> None:
+        # A newer order replaces this one and brings its own check: checking this one would read the car halfway through the
+        # newer one and resend into a busy car (23-11-2026: eleven schedule changes in twelve minutes, two resends, one «busy»)
+        superseded = lambda: self._orders.get(vin) != order          # noqa: E731
         try:
             await asyncio.sleep(self._verify_delay or 0)
-            if not await self._car_matches(vin):
-                # Not there yet: the car runs one command at a time and may still be on this one. A resend now only gets «busy»
-                # (A00082) and leaves that as the plan's error (14-11-2026: the manager pressed twice more for nothing)
-                await asyncio.sleep(VERIFY_RECHECK_S)
+            if superseded() or await self._car_matches(vin):
+                return
+            # Not there yet: the car runs one command at a time and may still be on this one. A resend now only gets «busy»
+            # (A00082) and leaves that as the plan's error (14-11-2026: the manager pressed twice more for nothing)
+            await asyncio.sleep(VERIFY_RECHECK_S)
+            if not superseded():
                 await self.verify_applied(vin)
         except ChargeError as exc:                           # the car refused the resend: its answer, not a failure of EVBro
             _LOGGER.warning("Charge manager (%s): the resend was not accepted (%s)", vin, exc.reason)

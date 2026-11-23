@@ -8,6 +8,7 @@
 (function () {
   const el = (id) => document.getElementById(id);
   const CONFIRM_AFTER_MS = 12000;      // the car takes a few seconds to report the plan back
+  const CONFIRM_RETRY_MS = [15000, 30000];   // further checks while the reading still has the old plan
   let plan = null;                     // { known, enabled, departures: [{time, days, enabled}] } as the car has it
   let draft = [];                      // what the form shows: [{time, days, enabled}]
   const DAY_NAMES = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];              // chip i is weekday i + 1
@@ -89,7 +90,20 @@
       const on = data.departures.filter((d) => d.enabled).map((d) => d.time);
       showToast(on.length ? t('Precalentamiento de batería programado a las {p0}.', {p0: on.join(', ')}) : t('Precalentamiento de batería desactivado.'), 'success');
       take(data);
-      setTimeout(load, CONFIRM_AFTER_MS);             // what the car itself says once it has taken the order
+      const sent = JSON.stringify(draft);
+      // What the car itself says once it has taken the order. The reading can still hold the old plan for a few seconds after
+      // the car confirms (23-11-2026): until the last check, an old plan does not replace the one just sent.
+      const recheck = async (left) => {
+        try {
+          const res = await fetch(`/api/vehicles/${currentVin}/departure`);
+          if (!res.ok) return;
+          const read = await res.json();
+          const same = read.known && JSON.stringify(read.departures.map(shape)) === sent;
+          if (same || !left.length) take(read);
+          else setTimeout(() => recheck(left.slice(1)), left[0]);
+        } catch (e) { /* the next load shows it */ }
+      };
+      setTimeout(() => recheck(CONFIRM_RETRY_MS), CONFIRM_AFTER_MS);
     } catch (e) {
       showToast(t('No se pudo guardar el precalentamiento programado: {p0}', {p0: e.message || e}), 'error', 7000);
     } finally {

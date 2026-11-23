@@ -189,13 +189,30 @@ async def test_verify_gives_the_car_time_before_resending(manager, monkeypatch) 
         return readings.pop(0) if len(readings) > 1 else readings[0]
 
     manager._reader = read
-    await manager._verify_later(VIN)
+    await manager._verify_later(VIN, manager._orders[VIN])
     assert len(manager.fake_car.sent) == n and (await plan_row()).last_error is None      # nothing resent
     readings[:] = [{"enabled": False, "start": None, "end": None, "duration_min": None}]         # it never applies it: one resend
-    await manager._verify_later(VIN)
+    await manager._verify_later(VIN, manager._orders[VIN])
     assert len(manager.fake_car.sent) == n + 1 and manager.fake_car.sent[-1][2] == "automático (verificación)"
     manager.fake_car.response = {"success": False, "reason": "busy", "message": "coche ocupado"}
-    await manager._verify_later(VIN)                                             # the car refuses the resend: logged, never raised
+    await manager._verify_later(VIN, manager._orders[VIN])                                             # the car refuses the resend: logged, never raised
+
+
+async def test_a_newer_order_cancels_the_check_of_the_previous_one(manager, monkeypatch) -> None:
+    """23-11-2026: eleven schedule changes in twelve minutes; the check of an older one read the car halfway through a newer
+    one and resent into a busy car."""
+    from app.services import charge_manager as cm
+    monkeypatch.setattr(cm, "VERIFY_RECHECK_S", 0)
+    await manager.stop(VIN)
+    first = manager._orders[VIN]
+    await manager.start(VIN)
+    n = len(manager.fake_car.sent)
+    manager._verify_delay = 0
+    manager.fake_car.car = {"enabled": True, "start": "20:30", "end": "21:30", "duration_min": 60}   # does not match the latest
+    await manager._verify_later(VIN, first)
+    assert len(manager.fake_car.sent) == n                                       # the older order's check does nothing
+    await manager._verify_later(VIN, manager._orders[VIN])
+    assert len(manager.fake_car.sent) == n + 1                                   # the latest one's check resends
 
 
 async def test_verify_touches_nothing_if_it_cannot_read_or_it_matches(manager) -> None:

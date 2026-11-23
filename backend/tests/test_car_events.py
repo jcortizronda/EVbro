@@ -220,9 +220,11 @@ async def test_a_command_confirmation_reaches_the_web_and_is_not_telemetry() -> 
     assert poller.applied == []
     (event,) = poller.events
     assert event["type"] == "command_result" and event["applied"] is True and "confirmado" in event["message"]
+    assert poller.polls == [(VIN, True)]                  # read again: the car now has what the order changed
     client.on_message(payload({"result": "9", "seq": "x", "reason": ["door open"]}, "110D"), svc._topic)
     await flush()
     assert poller.events[-1]["failed"] is True
+    assert poller.polls == [(VIN, True)]                  # a refused order changed nothing
 
 
 async def test_if_a_position_ever_arrives_it_is_passed_to_the_poller() -> None:
