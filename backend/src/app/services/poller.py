@@ -97,6 +97,7 @@ class VehiclePoller(SessionMixin, CommandsMixin, AlertsMixin, PositionWatchMixin
 
     # State memory for firing mobile alerts (avoids duplicates)
     _last_geofence_by_vin: Dict[str, Optional[int]] = {}
+    _geofence_odometer_by_vin: Dict[str, float] = {}      # odometer last seen inside a geofence (a rise means it really left)
     _last_charging_by_vin: Dict[str, bool] = {}
     _last_maint_check_km: Dict[str, float] = {}
     _last_maint_check_at: Dict[str, datetime.datetime] = {}
@@ -189,7 +190,7 @@ class VehiclePoller(SessionMixin, CommandsMixin, AlertsMixin, PositionWatchMixin
     def forget_vehicle(self, vin: str) -> None:
         """Drops everything kept in memory about a deleted car (services/tenant.py): its session context and PIN, its last reading
         and the marks of the loop."""
-        for store in (self._contexts, self._latest_snapshots, self._last_poll_times, self._last_geofence_by_vin,
+        for store in (self._contexts, self._latest_snapshots, self._last_poll_times, self._last_geofence_by_vin, self._geofence_odometer_by_vin,
                       self._last_charging_by_vin, self._last_maint_check_km, self._last_maint_check_at, self._last_renewal_check_at,
                       self._session_paused, self._position_watch, self._last_location_code):
             store.pop(vin, None)

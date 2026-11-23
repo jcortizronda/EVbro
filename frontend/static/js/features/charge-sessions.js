@@ -343,6 +343,14 @@ function initOrUpdateChargeMiniMap(lat, lon, address) {
   }, 150);
 }
 
+/** The points of the power line: without the trailing ones at 0 kW. The reading that saw the charge end is kept as a point (it
+ *  gives the end time and the final %), but the car no longer charges then, so its 0 kW is not part of the charging power. */
+function chargingPowerPoints(points) {
+  let end = points.length;
+  while (end > 0 && !((points[end - 1].power_kw || 0) > 0.1)) end--;
+  return end > 0 ? points.slice(0, end) : points;
+}
+
 // Time chart renderer (SOC %, power kW, range km vs time)
 function renderChargeTemporalChart(points, meta) {
   const canvas = document.getElementById('chargeDetailsCanvas');
@@ -388,7 +396,8 @@ function renderChargeTemporalChart(points, meta) {
   const minSoc = Math.min(...socs);
   const maxSoc = Math.max(...socs);
 
-  const powers = points.map(p => p.power_kw || 0);
+  const powerPts = chargingPowerPoints(points);
+  const powers = powerPts.map(p => p.power_kw || 0);
   const minPow = Math.min(...powers);
   const maxPow = Math.max(...powers, meta ? meta.max_charge_power_kw || 0 : 10);
   const powScale = Math.max(15, maxPow * 1.1);
@@ -451,19 +460,19 @@ function renderChargeTemporalChart(points, meta) {
 
       ctx.beginPath();
       ctx.moveTo(getX(times[0]), padding.top + plotH);
-      points.forEach(p => {
+      powerPts.forEach(p => {
         const x = getX(serverDate(p.ts).getTime());
         const y = getY_Power(p.power_kw || 0);
         ctx.lineTo(x, y);
       });
-      ctx.lineTo(getX(times[times.length - 1]), padding.top + plotH);
+      ctx.lineTo(getX(serverDate(powerPts[powerPts.length - 1].ts).getTime()), padding.top + plotH);
       ctx.closePath();
       ctx.fillStyle = gradPow;
       ctx.fill();
 
       // Line
       ctx.beginPath();
-      points.forEach((p, idx) => {
+      powerPts.forEach((p, idx) => {
         const x = getX(serverDate(p.ts).getTime());
         const y = getY_Power(p.power_kw || 0);
         if (idx === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
@@ -600,7 +609,7 @@ function renderChargeTemporalChart(points, meta) {
       tooltip.innerHTML = `
         <div class="u-font-weight-700_margin-bottom-3px_border-bottom-1px-solid-rgba-255-255-255-0p1_padding-bottom-2px">${timeStr}</div>
         <div class="u-color-10b981">● Batería: <b>${Math.round(closestPt.battery_pct)}%</b></div>
-        <div class="u-color-f59e0b">● Potencia: <b>${historyNum(closestPt.power_kw, 1)} kW</b></div>
+        ${powerPts.includes(closestPt) ? `<div class="u-color-f59e0b">● Potencia: <b>${historyNum(closestPt.power_kw, 1)} kW</b></div>` : ''}
         ${closestPt.range_km ? `<div class="u-color-f97316">● Autonomía: <b>${Math.round(closestPt.range_km)} km</b></div>` : ''}
         ${closestPt.voltage ? `<div class="u-color-a855f7_font-size-0p75rem">● Tensión: <b>${Math.round(closestPt.voltage)} V</b></div>` : ''}
         ${closestPt.current ? `<div class="u-color-38bdf8_font-size-0p75rem">● Corriente: <b>${Math.round(closestPt.current)} A</b></div>` : ''}
@@ -648,8 +657,8 @@ function renderChargingCurveChart(points) {
     return;
   }
 
-  // Filter and sort points by SOC
-  const curvePts = points
+  // Filter and sort points by SOC (the closing reading at 0 kW is not part of the curve)
+  const curvePts = chargingPowerPoints(points)
     .filter(p => p.battery_pct !== null && p.battery_pct !== undefined)
     .sort((a, b) => a.battery_pct - b.battery_pct);
 

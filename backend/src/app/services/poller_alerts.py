@@ -17,12 +17,16 @@ from app.db.session import async_session_factory
 from app.i18n import M
 from app.services.charge_detector import grid_charging
 from app.services.charge_manager import ChargeManager
-from app.services.geofence import find_geofence
+from app.services.geofence import find_geofence, haversine_distance_meters
 from app.services.notification_service import NotificationService
 from app.timeutil import utcnow
 
 _LOGGER = logging.getLogger("app.services.poller")
 
+# The position of a parked car, as the cloud gives it, wanders: one charging in a 50 m geofence was placed 6, 58, 28, 101, 6
+# and 88 m from its centre within half an hour (23-11-2026), and every swing was an exit and an entry. Without a sign that the
+# car moved, only a position this far beyond the edge counts as leaving.
+GEOFENCE_EXIT_MARGIN_METERS = 300
 # How long «car left with doors/windows open» or unlocked must last before alerting
 SECURITY_CONFIRM_SECONDS = 5 * 60
 # Tyre pressure: it must stay out of range this long (when starting off or with a warm tyre it rises 10 % without being a problem);
@@ -99,8 +103,13 @@ class AlertsMixin:
             else:
                 last_gf_id = self._last_geofence_by_vin.get(vin)
                 if current_gf_id != last_gf_id:
-                    await self._geofence_transition(session, vehicle, current_gf, last_gf_id, lat, lon, battery, odo)
-                    self._last_geofence_by_vin[vin] = current_gf_id
+                    if last_gf_id is not None and not await self._left_geofence(session, vin, last_gf_id, telemetry, lat, lon):
+                        current_gf_id = last_gf_id                # the position wandered, the car did not: it is still inside
+                    else:
+                        await self._geofence_transition(session, vehicle, current_gf, last_gf_id, lat, lon, battery, odo)
+                        self._last_geofence_by_vin[vin] = current_gf_id
+            if current_gf_id is not None and odo is not None:
+                self._geofence_odometer_by_vin[vin] = odo
 
         # 2. Charging alerts (start / end / interruption); from the grid only, the engine charging on the road is not news
         is_charging = grid_charging(telemetry)
@@ -239,6 +248,22 @@ class AlertsMixin:
     def tyre_pressure_issues(cls, vehicle: Vehicle, telemetry: Dict) -> list:
         """The texts of `tyre_pressure_deviations`."""
         return list(cls.tyre_pressure_deviations(vehicle, telemetry).values())
+
+    async def _left_geofence(self, session, vin: str, last_gf_id: int, telemetry: Dict, lat: float, lon: float) -> bool:
+        """Whether a reading outside the geofence the car was in is a real exit. Needs a sign that the car moved: it is on the
+        road, its odometer went up since it was last seen inside, or the position is well beyond the edge. Never while plugged
+        in (it cannot be driving)."""
+        if telemetry.get("cable_connected"):
+            return False
+        if (telemetry.get("speed_kmh") or 0.0) > 2.0 or telemetry.get("state") == "driving":
+            return True
+        odo, odo_inside = telemetry.get("odometer_km"), self._geofence_odometer_by_vin.get(vin)
+        if odo is not None and odo_inside is not None and odo > odo_inside:
+            return True
+        prev_gf = await session.get(Geofence, last_gf_id)
+        if prev_gf is None:
+            return True
+        return haversine_distance_meters(lat, lon, prev_gf.latitude, prev_gf.longitude) > prev_gf.radius_meters + GEOFENCE_EXIT_MARGIN_METERS
 
     async def _geofence_transition(self, session, vehicle: Vehicle, current_gf, last_gf_id, lat, lon, battery, odo) -> None:
         """The car changed geofence: record the exit and/or entry (always) and notify (per geofence switch)."""

@@ -150,6 +150,53 @@ async def test_geofence_alerts_follow_the_switches_of_each_geofence(db, monkeypa
     assert sent == ["exit"]
 
 
+async def test_a_parked_car_whose_position_wanders_does_not_leave_its_geofence(db, monkeypatch) -> None:
+    """The cloud places a parked car up to ~100 m away from where it is (23-11-2026): that alone is not an exit."""
+    from app.db.models import Geofence, Vehicle
+    from app.services.notification_service import NotificationService
+    from app.services.poller import VehiclePoller
+
+    sent = []
+
+    async def _enter(*args, **kwargs):
+        sent.append("enter")
+
+    async def _exit(*args, **kwargs):
+        sent.append("exit")
+
+    monkeypatch.setattr(NotificationService, "notify_geofence_enter", _enter)
+    monkeypatch.setattr(NotificationService, "notify_geofence_exit", _exit)
+    poller = VehiclePoller.get_instance()
+    poller._last_geofence_by_vin.clear()
+    poller._geofence_odometer_by_vin.clear()
+    async with async_session_factory() as s:
+        s.add(AppUser(id=1, username="ana", role="manager", password_hash="x"))
+        s.add(Vehicle(vin="GF-WANDER", owner_id=1, name="Coche"))
+        s.add(Geofence(name="Casa", latitude=41.0, longitude=-1.0, radius_meters=50, owner_id=1))
+        await s.commit()
+        vehicle = (await s.execute(select(Vehicle).where(Vehicle.vin == "GF-WANDER"))).scalar_one()
+        check = poller._check_and_dispatch_alerts
+        home, near = {"latitude": 41.0, "longitude": -1.0}, {"latitude": 41.0008, "longitude": -1.0}   # ~90 m north
+        far = {"latitude": 41.005, "longitude": -1.0}                                                   # ~560 m north
+        parked = {"state": "parked", "battery_level": 50, "odometer_km": 1000}
+
+        await check(s, vehicle, {**parked, **home})
+        await check(s, vehicle, {**parked, **near, "cable_connected": True})
+        await check(s, vehicle, {**parked, **far, "cable_connected": True})      # plugged in: it cannot have left
+        await check(s, vehicle, {**parked, **near})                              # just past the edge, odometer still
+        await check(s, vehicle, {**parked, **home})
+        assert sent == []
+
+        await check(s, vehicle, {**parked, **near, "odometer_km": 1001})        # it moved: a real exit
+        await check(s, vehicle, {**parked, **home, "odometer_km": 1001})
+        assert sent == ["exit", "enter"]
+
+        await check(s, vehicle, {**parked, **near, "odometer_km": 1001, "state": "driving"})
+        await check(s, vehicle, {**parked, **home, "odometer_km": 1001})
+        await check(s, vehicle, {**parked, **far, "odometer_km": 1001})        # well beyond the edge
+    assert sent == ["exit", "enter", "exit", "enter", "exit"]
+
+
 # ───────────────────────── MQTT scope ─────────────────────────
 def test_mqtt_publishes_only_the_server_owner_cars_by_default() -> None:
     assert settings.MQTT_PUBLISH_SCOPE == "owner"
