@@ -194,7 +194,12 @@ async def test_a_parked_car_whose_position_wanders_does_not_leave_its_geofence(d
         await check(s, vehicle, {**parked, **near, "odometer_km": 1001, "state": "driving"})
         await check(s, vehicle, {**parked, **home, "odometer_km": 1001})
         await check(s, vehicle, {**parked, **far, "odometer_km": 1001})        # well beyond the edge
-    assert sent == ["exit", "enter", "exit", "enter", "exit"]
+        assert sent == ["exit", "enter", "exit", "enter", "exit"]
+
+        # The cloud can keep the cable «connected» on the road (18-11-2026): a rising odometer is still an exit
+        await check(s, vehicle, {**parked, **home, "odometer_km": 1001, "cable_connected": True})
+        await check(s, vehicle, {**parked, **far, "odometer_km": 1004, "cable_connected": True})
+    assert sent == ["exit", "enter", "exit", "enter", "exit", "enter", "exit"]
 
 
 # ───────────────────────── MQTT scope ─────────────────────────

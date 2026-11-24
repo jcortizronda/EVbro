@@ -268,3 +268,36 @@ async def test_reaching_the_target_is_a_completed_charge(car, monkeypatch) -> No
 
 async def test_a_stop_evbro_did_not_ask_for_is_an_interruption(car, monkeypatch) -> None:
     assert await alerts_for_a_stop(monkeypatch, holds=False) == ["notify_charge_interrupted"]
+
+
+async def climate_reading(at, soc, state, kw):
+    """A reading that carries the car's own `chargeState` (as every real one does)."""
+    with freeze_time(at):
+        async with async_session_factory() as s:
+            v = (await s.execute(select(Vehicle).where(Vehicle.vin == VIN))).scalar_one()
+            res = await ChargeDetector.process_snapshot(s, v, {"is_charging": state == "1", "cable_connected": True, "battery_level": soc,
+                                                              "charge_power_kw": kw, "latitude": 37.0, "longitude": -6.0,
+                                                              "raw_data": {"chargeState": state}})
+            await s.commit()
+            return res
+
+
+async def test_the_climate_running_with_the_cable_in_is_not_a_charge(car) -> None:
+    """24-11-2026: at 100 % and `chargeState = 2`, the cabin warming before a departure moved 2.5 kW and became a 0 kWh charge."""
+    await climate_reading(D(2026, 11, 24, 5, 30), 100, "2", 0.0)
+    await climate_reading(D(2026, 11, 24, 5, 37), 100, "2", 2.51)
+    await climate_reading(D(2026, 11, 24, 5, 38), 100, "0", 2.4)
+    assert await sessions() == []
+
+
+async def test_a_charge_ends_when_the_car_says_so_even_with_the_climate_on(car) -> None:
+    await climate_reading(D(2026, 11, 24, 2, 30), 79, "1", 2.8)
+    end = await climate_reading(D(2026, 11, 24, 4, 42), 100, "2", 2.5)       # complete, the climate keeps current flowing
+    assert end is not None and end.end_battery_pct == 100
+    assert len(await sessions()) == 1
+
+
+async def test_without_charge_state_the_power_still_tells(car) -> None:
+    """A reading with no `chargeState` at all: the power is the only sign, as before."""
+    await reading(D(2026, 11, 24, 2, 30), 79, False, kw=2.8)
+    assert len(await sessions()) == 1

@@ -34,6 +34,14 @@ def lacks_charge_data(telemetry: dict) -> bool:
     return telemetry.get("battery_level") is None and telemetry.get("charge_power_kw") is None
 
 
+def charge_state_reported(telemetry: dict) -> bool:
+    """Did the car say whether it is charging (`chargeState` in the raw reading)? When it did, that is the answer: the power
+    is |voltage × current| of the battery and also moves when the climate runs with the cable in (24-11-2026: 2.5 kW at
+    100 % with `chargeState = 2` and the cabin warming before a departure, recorded as a 0 kWh charge; 18-11-2026: 85 min at
+    `chargeState = 0` with the climate on, the battery going down)."""
+    return (telemetry.get("raw_data") or {}).get("chargeState") not in (None, "")
+
+
 def detect_charge_type(telemetry: dict, power_kw: float) -> str:
     """`dc` when the car reports the fast-charging gun or the power is beyond AC; otherwise `ac` (the default when nothing says DC)."""
     if telemetry.get("fast_charging") or (power_kw or 0.0) > DC_POWER_KW:
@@ -187,7 +195,9 @@ class ChargeDetector:
         lon = telemetry.get("longitude")
 
         # Only with the cable: `is_charging` on its own also fires when the engine charges the battery while driving (grid_charging)
-        charging_now = bool(cable_connected and (is_charging or power_kw > 0.5))
+        # The power alone only counts when the car did not say whether it is charging (see `charge_state_reported`)
+        state_known = charge_state_reported(telemetry)
+        charging_now = bool(cable_connected and (is_charging or (not state_known and power_kw > 0.5)))
         if not cable_connected:
             _PAUSED.pop(vin, None)                                # unplugged: whatever comes next is a new session
 
@@ -276,7 +286,7 @@ class ChargeDetector:
                 charge.charge_type = "dc"                         # the fast gun (or a DC power level) showed up mid-session
 
             # 3. Detect the end of the charge (cable unplugged or charge finished)
-            charge_ended = not cable_connected or (not is_charging and power_kw < 0.2)
+            charge_ended = not cable_connected or (not is_charging and (state_known or power_kw < 0.2))
             if charge_ended:
                 await cls._close(session, vehicle, charge, now, battery, electric_range)
                 if cable_connected:

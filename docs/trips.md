@@ -29,6 +29,9 @@ velocidad > 1 km/h o `engineState` = `driving`. El sondeo trata `ready` como «e
   (`chargeGunState = 1`). `chargeState = 1` solo no cierra nada: en marcha el motor térmico también carga la batería y el coche lo notifica como
   «cargando» (el 04-11-2026 partió un viaje en cinco). Lo mismo vale para el detector de cargas y los avisos: carga = cable + `chargeState = 1`
   (`grid_charging()` en `services/charge_detector.py`).
+  **Cable atascado:** la nube puede seguir diciendo «cable conectado» con el coche en marcha (18-11-2026: un coche hizo 12 km así y su viaje
+  salió en 15 trozos solapados). Un cable que se ve con el coche en marcha se da por viejo (`_STALE_CABLE`): no cierra el viaje, que acaba por
+  los minutos parado, hasta que una lectura lo dé por desconectado. Las geocercas tampoco se fían de él si el odómetro ha subido.
   Mientras haya un viaje abierto el sondeo no pasa de 150 s (`OPEN_TRIP_POLL_SECONDS`, solo consulta la nube) para poder cerrarlo a tiempo.
 - **Termina (`end_time`) cuando se apagó el coche:** la primera lectura con `hVoltageState = 0` tras el último movimiento. Si se vuelve a encender
   antes del cierre, se descarta y el viaje sigue. Sin ese dato, `end_time` es la hora del último movimiento. El resto de datos de fin (posición,

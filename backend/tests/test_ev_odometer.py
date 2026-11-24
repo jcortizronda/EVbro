@@ -59,7 +59,7 @@ def test_a_drive_with_petrol_does_not_count_for_the_electric_consumption() -> No
 # ───────────────────────── trip detector ─────────────────────────
 @pytest.fixture
 async def car(db, monkeypatch):
-    for d in (td._ACTIVE_DRIVES, td._LAST_MOTION_TIME, td._LAST_IDLE, td._HV_OFF_AT, td._LAST_CLOSED):
+    for d in (td._ACTIVE_DRIVES, td._LAST_MOTION_TIME, td._LAST_IDLE, td._HV_OFF_AT, td._LAST_CLOSED, td._STALE_CABLE):
         d.clear()
 
     async def no_geofence(session, lat, lon, **kwargs):
@@ -74,7 +74,7 @@ async def car(db, monkeypatch):
         s.add(Vehicle(owner_id=1, vin=VIN, name="Ebro", odometer=10950.0))
         await s.commit()
     yield VIN
-    for d in (td._ACTIVE_DRIVES, td._LAST_MOTION_TIME, td._LAST_IDLE, td._HV_OFF_AT, td._LAST_CLOSED):
+    for d in (td._ACTIVE_DRIVES, td._LAST_MOTION_TIME, td._LAST_IDLE, td._HV_OFF_AT, td._LAST_CLOSED, td._STALE_CABLE):
         d.clear()
 
 

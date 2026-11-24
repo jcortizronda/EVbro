@@ -252,13 +252,14 @@ class AlertsMixin:
     async def _left_geofence(self, session, vin: str, last_gf_id: int, telemetry: Dict, lat: float, lon: float) -> bool:
         """Whether a reading outside the geofence the car was in is a real exit. Needs a sign that the car moved: it is on the
         road, its odometer went up since it was last seen inside, or the position is well beyond the edge. Never while plugged
-        in (it cannot be driving)."""
+        in (it cannot be driving), unless the odometer went up: the cloud can keep the cable «connected» on the road
+        (18-11-2026)."""
+        odo, odo_inside = telemetry.get("odometer_km"), self._geofence_odometer_by_vin.get(vin)
+        if odo is not None and odo_inside is not None and odo > odo_inside:
+            return True
         if telemetry.get("cable_connected"):
             return False
         if (telemetry.get("speed_kmh") or 0.0) > 2.0 or telemetry.get("state") == "driving":
-            return True
-        odo, odo_inside = telemetry.get("odometer_km"), self._geofence_odometer_by_vin.get(vin)
-        if odo is not None and odo_inside is not None and odo > odo_inside:
             return True
         prev_gf = await session.get(Geofence, last_gf_id)
         if prev_gf is None:

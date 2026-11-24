@@ -24,7 +24,7 @@ T0 = datetime.datetime(2026, 10, 28, 14, 36, 21)
 
 @pytest.fixture(autouse=True)
 def _clean_state(monkeypatch):
-    for d in (td._ACTIVE_DRIVES, td._LAST_MOTION_TIME, td._LAST_IDLE, td._HV_OFF_AT, td._LAST_CLOSED):
+    for d in (td._ACTIVE_DRIVES, td._LAST_MOTION_TIME, td._LAST_IDLE, td._HV_OFF_AT, td._LAST_CLOSED, td._STALE_CABLE):
         d.clear()
 
     async def no_geofence(session, lat, lon, **kwargs):
@@ -36,7 +36,7 @@ def _clean_state(monkeypatch):
     monkeypatch.setattr(td, "find_geofence", no_geofence)
     monkeypatch.setattr(td, "reverse_geocode", address)
     yield
-    for d in (td._ACTIVE_DRIVES, td._LAST_MOTION_TIME, td._LAST_IDLE, td._HV_OFF_AT, td._LAST_CLOSED):
+    for d in (td._ACTIVE_DRIVES, td._LAST_MOTION_TIME, td._LAST_IDLE, td._HV_OFF_AT, td._LAST_CLOSED, td._STALE_CABLE):
         d.clear()
 
 
@@ -218,7 +218,7 @@ async def test_an_open_trip_is_resumed_after_a_restart_and_closed(car) -> None:
 async def test_a_very_old_open_trip_is_not_resumed(car) -> None:
     await process(car, reading(0, 9417, HOME), T0)
     await process(car, reading(50, 9419, DESTINATION), T0 + datetime.timedelta(minutes=4))
-    for d in (td._ACTIVE_DRIVES, td._LAST_MOTION_TIME, td._LAST_IDLE, td._HV_OFF_AT, td._LAST_CLOSED):
+    for d in (td._ACTIVE_DRIVES, td._LAST_MOTION_TIME, td._LAST_IDLE, td._HV_OFF_AT, td._LAST_CLOSED, td._STALE_CABLE):
         d.clear()
     await process(car, reading(50, 9440, DESTINATION), T0 + datetime.timedelta(hours=5))
     ds = await drives()
@@ -266,6 +266,29 @@ async def test_the_engine_charging_the_battery_does_not_cut_the_trip_but_pluggin
     await process(car, reading(0, 9631, DESTINATION, soc=50, is_charging=False, cable_connected=True), T0 + 35 * m)
     (d,) = await drives()
     assert d.end_time is not None and d.start_battery_pct == 62 and d.end_battery_pct == 50 and d.distance_km == 26
+
+
+async def test_a_cable_the_cloud_keeps_connected_on_the_road_does_not_cut_the_trip(car) -> None:
+    """18-11-2026: the cloud reported the cable connected for a whole 12 km drive; every reading closed the trip and the next
+    one opened another, so one drive came out as 15 overlapping pieces."""
+    m = datetime.timedelta(minutes=1)
+    stuck = {"cable_connected": True, "state": "plugged"}
+    await process(car, reading(0, 9605, HOME, soc=94, **stuck), T0)
+    await process(car, reading(16, 9605, HOME, soc=93, **stuck),T0 + 4 * m)
+    await process(car, reading(26, 9607, HOME, soc=92, **stuck), T0 + 9 * m)
+    await process(car, reading(0, 9608, HOME, soc=91, **stuck), T0 + 11 * m)          # a traffic light
+    await process(car, reading(60, 9614, HOME, soc=86, **stuck), T0 + 28 * m)
+    assert TripDetector.has_open_trip(car) and len(await drives()) == 1
+    await process(car, reading(0, 9617, DESTINATION, soc=84, **stuck), T0 + 40 * m)  # parks
+    await process(car, reading(0, 9617, DESTINATION, soc=84, **stuck), T0 + 47 * m)  # stopped long enough
+    (d,) = await drives()
+    assert d.end_time == T0 + 28 * m and d.distance_km == 12 and (d.start_battery_pct, d.end_battery_pct) == (94, 84)
+
+    # Once the cloud reports it out, a cable seen again is a real plug-in and ends the next trip at once
+    await process(car, reading(0, 9617, DESTINATION, soc=84), T0 + 60 * m)
+    await process(car, reading(30, 9618, DESTINATION, soc=84), T0 + 62 * m)
+    await process(car, reading(0, 9619, HOME, soc=83, cable_connected=True), T0 + 66 * m)
+    assert not TripDetector.has_open_trip(car) and len(await drives()) == 2
 
 
 async def test_the_fuel_spent_is_litres_out_of_the_gauge_points_and_the_tank_size(car) -> None:

@@ -29,6 +29,9 @@ _LAST_IDLE: Dict[str, Dict] = {}
 # When high voltage was first seen off after the last motion: that is the trip's end time
 # (the trip is closed after 5 min, but it ends when the car was switched off)
 _HV_OFF_AT: Dict[str, datetime.datetime] = {}
+# Cars whose cloud reported the charging cable while they were moving (18-11-2026: one car drove 12 km with the cable
+# «connected» and its trip came out in 15 pieces). That report is stale: it does not end a trip until the cable is seen out.
+_STALE_CABLE: set = set()
 # Minutes stopped before a trip counts as finished
 IDLE_MINUTES_TO_END_TRIP = 5
 # A trip left open across a restart is only resumed if there was activity less than this ago
@@ -182,6 +185,11 @@ class TripDetector:
 
         if is_moving:
             _LAST_MOTION_TIME[vin] = now
+        cable = bool(telemetry.get("cable_connected"))
+        if not cable:
+            _STALE_CABLE.discard(vin)
+        elif is_moving:
+            _STALE_CABLE.add(vin)                                 # a moving car cannot be plugged in (see `_STALE_CABLE`)
         # High voltage: the first reading with it off sets the end time; switching it back on discards it
         hv = telemetry.get("high_voltage_on")
         if hv is False and not is_moving:
@@ -273,7 +281,8 @@ class TripDetector:
 
             # Also end it when the car gets plugged in (a charge from the grid). `is_charging` alone is not enough: the combustion
             # engine charges the battery on the road and the car reports that as charging (04-11-2026: one trip cut into five)
-            force_end = bool(telemetry.get("cable_connected"))
+            # A cable already reported while the car was moving is stale: the trip then ends by the minutes stopped
+            force_end = cable and vin not in _STALE_CABLE
 
             if stopped_duration >= IDLE_MINUTES_TO_END_TRIP or force_end:
                 # Close the trip
