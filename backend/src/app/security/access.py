@@ -98,6 +98,7 @@ ACCOUNT_RULES: Dict[Tuple[str, str], str] = {
     ("POST", "/api/account/login"): "root", ("POST", "/api/account/logout"): "root", ("POST", "/api/account/pin"): "root",
     ("PUT", "/api/account/pin-policy"): "root",     # when orders ask for the PIN: the manager's choice for its cars
     ("POST", "/api/account/ebro-password"): "root",  # changes the Ebro account's password in the Ebro cloud
+    ("POST", "/api/account/ebro-pin"): "root",       # changes the car-control PIN in the Ebro cloud (not EVBro's stored copy)
     ("GET", "/api/account/mqtt"): "root", ("PUT", "/api/account/mqtt"): "root", ("DELETE", "/api/account/mqtt"): "root",
     ("POST", "/api/account/mqtt/test"): "root",     # the manager's own MQTT broker (Home Assistant)
     ("GET", "/api/account/status"): "root",

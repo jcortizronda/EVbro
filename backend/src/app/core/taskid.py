@@ -119,9 +119,15 @@ def _mint_taskid_impl(ctx, tuid):
 
     # `attempt()` takes the lock, applies the guard and holds it for the whole network call.
     # It is the only way to mint: the race condition can no longer be expressed.
+    return mint_with_pin(ctx, tuid, ctx.pin)
+
+
+def mint_with_pin(ctx, tuid, pin):
+    """Mint a taskId with a given PIN (the stored one, or one the user just typed: changing the PIN in the
+    cloud proves the current PIN this way). Same wrong-PIN lockout as every command."""
     try:
         with ctx.lockout.attempt() as attempt:
-            return _checkpassword(ctx, tuid, attempt)
+            return _checkpassword(ctx, tuid, attempt, pin)
     except PinLockedError as locked:
         raise CommandError(
             f"PIN de comandos bloqueado temporalmente ({locked.attempts} intentos erróneos) — "
@@ -129,7 +135,7 @@ def _mint_taskid_impl(ctx, tuid):
             reason="pin") from None
 
 
-def _checkpassword(ctx, tuid, attempt):
+def _checkpassword(ctx, tuid, attempt, pin=None):
     """The BFF chain proper. Runs with the lockout lock already held; declares
     the outcome on `attempt` ONLY when it is really attributable to the PIN."""
     from . import vehicles
@@ -147,8 +153,7 @@ def _checkpassword(ctx, tuid, attempt):
     # answer without a taskId.
     vehicles.query_list(ctx)
     bff("/tsp/v1/app/vmc/setVecDefault", {"vin": ctx.vin})
-    plain = hashlib.md5(ctx.pin.encode()).hexdigest()
-    password = A.sm4_code(plain, "padRight32")
+    password = encode_pin(pin if pin is not None else ctx.pin)
     # The PROVEN body, the same since the prototype that predates the repository. We tried
     # adding `passwordType` and the five client-identification fields the app sends
     # (deviceId, platform, source, terminalType, appVersion): the server answered exactly
@@ -191,6 +196,11 @@ def _checkpassword(ctx, tuid, attempt):
         attempt.record_failure()
     raise CommandError(_checkpassword_message(outcome, detail),
                        code=str(code) if code else None, reason=outcome.reason)
+
+
+def encode_pin(pin: str) -> str:
+    """How the app sends a PIN (`checkPassword.password`, `changePassword.newPassword`): SM4 of its MD5."""
+    return A.sm4_code(hashlib.md5(pin.encode()).hexdigest(), "padRight32")
 
 
 def _checkpassword_message(outcome, detail: str) -> str:

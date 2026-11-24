@@ -57,3 +57,38 @@ def refusal(answer: dict) -> str:
     """The cloud's reason for a refusal, short and without anything that could be a token (it is shown to the manager)."""
     text = str(answer.get("msg") or answer.get("message") or answer.get("code") or answer.get("_raw") or "").strip()
     return text.split("access_token")[0].strip()[:160]
+
+
+# ───────────────────────── The car-control PIN of the account ─────────────────────────
+# Read from the official app 1.0.11 (`RusApiService.changePassword`, `CarSettingPasswordViewModel.controlAddPsw`, 24-11-2026), not yet
+# sent from here. The body does not carry the current PIN: the `taskId` proves it, minted by `checkPassword` with that PIN (the app asks
+# for the PIN to open the car settings). `newPassword` is encoded like `checkPassword.password`.
+CHANGE_PIN_PATH = "/tsp/v1/app/cpm/changePassword"
+PIN_LENGTH = 6                       # the app's field: «Introduce la contraseña de 6 dígitos»
+
+
+def pin_format_ok(pin: str) -> bool:
+    return len(pin) == PIN_LENGTH and pin.isascii() and pin.isdigit()
+
+
+def change_pin(ctx, tuid, current_pin: str, new_pin: str, language: str = "ES") -> dict:
+    """Mint a taskId with `current_pin` (wrong-PIN lockout included: raises CommandError like any command) and send the new PIN.
+    Returns the cloud's JSON as a dict. BLOCKING (network)."""
+    from . import taskid
+
+    task = taskid.mint_with_pin(ctx, tuid, current_pin)
+    access = wake._access_token(ctx)
+    headers = A.headers_post(CHANGE_PIN_PATH, ctx=ctx, extra={
+        "Authorization": f"Bearer {access}",
+        "Content-Type": "application/json; charset=UTF-8",
+        "Accept": "application/json, text/plain, */*"})
+    body = {"tUserId": str(tuid), "channelId": ctx.channel_id, "language": language, "vin": ctx.vin, "taskId": task,
+            "newPassword": taskid.encode_pin(new_pin), "needDecode": 0, "type": 0}
+    return bff_post(ctx, CHANGE_PIN_PATH, body, headers=headers)
+
+
+def pin_change_looks_accepted(answer: dict) -> bool:
+    """The answer gives no reason to think it failed. What counts as success is not known for this route (the app reads it through
+    a generic result type), so the caller then proves the new PIN with `checkPassword` before trusting it."""
+    code = str(answer.get("code", "")).strip()
+    return answer.get("success") is True or code in ("0", "200", "A00000")

@@ -347,5 +347,14 @@
  "La contraseña nueva es igual que la actual.": "A palavra-passe nova é igual à atual.",
  "La contraseña actual no coincide con la de la cuenta de Ebro conectada.": "A palavra-passe atual não coincide com a da conta Ebro ligada.",
  "La sesión de la cuenta de Ebro no abre: vuelve a conectarla antes de cambiar la contraseña.": "A sessão da conta Ebro não abre: volta a ligá-la antes de alterar a palavra-passe.",
- "Ebro no ha cambiado la contraseña: {p0}": "A Ebro não alterou a palavra-passe: {p0}"
+ "Ebro no ha cambiado la contraseña: {p0}": "A Ebro não alterou a palavra-passe: {p0}",
+ "Ese coche no es de tu cuenta de Ebro.": "Esse carro não é da tua conta Ebro.",
+ "El PIN nuevo tiene que tener 6 dígitos.": "O PIN novo tem de ter 6 dígitos.",
+ "Escribe el PIN actual de Ebro.": "Escreve o PIN atual da Ebro.",
+ "El PIN nuevo es igual que el actual.": "O PIN novo é igual ao atual.",
+ "El PIN actual no coincide con el PIN guardado en EVBro.": "O PIN atual não coincide com o PIN guardado no EVBro.",
+ "La sesión de la cuenta de Ebro no abre: vuelve a conectarla antes de cambiar el PIN.": "A sessão da conta Ebro não abre: volta a ligá-la antes de alterar o PIN.",
+ "Ebro no ha aceptado el PIN actual: {p0}": "A Ebro não aceitou o PIN atual: {p0}",
+ "Ebro respondió sin error, pero todavía no acepta el PIN nuevo. Prueba en unos minutos una orden con el PIN de siempre; EVBro no ha cambiado el PIN guardado.": "A Ebro respondeu sem erro, mas ainda não aceita o PIN novo. Dentro de uns minutos experimenta uma ordem com o PIN de sempre; o EVBro não alterou o PIN guardado.",
+ "Ebro no ha cambiado el PIN: {p0}": "A Ebro não alterou o PIN: {p0}"
 }

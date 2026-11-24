@@ -60,6 +60,15 @@ se rechaza aquí, sin gastar un intento en la nube, que bloquea la cuenta tras v
 no la devuelve. Si la nube la rechaza responde 424 con su motivo. Probado contra la nube real el 24-11-2026 (ver
 [ebro-protocol.md](ebro-protocol.md)).
 
+## PIN de Ebro (`POST /api/account/ebro-pin`) frente al PIN guardado en EVBro (`POST /api/account/pin`)
+
+Son dos cosas distintas y la interfaz las separa. **«PIN guardado en EVBro»** es solo la copia cifrada que EVBro usa para las órdenes que
+no lo piden: cambiarla no toca la nube. **«Cambiar PIN de Ebro»** cambia el PIN en la nube de Ebro (el que pide la app oficial): solo el
+gestor, a través de un coche suyo con cuenta de Ebro. Pide el PIN actual, que se prueba con `checkPassword` (cuenta para el bloqueo de PIN
+erróneos de siempre) y, si hay un PIN guardado en EVBro, tiene que ser ese (uno distinto se rechaza aquí). **Dos fallos** esperan **10
+minutos** por cuenta. Si la nube lo acepta y el PIN nuevo abre un `checkPassword`, la copia de EVBro (si la había) pasa a ser el nuevo; si
+no había copia, no se guarda. Queda en el registro de órdenes como `cambiar_pin_ebro`. Sin probar todavía contra la nube real.
+
 ## Comandos (`services/command_policy.py`)
 - **Piden el PIN en cada envío:** `desbloquear`, `maletero_abrir`, `ventanillas_abrir`, `ventilar_ventanillas`, `techo_abrir`, `techo_ventilar`, `alarma_off`. El catálogo (`GET /api/commands/catalog`) lo indica con `requires_pin`.
 - **Cuándo se pide, lo elige el gestor** (Ajustes → Cuenta → «Pedir el PIN»; `AppUser.pin_policy`, `PUT /api/account/pin-policy`, solo el gestor): **solo al abrir** (lo anterior, por defecto), **siempre** (toda orden, también encender el clima) o **nunca** (ninguna orden pregunta; solo se admite con el PIN guardado, la interfaz avisa de que quien entre con su cuenta podrá abrir el coche, y sin PIN guardado la nube de Ebro lo exige igualmente). La política vale para los coches de ese gestor, también para las cuentas asociadas con nivel `control`, y `requires_pin` del catálogo la refleja. Decisión del dueño del 2026-10-30; la regla «lo que abre el coche pide PIN en cada envío» es el valor por defecto, no una imposición.

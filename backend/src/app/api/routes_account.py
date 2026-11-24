@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.routes_auth import _check_throttle, ip_throttle
 from app.config import settings
 from app.core import ebro_account, ebro_login
+from app.core.errors import CommandError
 from app.db.models import AppUser, EbroAccount, MqttLink, Vehicle
 from app.db.session import get_db
 from app.i18n import _
@@ -22,7 +23,7 @@ from app.security import auth, passwords
 from app.security.access import foreign_vins, is_root, space_owner_id, within_vehicle_limit
 from app.security.throttle import LoginThrottle
 from app.services import command_policy, exit_survey, mqtt_hub, storage, tenant, vehicle_profiles
-from app.services.accounts import change_account_password, fetch_account_vehicles
+from app.services.accounts import change_account_password, change_account_pin, fetch_account_vehicles
 from app.services.car_events import CarEventHub
 from app.services.command_policy import pin_throttle, pin_throttle_key
 from app.services.ebro_sessions import account_session_path
@@ -387,6 +388,87 @@ async def change_ebro_password(req: EbroPasswordChange, session: AsyncSession = 
         await poller.bind_sessions()
         asyncio.create_task(CarEventHub.get_instance().restart_owner(account.user_id, poller))
     return {"status": "ok", "session_renewed": bool(outcome["token_data"])}
+
+
+class EbroPinChange(BaseModel):
+    vin: str = Field(max_length=32)
+    current_pin: str = Field(max_length=8)
+    new_pin: str = Field(max_length=8)
+
+
+# Failed PIN changes per Ebro account (on top of the core's own wrong-PIN lockout, which counts the cloud's refusals per car)
+ebro_pin_throttle = LoginThrottle(max_failures=2, window_s=600)
+
+
+@router.post("/ebro-pin")
+async def change_ebro_pin(req: EbroPinChange, request: Request, session: AsyncSession = Depends(get_db),
+                          user: AppUser = Depends(auth.require_auth)):
+    """Changes the car-control PIN of the connected Ebro account IN THE EBRO CLOUD (the one the official app asks for), through one
+    of the account's cars. Not the PIN stored in EVBro (`POST /pin`), which is only EVBro's copy: that copy, if there is one, is
+    replaced by the new PIN once the cloud accepts it. Not yet tried against the real cloud (docs/ebro-protocol.md)."""
+    stmt = select(EbroAccount).where(EbroAccount.is_active == True, EbroAccount.user_id == user.id).order_by(EbroAccount.id.desc())  # noqa: E712
+    account = (await session.execute(stmt)).scalars().first()
+    if not account:
+        raise HTTPException(status_code=404, detail="No hay ninguna cuenta Ebro conectada.")
+    car = (await session.execute(select(Vehicle).where(Vehicle.vin == req.vin, Vehicle.owner_id == user.id,
+                                                       Vehicle.is_manual == False))).scalar_one_or_none()  # noqa: E712
+    if car is None:
+        raise HTTPException(status_code=404, detail=_("Ese coche no es de tu cuenta de Ebro."))
+    key = f"ebro-pin:{account.id}"
+    _check_throttle((ebro_pin_throttle, key))
+    current, new = req.current_pin.strip(), req.new_pin.strip()
+    if not ebro_account.pin_format_ok(new):
+        raise HTTPException(status_code=422, detail=_("El PIN nuevo tiene que tener 6 dígitos."))
+    if not current.isdigit():
+        raise HTTPException(status_code=422, detail=_("Escribe el PIN actual de Ebro."))
+    if new == current:
+        raise HTTPException(status_code=422, detail=_("El PIN nuevo es igual que el actual."))
+    # A PIN stored in EVBro that commands use is the one the cloud has: a different one is a typo, refused here without spending
+    # one of the attempts Chery counts before locking the account
+    if account.pin and not hmac.compare_digest(current.encode(), account.pin.strip().encode()):
+        ebro_pin_throttle.record_failure(key)
+        raise HTTPException(status_code=422, detail=_("El PIN actual no coincide con el PIN guardado en EVBro."))
+
+    poller = VehiclePoller.get_instance()
+    ctx = poller._get_or_create_ctx(car.vin)
+    ip = auth.client_ip(request)
+    loop = asyncio.get_running_loop()
+    try:
+        outcome = await loop.run_in_executor(None, change_account_pin, ctx, current, new)
+    except RuntimeError as e:
+        if str(e) != "no_usertoken":
+            raise
+        raise HTTPException(status_code=424, detail=_("La sesión de la cuenta de Ebro no abre: vuelve a conectarla antes de cambiar el PIN.")) from e
+    except CommandError as e:
+        ebro_pin_throttle.record_failure(key)
+        await poller._audit_command(car.vin, "cambiar_pin_ebro", None, False, e.code or e.reason, str(e), ip)
+        raise HTTPException(status_code=424, detail=_("Ebro no ha aceptado el PIN actual: {p0}", p0=str(e))) from e
+    except Exception as e:
+        _LOGGER.error("Network error changing the Ebro PIN of account %s: %s", account.id, type(e).__name__)
+        raise HTTPException(status_code=502, detail="No se pudo conectar con el servidor de Ebro. Inténtalo de nuevo en unos minutos.") from e
+
+    if not outcome["changed"]:
+        ebro_pin_throttle.record_failure(key)
+        await poller._audit_command(car.vin, "cambiar_pin_ebro", None, False, str(outcome["code"]), outcome["reason"], ip)
+        if outcome["unconfirmed"]:
+            raise HTTPException(status_code=424, detail=_("Ebro respondió sin error, pero todavía no acepta el PIN nuevo. Prueba en unos minutos una orden con el PIN de siempre; EVBro no ha cambiado el PIN guardado."))
+        raise HTTPException(status_code=424, detail=_("Ebro no ha cambiado el PIN: {p0}", p0=outcome["reason"] or "sin motivo"))
+
+    ebro_pin_throttle.reset(key)
+    await poller._audit_command(car.vin, "cambiar_pin_ebro", None, True, str(outcome["code"]), "PIN de Ebro cambiado", ip)
+    stored = bool(account.pin)
+    if stored:                                               # EVBro's copy follows the cloud
+        account.pin = new
+        await session.commit()
+    for vin in await _own_vins(session, user.id):
+        own_ctx = poller._contexts.get(vin)
+        if own_ctx is not None:
+            if stored:
+                own_ctx.pin = new
+            own_ctx.reset_pin_lockout()                      # also drops the taskId minted with the old PIN
+        pin_throttle.reset(pin_throttle_key(vin))
+    _LOGGER.info("Ebro PIN changed for account %s through %s (stored copy updated: %s)", account.id, car.vin[-6:], stored)
+    return {"status": "ok", "stored_pin_updated": stored}
 
 
 class LanguageRequest(BaseModel):

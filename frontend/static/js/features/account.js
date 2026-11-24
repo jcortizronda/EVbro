@@ -4,20 +4,36 @@
 
 let currentAccountInfo = null;
 
+// The header dot: green = account and car channel fine; orange = the account works but the car's live channel (MQTT) is stopped;
+// red = no Ebro account, or the cloud no longer accepts its session and password
+const CHANNEL_STOPPED = ['conflict', 'rejected', 'error', 'no_certs'];
+function paintAccountDot(level, title) {
+  const dot = document.getElementById('accountStatusDot');
+  if (!dot) return;
+  dot.classList.remove('connected', 'disconnected', 'error');
+  dot.classList.add({ ok: 'connected', channel: 'disconnected', account: 'error' }[level]);
+  const btn = document.getElementById('btnAccountStatus');
+  if (btn) btn.title = title;
+}
+
 // The car's MQTT channel stopped because another app used the account: shown on Inicio (where nobody misses it) and in the
-// account card; «Sincronizar» in either place brings it back
+// account card; «Sincronizar» in either place brings it back. With the account fine, a stopped channel turns the dot orange.
 async function showAccountChannelNotice() {
   const notes = ['settingsAccountChannel', 'homeChannelBanner'].map((id) => document.getElementById(id)).filter(Boolean);
-  if (!notes.length) return;
-  let stopped = false;
+  let state = null;
   try {
     const res = await fetch('/api/car-events/status');
     const s = res.ok ? await res.json() : null;
-    stopped = !!(s && s.state === 'conflict');
+    state = s && s.enabled !== false ? s.state : null;
   } catch (e) {
-    stopped = false;
+    state = null;
   }
-  notes.forEach((note) => { note.hidden = !stopped; });
+  notes.forEach((note) => { note.hidden = state !== 'conflict'; });
+  const accountOk = !!(currentAccountInfo && currentAccountInfo.connected && currentAccountInfo.session_ok !== false);
+  if (accountOk) {
+    paintAccountDot(CHANNEL_STOPPED.includes(state) ? 'channel' : 'ok',
+      CHANNEL_STOPPED.includes(state) ? t('Cuenta de Ebro conectada, pero el canal en directo del coche está parado') : t('Cuenta de Ebro conectada'));
+  }
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden && currentAccountInfo) showAccountChannelNotice(); });
 
@@ -30,7 +46,6 @@ async function checkAccountStatus() {
     currentAccountInfo = data;
     renderPinPolicy(data);                 // the choice exists whether or not an Ebro account is connected right now
 
-    const dot = document.getElementById('accountStatusDot');
     const btnText = document.getElementById('accountBtnText');
     const settingsBadge = document.getElementById('settingsAccountBadge');
     const settingsPhone = document.getElementById('settingsAccountPhone');
@@ -42,10 +57,8 @@ async function checkAccountStatus() {
     if (data.connected) {
       // `session_ok === false`: the cloud rejects the stored session and password; only connecting the account again fixes it
       const expired = data.session_ok === false;
-      if (dot) {
-        dot.style.background = expired ? '#ffb300' : '#00e676';
-        dot.style.boxShadow = expired ? '0 0 8px rgba(255, 179, 0, 0.6)' : '0 0 8px rgba(0, 230, 118, 0.6)';
-      }
+      if (expired) paintAccountDot('account', t('La nube de Ebro ya no acepta la sesión: vuelve a conectar la cuenta'));
+      else paintAccountDot('ok', t('Cuenta de Ebro conectada'));      // orange if the car channel turns out to be stopped
       if (btnText) {
         btnText.innerText = expired ? "Sesión caducada" : (data.phone || "Conectado");
       }
@@ -67,14 +80,12 @@ async function checkAccountStatus() {
       if (syncBtn) syncBtn.disabled = false;
       const pwdBtn = document.getElementById('btnEbroPassword');
       if (pwdBtn) pwdBtn.hidden = data.source !== 'web_login';      // the server's own `.env` account is changed in the file
+      const pinBtn = document.getElementById('btnEbroPin');
+      if (pinBtn) pinBtn.hidden = data.source !== 'web_login' || !(data.vehicles || []).length;
       showAccountChannelNotice();
     } else {
-      const pwdBtn = document.getElementById('btnEbroPassword');
-      if (pwdBtn) pwdBtn.hidden = true;
-      if (dot) {
-        dot.style.background = '#ffb300';
-        dot.style.boxShadow = '0 0 8px rgba(255, 179, 0, 0.6)';
-      }
+      ['btnEbroPassword', 'btnEbroPin'].forEach((id) => { const b = document.getElementById(id); if (b) b.hidden = true; });
+      paintAccountDot('account', t('Sin cuenta de Ebro conectada'));
       if (btnText) {
         btnText.innerText = "Conectar Cuenta";
       }
@@ -290,6 +301,90 @@ async function submitEbroPassword() {
       data.session_renewed ? 'success' : 'warning', 9000);
   } catch (e) {
     showEbroPasswordError(e.message || String(e));
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+
+// ───────────────────────── Changing the PIN of the Ebro account (in the cloud, not EVBro's copy) ─────────────────────────
+const EBRO_PIN_FIELDS = ['ebroPinCurrent', 'ebroPinNew', 'ebroPinRepeat'];
+
+/** The car the change goes through: the one on screen when it is a car of the account, else the account's first one. */
+function ebroPinCar() {
+  const cars = (currentAccountInfo && currentAccountInfo.vehicles) || [];
+  return cars.find((c) => typeof currentVin !== 'undefined' && c.vin === currentVin) || cars[0] || null;
+}
+
+function showEbroPinError(text) {
+  const box = document.getElementById('ebroPinError');
+  if (!box) return;
+  box.textContent = text || '';
+  box.hidden = !text;
+}
+
+function setEbroPinFieldsVisible(show) {
+  EBRO_PIN_FIELDS.forEach((id) => { const f = document.getElementById(id); if (f) f.type = show ? 'text' : 'password'; });
+  const btn = document.getElementById('ebroPinShow');
+  if (btn) {
+    btn.textContent = show ? t('Ocultar') : t('Mostrar');
+    btn.setAttribute('aria-pressed', String(show));
+  }
+}
+function toggleEbroPinFields() {
+  setEbroPinFieldsVisible(document.getElementById('ebroPinNew').type === 'password');
+}
+
+function openEbroPinModal() {
+  EBRO_PIN_FIELDS.forEach((id) => { const f = document.getElementById(id); if (f) f.value = ''; });
+  setEbroPinFieldsVisible(false);
+  showEbroPinError('');
+  const cars = (currentAccountInfo && currentAccountInfo.vehicles) || [];
+  const car = ebroPinCar();
+  const carLine = document.getElementById('ebroPinCar');
+  if (carLine) {                       // with several cars, say through which one it goes (whether the PIN is per car is not known)
+    carLine.hidden = cars.length < 2 || !car;
+    if (car) carLine.textContent = t('Se cambia a través de {p0}.', {p0: car.name || car.vin});
+  }
+  document.getElementById('ebroPinModal').classList.add('open');
+  document.getElementById('ebroPinCurrent').focus();
+}
+
+function closeEbroPinModal() {
+  document.getElementById('ebroPinModal').classList.remove('open');
+  EBRO_PIN_FIELDS.forEach((id) => { const f = document.getElementById(id); if (f) f.value = ''; });     // never left behind
+  setEbroPinFieldsVisible(false);
+}
+
+async function submitEbroPin() {
+  const current = document.getElementById('ebroPinCurrent').value.trim();
+  const fresh = document.getElementById('ebroPinNew').value.trim();
+  const repeat = document.getElementById('ebroPinRepeat').value.trim();
+  const car = ebroPinCar();
+  if (!car) { showEbroPinError(t('Tu cuenta de Ebro no tiene ningún coche.')); return; }
+  if (!/^[0-9]{4,6}$/.test(current)) { showEbroPinError(t('Escribe el PIN actual de Ebro.')); return; }
+  if (!/^[0-9]{6}$/.test(fresh)) { showEbroPinError(t('El PIN nuevo tiene que tener 6 dígitos.')); return; }
+  if (fresh !== repeat) { showEbroPinError(t('Los dos PIN nuevos no coinciden.')); return; }
+  if (fresh === current) { showEbroPinError(t('El PIN nuevo es igual que el actual.')); return; }
+  const sure = await confirmDialog(t('¿Cambiar el PIN de tu cuenta de Ebro?'), { title: t('Cambiar PIN de Ebro'), confirmText: t('Cambiar PIN') });
+  if (!sure) return;
+
+  const btn = document.getElementById('btnEbroPinSubmit');
+  btn.disabled = true;
+  showEbroPinError('');
+  try {
+    const res = await fetch('/api/account/ebro-pin', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ vin: car.vin, current_pin: current, new_pin: fresh }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(typeof data.detail === 'string' ? data.detail : res.status);
+    closeEbroPinModal();
+    if (typeof commandPinMap !== 'undefined') commandPinMap = null;
+    await checkAccountStatus();
+    showToast(data.stored_pin_updated ? t('PIN de Ebro cambiado. El PIN guardado en EVBro ya es el nuevo.') : t('PIN de Ebro cambiado. Úsalo en las órdenes que te lo pidan.'), 'success', 7000);
+  } catch (e) {
+    showEbroPinError(e.message || String(e));
   } finally {
     btn.disabled = false;
   }

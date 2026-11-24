@@ -17,6 +17,7 @@ from typing import Optional
 from app.config import get_data_dir, settings
 from app.core import ebro_account, ebro_login
 from app.core.context import CoreCtx
+from app.core.errors import CommandError
 from app.core.vehicles import iter_vehicles, query_list
 from app.core.wake import _bff_login
 from app.services.ebro_sessions import session_lock, store_session, write_token_file  # noqa: F401  (write_token_file: re-exported)
@@ -133,3 +134,29 @@ def change_account_password(session_path: str, phone: str, area_code: str, curre
         return {"changed": True, "reason": None, "token_data": None}
     store_session(session_path, token_data)
     return {"changed": True, "reason": None, "token_data": token_data}
+
+
+def change_account_pin(ctx, current_pin: str, new_pin: str) -> dict:
+    """Changes the car-control PIN of the Ebro account in the cloud (core/ebro_account.py), through the car `ctx` (the request names a
+    car), then proves the new PIN with `checkPassword`: what this route answers on success is not known, and the PIN that matters is
+    the one the cloud accepts.
+
+    Returns {"changed": bool, "unconfirmed": bool, "reason": text or None, "code": the cloud's code}. Raises RuntimeError("no_usertoken")
+    when the session does not open and CommandError when the current PIN is refused or locked (the same as a command). BLOCKING."""
+    from app.core import taskid
+
+    user_token, tuid = _bff_login(ctx)
+    if not user_token:
+        raise RuntimeError("no_usertoken")
+    answer = ebro_account.change_pin(ctx, tuid, current_pin, new_pin)
+    code = answer.get("code")
+    _LOGGER.info("Ebro PIN change of %s answered code=%s", ctx.vin[-6:], code)
+    if not ebro_account.pin_change_looks_accepted(answer):
+        return {"changed": False, "unconfirmed": False, "reason": ebro_account.refusal(answer), "code": code}
+    ctx.invalidate_taskid()                                # minted with the old PIN
+    try:
+        taskid.mint_with_pin(ctx, tuid, new_pin)
+    except CommandError as err:
+        return {"changed": False, "unconfirmed": True, "reason": str(err), "code": code}
+    ctx.invalidate_taskid()                                # the next command mints its own with the PIN it is given
+    return {"changed": True, "unconfirmed": False, "reason": None, "code": code}
