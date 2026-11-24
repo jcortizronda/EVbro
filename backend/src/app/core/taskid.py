@@ -122,12 +122,19 @@ def _mint_taskid_impl(ctx, tuid):
     return mint_with_pin(ctx, tuid, ctx.pin)
 
 
-def mint_with_pin(ctx, tuid, pin):
+# `scene` of checkPassword: what the taskId is for. 0 = commands (the app's control screen; 1 and 2 give A00089 on a
+# command). 2 = the car settings screen, the app's default (`RusApiService.checkPassword`, `int scene = 2`): changing
+# the PIN needs a taskId of that scene (one of scene 0 got A00089 on 24-11-2026).
+SCENE_COMMANDS = 0
+SCENE_CAR_SETTINGS = 2
+
+
+def mint_with_pin(ctx, tuid, pin, scene=SCENE_COMMANDS):
     """Mint a taskId with a given PIN (the stored one, or one the user just typed: changing the PIN in the
-    cloud proves the current PIN this way). Same wrong-PIN lockout as every command."""
+    cloud proves the current PIN this way) for a given `scene`. Same wrong-PIN lockout as every command."""
     try:
         with ctx.lockout.attempt() as attempt:
-            return _checkpassword(ctx, tuid, attempt, pin)
+            return _checkpassword(ctx, tuid, attempt, pin, scene)
     except PinLockedError as locked:
         raise CommandError(
             f"PIN de comandos bloqueado temporalmente ({locked.attempts} intentos erróneos) — "
@@ -135,7 +142,7 @@ def mint_with_pin(ctx, tuid, pin):
             reason="pin") from None
 
 
-def _checkpassword(ctx, tuid, attempt, pin=None):
+def _checkpassword(ctx, tuid, attempt, pin=None, scene=SCENE_COMMANDS):
     """The BFF chain proper. Runs with the lockout lock already held; declares
     the outcome on `attempt` ONLY when it is really attributable to the PIN."""
     from . import vehicles
@@ -163,7 +170,7 @@ def _checkpassword(ctx, tuid, attempt, pin=None):
     # someone's car, and adding made-up fields that have NEVER been seen working is not caution:
     # it is risk with no upside. They remain in the history in case new information turns up one day.
     cuerpo = {"vin": ctx.vin, "tUserId": str(tuid), "channelId": ctx.channel_id,
-              "password": password, "needDecode": 0, "scene": 0, "type": 0}
+              "password": password, "needDecode": 0, "scene": scene, "type": 0}
     j = bff("/tsp/v1/app/cpm/checkPassword", cuerpo)
     data = j.get("data") if isinstance(j.get("data"), dict) else {}
     tid = data.get("taskId") or j.get("taskId")

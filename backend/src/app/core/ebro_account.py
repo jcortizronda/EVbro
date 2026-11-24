@@ -60,9 +60,9 @@ def refusal(answer: dict) -> str:
 
 
 # ───────────────────────── The car-control PIN of the account ─────────────────────────
-# Read from the official app 1.0.11 (`RusApiService.changePassword`, `CarSettingPasswordViewModel.controlAddPsw`, 24-11-2026), not yet
-# sent from here. The body does not carry the current PIN: the `taskId` proves it, minted by `checkPassword` with that PIN (the app asks
-# for the PIN to open the car settings). `newPassword` is encoded like `checkPassword.password`.
+# Read from the official app 1.0.11 (`RusApiService.changePassword`, `CarSettingPasswordViewModel.controlAddPsw`, 24-11-2026). The first
+# try from EVBro (scene 0) got A00089; with scene 2 not yet tried. The body does not carry the current PIN: the `taskId` proves it, minted by `checkPassword` with that PIN and
+# `scene = 2` (the app asks for the PIN to open the car settings; with the commands' `scene = 0` the cloud answered A00089, 24-11-2026). `newPassword` is encoded like `checkPassword.password`.
 CHANGE_PIN_PATH = "/tsp/v1/app/cpm/changePassword"
 PIN_LENGTH = 6                       # the app's field: «Introduce la contraseña de 6 dígitos»
 
@@ -76,7 +76,7 @@ def change_pin(ctx, tuid, current_pin: str, new_pin: str, language: str = "ES") 
     Returns the cloud's JSON as a dict. BLOCKING (network)."""
     from . import taskid
 
-    task = taskid.mint_with_pin(ctx, tuid, current_pin)
+    task = taskid.mint_with_pin(ctx, tuid, current_pin, taskid.SCENE_CAR_SETTINGS)    # the settings' taskId, not a command's
     access = wake._access_token(ctx)
     headers = A.headers_post(CHANGE_PIN_PATH, ctx=ctx, extra={
         "Authorization": f"Bearer {access}",

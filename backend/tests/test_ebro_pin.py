@@ -49,6 +49,7 @@ def test_the_change_proves_the_typed_pin_and_sends_the_new_one_as_the_app_does(t
     assert ebro_account.pin_change_looks_accepted(answer)
     check = next(b for p, b, _ in calls if p.endswith("checkPassword"))
     assert check["password"] == taskid.encode_pin("222222")                 # the typed PIN, not the stored one
+    assert check["scene"] == 2                    # the car settings' taskId: one for commands (scene 0) got A00089 (24-11-2026)
     path, body, headers = calls[-1]
     assert path == "/tsp/v1/app/cpm/changePassword" and headers["Authorization"] == "Bearer acc-1"
     assert body == {"tUserId": "42", "channelId": "4", "language": "ES", "vin": VIN, "taskId": "T-1",
