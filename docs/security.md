@@ -52,6 +52,14 @@ Documentos del coche, facturas de mantenimiento y foto del coche pasan por el mi
 - **Texto de usuario en la interfaz:** todo lo que escribe un usuario o devuelve un servicio externo (direcciones de OpenStreetMap, nombres de geocercas, notas de mantenimiento, mensajes de avisos) pasa por `escapeHtml()` antes de entrar en `innerHTML`; lo que va dentro de un `onclick="f(…)"` se codifica como literal JS y después se escapa para el atributo. Un test (`test_el_texto_del_usuario_no_entra_en_el_html_sin_escapar`) vigila los campos que ya se colaron una vez.
 - **Errores al cliente:** el texto de una excepción inesperada (red, librerías) va al log, nunca al navegador (login en la nube Ebro, envío de órdenes).
 
+## Contraseña de la cuenta de Ebro (`api/routes_account.py`, `POST /api/account/ebro-password`)
+
+Solo el gestor dueño de la cuenta de Ebro conectada. Pide la contraseña actual, que tiene que ser la que EVBro tiene guardada (una distinta
+se rechaza aquí, sin gastar un intento en la nube, que bloquea la cuenta tras varios fallos), y la nueva con la regla de la app oficial.
+**Dos fallos** (no coincide o la nube dice que no) esperan **10 minutos** por cuenta. La nueva se guarda cifrada como la anterior y la API
+no la devuelve. Si la nube la rechaza responde 424 con su motivo. El cambio no se ha probado contra la nube real (ver
+[ebro-protocol.md](ebro-protocol.md)).
+
 ## Comandos (`services/command_policy.py`)
 - **Piden el PIN en cada envío:** `desbloquear`, `maletero_abrir`, `ventanillas_abrir`, `ventilar_ventanillas`, `techo_abrir`, `techo_ventilar`, `alarma_off`. El catálogo (`GET /api/commands/catalog`) lo indica con `requires_pin`.
 - **Cuándo se pide, lo elige el gestor** (Ajustes → Cuenta → «Pedir el PIN»; `AppUser.pin_policy`, `PUT /api/account/pin-policy`, solo el gestor): **solo al abrir** (lo anterior, por defecto), **siempre** (toda orden, también encender el clima) o **nunca** (ninguna orden pregunta; solo se admite con el PIN guardado, la interfaz avisa de que quien entre con su cuenta podrá abrir el coche, y sin PIN guardado la nube de Ebro lo exige igualmente). La política vale para los coches de ese gestor, también para las cuentas asociadas con nivel `control`, y `requires_pin` del catálogo la refleja. Decisión del dueño del 2026-10-30; la regla «lo que abre el coche pide PIN en cada envío» es el valor por defecto, no una imposición.

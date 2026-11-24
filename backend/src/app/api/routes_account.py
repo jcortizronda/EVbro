@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import hmac
 import logging
 import re
 from typing import Any, Dict, List, Literal, Optional
@@ -13,14 +14,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.routes_auth import _check_throttle, ip_throttle
 from app.config import settings
-from app.core import ebro_login
+from app.core import ebro_account, ebro_login
 from app.db.models import AppUser, EbroAccount, MqttLink, Vehicle
 from app.db.session import get_db
 from app.i18n import _
 from app.security import auth, passwords
 from app.security.access import foreign_vins, is_root, space_owner_id, within_vehicle_limit
+from app.security.throttle import LoginThrottle
 from app.services import command_policy, exit_survey, mqtt_hub, storage, tenant, vehicle_profiles
-from app.services.accounts import fetch_account_vehicles
+from app.services.accounts import change_account_password, fetch_account_vehicles
 from app.services.car_events import CarEventHub
 from app.services.command_policy import pin_throttle, pin_throttle_key
 from app.services.ebro_sessions import account_session_path
@@ -323,6 +325,68 @@ async def update_account_pin(req: UpdatePinRequest, session: AsyncSession = Depe
         "has_pin": bool(clean_pin),
         "message": "PIN de control remoto actualizado con éxito."
     }
+
+
+class EbroPasswordChange(BaseModel):
+    current_password: str = Field(max_length=128)
+    new_password: str = Field(max_length=128)
+
+
+# Failed changes per Ebro account: the cloud blocks the account after a few wrong passwords (5 minutes after five, docs/security.md)
+ebro_password_throttle = LoginThrottle(max_failures=2, window_s=600)
+
+
+@router.post("/ebro-password")
+async def change_ebro_password(req: EbroPasswordChange, session: AsyncSession = Depends(get_db),
+                               user: AppUser = Depends(auth.require_auth)):
+    """Changes the password of the connected Ebro account in the Ebro cloud (the one the official app uses) and keeps the new one,
+    with a new session for every car of the account. Not yet tried against the real cloud (docs/ebro-protocol.md)."""
+    stmt = select(EbroAccount).where(EbroAccount.is_active == True, EbroAccount.user_id == user.id).order_by(EbroAccount.id.desc())  # noqa: E712
+    account = (await session.execute(stmt)).scalars().first()
+    if not account:
+        raise HTTPException(status_code=404, detail="No hay ninguna cuenta Ebro conectada.")
+    key = f"ebro-password:{account.id}"
+    _check_throttle((ebro_password_throttle, key))
+    if not ebro_account.password_format_ok(req.new_password):
+        raise HTTPException(status_code=422, detail=_("La contraseña nueva debe tener de 8 a 16 caracteres, con letras, números y algún carácter especial."))
+    if req.new_password == req.current_password:
+        raise HTTPException(status_code=422, detail=_("La contraseña nueva es igual que la actual."))
+    # The one EVBro keeps is the one that works (the session opens with it): a different one is a typo, refused here without
+    # spending one of the attempts the cloud allows before blocking the account
+    if account.password and not hmac.compare_digest(req.current_password.encode(), account.password.encode()):
+        ebro_password_throttle.record_failure(key)
+        raise HTTPException(status_code=422, detail=_("La contraseña actual no coincide con la de la cuenta de Ebro conectada."))
+
+    loop = asyncio.get_running_loop()
+    try:
+        outcome = await loop.run_in_executor(None, change_account_password, account_session_path(account.id), account.phone,
+                                             account.area_code or "34", req.current_password, req.new_password)
+    except RuntimeError as e:
+        if str(e) != "no_usertoken":
+            raise
+        raise HTTPException(status_code=424, detail=_("La sesión de la cuenta de Ebro no abre: vuelve a conectarla antes de cambiar la contraseña.")) from e
+    except Exception as e:
+        _LOGGER.error("Network error changing the Ebro password of account %s: %s", account.id, type(e).__name__)
+        raise HTTPException(status_code=502, detail="No se pudo conectar con el servidor de Ebro. Inténtalo de nuevo en unos minutos.") from e
+
+    if not outcome["changed"]:
+        ebro_password_throttle.record_failure(key)
+        _LOGGER.warning("The Ebro cloud refused the password change of account %s: %s", account.id, outcome["reason"],
+                        extra={"telemetry": False})
+        raise HTTPException(status_code=424, detail=_("Ebro no ha cambiado la contraseña: {p0}", p0=outcome["reason"] or "sin motivo"))
+
+    ebro_password_throttle.reset(key)
+    account.password = req.new_password
+    if outcome["token_data"]:
+        account.token_data = outcome["token_data"]
+        account.last_login = utcnow()
+    await session.commit()
+    _LOGGER.info("Ebro password changed for account %s (new session: %s)", account.id, bool(outcome["token_data"]))
+    if outcome["token_data"]:
+        poller = VehiclePoller.get_instance()
+        await poller.bind_sessions()
+        asyncio.create_task(CarEventHub.get_instance().restart_owner(account.user_id, poller))
+    return {"status": "ok", "session_renewed": bool(outcome["token_data"])}
 
 
 class LanguageRequest(BaseModel):

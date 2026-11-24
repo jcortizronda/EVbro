@@ -42,15 +42,16 @@ def _as_dict(response: requests.Response) -> dict:
 
 
 def bff_post(ctx, path: str, body: dict, *, headers: dict | None = None,
-             timeout: int = WRITE_TIMEOUT_S) -> dict:
+             timeout: int = WRITE_TIMEOUT_S, params: dict | None = None) -> dict:
     """POST to the BFF (login/PIN/vehicles). Returns the JSON as a dict.
 
     If no headers are passed, the signed gateway ones are built, which is what any
-    BFF route expects."""
+    BFF route expects. `params` go in the query string (not signed: the app signs the path
+    alone on a POST); only the account password change uses them (`client_id`)."""
     if headers is None:
         headers = A.headers_post(path, ctx=ctx)
     response = requests.post(ctx.bff + path, data=json.dumps(body), headers=headers,
-                             timeout=timeout)
+                             timeout=timeout, params=params)
     return _as_dict(response)
 
 

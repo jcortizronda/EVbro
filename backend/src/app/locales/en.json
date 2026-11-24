@@ -342,5 +342,10 @@
  "No hay ninguna carga lista para importar.": "There is no charge ready to import.",
  "Indica los kWh del cargador, el total y el precio por kWh, o la batería cargada (%).": "Enter the charger's kWh, the total and the price per kWh, or the battery charged (%).",
  "Sin los kWh del cargador hace falta la capacidad de la batería en la ficha del coche.": "Without the charger's kWh, the battery capacity is needed in the car's sheet.",
- "Indica qué columna tiene los kWh, o las del total y el precio por kWh, o la de la batería cargada.": "Say which column holds the kWh, or the ones with the total and the price per kWh, or the one with the battery charged."
+ "Indica qué columna tiene los kWh, o las del total y el precio por kWh, o la de la batería cargada.": "Say which column holds the kWh, or the ones with the total and the price per kWh, or the one with the battery charged.",
+ "La contraseña nueva debe tener de 8 a 16 caracteres, con letras, números y algún carácter especial.": "The new password must have 8 to 16 characters, with letters, numbers and at least one special character.",
+ "La contraseña nueva es igual que la actual.": "The new password is the same as the current one.",
+ "La contraseña actual no coincide con la de la cuenta de Ebro conectada.": "The current password does not match the one of the connected Ebro account.",
+ "La sesión de la cuenta de Ebro no abre: vuelve a conectarla antes de cambiar la contraseña.": "The Ebro account session does not open: connect the account again before changing the password.",
+ "Ebro no ha cambiado la contraseña: {p0}": "Ebro did not change the password: {p0}"
 }

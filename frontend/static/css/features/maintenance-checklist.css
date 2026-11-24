@@ -30,15 +30,15 @@
   gap: 0.85rem;
 }
 
-.ebro-brand-badge {
-  background: linear-gradient(135deg, #e50914, #b71c1c);
-  color: #fff;
-  font-weight: 900;
-  font-size: 1rem;
-  letter-spacing: 2px;
-  padding: 0.35rem 0.85rem;
-  border-radius: 6px;
-  box-shadow: 0 0 12px rgba(229, 9, 20, 0.4);
+/* The official Ebro wordmark (from the official app): dark on transparent, turned white on the dark theme */
+.ebro-logo {
+  display: block;
+  height: 20px;
+  width: auto;
+  flex-shrink: 0;
+}
+:root:not([data-theme="light"]) .ebro-logo {
+  filter: invert(1);
 }
 
 .ebro-title-block h3 {

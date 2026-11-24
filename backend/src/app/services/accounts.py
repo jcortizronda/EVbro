@@ -15,6 +15,7 @@ import tempfile
 from typing import Optional
 
 from app.config import get_data_dir, settings
+from app.core import ebro_account, ebro_login
 from app.core.context import CoreCtx
 from app.core.vehicles import iter_vehicles, query_list
 from app.core.wake import _bff_login
@@ -107,3 +108,28 @@ def fetch_account_vehicles(token_data: Optional[dict], skip_vins: frozenset = fr
         return items
     finally:
         shutil.rmtree(work, ignore_errors=True)
+
+
+def change_account_password(session_path: str, phone: str, area_code: str, current: str, new: str) -> dict:
+    """Changes the password of the Ebro account (core/ebro_account.py) on the session its cars share, then signs in with the new
+    one: the official app does the same, because the change closes the sessions of the old password.
+
+    Returns {"changed": bool, "reason": the cloud's text when it refused, "token_data": the new session or None}. Raises
+    RuntimeError("no_usertoken") when the stored session does not open (the account has to be connected again first), and lets
+    network errors through. BLOCKING (network): call it from a thread."""
+    ctx = CoreCtx(tsp_host=settings.EBRO_TSP_HOST, bff=settings.EBRO_BFF_HOST, channel_id=settings.EBRO_CHANNEL_ID,
+                  token_path=session_path)
+    ctx.state.token_lock = session_lock(session_path)
+    user_token, _t_user_id = _bff_login(ctx)            # renews the access token when it expired
+    if not user_token:
+        raise RuntimeError("no_usertoken")
+    answer = ebro_account.change_password(ctx, current, new)
+    if not ebro_account.accepted(answer):
+        return {"changed": False, "reason": ebro_account.refusal(answer), "token_data": None}
+    ok, token_data = ebro_login.password_login(phone, new, area_code, host=settings.EBRO_BFF_HOST)
+    if not ok or not isinstance(token_data, dict):
+        _LOGGER.warning("The Ebro cloud took the new password but refused a login with it: %s", str(token_data)[:120],
+                        extra={"telemetry": False})
+        return {"changed": True, "reason": None, "token_data": None}
+    store_session(session_path, token_data)
+    return {"changed": True, "reason": None, "token_data": token_data}

@@ -342,5 +342,10 @@
  "No hay ninguna carga lista para importar.": "Não há nenhuma carga pronta para importar.",
  "Indica los kWh del cargador, el total y el precio por kWh, o la batería cargada (%).": "Indica os kWh do carregador, o total e o preço por kWh, ou a bateria carregada (%).",
  "Sin los kWh del cargador hace falta la capacidad de la batería en la ficha del coche.": "Sem os kWh do carregador é preciso a capacidade da bateria na ficha do carro.",
- "Indica qué columna tiene los kWh, o las del total y el precio por kWh, o la de la batería cargada.": "Indica que coluna tem os kWh, ou as do total e do preço por kWh, ou a da bateria carregada."
+ "Indica qué columna tiene los kWh, o las del total y el precio por kWh, o la de la batería cargada.": "Indica que coluna tem os kWh, ou as do total e do preço por kWh, ou a da bateria carregada.",
+ "La contraseña nueva debe tener de 8 a 16 caracteres, con letras, números y algún carácter especial.": "A palavra-passe nova deve ter de 8 a 16 caracteres, com letras, números e algum carácter especial.",
+ "La contraseña nueva es igual que la actual.": "A palavra-passe nova é igual à atual.",
+ "La contraseña actual no coincide con la de la cuenta de Ebro conectada.": "A palavra-passe atual não coincide com a da conta Ebro ligada.",
+ "La sesión de la cuenta de Ebro no abre: vuelve a conectarla antes de cambiar la contraseña.": "A sessão da conta Ebro não abre: volta a ligá-la antes de alterar a palavra-passe.",
+ "Ebro no ha cambiado la contraseña: {p0}": "A Ebro não alterou a palavra-passe: {p0}"
 }

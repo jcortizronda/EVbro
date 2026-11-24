@@ -2455,5 +2455,15 @@
  "faltan los kWh (o el total y el precio, o el % de batería)": "the kWh are missing (or the total and the price, or the battery %)",
  "Cada fila necesita la energía: los kWh del cargador, el total y el precio por kWh, o el % de batería.": "Each row needs the energy: the charger's kWh, the total and the price per kWh, or the battery %.",
  "Si los tienes, también: fecha, hora, lugar y si fue AC o DC. Se aplican las mismas reglas que al añadir una carga a mano.": "If you have them, also: date, time, place and whether it was AC or DC. The same rules apply as when adding a charge by hand.",
- "No está": "Not there"
+ "No está": "Not there",
+ "Cambia la contraseña de tu cuenta de Ebro, la de la app oficial, y EVBro guarda la nueva. La app oficial cerrará la sesión en el móvil: entra en ella con la contraseña nueva.": "Change the password of your Ebro account, the one of the official app, and EVBro keeps the new one. The official app will sign you out on your phone: sign in there with the new password.",
+ "De 8 a 16 caracteres, con letras, números y algún carácter especial (por ejemplo ! @ # $ % * . -), como pide la app oficial.": "8 to 16 characters, with letters, numbers and at least one special character (for example ! @ # $ % * . -), as the official app requires.",
+ "Repite la contraseña nueva": "Repeat the new password",
+ "Escribe la contraseña actual y la nueva.": "Type the current password and the new one.",
+ "La contraseña nueva debe tener de 8 a 16 caracteres, con letras, números y algún carácter especial.": "The new password must have 8 to 16 characters, with letters, numbers and at least one special character.",
+ "Las dos contraseñas nuevas no coinciden.": "The two new passwords do not match.",
+ "La contraseña nueva es igual que la actual.": "The new password is the same as the current one.",
+ "Se cambiará la contraseña de tu cuenta de Ebro. La app oficial cerrará la sesión en el móvil y tendrás que entrar en ella con la contraseña nueva. ¿Seguir?": "The password of your Ebro account will be changed. The official app will sign you out on your phone and you will have to sign in there with the new password. Continue?",
+ "Contraseña de Ebro cambiada. EVBro ya usa la nueva; entra con ella en la app oficial.": "Ebro password changed. EVBro already uses the new one; sign in with it in the official app.",
+ "Ebro ha cambiado la contraseña, pero todavía no deja entrar con la nueva. EVBro la ha guardado y lo volverá a intentar; si no conecta, vuelve a conectar la cuenta.": "Ebro changed the password but does not accept the new one yet. EVBro has saved it and will try again; if it does not connect, connect the account again."
 }

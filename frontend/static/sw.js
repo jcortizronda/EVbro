@@ -129,6 +129,7 @@ const STATIC_ASSETS = [
   '/static/icons/shortcut-energy.png',
   '/static/icons/shortcut-trips.png',
   '/static/icons/favicon.svg',
+  '/static/images/ebro-logo.png',
   'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'

@@ -97,6 +97,7 @@ async def accessible_vehicles(session: AsyncSession, user: AppUser) -> Dict[str,
 ACCOUNT_RULES: Dict[Tuple[str, str], str] = {
     ("POST", "/api/account/login"): "root", ("POST", "/api/account/logout"): "root", ("POST", "/api/account/pin"): "root",
     ("PUT", "/api/account/pin-policy"): "root",     # when orders ask for the PIN: the manager's choice for its cars
+    ("POST", "/api/account/ebro-password"): "root",  # changes the Ebro account's password in the Ebro cloud
     ("GET", "/api/account/mqtt"): "root", ("PUT", "/api/account/mqtt"): "root", ("DELETE", "/api/account/mqtt"): "root",
     ("POST", "/api/account/mqtt/test"): "root",     # the manager's own MQTT broker (Home Assistant)
     ("GET", "/api/account/status"): "root",

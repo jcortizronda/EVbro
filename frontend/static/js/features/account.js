@@ -65,8 +65,12 @@ async function checkAccountStatus() {
         connectBtn.onclick = logoutEbroAccount;
       }
       if (syncBtn) syncBtn.disabled = false;
+      const pwdBtn = document.getElementById('btnEbroPassword');
+      if (pwdBtn) pwdBtn.hidden = data.source !== 'web_login';      // the server's own `.env` account is changed in the file
       showAccountChannelNotice();
     } else {
+      const pwdBtn = document.getElementById('btnEbroPassword');
+      if (pwdBtn) pwdBtn.hidden = true;
       if (dot) {
         dot.style.background = '#ffb300';
         dot.style.boxShadow = '0 0 8px rgba(255, 179, 0, 0.6)';
@@ -210,6 +214,84 @@ async function logoutEbroAccount() {
     }
   } catch (err) {
     showToast('Error de red al desconectar la cuenta.', 'error');
+  }
+}
+
+
+// ───────────────────────── Changing the password of the Ebro account ─────────────────────────
+const EBRO_PASSWORD_FIELDS = ['ebroPwdCurrent', 'ebroPwdNew', 'ebroPwdRepeat'];
+const EBRO_PASSWORD_SPECIAL = '!@#$%~&*()_-+=}[]:;"\'<>,.?/';
+
+/** The official app's rule (core/ebro_account.py): 8 to 16 characters with a letter, a digit and a special character. */
+function ebroPasswordFormatOk(pw) {
+  return pw.length >= 8 && pw.length <= 16 && /[A-Za-z]/.test(pw) && /[0-9]/.test(pw) && [...pw].some((c) => EBRO_PASSWORD_SPECIAL.includes(c));
+}
+
+function showEbroPasswordError(text) {
+  const box = document.getElementById('ebroPwdError');
+  if (!box) return;
+  box.textContent = text || '';
+  box.hidden = !text;
+}
+
+function setEbroPasswordFieldsVisible(show) {
+  EBRO_PASSWORD_FIELDS.forEach((id) => { const f = document.getElementById(id); if (f) f.type = show ? 'text' : 'password'; });
+  const btn = document.getElementById('ebroPwdShow');
+  if (btn) {
+    btn.textContent = show ? t('Ocultar') : t('Mostrar');
+    btn.setAttribute('aria-pressed', String(show));
+  }
+}
+function toggleEbroPasswordFields() {
+  setEbroPasswordFieldsVisible(document.getElementById('ebroPwdNew').type === 'password');
+}
+
+function openEbroPasswordModal() {
+  EBRO_PASSWORD_FIELDS.forEach((id) => { const f = document.getElementById(id); if (f) f.value = ''; });
+  setEbroPasswordFieldsVisible(false);
+  showEbroPasswordError('');
+  document.getElementById('ebroPasswordModal').classList.add('open');
+  document.getElementById('ebroPwdCurrent').focus();
+}
+
+function closeEbroPasswordModal() {
+  document.getElementById('ebroPasswordModal').classList.remove('open');
+  EBRO_PASSWORD_FIELDS.forEach((id) => { const f = document.getElementById(id); if (f) f.value = ''; });   // never left behind
+  setEbroPasswordFieldsVisible(false);
+}
+
+async function submitEbroPassword() {
+  const current = document.getElementById('ebroPwdCurrent').value;
+  const fresh = document.getElementById('ebroPwdNew').value;
+  const repeat = document.getElementById('ebroPwdRepeat').value;
+  if (!current || !fresh) { showEbroPasswordError(t('Escribe la contraseña actual y la nueva.')); return; }
+  if (!ebroPasswordFormatOk(fresh)) { showEbroPasswordError(t('La contraseña nueva debe tener de 8 a 16 caracteres, con letras, números y algún carácter especial.')); return; }
+  if (fresh !== repeat) { showEbroPasswordError(t('Las dos contraseñas nuevas no coinciden.')); return; }
+  if (fresh === current) { showEbroPasswordError(t('La contraseña nueva es igual que la actual.')); return; }
+  const sure = await confirmDialog(t('Se cambiará la contraseña de tu cuenta de Ebro. La app oficial cerrará la sesión en el móvil y tendrás que entrar en ella con la contraseña nueva. ¿Seguir?'),
+    { title: t('Cambiar contraseña'), confirmText: t('Cambiar contraseña') });
+  if (!sure) return;
+
+  const btn = document.getElementById('btnEbroPwdSubmit');
+  btn.disabled = true;
+  showEbroPasswordError('');
+  try {
+    const res = await fetch('/api/account/ebro-password', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ current_password: current, new_password: fresh }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(typeof data.detail === 'string' ? data.detail : res.status);
+    closeEbroPasswordModal();
+    await checkAccountStatus();
+    showToast(data.session_renewed
+      ? t('Contraseña de Ebro cambiada. EVBro ya usa la nueva; entra con ella en la app oficial.')
+      : t('Ebro ha cambiado la contraseña, pero todavía no deja entrar con la nueva. EVBro la ha guardado y lo volverá a intentar; si no conecta, vuelve a conectar la cuenta.'),
+      data.session_renewed ? 'success' : 'warning', 9000);
+  } catch (e) {
+    showEbroPasswordError(e.message || String(e));
+  } finally {
+    btn.disabled = false;
   }
 }
 

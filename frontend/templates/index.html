@@ -1958,6 +1958,8 @@
             <div class="u-display-flex_gap-0p75rem_flex-wrap-wrap">
               <button type="button" class="btn-primary" id="btnSettingsConnect" data-on-click="openAccountModal()">Conectar</button>
               <button type="button" class="btn-secondary" id="btnSettingsSync" data-on-click="triggerVehicleDiscovery()" disabled title="Conecta la cuenta de Ebro para sincronizar sus coches">Sincronizar</button>
+              <!-- Shown with an account connected from the web (features/account.js) -->
+              <button type="button" class="btn-secondary" id="btnEbroPassword" data-on-click="openEbroPasswordModal()" hidden>Cambiar contraseña</button>
             </div>
           </details>
           <!-- Your data: export everything and import (manager only) -->
@@ -2369,7 +2371,7 @@
     <div class="modal-card u-max-width-480px">
       <div class="u-display-flex_justify-content-space-between_align-items-flex-start_gap-0p5rem_margin-bottom-0p5rem">
         <div class="u-display-flex_align-items-center_flex-wrap-wrap_gap-0p4rem-0p6rem_min-width-0">
-          <span class="ebro-brand-badge u-font-size-0p8rem_padding-2px-7px">EBRO</span>
+          <img class="ebro-logo" src="/static/images/ebro-logo.png" alt="Ebro" width="90" height="20" />
           <h3 class="u-font-size-1p2rem_min-width-0_overflow-wrap-anywhere" id="accountModalTitle">Conectar cuenta Ebro</h3>
         </div>
         <button class="nav-btn u-padding-0p2rem-0p5rem_flex-shrink-0" data-on-click="closeAccountModal()" aria-label="Cerrar">✕</button>
@@ -2440,6 +2442,44 @@
             <button class="btn-primary" data-on-click="triggerVehicleDiscovery()">Sincronizar</button>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: change the password of the Ebro account in the Ebro cloud (POST /api/account/ebro-password) -->
+  <div id="ebroPasswordModal" class="modal-overlay">
+    <div class="modal-card u-max-width-480px">
+      <div class="u-display-flex_justify-content-space-between_align-items-flex-start_gap-0p5rem_margin-bottom-0p5rem">
+        <div class="u-display-flex_align-items-center_flex-wrap-wrap_gap-0p4rem-0p6rem_min-width-0">
+          <img class="ebro-logo" src="/static/images/ebro-logo.png" alt="Ebro" width="90" height="20" />
+          <h3 class="u-font-size-1p2rem_min-width-0_overflow-wrap-anywhere">Cambiar contraseña</h3>
+        </div>
+        <button class="nav-btn u-padding-0p2rem-0p5rem_flex-shrink-0" data-on-click="closeEbroPasswordModal()" aria-label="Cerrar">✕</button>
+      </div>
+      <p class="u-color-var-text-secondary_font-size-0p85rem_margin-bottom-1p25rem_line-height-1p5">
+        Cambia la contraseña de tu cuenta de Ebro, la de la app oficial, y EVBro guarda la nueva. La app oficial cerrará la sesión en el móvil: entra en ella con la contraseña nueva.
+      </p>
+      <!-- `new-password` on the three: the browser must not fill in the EVBro password saved for this same site -->
+      <div class="form-group u-margin-bottom-0p85rem">
+        <label for="ebroPwdCurrent">Contraseña actual</label>
+        <input type="password" id="ebroPwdCurrent" class="form-control" autocomplete="new-password" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="128" />
+      </div>
+      <div class="form-group u-margin-bottom-0p85rem">
+        <label for="ebroPwdNew">Contraseña nueva</label>
+        <input type="password" id="ebroPwdNew" class="form-control" autocomplete="new-password" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="16" />
+        <small class="u-color-var-text-muted_font-size-0p75rem_margin-top-0p2rem">De 8 a 16 caracteres, con letras, números y algún carácter especial (por ejemplo ! @ # $ % * . -), como pide la app oficial.</small>
+      </div>
+      <div class="form-group u-margin-bottom-0p85rem">
+        <label for="ebroPwdRepeat">Repite la contraseña nueva</label>
+        <div class="acc-password-row">
+          <input type="password" id="ebroPwdRepeat" class="form-control" autocomplete="new-password" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="16" />
+          <button type="button" class="btn-secondary acc-password-show" id="ebroPwdShow" aria-pressed="false" data-on-click="toggleEbroPasswordFields()">Mostrar</button>
+        </div>
+      </div>
+      <div id="ebroPwdError" class="auth-error" role="alert" hidden></div>
+      <div class="modal-actions">
+        <button class="btn-secondary" data-on-click="closeEbroPasswordModal()">Cancelar</button>
+        <button class="btn-primary" id="btnEbroPwdSubmit" data-on-click="submitEbroPassword()">Cambiar contraseña</button>
       </div>
     </div>
   </div>
