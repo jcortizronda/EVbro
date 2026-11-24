@@ -340,7 +340,7 @@ ebro_password_throttle = LoginThrottle(max_failures=2, window_s=600)
 async def change_ebro_password(req: EbroPasswordChange, session: AsyncSession = Depends(get_db),
                                user: AppUser = Depends(auth.require_auth)):
     """Changes the password of the connected Ebro account in the Ebro cloud (the one the official app uses) and keeps the new one,
-    with a new session for every car of the account. Not yet tried against the real cloud (docs/ebro-protocol.md)."""
+    with a new session for every car of the account. Tried against the real cloud on 24-11-2026 (docs/ebro-protocol.md)."""
     stmt = select(EbroAccount).where(EbroAccount.is_active == True, EbroAccount.user_id == user.id).order_by(EbroAccount.id.desc())  # noqa: E712
     account = (await session.execute(stmt)).scalars().first()
     if not account:

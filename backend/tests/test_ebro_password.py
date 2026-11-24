@@ -1,6 +1,6 @@
 """Changing the password of the Ebro account from EVBro (core/ebro_account.py, POST /api/account/ebro-password).
 
-The request is read from the official app (24-11-2026) and has not been sent to the real cloud yet: these tests pin the request
+The request is read from the official app and worked against the real cloud on 24-11-2026: these tests pin the request
 the app makes and what EVBro does with each answer.
 """
 from __future__ import annotations

@@ -268,7 +268,7 @@ async function submitEbroPassword() {
   if (!ebroPasswordFormatOk(fresh)) { showEbroPasswordError(t('La contraseña nueva debe tener de 8 a 16 caracteres, con letras, números y algún carácter especial.')); return; }
   if (fresh !== repeat) { showEbroPasswordError(t('Las dos contraseñas nuevas no coinciden.')); return; }
   if (fresh === current) { showEbroPasswordError(t('La contraseña nueva es igual que la actual.')); return; }
-  const sure = await confirmDialog(t('Se cambiará la contraseña de tu cuenta de Ebro. La app oficial cerrará la sesión en el móvil y tendrás que entrar en ella con la contraseña nueva. ¿Seguir?'),
+  const sure = await confirmDialog(t('¿Cambiar la contraseña de tu cuenta de Ebro?'),
     { title: t('Cambiar contraseña'), confirmText: t('Cambiar contraseña') });
   if (!sure) return;
 
@@ -285,7 +285,7 @@ async function submitEbroPassword() {
     closeEbroPasswordModal();
     await checkAccountStatus();
     showToast(data.session_renewed
-      ? t('Contraseña de Ebro cambiada. EVBro ya usa la nueva; entra con ella en la app oficial.')
+      ? t('Contraseña de Ebro cambiada. EVBro ya usa la nueva.')
       : t('Ebro ha cambiado la contraseña, pero todavía no deja entrar con la nueva. EVBro la ha guardado y lo volverá a intentar; si no conecta, vuelve a conectar la cuenta.'),
       data.session_renewed ? 'success' : 'warning', 9000);
   } catch (e) {

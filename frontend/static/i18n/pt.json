@@ -2456,14 +2456,14 @@
  "Cada fila necesita la energía: los kWh del cargador, el total y el precio por kWh, o el % de batería.": "Cada linha precisa da energia: os kWh do carregador, o total e o preço por kWh, ou a % de bateria.",
  "Si los tienes, también: fecha, hora, lugar y si fue AC o DC. Se aplican las mismas reglas que al añadir una carga a mano.": "Se os tiveres, também: data, hora, local e se foi AC ou DC. Aplicam-se as mesmas regras que ao adicionar uma carga à mão.",
  "No está": "Não está",
- "Cambia la contraseña de tu cuenta de Ebro, la de la app oficial, y EVBro guarda la nueva. La app oficial cerrará la sesión en el móvil: entra en ella con la contraseña nueva.": "Altera a palavra-passe da tua conta Ebro, a da app oficial, e o EVBro guarda a nova. A app oficial vai terminar a sessão no telemóvel: entra nela com a palavra-passe nova.",
- "De 8 a 16 caracteres, con letras, números y algún carácter especial (por ejemplo ! @ # $ % * . -), como pide la app oficial.": "De 8 a 16 caracteres, com letras, números e algum carácter especial (por exemplo ! @ # $ % * . -), como pede a app oficial.",
  "Repite la contraseña nueva": "Repete a palavra-passe nova",
  "Escribe la contraseña actual y la nueva.": "Escreve a palavra-passe atual e a nova.",
  "La contraseña nueva debe tener de 8 a 16 caracteres, con letras, números y algún carácter especial.": "A palavra-passe nova deve ter de 8 a 16 caracteres, com letras, números e algum carácter especial.",
  "Las dos contraseñas nuevas no coinciden.": "As duas palavras-passe novas não coincidem.",
  "La contraseña nueva es igual que la actual.": "A palavra-passe nova é igual à atual.",
- "Se cambiará la contraseña de tu cuenta de Ebro. La app oficial cerrará la sesión en el móvil y tendrás que entrar en ella con la contraseña nueva. ¿Seguir?": "A palavra-passe da tua conta Ebro vai ser alterada. A app oficial vai terminar a sessão no telemóvel e terás de entrar nela com a palavra-passe nova. Continuar?",
- "Contraseña de Ebro cambiada. EVBro ya usa la nueva; entra con ella en la app oficial.": "Palavra-passe da Ebro alterada. O EVBro já usa a nova; entra com ela na app oficial.",
- "Ebro ha cambiado la contraseña, pero todavía no deja entrar con la nueva. EVBro la ha guardado y lo volverá a intentar; si no conecta, vuelve a conectar la cuenta.": "A Ebro alterou a palavra-passe, mas ainda não deixa entrar com a nova. O EVBro guardou-a e vai tentar de novo; se não ligar, volta a ligar a conta."
+ "Ebro ha cambiado la contraseña, pero todavía no deja entrar con la nueva. EVBro la ha guardado y lo volverá a intentar; si no conecta, vuelve a conectar la cuenta.": "A Ebro alterou a palavra-passe, mas ainda não deixa entrar com a nova. O EVBro guardou-a e vai tentar de novo; se não ligar, volta a ligar a conta.",
+ "Cambia la contraseña de tu cuenta de Ebro. EVBro la cambia en la nube de Ebro y sigue conectado con la nueva.": "Altera a palavra-passe da tua conta Ebro. O EVBro altera-a na nuvem da Ebro e continua ligado com a nova.",
+ "De 8 a 16 caracteres, con letras, números y algún carácter especial (por ejemplo ! @ # $ % * . -).": "De 8 a 16 caracteres, com letras, números e algum carácter especial (por exemplo ! @ # $ % * . -).",
+ "¿Cambiar la contraseña de tu cuenta de Ebro?": "Alterar a palavra-passe da tua conta Ebro?",
+ "Contraseña de Ebro cambiada. EVBro ya usa la nueva.": "Palavra-passe da Ebro alterada. O EVBro já usa a nova."
 }

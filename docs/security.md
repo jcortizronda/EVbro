@@ -57,7 +57,7 @@ Documentos del coche, facturas de mantenimiento y foto del coche pasan por el mi
 Solo el gestor dueño de la cuenta de Ebro conectada. Pide la contraseña actual, que tiene que ser la que EVBro tiene guardada (una distinta
 se rechaza aquí, sin gastar un intento en la nube, que bloquea la cuenta tras varios fallos), y la nueva con la regla de la app oficial.
 **Dos fallos** (no coincide o la nube dice que no) esperan **10 minutos** por cuenta. La nueva se guarda cifrada como la anterior y la API
-no la devuelve. Si la nube la rechaza responde 424 con su motivo. El cambio no se ha probado contra la nube real (ver
+no la devuelve. Si la nube la rechaza responde 424 con su motivo. Probado contra la nube real el 24-11-2026 (ver
 [ebro-protocol.md](ebro-protocol.md)).
 
 ## Comandos (`services/command_policy.py`)

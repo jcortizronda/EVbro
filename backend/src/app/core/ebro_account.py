@@ -1,7 +1,8 @@
 """ebro_account.py — Changing the password of the Ebro account (the one of the official app), as the official app does it.
 
 Read from the official app 1.0.11 (`ChangePassWordViewModel.changePassword` and
-`PassWordInputEl`, 24-11-2026). NOT yet seen in real traffic nor sent from here:
+`PassWordInputEl`, 24-11-2026). Tried against the real cloud the same day (three changes in a row, each followed by a login
+with the new password):
 
   POST {BFF}/marketing/v1/user/user/updatePasswd?client_id=bigapp
   body {"oldPassword": aes(current), "newPassword": aes(new)}   (aes = the login's `aes_encrypt_password`)
