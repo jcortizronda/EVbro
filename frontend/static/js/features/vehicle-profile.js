@@ -111,12 +111,37 @@ function vpRenderChassis(v) {
     : 'Se lee de tu cuenta Ebro; no se puede cambiar.';
 }
 
+/** A car with an Ebro account: its name is the nickname of the account (and «Sincronizar» takes it from there), so saving a new
+ * one changes it in Ebro too (only the owner, who has the account). */
+function vpNameInEbro(v) {
+  return !!v && !v.is_manual && (v.access_level || 'owner') === 'owner';
+}
+function vpRenderNameField(v) {
+  const inEbro = vpNameInEbro(v);
+  vpEl('vpNameLabel').textContent = inEbro ? t('Nombre del coche (cuenta oficial de Ebro)') : t('Nombre del coche');
+  vpEl('vpName').maxLength = inEbro ? 30 : 100;
+}
+
+/** Changes the name in the Ebro account first; on failure the sheet keeps the old name and says why. Returns the name to save. */
+async function vpRenameInEbro(v, name) {
+  try {
+    const res = await fetch(`/api/vehicles/${v.vin}/ebro-name`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(typeof data.detail === 'string' ? data.detail : res.status);
+    return name;
+  } catch (e) {
+    showToast(t('No se pudo cambiar el nombre en Ebro: {p0}', {p0: e.message || e}), 'error', 8000);
+    return v.name;
+  }
+}
+
 function loadVehicleProfile() {
   const v = currentVehicle();
   if (!v) return;
   const set = (id, val) => { const el = vpEl(id); if (el) el.value = val ?? ''; };
   const day = (iso) => (iso ? iso.slice(0, 10) : '');
-  set('vpName', v.name); vpSetBrand(v.brand); set('vpTrim', v.trim); set('vpColor', v.color); set('vpEnvLabel', v.env_label);
+  set('vpName', v.name); vpSetBrand(v.brand);
+  vpRenderNameField(v); set('vpTrim', v.trim); set('vpColor', v.color); set('vpEnvLabel', v.env_label);
   // Closed list of models; if the car carries another value (older installs) it is kept as an extra option
   const sel = vpEl('vpModel');
   sel.querySelectorAll('option[data-extra]').forEach((o) => o.remove());
@@ -186,6 +211,7 @@ async function saveVehicleProfile() {
   const btn = vpEl('vpSave');
   btn.disabled = true;
   try {
+    if (vpNameInEbro(v) && body.name !== v.name) body.name = await vpRenameInEbro(v, body.name);
     const res = await fetch(`/api/vehicles/${v.vin}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(Array.isArray(data.detail) ? data.detail.map((d) => `${d.loc?.slice(-1)[0]}: ${d.msg}`).join(' · ') : (data.detail || res.status));

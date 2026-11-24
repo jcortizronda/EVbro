@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import logging
 import re
 import uuid
 from typing import Dict, List, Optional
@@ -12,15 +13,18 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import ebro_account
 from app.db.models import AppUser, EbroAccount, TelemetrySnapshot, Vehicle
 from app.db.session import get_db
 from app.i18n import _
 from app.security import auth
 from app.security.access import accessible_vehicles, within_vehicle_limit
 from app.services import energy_recalc, storage, uploads, vehicle_profiles
+from app.services.accounts import rename_car_in_ebro
 from app.services.car_events import CHANNEL_RUNNING, CarEventHub
 from app.services.poller import LoginFailed, VehiclePoller, connected_owner_ids, pollable
 
+_LOGGER = logging.getLogger("app.api.vehicles")
 router = APIRouter(prefix="/vehicles", tags=["Vehicles"])
 
 
@@ -241,6 +245,40 @@ async def update_vehicle(vin: str, payload: VehicleUpdate, session: AsyncSession
     await session.refresh(vehicle)
     vehicle.access_level = "owner"           # only the owner reaches this route
     return vehicle
+
+
+class EbroNameIn(BaseModel):
+    name: str = Field(min_length=1, max_length=ebro_account.NICKNAME_MAX_LENGTH)
+
+
+@router.put("/{vin}/ebro-name")
+async def rename_in_ebro(vin: str, payload: EbroNameIn, session: AsyncSession = Depends(get_db)):
+    """Changes the car's name (its nickname) in the Ebro account too, and keeps it as the name in EVBro: «Sincronizar» takes the
+    car's name from the account, so a name changed only here would be replaced by the account's one. Not yet tried against the
+    real cloud (docs/ebro-protocol.md)."""
+    vehicle = await _get_vehicle(session, vin)
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail=_("Escribe un nombre para el coche."))
+    ctx = VehiclePoller.get_instance()._get_or_create_ctx(vehicle.vin)
+    loop = asyncio.get_running_loop()
+    try:
+        outcome = await loop.run_in_executor(None, rename_car_in_ebro, ctx, name)
+    except RuntimeError as e:
+        if str(e) != "no_usertoken":
+            raise
+        raise HTTPException(status_code=424, detail=_("La sesión de la cuenta de Ebro no abre: vuelve a conectarla antes de cambiar el nombre.")) from e
+    except Exception as e:
+        _LOGGER.error("Network error renaming %s in Ebro: %s", vehicle.vin[-6:], type(e).__name__)
+        raise HTTPException(status_code=502, detail="No se pudo conectar con el servidor de Ebro. Inténtalo de nuevo en unos minutos.") from e
+    if not outcome["changed"]:
+        if outcome["unconfirmed"]:
+            raise HTTPException(status_code=424, detail=_("Ebro aceptó el nombre, pero la cuenta todavía muestra el anterior; puede que lo revise antes de aplicarlo. EVBro no lo ha cambiado."))
+        raise HTTPException(status_code=424, detail=_("Ebro no ha cambiado el nombre: {p0}", p0=outcome["reason"] or "sin motivo"))
+    vehicle.name = name
+    await session.commit()
+    _LOGGER.info("Car %s renamed in Ebro", vehicle.vin[-6:])
+    return {"status": "ok", "name": name}
 
 
 @router.post("/{vin}/photo", response_model=VehicleOut)

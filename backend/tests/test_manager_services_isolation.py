@@ -134,10 +134,10 @@ async def test_the_account_routes_only_show_the_callers_own_account_and_cars(wor
         assert a["connected"] and [v["vin"] for v in a["vehicles"]] == [VIN_A] and "600000003" not in str(a)
         b = (await beto.get("/api/account/status")).json()
         assert [v["vin"] for v in b["vehicles"]] == [VIN_B]
-        assert (await ana.post("/api/account/pin", json={"pin": "5555"})).status_code == 200
+        assert (await ana.post("/api/account/pin", json={"pin": "555555"})).status_code == 200
         async with async_session_factory() as s:
             pins = {u: p for u, p in (await s.execute(select(EbroAccount.user_id, EbroAccount.pin))).all()}
-        assert pins == {2: "5555", 3: "2222"}                               # Ana's PIN change did not touch Beto's account
+        assert pins == {2: "555555", 3: "2222"}                               # Ana's PIN change did not touch Beto's account
     finally:
         await ana.aclose()
         await beto.aclose()

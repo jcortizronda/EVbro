@@ -160,3 +160,30 @@ def change_account_pin(ctx, current_pin: str, new_pin: str) -> dict:
         return {"changed": False, "unconfirmed": True, "reason": str(err), "code": code}
     ctx.invalidate_taskid()                                # the next command mints its own with the PIN it is given
     return {"changed": True, "unconfirmed": False, "reason": None, "code": code}
+
+
+def rename_car_in_ebro(ctx, nickname: str) -> dict:
+    """Changes the car's nickname in the Ebro account (core/ebro_account.py) and reads the account's list again to see it there:
+    what the PUT answers on success is taken from the app (`code == 0`), and the list is the proof.
+
+    Returns {"changed": bool, "unconfirmed": bool, "reason": text or None, "code": the cloud's code}. Raises RuntimeError("no_usertoken")
+    when the session does not open. BLOCKING."""
+    user_token, _t_user_id = _bff_login(ctx)
+    if not user_token:
+        raise RuntimeError("no_usertoken")
+
+    def listed():
+        return next((c for c in ebro_account.owner_cars(ctx) if str(c.get("vin", "")).upper() == ctx.vin.upper()), None)
+
+    car = listed()
+    if car is None:
+        return {"changed": False, "unconfirmed": False, "reason": "el coche no aparece en la lista de la cuenta", "code": None}
+    if car.get("nickname") == nickname:
+        return {"changed": True, "unconfirmed": False, "reason": None, "code": None}
+    answer = ebro_account.set_car_nickname(ctx, ctx.vin, nickname, car.get("defaultFlag"))
+    code = answer.get("code")
+    _LOGGER.info("Ebro nickname change of %s answered code=%s", ctx.vin[-6:], code)
+    if not ebro_account.accepted(answer):
+        return {"changed": False, "unconfirmed": False, "reason": ebro_account.refusal(answer), "code": code}
+    now = (listed() or {}).get("nickname")
+    return {"changed": now == nickname, "unconfirmed": now != nickname, "reason": None, "code": code}

@@ -625,7 +625,6 @@
  "Textos de la aplicación y de los avisos. Se guarda en tu cuenta y vale en todos tus dispositivos.": "Textos da aplicação e dos avisos. Guarda-se na sua conta e vale em todos os seus dispositivos.",
  "Cerrar": "Fechar",
  "Tu contraseña de la app Ebro": "A sua palavra-passe da app Ebro",
- "4 a 6 dígitos": "4 a 6 dígitos",
  "Posición en el viaje": "Posição na viagem",
  "Taller Oficial / Propio": "Oficina oficial / própria",
  "Detalles de la factura o recambios...": "Detalhes da fatura ou peças...",
@@ -2470,7 +2469,6 @@
  "6 dígitos. Tras dos PIN actuales incorrectos hay que esperar 10 minutos, para que Ebro no bloquee la cuenta.": "6 dígitos. Depois de dois PIN atuais errados é preciso esperar 10 minutos, para que a Ebro não bloqueie a conta.",
  "Repite el PIN nuevo": "Repete o PIN novo",
  "Cambiar PIN": "Alterar PIN",
- "{p0} Introduce el PIN de 4 a 6 dígitos que usará EVBro para las órdenes que no te lo pidan (déjalo en blanco para eliminarlo). Solo cambia la copia guardada en EVBro, no el PIN de Ebro: para eso está «Cambiar PIN de Ebro». {p1}": "{p0} Introduz o PIN de 4 a 6 dígitos que o EVBro vai usar nas ordens que não to pedem (deixa em branco para o eliminar). Só altera a cópia guardada no EVBro, não o PIN da Ebro: para isso existe «Alterar PIN da Ebro». {p1}",
  "Hay un PIN guardado en EVBro.": "Há um PIN guardado no EVBro.",
  "No hay ningún PIN guardado en EVBro.": "Não há nenhum PIN guardado no EVBro.",
  "Se cambia a través de {p0}.": "É alterado através de {p0}.",
@@ -2486,5 +2484,13 @@
  "Cuenta de Ebro conectada, pero el canal en directo del coche está parado": "Conta Ebro ligada, mas o canal em direto do carro está parado",
  "Cuenta de Ebro conectada": "Conta Ebro ligada",
  "La nube de Ebro ya no acepta la sesión: vuelve a conectar la cuenta": "A nuvem da Ebro já não aceita a sessão: volta a ligar a conta",
- "Sin cuenta de Ebro conectada": "Sem conta Ebro ligada"
+ "Sin cuenta de Ebro conectada": "Sem conta Ebro ligada",
+ "Nombre del coche (cuenta oficial de Ebro)": "Nome do carro (conta oficial da Ebro)",
+ "No se pudo cambiar el nombre en Ebro: {p0}": "Não foi possível alterar o nome na Ebro: {p0}",
+ "{p0} Introduce el PIN de 6 dígitos que usará EVBro para las órdenes que no te lo pidan (déjalo en blanco para eliminarlo). Solo cambia la copia guardada en EVBro, no el PIN de Ebro: para eso está «Cambiar PIN de Ebro». {p1}": "{p0} Introduz o PIN de 6 dígitos que o EVBro vai usar nas ordens que não to pedem (deixa em branco para o eliminar). Só altera a cópia guardada no EVBro, não o PIN da Ebro: para isso existe «Alterar PIN da Ebro». {p1}",
+ "6 dígitos": "6 dígitos",
+ "El PIN de Ebro tiene 6 dígitos.": "O PIN da Ebro tem 6 dígitos.",
+ "No se pudo guardar el PIN: {p0}": "Não foi possível guardar o PIN: {p0}",
+ "Cuenta de EBRO (Oficial)": "Conta EBRO (oficial)",
+ "Cuenta de EVBRO": "Conta EVBRO"
 }

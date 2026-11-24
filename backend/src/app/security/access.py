@@ -137,6 +137,7 @@ ACCOUNT_RULES: Dict[Tuple[str, str], str] = {
 # Exceptions to "GET = view, anything else = edit" for routes about one car.
 VEHICLE_LEVELS: Dict[Tuple[str, str], str] = {
     ("PUT", "/api/vehicles/{vin}"): "owner",                       # the car sheet
+    ("PUT", "/api/vehicles/{vin}/ebro-name"): "owner",             # the car's name in the Ebro account too
     ("DELETE", "/api/vehicles/{vin}"): "owner",
     ("POST", "/api/vehicles/{vin}/photo"): "owner", ("DELETE", "/api/vehicles/{vin}/photo"): "owner",
     ("GET", "/api/vehicles/{vin}/access"): "owner", ("PUT", "/api/vehicles/{vin}/access/{user_id}"): "owner",
@@ -162,6 +163,7 @@ CONNECTED_ONLY = {
     ("POST", "/api/vehicles/{vin}/charge/start"), ("POST", "/api/vehicles/{vin}/charge/stop"), ("PUT", "/api/vehicles/{vin}/charge/target"),
     ("POST", "/api/vehicles/{vin}/climate-schedules"),
     ("GET", "/api/vehicles/{vin}/departure"), ("PUT", "/api/vehicles/{vin}/departure"),
+    ("PUT", "/api/vehicles/{vin}/ebro-name"),
 }
 
 

@@ -297,7 +297,7 @@ async function executePendingCommand() {
       window.dispatchEvent(new CustomEvent('evbro:command-accepted', { detail: { key: cmd.key } }));
       // Only if the user asks for it, and only after checking the PIN is valid (the command went through).
       if (remember) {
-        saveAccountPin(pin);
+        saveAccountPin(pin).catch((e) => showToast(t('No se pudo guardar el PIN: {p0}', {p0: e.message || e}), 'error', 6000));
       }
     } else if (data.reason === 'pin_invalid' || data.reason === 'pin' || data.reason === 'pin_required') {
       // The dialog stays open to retry.
@@ -319,21 +319,17 @@ async function executePendingCommand() {
 
 /**
  * Saves or updates the PIN on the server's active account so it is not asked for again.
- * @param {string} pin - PIN of 4 to 6 digits.
+ * @param {string} pin - the 6-digit PIN of the Ebro account.
  */
 async function saveAccountPin(pin) {
-  try {
-    const res = await fetch('/api/account/pin', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pin: pin })
-    });
-    if (res.ok) {
-      await checkAccountStatus();
-    }
-  } catch (e) {
-    console.warn("Could not save the PIN:", e);
-  }
+  const res = await fetch('/api/account/pin', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pin: pin })
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(typeof data.detail === 'string' ? data.detail : res.status);   // it used to say «guardado» anyway
+  await checkAccountStatus();
 }
 
 /**
@@ -348,11 +344,16 @@ async function openUpdatePinModal() {
     always: t('Con «Pedir el PIN: Siempre», todas las órdenes te lo pedirán igualmente.'),
     never: t('Con «Pedir el PIN: Nunca», ninguna orden te lo pedirá.'),
   }[policy] || '';
-  const newPin = await promptDialog(t('{p0}\nIntroduce el PIN de 4 a 6 dígitos que usará EVBro para las órdenes que no te lo pidan (déjalo en blanco para eliminarlo). Solo cambia la copia guardada en EVBro, no el PIN de Ebro: para eso está «Cambiar PIN de Ebro». {p1}', {p0: currentStatus, p1: policyNote}),
+  const newPin = await promptDialog(t('{p0}\nIntroduce el PIN de 6 dígitos que usará EVBro para las órdenes que no te lo pidan (déjalo en blanco para eliminarlo). Solo cambia la copia guardada en EVBro, no el PIN de Ebro: para eso está «Cambiar PIN de Ebro». {p1}', {p0: currentStatus, p1: policyNote}),
     { title: 'PIN guardado en EVBro', type: 'password', inputmode: 'numeric', placeholder: '••••••', maxLength: 6, confirmText: 'Guardar' });
   if (newPin === null) return; // Cancelled
+  const pin = newPin.trim();
+  if (pin && !/^[0-9]{6}$/.test(pin)) { showToast(t('El PIN de Ebro tiene 6 dígitos.'), 'warning', 6000); return; }
 
-  saveAccountPin(newPin.trim()).then(() => {
-    showToast(newPin.trim() ? t('PIN guardado. {p0}', {p0: policyNote}) : 'PIN eliminado. Las órdenes volverán a pedir el PIN.', 'success', 6000);
-  });
+  try {
+    await saveAccountPin(pin);
+    showToast(pin ? t('PIN guardado. {p0}', {p0: policyNote}) : 'PIN eliminado. Las órdenes volverán a pedir el PIN.', 'success', 6000);
+  } catch (e) {
+    showToast(t('No se pudo guardar el PIN: {p0}', {p0: e.message || e}), 'error', 6000);
+  }
 }

@@ -92,3 +92,37 @@ def pin_change_looks_accepted(answer: dict) -> bool:
     a generic result type), so the caller then proves the new PIN with `checkPassword` before trusting it."""
     code = str(answer.get("code", "")).strip()
     return answer.get("success") is True or code in ("0", "200", "A00000")
+
+
+# ───────────────────────── The car's nickname in the Ebro account ─────────────────────────
+# Read from the official app 1.0.11 («Certificación de propietario» → edit; `CarOwnerCertifyApiService.updateCarInfo` and
+# `fetchCertifyList`, 24-11-2026), not yet sent from here. It is the `nickname` that `queryList` reports and EVBro shows as
+# the car's name. The PUT carries its fields as query parameters, signed with them (`ebro_auth.sign_values`).
+OWNER_CARS_PATH = "/web/car-service/owner/list"
+OWNER_AUTH_PATH = "/marketing/owner-auth/app"
+NICKNAME_MAX_LENGTH = 30             # EVBro's own limit: the app's field limit is not known (the cloud says if it is too long)
+
+
+def _bearer_headers(ctx, path: str, values: dict | None = None) -> dict:
+    return A.headers_post(path, ctx=ctx, values=values, extra={
+        "Authorization": f"Bearer {wake._access_token(ctx)}",
+        "Accept": "application/json, text/plain, */*"})
+
+
+def owner_cars(ctx) -> list:
+    """The cars certified to the account, as the app lists them (each with `vin`, `nickname`, `defaultFlag`…). BLOCKING."""
+    from .http import bff_request
+
+    answer = bff_request(ctx, "GET", OWNER_CARS_PATH, headers=_bearer_headers(ctx, OWNER_CARS_PATH))
+    data = answer.get("data")
+    if isinstance(data, dict):
+        data = data.get("records") or data.get("list") or data.get("rows") or []
+    return [item for item in (data or []) if isinstance(item, dict)]
+
+
+def set_car_nickname(ctx, vin: str, nickname: str, default_flag) -> dict:
+    """Send the new nickname with the car's `defaultFlag` as it was (the app sends the three together). BLOCKING."""
+    from .http import bff_request
+
+    values = {"vin": vin, "defaultFlag": default_flag, "nickname": nickname}
+    return bff_request(ctx, "PUT", OWNER_AUTH_PATH, headers=_bearer_headers(ctx, OWNER_AUTH_PATH, values), params=values)

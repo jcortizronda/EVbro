@@ -280,11 +280,11 @@ async def test_changing_the_pin_resets_the_anti_lockout_and_the_taskid(db, send)
     ctx.state.taskid = "viejo"
     assert ctx.lockout.is_locked() is True
     async with client:
-        r = await client.post("/api/account/pin", json={"pin": "5678"})
+        r = await client.post("/api/account/pin", json={"pin": "567800"})
     assert r.status_code == 200
-    assert ctx.lockout.is_locked() is False and ctx.state.taskid is None and ctx.pin == "5678"
+    assert ctx.lockout.is_locked() is False and ctx.state.taskid is None and ctx.pin == "567800"
     async with async_session_factory() as s:
-        assert (await s.execute(select(EbroAccount.pin))).scalar_one() == "5678"
+        assert (await s.execute(select(EbroAccount.pin))).scalar_one() == "567800"
 
 
 async def test_deleting_the_pin_empties_the_context_one(db, send) -> None:

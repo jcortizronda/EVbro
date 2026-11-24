@@ -128,6 +128,8 @@ async def login_ebro_account(req: EbroLoginRequest, session: AsyncSession = Depe
     """Logs in with the official Ebro account, stores the credentials in the DB and discovers vehicles."""
     phone_clean = req.phone.strip().replace(" ", "").replace("-", "")
     area = req.area_code.strip().replace("+", "")
+    if (req.pin or "").strip() and not ebro_account.pin_format_ok(req.pin.strip()):
+        raise HTTPException(status_code=422, detail=_("El PIN de Ebro tiene 6 dígitos."))
 
     # if the user typed the phone with the +34 prefix in front, normalise it
     if phone_clean.startswith(f"+{area}"):
@@ -307,6 +309,8 @@ async def update_account_pin(req: UpdatePinRequest, session: AsyncSession = Depe
         raise HTTPException(status_code=404, detail="No hay ninguna cuenta Ebro conectada.")
 
     clean_pin = req.pin.strip() if req.pin else None
+    if clean_pin and not ebro_account.pin_format_ok(clean_pin):
+        raise HTTPException(status_code=422, detail=_("El PIN de Ebro tiene 6 dígitos."))
     account.pin = clean_pin
     await session.commit()
 
@@ -405,7 +409,7 @@ async def change_ebro_pin(req: EbroPinChange, request: Request, session: AsyncSe
                           user: AppUser = Depends(auth.require_auth)):
     """Changes the car-control PIN of the connected Ebro account IN THE EBRO CLOUD (the one the official app asks for), through one
     of the account's cars. Not the PIN stored in EVBro (`POST /pin`), which is only EVBro's copy: that copy, if there is one, is
-    replaced by the new PIN once the cloud accepts it. Not yet tried against the real cloud (docs/ebro-protocol.md)."""
+    replaced by the new PIN once the cloud accepts it. Worked against the real cloud on 24-11-2026 (docs/ebro-protocol.md)."""
     stmt = select(EbroAccount).where(EbroAccount.is_active == True, EbroAccount.user_id == user.id).order_by(EbroAccount.id.desc())  # noqa: E712
     account = (await session.execute(stmt)).scalars().first()
     if not account:
@@ -423,11 +427,8 @@ async def change_ebro_pin(req: EbroPinChange, request: Request, session: AsyncSe
         raise HTTPException(status_code=422, detail=_("Escribe el PIN actual de Ebro."))
     if new == current:
         raise HTTPException(status_code=422, detail=_("El PIN nuevo es igual que el actual."))
-    # A PIN stored in EVBro that commands use is the one the cloud has: a different one is a typo, refused here without spending
-    # one of the attempts Chery counts before locking the account
-    if account.pin and not hmac.compare_digest(current.encode(), account.pin.strip().encode()):
-        ebro_pin_throttle.record_failure(key)
-        raise HTTPException(status_code=422, detail=_("El PIN actual no coincide con el PIN guardado en EVBro."))
+    # The current PIN is checked by the Ebro cloud (`checkPassword`), as the official app does; EVBro's stored copy is not required
+    # to match it (24-11-2026: it was, and it got in the way). The wrong-PIN lockout and the throttle below keep the account safe.
 
     poller = VehiclePoller.get_instance()
     ctx = poller._get_or_create_ctx(car.vin)

@@ -55,6 +55,14 @@ def bff_post(ctx, path: str, body: dict, *, headers: dict | None = None,
     return _as_dict(response)
 
 
+def bff_request(ctx, method: str, path: str, *, headers: dict, params: dict | None = None,
+                timeout: int = WRITE_TIMEOUT_S) -> dict:
+    """A GET or PUT to the BFF with no body: the app sends their map as query parameters (and signs it:
+    `ebro_auth.headers_post(..., values=params)`). Returns the JSON as a dict, like `bff_post`."""
+    response = requests.request(method, ctx.bff + path, headers=headers, params=params, timeout=timeout)
+    return _as_dict(response)
+
+
 def signed_post(ctx, user_token: str, path: str, params: dict,
                 *, timeout: int = WRITE_TIMEOUT_S) -> tuple[int, dict]:
     """POST to the TSP with a signed BODY. Returns (HTTP status, JSON).

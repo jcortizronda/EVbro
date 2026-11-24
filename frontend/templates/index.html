@@ -1739,7 +1739,7 @@
             <details class="glass details-card vp-section" data-tone="blue" data-key="identity">
               <summary class="vp-section-title"><span class="vp-section-icon"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 17H3v-5l2-5h12l3 5v5h-2"/><circle cx="7.5" cy="17" r="2"/><circle cx="16.5" cy="17" r="2"/><path d="M5 12h14"/></svg></span>Identidad<span class="vp-chev" aria-hidden="true"></span></summary>
               <div class="vp-grid">
-                <label class="vp-field vp-wide"><span>Nombre del coche</span><input type="text" id="vpName" class="form-control" placeholder="Ej. Mi Ebro" /></label>
+                <label class="vp-field vp-wide"><span id="vpNameLabel">Nombre del coche</span><input type="text" id="vpName" class="form-control" placeholder="Ej. Mi Ebro" maxlength="100" /></label>
                 <label class="vp-field"><span>Marca</span>
                   <select id="vpBrand" class="form-control"><option value="EBRO">EBRO</option><option value="Alfa Romeo">Alfa Romeo</option><option value="Audi">Audi</option><option value="BMW">BMW</option><option value="BYD">BYD</option><option value="Citroën">Citroën</option><option value="Cupra">Cupra</option><option value="Dacia">Dacia</option><option value="DS">DS</option><option value="Fiat">Fiat</option><option value="Ford">Ford</option><option value="Honda">Honda</option><option value="Hyundai">Hyundai</option><option value="Jaecoo">Jaecoo</option><option value="Jeep">Jeep</option><option value="Kia">Kia</option><option value="Land Rover">Land Rover</option><option value="Lexus">Lexus</option><option value="Mazda">Mazda</option><option value="Mercedes-Benz">Mercedes-Benz</option><option value="MG">MG</option><option value="Mini">Mini</option><option value="Mitsubishi">Mitsubishi</option><option value="Nissan">Nissan</option><option value="Omoda">Omoda</option><option value="Opel">Opel</option><option value="Peugeot">Peugeot</option><option value="Polestar">Polestar</option><option value="Porsche">Porsche</option><option value="Renault">Renault</option><option value="Seat">Seat</option><option value="Škoda">Škoda</option><option value="Smart">Smart</option><option value="Subaru">Subaru</option><option value="Suzuki">Suzuki</option><option value="Tesla">Tesla</option><option value="Toyota">Toyota</option><option value="Volkswagen">Volkswagen</option><option value="Volvo">Volvo</option><option value="__other">Otra…</option></select>
                   <input type="text" id="vpBrandOther" class="form-control" maxlength="50" placeholder="Escribe la marca" aria-label="Otra marca" hidden /></label>
@@ -1897,7 +1897,7 @@
           <div class="vp-form">
           <!-- Every card is a collapsible section; which ones are open is remembered on the device (core/navigation.js) -->
           <details class="glass details-card vp-section set-section" data-tone="blue" data-key="access">
-            <summary class="vp-section-title"><span class="vp-section-icon"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>Acceso a EVBro<span class="vp-chev" aria-hidden="true"></span></summary>
+            <summary class="vp-section-title"><span class="vp-section-icon"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>Cuenta de EVBRO<span class="vp-chev" aria-hidden="true"></span></summary>
             <p class="u-color-var-text-secondary_font-size-0p9rem_margin-bottom-1rem">
               Sesión iniciada como <strong id="authCurrentUser">—</strong>.
             </p>
@@ -1918,7 +1918,7 @@
           </details>
 
           <details class="glass details-card vp-section set-section" data-tone="green" data-key="ebro" data-open-default>
-            <summary class="vp-section-title"><span class="vp-section-icon"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>Cuenta de Ebro<span id="settingsAccountBadge" class="status-badge parked">Comprobando...</span><span class="vp-chev" aria-hidden="true"></span></summary>
+            <summary class="vp-section-title"><span class="vp-section-icon"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>Cuenta de EBRO (Oficial)<span id="settingsAccountBadge" class="status-badge parked">Comprobando...</span><span class="vp-chev" aria-hidden="true"></span></summary>
             <p class="u-color-var-text-secondary_font-size-0p9rem_margin-bottom-1p25rem">
               La cuenta de la app oficial de Ebro (teléfono y contraseña): con ella se ve el coche y se le mandan órdenes.
             </p>
@@ -2368,7 +2368,7 @@
   <!-- ==================== MODALS ==================== -->
 
   <!-- Modal: sign in / manage the Ebro account -->
-  <div id="accountModal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Cuenta de Ebro">
+  <div id="accountModal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Cuenta de EBRO (Oficial)">
     <div class="modal-card u-max-width-480px">
       <div class="u-display-flex_justify-content-space-between_align-items-flex-start_gap-0p5rem_margin-bottom-0p5rem">
         <div class="u-display-flex_align-items-center_flex-wrap-wrap_gap-0p4rem-0p6rem_min-width-0">
@@ -2407,7 +2407,7 @@
 
         <div class="form-group u-margin-bottom-1p25rem">
           <label>PIN de Control Remoto (Opcional)</label>
-          <input type="password" id="accPin" class="form-control" maxlength="6" placeholder="4 a 6 dígitos" inputmode="numeric" autocomplete="off" />
+          <input type="password" id="accPin" class="form-control" maxlength="6" placeholder="6 dígitos" inputmode="numeric" autocomplete="off" />
           <small class="u-color-var-text-muted_font-size-0p75rem_margin-top-0p2rem">
             Si lo guardas, los comandos como el clima o las luces no lo piden. Los que abren el coche (desbloquear, maletero, ventanillas, techo) siempre te lo pedirán.
           </small>

@@ -121,11 +121,35 @@ def sign_post(url_path: str, ts_ms: int | None = None, secret: str=SIGN_SECRET, 
     sig = hashlib.sha256(f"{secret}{nonce}{url_path}{ts}".encode()).hexdigest()
     return sig, ts
 
+
+def _dart_str(value) -> str:
+    """`toString()` of a JSON value in Dart (what the app joins into the signature)."""
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return str(value)
+
+
+def sign_values(url_path: str, values: dict, ts_ms: int | None = None, secret: str=SIGN_SECRET,
+                nonce: str=SIGN_NONCE) -> tuple[str, int, str]:
+    """The signature of a request whose query parameters the app signs (any method but POST sends its map as
+    query parameters and signs them: `EncryptUtils.headerSignature` with a value map, read from the app on
+    24-11-2026): SHA-256 hex of secret + nonce + url + timestamp + "[" + the values joined by "," + "]", in the
+    map's order. Returns (signature, timestamp, keys): `keys` (the names joined by ",") goes in a header of
+    that name. With no values it is the POST signature."""
+    sig, ts = sign_post(url_path, ts_ms, secret, nonce)
+    if not values:
+        return sig, ts, ""
+    base = f"{secret}{nonce}{url_path}{ts}[{','.join(_dart_str(v) for v in values.values())}]"
+    return hashlib.sha256(base.encode()).hexdigest(), ts, ",".join(values)
+
 DEPT_ID = "34"   # CountryArea.value() = country prefix (Spain=34, Italy=39, France=33...). VERIFIED: 34.
 
 def headers_post(url_path: str, secret: str=SIGN_SECRET, nonce: str=SIGN_NONCE,
-                 dept_id: str=DEPT_ID, extra=None, ctx=None):
-    """Signed headers for a POST. `ctx` (CoreCtx) provides the region parameters.
+                 dept_id: str=DEPT_ID, extra=None, ctx=None, values: dict | None = None):
+    """Signed headers for a POST. `ctx` (CoreCtx) provides the region parameters. `values`: the query
+    parameters of a request the app signs with them (a PUT or a GET with parameters; see `sign_values`).
 
     Without a context the module defaults are used — only useful for command-line
     diagnostics. EVBro always passes the vehicle's context, so two
@@ -133,7 +157,7 @@ def headers_post(url_path: str, secret: str=SIGN_SECRET, nonce: str=SIGN_NONCE,
     channel_id = ctx.channel_id if ctx is not None else CHANNEL_ID
     country_id = ctx.country_id if ctx is not None else COUNTRY_ID
     tenant = ctx.tenant_code if ctx is not None else TENANT_CODE
-    sig, ts = sign_post(url_path, secret=secret, nonce=nonce)
+    sig, ts, keys = sign_values(url_path, values or {}, secret=secret, nonce=nonce)
     # FULL header set as the app sends it (http_config.dart headersJson + headerSignature).
     # Content-Type/Authorization override the token builder's extraHeaderParams.
     h = {
@@ -157,6 +181,8 @@ def headers_post(url_path: str, secret: str=SIGN_SECRET, nonce: str=SIGN_NONCE,
         "nonce": nonce, "timestamp": str(ts), "url": url_path,
         "signature": sig,
     }
+    if keys:
+        h["keys"] = keys
     if extra:
         h.update(extra)
     return h

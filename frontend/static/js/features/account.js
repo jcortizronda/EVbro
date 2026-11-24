@@ -169,6 +169,13 @@ async function submitEbroLogin() {
     }
     return;
   }
+  if (pin && !/^[0-9]{6}$/.test(pin)) {
+    if (errBox) {
+      errBox.innerText = t('El PIN de Ebro tiene 6 dígitos.');
+      errBox.style.display = 'block';
+    }
+    return;
+  }
 
   if (errBox) errBox.style.display = 'none';
   btn.disabled = true;
@@ -362,7 +369,7 @@ async function submitEbroPin() {
   const repeat = document.getElementById('ebroPinRepeat').value.trim();
   const car = ebroPinCar();
   if (!car) { showEbroPinError(t('Tu cuenta de Ebro no tiene ningún coche.')); return; }
-  if (!/^[0-9]{4,6}$/.test(current)) { showEbroPinError(t('Escribe el PIN actual de Ebro.')); return; }
+  if (!/^[0-9]{6}$/.test(current)) { showEbroPinError(t('Escribe el PIN actual de Ebro.')); return; }
   if (!/^[0-9]{6}$/.test(fresh)) { showEbroPinError(t('El PIN nuevo tiene que tener 6 dígitos.')); return; }
   if (fresh !== repeat) { showEbroPinError(t('Los dos PIN nuevos no coinciden.')); return; }
   if (fresh === current) { showEbroPinError(t('El PIN nuevo es igual que el actual.')); return; }

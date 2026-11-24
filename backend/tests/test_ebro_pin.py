@@ -1,6 +1,6 @@
 """Changing the car-control PIN of the Ebro account in the cloud (core/ebro_account.py, POST /api/account/ebro-pin), which is not the
-PIN stored in EVBro (POST /api/account/pin, only EVBro's copy). Read from the official app on 24-11-2026, not yet sent to the real
-cloud: these tests pin the request the app makes and what EVBro does with each answer."""
+PIN stored in EVBro (POST /api/account/pin, only EVBro's copy). Read from the official app and tried against the real cloud on 24-11-2026
+(it works with the taskId of the car settings, `scene = 2`): these tests pin the request and what EVBro does with each answer."""
 from __future__ import annotations
 
 import json
@@ -191,12 +191,18 @@ async def test_bad_input_never_reaches_the_cloud(web, monkeypatch) -> None:
     assert calls == []
 
 
-async def test_a_current_pin_that_is_not_the_stored_one_counts_and_two_failures_wait(web, monkeypatch) -> None:
-    calls = _cloud(monkeypatch, {"changed": False, "unconfirmed": False, "reason": "no", "code": 1})
-    assert (await web.post("/api/account/ebro-pin", json=_body(current_pin="999999"))).status_code == 422
-    assert (await web.post("/api/account/ebro-pin", json=_body())).status_code == 424
-    assert (await web.post("/api/account/ebro-pin", json=_body())).status_code == 429
-    assert len(calls) == 1
+async def test_the_cloud_checks_the_current_pin_not_evbros_copy_and_two_failures_wait(web, monkeypatch) -> None:
+    """24-11-2026: the current PIN had to match the one stored in EVBro, and that got in the way; the cloud checks it now."""
+    calls = _cloud(monkeypatch, {"changed": True, "unconfirmed": False, "reason": None, "code": 0})
+    r = await web.post("/api/account/ebro-pin", json=_body(current_pin="999999"))       # not the stored 222222
+    assert r.status_code == 200 and calls == [(VIN, "999999", "333333")]
+    assert await _stored_pin() == "333333"                                               # the copy follows the cloud
+
+    calls = _cloud(monkeypatch, raises=CommandError("PIN de comandos rechazado", reason="pin"))
+    assert (await web.post("/api/account/ebro-pin", json=_body(current_pin="111111"))).status_code == 424
+    assert (await web.post("/api/account/ebro-pin", json=_body(current_pin="111112"))).status_code == 424
+    assert (await web.post("/api/account/ebro-pin", json=_body(current_pin="111113"))).status_code == 429
+    assert len(calls) == 2
 
 
 async def test_a_manual_car_is_not_an_ebro_car(web, monkeypatch) -> None:
@@ -207,3 +213,13 @@ async def test_a_manual_car_is_not_an_ebro_car(web, monkeypatch) -> None:
     assert (await web.post("/api/account/ebro-pin", json=_body())).status_code == 404
     assert calls == []
 
+
+
+async def test_the_stored_pin_is_the_ebro_pin_six_digits_or_nothing(web) -> None:
+    """The official app's PIN has 6 digits; EVBro said «4 a 6» and saved anything (24-11-2026)."""
+    for bad in ("1234", "12345a", "1234567"):
+        assert (await web.post("/api/account/pin", json={"pin": bad})).status_code == 422
+    assert await _stored_pin() == "222222"
+    assert (await web.post("/api/account/pin", json={"pin": "654321"})).status_code == 200
+    assert (await web.post("/api/account/pin", json={"pin": ""})).status_code == 200
+    assert await _stored_pin() is None

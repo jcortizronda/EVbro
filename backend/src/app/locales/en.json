@@ -352,9 +352,13 @@
  "El PIN nuevo tiene que tener 6 dígitos.": "The new PIN must have 6 digits.",
  "Escribe el PIN actual de Ebro.": "Type the current Ebro PIN.",
  "El PIN nuevo es igual que el actual.": "The new PIN is the same as the current one.",
- "El PIN actual no coincide con el PIN guardado en EVBro.": "The current PIN does not match the PIN saved in EVBro.",
  "La sesión de la cuenta de Ebro no abre: vuelve a conectarla antes de cambiar el PIN.": "The Ebro account session does not open: connect the account again before changing the PIN.",
  "Ebro no ha aceptado el PIN actual: {p0}": "Ebro did not accept the current PIN: {p0}",
  "Ebro respondió sin error, pero todavía no acepta el PIN nuevo. Prueba en unos minutos una orden con el PIN de siempre; EVBro no ha cambiado el PIN guardado.": "Ebro answered without an error but does not accept the new PIN yet. In a few minutes try a command with your usual PIN; EVBro has not changed the saved PIN.",
- "Ebro no ha cambiado el PIN: {p0}": "Ebro did not change the PIN: {p0}"
+ "Ebro no ha cambiado el PIN: {p0}": "Ebro did not change the PIN: {p0}",
+ "Escribe un nombre para el coche.": "Type a name for the car.",
+ "La sesión de la cuenta de Ebro no abre: vuelve a conectarla antes de cambiar el nombre.": "The Ebro account session does not open: connect the account again before changing the name.",
+ "Ebro aceptó el nombre, pero la cuenta todavía muestra el anterior; puede que lo revise antes de aplicarlo. EVBro no lo ha cambiado.": "Ebro accepted the name, but the account still shows the old one; it may review it before applying it. EVBro has not changed it.",
+ "Ebro no ha cambiado el nombre: {p0}": "Ebro did not change the name: {p0}",
+ "El PIN de Ebro tiene 6 dígitos.": "The Ebro PIN has 6 digits."
 }

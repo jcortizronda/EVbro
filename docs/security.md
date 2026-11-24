@@ -65,9 +65,12 @@ no la devuelve. Si la nube la rechaza responde 424 con su motivo. Probado contra
 Son dos cosas distintas y la interfaz las separa. **«PIN guardado en EVBro»** es solo la copia cifrada que EVBro usa para las órdenes que
 no lo piden: cambiarla no toca la nube. **«Cambiar PIN de Ebro»** cambia el PIN en la nube de Ebro (el que pide la app oficial): solo el
 gestor, a través de un coche suyo con cuenta de Ebro. Pide el PIN actual, que se prueba con `checkPassword` (cuenta para el bloqueo de PIN
-erróneos de siempre) y, si hay un PIN guardado en EVBro, tiene que ser ese (uno distinto se rechaza aquí). **Dos fallos** esperan **10
-minutos** por cuenta. Si la nube lo acepta y el PIN nuevo abre un `checkPassword`, la copia de EVBro (si la había) pasa a ser el nuevo; si
-no había copia, no se guarda. Queda en el registro de órdenes como `cambiar_pin_ebro`. Sin probar todavía contra la nube real.
+erróneos de siempre); no hace falta que coincida con el guardado en EVBro (hasta el 24-11-2026 se exigía y estorbaba). **Dos fallos**
+esperan **10 minutos** por cuenta. Los dos PIN son el de Ebro: **6 dígitos** (EVBro decía «4 a 6» y guardaba cualquier cosa). Si la nube lo acepta y el PIN nuevo abre un `checkPassword`, la copia de EVBro (si la había) pasa a ser el nuevo; si
+no había copia, no se guarda. Queda en el registro de órdenes como `cambiar_pin_ebro`. Probado contra la nube real el 24-11-2026.
+
+**Nombre del coche en Ebro** (`PUT /api/vehicles/{vin}/ebro-name`, nivel `owner`, solo coches con cuenta): cambia el apodo del coche en la
+cuenta de Ebro y lo guarda como nombre en EVBro. Sin probar todavía contra la nube real.
 
 ## Comandos (`services/command_policy.py`)
 - **Piden el PIN en cada envío:** `desbloquear`, `maletero_abrir`, `ventanillas_abrir`, `ventilar_ventanillas`, `techo_abrir`, `techo_ventilar`, `alarma_off`. El catálogo (`GET /api/commands/catalog`) lo indica con `requires_pin`.

@@ -625,7 +625,6 @@
  "Textos de la aplicación y de los avisos. Se guarda en tu cuenta y vale en todos tus dispositivos.": "Texts of the app and of the alerts. Saved in your account and used on all your devices.",
  "Cerrar": "Close",
  "Tu contraseña de la app Ebro": "Your Ebro app password",
- "4 a 6 dígitos": "4 to 6 digits",
  "Posición en el viaje": "Position in the trip",
  "Taller Oficial / Propio": "Dealer / own garage",
  "Detalles de la factura o recambios...": "Invoice details or parts...",
@@ -2470,7 +2469,6 @@
  "6 dígitos. Tras dos PIN actuales incorrectos hay que esperar 10 minutos, para que Ebro no bloquee la cuenta.": "6 digits. After two wrong current PINs you have to wait 10 minutes, so that Ebro does not lock the account.",
  "Repite el PIN nuevo": "Repeat the new PIN",
  "Cambiar PIN": "Change PIN",
- "{p0} Introduce el PIN de 4 a 6 dígitos que usará EVBro para las órdenes que no te lo pidan (déjalo en blanco para eliminarlo). Solo cambia la copia guardada en EVBro, no el PIN de Ebro: para eso está «Cambiar PIN de Ebro». {p1}": "{p0} Enter the 4 to 6-digit PIN EVBro will use for the commands that do not ask you for it (leave it blank to remove it). It only changes the copy saved in EVBro, not the Ebro PIN: for that there is «Change Ebro PIN». {p1}",
  "Hay un PIN guardado en EVBro.": "A PIN is saved in EVBro.",
  "No hay ningún PIN guardado en EVBro.": "No PIN is saved in EVBro.",
  "Se cambia a través de {p0}.": "It is changed through {p0}.",
@@ -2486,5 +2484,13 @@
  "Cuenta de Ebro conectada, pero el canal en directo del coche está parado": "Ebro account connected, but the car's live channel is stopped",
  "Cuenta de Ebro conectada": "Ebro account connected",
  "La nube de Ebro ya no acepta la sesión: vuelve a conectar la cuenta": "The Ebro cloud no longer accepts the session: connect the account again",
- "Sin cuenta de Ebro conectada": "No Ebro account connected"
+ "Sin cuenta de Ebro conectada": "No Ebro account connected",
+ "Nombre del coche (cuenta oficial de Ebro)": "Car name (official Ebro account)",
+ "No se pudo cambiar el nombre en Ebro: {p0}": "Could not change the name in Ebro: {p0}",
+ "{p0} Introduce el PIN de 6 dígitos que usará EVBro para las órdenes que no te lo pidan (déjalo en blanco para eliminarlo). Solo cambia la copia guardada en EVBro, no el PIN de Ebro: para eso está «Cambiar PIN de Ebro». {p1}": "{p0} Enter the 6-digit PIN EVBro will use for the commands that do not ask you for it (leave it blank to remove it). It only changes the copy saved in EVBro, not the Ebro PIN: for that there is «Change Ebro PIN». {p1}",
+ "6 dígitos": "6 digits",
+ "El PIN de Ebro tiene 6 dígitos.": "The Ebro PIN has 6 digits.",
+ "No se pudo guardar el PIN: {p0}": "Could not save the PIN: {p0}",
+ "Cuenta de EBRO (Oficial)": "EBRO account (official)",
+ "Cuenta de EVBRO": "EVBRO account"
 }
