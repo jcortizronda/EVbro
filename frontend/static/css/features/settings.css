@@ -93,6 +93,9 @@
 }
 .ebro-captcha-bg { display: block; width: 100%; height: 100%; object-fit: fill; }
 .ebro-captcha-bg:not([src]), .ebro-captcha-piece:not([src]) { visibility: hidden; }
+/* «Pedir otro SMS»: under the notice, waiting out its minute */
+.ebro-reset-resend { display: block; margin: -0.9rem 0 0.85rem; }
+.ebro-reset-resend:disabled { color: var(--text-muted); text-decoration: none; cursor: default; }
 .ebro-captcha-piece { position: absolute; top: 0; left: 0; height: 100%; width: auto; pointer-events: none; }
 .ebro-captcha-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; margin: 0; color: var(--text-muted); font-size: 0.85rem; }
 .ebro-captcha-loading[hidden] { display: none; }

@@ -156,7 +156,7 @@ def test_the_pin_reset_is_believed_when_the_new_pin_works(ctx, monkeypatch) -> N
 # ───────────────────────── the routes ─────────────────────────
 @pytest.fixture(autouse=True)
 def _clean():
-    for t in (routes_account.ebro_sms_throttle, routes_account.ebro_code_throttle):
+    for t in (routes_account.ebro_sms_throttle, routes_account.ebro_sms_gap, routes_account.ebro_code_throttle):
         t._fails.clear()
     routes_account._pending_captcha.clear()
     yield
@@ -214,15 +214,23 @@ async def test_the_secret_key_stays_on_the_server_and_each_puzzle_is_good_for_on
                         seen.append((module,)) or {"sent": True, "captcha_failed": False, "reason": None})
     r = await web.post("/api/account/ebro-reset/sms", json={"x": 50})
     assert r.status_code == 200 and seen[-1] == ("APP-UPDATE-PASSWD",) and "600000001" not in r.text
+    assert r.json()["resend_in"] == 60
 
 
-async def test_three_sms_in_ten_minutes_at_most(web, monkeypatch) -> None:
+async def test_a_minute_between_two_sms_and_five_in_ten_minutes_at_most(web, monkeypatch) -> None:
     monkeypatch.setattr(routes_account, "reset_captcha", lambda ctx: {"background": "BG", "piece": "PC", "token": "TK", "secret_key": KEY})
     monkeypatch.setattr(routes_account, "reset_send_sms", lambda *a: {"sent": True, "captcha_failed": False, "reason": None})
-    for _ in range(3):
+    assert (await web.post("/api/account/ebro-reset/captcha", json={"purpose": "pin"})).status_code == 200
+    assert (await web.post("/api/account/ebro-reset/sms", json={"x": 50})).status_code == 200
+    r = await web.post("/api/account/ebro-reset/captcha", json={"purpose": "pin"})         # as the official app: a minute
+    assert r.status_code == 429 and 0 < int(r.headers["Retry-After"]) <= 60 and " s " in r.json()["detail"]
+    for _ in range(4):
+        routes_account.ebro_sms_gap._fails.clear()                                       # the minute has gone by
         assert (await web.post("/api/account/ebro-reset/captcha", json={"purpose": "pin"})).status_code == 200
         assert (await web.post("/api/account/ebro-reset/sms", json={"x": 50})).status_code == 200
-    assert (await web.post("/api/account/ebro-reset/captcha", json={"purpose": "pin"})).status_code == 429
+    routes_account.ebro_sms_gap._fails.clear()
+    r = await web.post("/api/account/ebro-reset/captcha", json={"purpose": "pin"})         # the sixth in ten minutes
+    assert r.status_code == 429 and "min" in r.json()["detail"]
 
 
 async def test_a_pin_reset_updates_evbros_copy(web, monkeypatch) -> None:
@@ -264,6 +272,7 @@ async def test_ebro_writes_the_sms_in_the_users_language(web, monkeypatch) -> No
     async with async_session_factory() as s:
         (await s.execute(select(AppUser).where(AppUser.id == 1))).scalar_one().language = "pt"
         await s.commit()
+    routes_account.ebro_sms_gap._fails.clear()                                           # the minute has gone by
     await web.post("/api/account/ebro-reset/captcha", json={"purpose": "password"})
     assert langs == ["es-ES", "es-ES", "pt-PT"]
     ctx = CoreCtx(vin=VIN, accept_language="pt-PT")

@@ -406,6 +406,27 @@ window.EbroReset = (function () {
   let purpose = 'pin';
   let width = 310;            // the width `x` is measured on (the server says it)
   let busy = false;
+  let resendTimer = null;     // the countdown to «Pedir otro SMS»: a minute, as the official app
+
+  function stopCountdown() { if (resendTimer) { clearInterval(resendTimer); resendTimer = null; } }
+  function countdown(seconds) {
+    stopCountdown();
+    const btn = el('ebroResetResend');
+    let left = Math.max(0, Math.round(seconds || 0));
+    const paint = () => {
+      btn.disabled = left > 0;
+      btn.textContent = left > 0 ? t('Pedir otro SMS ({p0} s)', {p0: left}) : t('Pedir otro SMS');
+    };
+    paint();
+    if (left > 0) resendTimer = setInterval(() => { left -= 1; paint(); if (left <= 0) stopCountdown(); }, 1000);
+  }
+  /** Back to the puzzle for a new SMS (the server keeps the minute and the cap anyway). */
+  function resend() {
+    stopCountdown();
+    el('ebroResetCode').value = '';
+    step(false);
+    newCaptcha();
+  }
 
   function error(text) { const box = el('ebroResetError'); box.textContent = text || ''; box.hidden = !text; }
   function step(code) {
@@ -434,6 +455,11 @@ window.EbroReset = (function () {
     try {
       const res = await fetch('/api/account/ebro-reset/captcha', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ purpose }) });
       const data = await res.json().catch(() => ({}));
+      if (res.status === 429) {                                   // too soon for another SMS: say so as it is
+        el('ebroCaptchaLoading').hidden = true;
+        error(typeof data.detail === 'string' ? data.detail : t('Espera un poco antes de pedir otro SMS.'));
+        return;
+      }
       if (!res.ok) throw new Error(typeof data.detail === 'string' ? data.detail : res.status);
       width = data.width || 310;
       el('ebroCaptchaBg').src = `data:image/png;base64,${data.background}`;
@@ -468,6 +494,7 @@ window.EbroReset = (function () {
       if (!res.ok) throw new Error(typeof data.detail === 'string' ? data.detail : res.status);
       el('ebroResetSent').textContent = t('Ebro ha enviado un código por SMS a {p0}. Escríbelo aquí.', {p0: data.phone || t('tu teléfono')});
       step(true);
+      countdown(data.resend_in || 60);
       el('ebroResetCode').focus();
     } catch (e) {
       error(e.message || String(e));
@@ -505,6 +532,7 @@ window.EbroReset = (function () {
   }
 
   function close() {
+    stopCountdown();
     el('ebroResetModal').classList.remove('open');
     ['ebroResetCode', 'ebroResetNew', 'ebroResetRepeat'].forEach((id) => { el(id).value = ''; });     // never left behind
     setShow(false);
@@ -547,7 +575,7 @@ window.EbroReset = (function () {
     }
   }
 
-  return { open, close, move, release, newCaptcha: () => newCaptcha(false), toggleShow, submit };
+  return { open, close, move, release, newCaptcha: () => newCaptcha(false), resend, toggleShow, submit };
 })();
 function openEbroResetModal(kind) { EbroReset.open(kind); }
 function closeEbroResetModal() { EbroReset.close(); }

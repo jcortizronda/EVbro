@@ -368,5 +368,7 @@
  "Ebro no ha enviado el SMS: {p0}": "Ebro did not send the SMS: {p0}",
  "Ebro respondió sin error, pero todavía no acepta el PIN nuevo. Prueba en unos minutos una orden con el PIN nuevo; EVBro no ha cambiado el PIN guardado.": "Ebro answered without an error but does not accept the new PIN yet. In a few minutes try a command with the new PIN; EVBro has not changed the saved PIN.",
  "Ebro no ha restablecido el PIN: {p0}": "Ebro did not reset the PIN: {p0}",
- "Ebro no ha restablecido la contraseña: {p0}": "Ebro did not reset the password: {p0}"
+ "Ebro no ha restablecido la contraseña: {p0}": "Ebro did not reset the password: {p0}",
+ "Has pedido muchos SMS seguidos. Espera {p0} min antes de pedir otro.": "You have requested many SMS in a row. Wait {p0} min before requesting another.",
+ "Espera {p0} s antes de pedir otro SMS.": "Wait {p0} s before requesting another SMS."
 }

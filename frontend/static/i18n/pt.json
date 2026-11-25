@@ -2510,5 +2510,8 @@
  "PIN de Ebro restablecido. El PIN guardado en EVBro ya es el nuevo.": "PIN da Ebro reposto. O PIN guardado no EVBro já é o novo.",
  "PIN de Ebro restablecido.": "PIN da Ebro reposto.",
  "Contraseña de Ebro restablecida. EVBro ya usa la nueva.": "Palavra-passe da Ebro reposta. O EVBro já usa a nova.",
- "PIN de Ebro restablecido": "PIN da Ebro reposto"
+ "PIN de Ebro restablecido": "PIN da Ebro reposto",
+ "Pedir otro SMS": "Pedir outro SMS",
+ "Pedir otro SMS ({p0} s)": "Pedir outro SMS ({p0} s)",
+ "Espera un poco antes de pedir otro SMS.": "Aguarda um pouco antes de pedir outro SMS."
 }

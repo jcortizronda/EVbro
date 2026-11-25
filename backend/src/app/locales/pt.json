@@ -368,5 +368,7 @@
  "Ebro no ha enviado el SMS: {p0}": "A Ebro não enviou o SMS: {p0}",
  "Ebro respondió sin error, pero todavía no acepta el PIN nuevo. Prueba en unos minutos una orden con el PIN nuevo; EVBro no ha cambiado el PIN guardado.": "A Ebro respondeu sem erro, mas ainda não aceita o PIN novo. Dentro de uns minutos experimenta uma ordem com o PIN novo; o EVBro não alterou o PIN guardado.",
  "Ebro no ha restablecido el PIN: {p0}": "A Ebro não repôs o PIN: {p0}",
- "Ebro no ha restablecido la contraseña: {p0}": "A Ebro não repôs a palavra-passe: {p0}"
+ "Ebro no ha restablecido la contraseña: {p0}": "A Ebro não repôs a palavra-passe: {p0}",
+ "Has pedido muchos SMS seguidos. Espera {p0} min antes de pedir otro.": "Pediste muitos SMS seguidos. Aguarda {p0} min antes de pedir outro.",
+ "Espera {p0} s antes de pedir otro SMS.": "Aguarda {p0} s antes de pedir outro SMS."
 }

@@ -495,7 +495,9 @@ async def _adopt_new_pin(session: AsyncSession, account: EbroAccount, user: AppU
 RESET_PURPOSES = {"pin": ebro_reset.MODULE_PIN, "password": ebro_reset.MODULE_PASSWORD}
 CAPTCHA_MAX_AGE_S = 300
 _pending_captcha: Dict[int, Dict[str, Any]] = {}
-ebro_sms_throttle = LoginThrottle(max_failures=3, window_s=600)       # SMS sent per account
+SMS_RESEND_S = 60                                                      # the official app waits a minute between two SMS
+ebro_sms_throttle = LoginThrottle(max_failures=5, window_s=600)       # SMS sent per account: five in ten minutes at most
+ebro_sms_gap = LoginThrottle(max_failures=1, window_s=SMS_RESEND_S)   # and a minute between two
 ebro_code_throttle = LoginThrottle(max_failures=3, window_s=600)      # wrong SMS codes per account
 
 
@@ -517,6 +519,17 @@ def _reset_ctx(account: EbroAccount, user: AppUser):
     return ctx
 
 
+def _check_sms_allowed(key: str) -> None:
+    """A minute between two SMS, as the official app, and five in ten minutes at most (EVBro's own cap: it may face the internet)."""
+    gap, cap = ebro_sms_gap.retry_after(key), ebro_sms_throttle.retry_after(key)
+    if cap:
+        raise HTTPException(status_code=429, headers={"Retry-After": str(cap)},
+                            detail=_("Has pedido muchos SMS seguidos. Espera {p0} min antes de pedir otro.", p0=max(1, -(-cap // 60))))
+    if gap:
+        raise HTTPException(status_code=429, headers={"Retry-After": str(gap)},
+                            detail=_("Espera {p0} s antes de pedir otro SMS.", p0=gap))
+
+
 def _no_session(e: RuntimeError) -> HTTPException:
     if str(e) != "no_usertoken":
         raise e
@@ -536,7 +549,7 @@ class ResetCaptchaIn(BaseModel):
 async def reset_captcha_route(req: ResetCaptchaIn, session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)):
     """A puzzle from the Ebro cloud: the background, the piece and the width `x` is measured on."""
     account = await _reset_account(session, user)
-    _check_throttle((ebro_sms_throttle, f"sms:{account.id}"))
+    _check_sms_allowed(f"sms:{account.id}")
     ctx = _reset_ctx(account, user)
     try:
         puzzle = await asyncio.get_running_loop().run_in_executor(None, reset_captcha, ctx)
@@ -562,7 +575,7 @@ async def reset_sms_route(req: ResetSmsIn, session: AsyncSession = Depends(get_d
     if not pending or time.monotonic() - pending["at"] > CAPTCHA_MAX_AGE_S:
         raise HTTPException(status_code=409, detail=_("El captcha ha caducado: pide otro."))
     key = f"sms:{account.id}"
-    _check_throttle((ebro_sms_throttle, key))
+    _check_sms_allowed(key)
     ctx = _reset_ctx(account, user)
     try:
         outcome = await asyncio.get_running_loop().run_in_executor(
@@ -574,10 +587,11 @@ async def reset_sms_route(req: ResetSmsIn, session: AsyncSession = Depends(get_d
         raise _network(e, "sms") from e
     if outcome["captcha_failed"]:
         raise HTTPException(status_code=422, detail=_("La pieza no ha encajado. Prueba con otro captcha."))
-    ebro_sms_throttle.record_failure(key)                    # every SMS sent counts: three in ten minutes at most
+    ebro_sms_throttle.record_failure(key)                    # every SMS asked for counts
+    ebro_sms_gap.record_failure(key)
     if not outcome["sent"]:
         raise HTTPException(status_code=424, detail=_("Ebro no ha enviado el SMS: {p0}", p0=outcome["reason"] or "sin motivo"))
-    return {"status": "ok", "phone": mask_phone(account.phone)}
+    return {"status": "ok", "phone": mask_phone(account.phone), "resend_in": SMS_RESEND_S}
 
 
 class ResetPinIn(BaseModel):
