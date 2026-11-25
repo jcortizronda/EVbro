@@ -1592,7 +1592,11 @@
         <div class="glass costs-list-card" id="rfListCard">
           <div class="costs-list-head">
             <div class="card-title u-margin-0">Repostajes</div>
-            <button type="button" class="btn-primary" data-on-click="openRefuelModal()">Añadir repostaje</button>
+            <!-- Refuels typed one by one or brought from a spreadsheet (features/refuels.js) -->
+            <div class="rf-actions needs-edit">
+              <button type="button" class="btn-primary" data-on-click="openRefuelModal()">Añadir repostaje</button>
+              <button type="button" class="btn-secondary" data-on-click="RefuelImport.open()">Importar</button>
+            </div>
           </div>
           <p class="costs-hint">Toca uno para editarlo. Marca «Depósito lleno» cuando llenes: entre dos llenados el consumo es exacto. Los litros de un repostaje detectado son estimados (% del depósito × litros del depósito): corrígelos con el ticket.</p>
           <div id="rfList"></div>
@@ -2946,31 +2950,83 @@
     </div>
   </div>
 
+  <!-- Modal: a refuel, detected or added by hand (features/refuels.js) -->
   <div id="refuelModal" class="modal-overlay">
     <div class="modal-card u-max-width-460px">
       <h3 id="refuelTitle">Repostaje</h3>
       <input type="hidden" id="rfId" />
       <div class="form-grid">
         <div class="form-group"><label for="rfDate">Fecha</label><input type="date" id="rfDate" class="form-control" /></div>
-        <div class="form-group"><label for="rfLiters">Litros</label><input type="number" id="rfLiters" class="form-control" min="0" step="0.01" inputmode="decimal" /></div>
+        <div class="form-group"><label for="rfHour">Hora (opcional)</label><input type="time" id="rfHour" class="form-control" /></div>
+        <!-- Any two of the three give the third (features/refuels.js) -->
+        <div class="form-group full"><label for="rfLiters">Litros</label><input type="number" id="rfLiters" class="form-control mc-trio" min="0" max="300" step="0.01" inputmode="decimal" placeholder="Los del ticket" /></div>
+        <div class="form-group"><label for="rfPrice">Precio por litro (€)</label><input type="number" id="rfPrice" class="form-control mc-trio" min="0" max="10" step="0.001" inputmode="decimal" /></div>
+        <div class="form-group"><label for="rfTotal">Total pagado (€)</label><input type="number" id="rfTotal" class="form-control mc-trio" min="0" step="0.01" inputmode="decimal" /></div>
+        <div class="form-group full"><p class="vp-hint mc-tight">Con dos de los tres, el tercero se calcula solo.</p></div>
         <div class="form-group"><label for="rfOdometer">Cuentakilómetros (km)</label><input type="number" id="rfOdometer" class="form-control" min="0" step="1" inputmode="numeric" placeholder="Del salpicadero" /></div>
         <div class="form-group"><label class="rf-check"><input type="checkbox" id="rfFull" checked /> Depósito lleno</label></div>
-        <div class="form-group full">
-          <div class="cc-modes" role="radiogroup" aria-label="Cómo indicar el coste">
-            <label><input type="radio" name="rfMode" value="price" checked><span>Precio por litro</span></label>
-            <label><input type="radio" name="rfMode" value="total"><span>Total pagado</span></label>
-          </div>
-          <input type="number" id="rfPrice" class="form-control" min="0" max="10" step="0.001" inputmode="decimal" placeholder="€/L" />
-          <input type="number" id="rfTotal" class="form-control" min="0" step="0.01" inputmode="decimal" placeholder="€" hidden />
-        </div>
         <div class="form-group full"><label for="rfStation">Gasolinera</label><input type="text" id="rfStation" class="form-control" maxlength="150" list="rfStationList" autocomplete="off" /><datalist id="rfStationList"></datalist><p class="vp-hint" id="rfStationHint" hidden>Puesta por un repostaje anterior en el mismo sitio. Cámbiala si no es esta.</p></div>
         <div class="form-group full"><label for="rfNotes">Notas</label><textarea id="rfNotes" class="form-control" rows="2"></textarea></div>
       </div>
       <p class="vp-hint" id="rfEstimateNote" hidden></p>
+      <div class="auth-error" id="rfError" role="alert" hidden></div>
       <div class="modal-actions">
         <button class="btn-secondary u-color-var-accent-red_margin-right-auto" id="rfDelete" data-on-click="deleteRefuel()" hidden>Borrar</button>
         <button class="btn-secondary" data-on-click="closeRefuelModal()">Cancelar</button>
-        <button class="btn-primary" data-on-click="saveRefuel()">Guardar</button>
+        <button class="btn-primary" id="rfSave" data-on-click="saveRefuel()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: refuels from a spreadsheet, in three steps; nothing is stored before the last one (features/refuels.js) -->
+  <div id="refuelImportModal" class="modal-overlay">
+    <div class="modal-card u-max-width-460px">
+      <h3>Importar repostajes</h3>
+      <ol class="ci-steps" aria-label="Pasos">
+        <li id="riTab1" class="is-on">1. Fichero</li><li id="riTab2">2. Revisar</li><li id="riTab3">3. Listo</li>
+      </ol>
+
+      <div id="riStep1">
+        <p class="mc-lead">Sube un Excel o un CSV con un repostaje por fila. No se guarda nada hasta que lo revises.</p>
+        <div class="ci-drop">
+          <strong>Elige el fichero</strong>
+          <span>Excel (.xlsx) o CSV, hasta 1.000 repostajes</span>
+          <input type="file" id="riFile" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" data-on-change="RefuelImport.fileChosen(this)" hidden />
+          <button type="button" class="btn-primary" data-on-click="RefuelImport.pickFile()">Elegir fichero</button>
+        </div>
+        <a class="ci-template" id="riTemplate" href="#" download>Descargar una plantilla de ejemplo (.xlsx)</a>
+        <div class="ci-help">
+          <p class="ci-strong">Cada fila necesita la fecha y los litros (o el total y el precio por litro).</p>
+          <p>Si los tienes, también: hora, cuentakilómetros, gasolinera, si llenaste el depósito y notas. Sin la columna «Depósito lleno», todos cuentan como llenos.</p>
+          <p>Las columnas pueden llamarse como quieras y estar en cualquier orden: en el paso siguiente ves cómo las ha entendido EVbro y lo corriges si hace falta.</p>
+        </div>
+        <div class="auth-error" id="riError1" role="alert" hidden></div>
+        <div class="modal-actions"><button class="btn-secondary" data-on-click="RefuelImport.close()">Cancelar</button></div>
+      </div>
+
+      <div id="riStep2" hidden>
+        <p class="mc-lead" id="riFileName"></p>
+        <div class="ci-map" id="riMap"></div>
+        <div class="ci-counts" id="riCounts"></div>
+        <div class="ci-rows" id="riRows"></div>
+        <p class="vp-hint" id="riNote"></p>
+        <div class="auth-error" id="riError2" role="alert" hidden></div>
+        <div class="modal-actions">
+          <button class="btn-secondary" data-on-click="RefuelImport.back()">Atrás</button>
+          <button class="btn-primary" id="riImport" data-on-click="RefuelImport.run()">Importar</button>
+        </div>
+      </div>
+
+      <div id="riStep3" hidden>
+        <div class="ci-done"><div class="ci-done-count" id="riDoneCount">0</div><p class="ci-strong">Repostajes importados</p><p id="riDoneText"></p></div>
+        <div class="ci-help">
+          <p>Salen en la lista como añadidos a mano y cuentan en el consumo, los costes y los totales por mes. El consumo entre llenados necesita el cuentakilómetros.</p>
+          <p>Si algo no ha salido bien, puedes deshacer esta importación entera.</p>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-secondary u-color-var-accent-red_margin-right-auto" data-on-click="RefuelImport.undo()">Deshacer</button>
+          <button class="btn-primary" data-on-click="RefuelImport.close()">Hecho</button>
+        </div>
       </div>
     </div>
   </div>

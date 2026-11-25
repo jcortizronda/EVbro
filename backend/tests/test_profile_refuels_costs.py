@@ -216,8 +216,16 @@ async def test_manual_refuel_with_price_or_total(web) -> None:
     assert r.status_code == 200 and d["total_cost"] == 60.0 and d["detected"] is False and d["odometer"] == 15000.0 and d["needs_price"] is False
     d = (await web.post(f"/api/vehicles/{VIN}/refuels", json={"liters": 40, "total_cost": 66})).json()
     assert d["price_per_liter"] == 1.65
-    assert (await web.post(f"/api/vehicles/{VIN}/refuels", json={"liters": 40, "total_cost": 66, "price_per_liter": 1.6})).status_code == 422
+    # the three: the litres and the total of the receipt win, the price follows from them
+    assert (await web.post(f"/api/vehicles/{VIN}/refuels", json={"liters": 40, "total_cost": 66, "price_per_liter": 1.6})).json()["price_per_liter"] == 1.65
+    # without the litres: the total and the price give them
+    d = (await web.post(f"/api/vehicles/{VIN}/refuels", json={"total_cost": 75, "price_per_liter": 1.5})).json()
+    assert d["liters"] == 50.0 and d["total_cost"] == 75.0
+    assert (await web.post(f"/api/vehicles/{VIN}/refuels", json={"total_cost": 75})).status_code == 422
     assert (await web.post(f"/api/vehicles/{VIN}/refuels", json={"liters": 0})).status_code == 422
+    # the form sends the local day and hour with their offset: kept as UTC
+    d = (await web.post(f"/api/vehicles/{VIN}/refuels", json={"liters": 30, "timestamp": "2026-07-01T10:30:00+02:00"})).json()
+    assert d["timestamp"].startswith("2026-07-01T08:30")
     assert (await web.post("/api/vehicles/NOEXISTE/refuels", json={"liters": 10})).status_code == 404
 
 

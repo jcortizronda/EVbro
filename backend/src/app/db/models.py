@@ -350,6 +350,7 @@ class Refuel(Base):
     detected = Column(Boolean, default=True, nullable=False, server_default="true")    # False = added by hand
     full_tank = Column(Boolean, nullable=True)            # tank filled up? NULL = not stated (a detected one counts as full at >= 95 %)
     liters_entered = Column(Boolean, default=False, nullable=False, server_default="false")   # litres typed by the user (the ticket's), no longer the gauge's estimate
+    import_batch = Column(String(32), nullable=True, index=True)      # the file import it came with, to undo it whole (services/refuel_import.py)
 
 
 class GeofenceEvent(Base):

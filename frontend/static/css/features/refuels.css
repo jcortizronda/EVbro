@@ -22,3 +22,7 @@
 
 .rf-check { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 0.92rem; cursor: pointer; }
 .rf-check input { width: 20px; height: 20px; accent-color: var(--accent-bright); }
+
+/* «Añadir repostaje» and «Importar» side by side; the import modal uses the charges' one (charge-manual.css: ci-*) */
+.rf-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.rf-actions button { min-height: 44px; }

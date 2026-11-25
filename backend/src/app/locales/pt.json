@@ -392,5 +392,10 @@
  "El enlace caduca en {p0} minutos y solo vale una vez.": "A ligação expira em {p0} minutos e só funciona uma vez.",
  "Si el botón no funciona, copia esta dirección en el navegador:": "Se o botão não funcionar, copia este endereço para o navegador:",
  "El email de tu cuenta ha cambiado": "O email da tua conta mudou",
- "Abrir EVbro": "Abrir o EVbro"
+ "Abrir EVbro": "Abrir o EVbro",
+ "Indica los litros, o el total y el precio por litro.": "Indica os litros, ou o total e o preço por litro.",
+ "Indica qué columna tiene la fecha y cuál los litros (o el total y el precio por litro).": "Indica que coluna tem a data e qual tem os litros (ou o total e o preço por litro).",
+ "Los litros no son válidos.": "Os litros não são válidos.",
+ "El fichero tiene más de 1.000 repostajes: pártelo en varios.": "O ficheiro tem mais de 1000 abastecimentos: divide-o em vários.",
+ "No hay ningún repostaje listo para importar.": "Não há nenhum abastecimento pronto para importar."
 }

@@ -392,5 +392,10 @@
  "El enlace caduca en {p0} minutos y solo vale una vez.": "The link expires in {p0} minutes and works only once.",
  "Si el botón no funciona, copia esta dirección en el navegador:": "If the button does not work, copy this address into your browser:",
  "El email de tu cuenta ha cambiado": "Your account's email has changed",
- "Abrir EVbro": "Open EVbro"
+ "Abrir EVbro": "Open EVbro",
+ "Indica los litros, o el total y el precio por litro.": "Enter the litres, or the total and the price per litre.",
+ "Indica qué columna tiene la fecha y cuál los litros (o el total y el precio por litro).": "Choose which column has the date and which the litres (or the total and the price per litre).",
+ "Los litros no son válidos.": "The litres are not valid.",
+ "El fichero tiene más de 1.000 repostajes: pártelo en varios.": "The file has more than 1,000 fuel-ups: split it into several.",
+ "No hay ningún repostaje listo para importar.": "There is no fuel-up ready to import."
 }

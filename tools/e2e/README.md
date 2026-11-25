@@ -30,6 +30,7 @@ python tools/e2e/timeline.py                               # cronología del coc
 python tools/e2e/notices.py                                # centro de avisos: descartar uno deslizándolo (o con la × si hay ratón), y que vuelva si falla
 python tools/e2e/departure.py                              # precalentamiento de batería programado: estado del coche, días, interruptor y lo que se envía al guardar
 python tools/e2e/manual_charges.py                         # cargas a mano: añadir, corregir y borrar una, e importar un Excel (revisar, importar, deshacer)
+python tools/e2e/refuels_import.py                         # repostajes: litros, €/l y total (dos dan el tercero), hora, e importar un Excel (revisar, importar, sin duplicar)
 python tools/e2e/messages.py                               # mensaje del administrador: la consola lo envía, llega a la campana del gestor, se silencia en Ajustes → Avisos
 python tools/e2e/account_delete.py                         # borrar la cuenta: diálogo con usuario y contraseña, y el borrado real. BORRA la demo: arranca y para su propio servidor
 python tools/e2e/stats.py                                  # estadísticas: diez gráficas pintadas con la demo, periodo, sin desbordes

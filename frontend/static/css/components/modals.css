@@ -16,7 +16,11 @@
   z-index: 2000;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.22s ease;
+  /* closed = not painted at all (visibility), not only transparent: every dialog lives in the page, and a closed one whose card
+     scrolls still got its own full-screen GPU layer; on phones with little graphics memory Chrome then left parts of the page
+     unpainted (black rectangles while scrolling, 25-11-2026). The visibility waits for the fade out. */
+  visibility: hidden;
+  transition: opacity 0.22s ease, visibility 0s linear 0.22s;
   padding: 1.25rem 1rem;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -25,6 +29,8 @@
 .modal-overlay.open {
   opacity: 1;
   pointer-events: auto;
+  visibility: visible;
+  transition: opacity 0.22s ease, visibility 0s;
 }
 
 .modal-card {

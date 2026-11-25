@@ -16,12 +16,16 @@
   justify-content: center;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* closed = not painted at all, like the dialogs (components/modals.css): no full-screen GPU layer while hidden */
+  visibility: hidden;
+  transition: opacity 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s linear 0.28s;
 }
 
 .action-sheet-overlay.open {
   opacity: 1;
   pointer-events: auto;
+  visibility: visible;
+  transition: opacity 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s;
 }
 
 .action-sheet-card {

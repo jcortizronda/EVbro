@@ -90,8 +90,9 @@ def _read_csv(data: bytes) -> List[List[Any]]:
     return [row[:MAX_COLUMNS] for row in csv.reader(io.StringIO(text), delimiter=delimiter)][:MAX_ROWS + 50]
 
 
-def read_table(filename: str, data: bytes) -> Tuple[List[str], List[List[Any]]]:
-    """(titles of the columns, rows of cells). The first row with something in it is the titles."""
+def read_table(filename: str, data: bytes, too_many: str = "El fichero tiene más de 1.000 cargas: pártelo en varios.") -> Tuple[List[str], List[List[Any]]]:
+    """(titles of the columns, rows of cells). The first row with something in it is the titles. Also read for the refuels
+    (services/refuel_import.py), which say «repostajes» in `too_many`."""
     if not data:
         raise ImportError_("El fichero está vacío.")
     if len(data) > MAX_BYTES:
@@ -117,7 +118,7 @@ def read_table(filename: str, data: bytes) -> Tuple[List[str], List[List[Any]]]:
     if not body:
         raise ImportError_("El fichero solo tiene la fila de títulos.")
     if len(body) > MAX_ROWS:
-        raise ImportError_("El fichero tiene más de 1.000 cargas: pártelo en varios.")
+        raise ImportError_(too_many)
     return [t or f"Columna {i + 1}" for i, t in enumerate(titles)], body
 
 
