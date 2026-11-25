@@ -26,6 +26,7 @@ from app.db.models import (
     NotificationConfig,
     NotificationLog,
     PasskeyCredential,
+    PasswordReset,
     PushSubscription,
     Vehicle,
     VehicleDocument,
@@ -43,6 +44,7 @@ async def delete_member(session: AsyncSession, member_id: int) -> None:
     await session.execute(delete(DeviceAccess).where(DeviceAccess.user_id == member_id))
     await session.execute(delete(PushSubscription).where(PushSubscription.user_id == member_id))
     await session.execute(delete(PasskeyCredential).where(PasskeyCredential.user_id == member_id))
+    await session.execute(delete(PasswordReset).where(PasswordReset.user_id == member_id))
     await session.execute(delete(NotificationConfig).where(NotificationConfig.user_id == member_id))     # holds channel tokens
     await session.execute(delete(NotificationLog).where(NotificationLog.user_id == member_id))
     await session.execute(delete(MqttLink).where(MqttLink.user_id == member_id))                         # holds the broker's password

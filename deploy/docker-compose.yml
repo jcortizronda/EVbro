@@ -35,6 +35,14 @@ services:
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-}
       - WEBAUTHN_RP_ID=${WEBAUTHN_RP_ID:-}
       - WEBAUTHN_ORIGIN=${WEBAUTHN_ORIGIN:-}
+      # «¿Olvidaste la contraseña?» by e-mail (optional; docs/deployment.md). Without SMTP_HOST the option is not offered.
+      - PUBLIC_URL=${PUBLIC_URL:-}                       # https://your.domain: the links in the e-mails are built on it
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM=${SMTP_FROM:-}
+      - SMTP_SECURITY=${SMTP_SECURITY:-starttls}
       # General
       - TIMEZONE=${TIMEZONE:-}
       - VAPID_SUBJECT=${VAPID_SUBJECT:-}

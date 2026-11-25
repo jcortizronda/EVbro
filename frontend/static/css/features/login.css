@@ -78,3 +78,7 @@ body.auth-open { overflow: hidden; }
 .auth-consent input { width: 20px; height: 20px; flex: none; margin-top: 1px; accent-color: var(--accent-bright); }
 .auth-consent span { flex: 1; min-width: 0; text-align: left; }
 .auth-consent a { color: var(--accent-bright); white-space: nowrap; }
+
+/* «¿Olvidaste la contraseña?» and the new password: they take the place of the sign-in form */
+.auth-card form[hidden] { display: none; }
+#authForgotSent { margin: 0 0 0.9rem; text-align: left; }

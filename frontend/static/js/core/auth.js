@@ -5,7 +5,8 @@
  *      screen. Ebro account errors do NOT use 401 (see routes_commands.py), so they are not
  *      confused with this.
  *   2. Offers `EbroAuth.ready()` so app.js does not load data until it knows whether there is a session.
- *   3. Handles first start (create user), sign-in/sign-out (also with fingerprint) and password change.
+ *   3. Handles first start (create user), sign-in/sign-out (also with fingerprint), password change, the account's e-mail and
+ *      «¿Olvidaste la contraseña?» (a link by e-mail that opens the app with `#reset=<token>`; the fragment never reaches a server).
  *
  * The session lives in an HttpOnly cookie: this script never sees the token.
  */
@@ -13,7 +14,8 @@
   'use strict';
 
   const nativeFetch = window.fetch.bind(window);
-  const state = { locked: false, authenticated: false, username: null, noAccounts: false, readyPromise: null };
+  const state = { locked: false, authenticated: false, username: null, noAccounts: false, readyPromise: null,
+                  mode: 'login', passwordReset: false, email: null, resetToken: null, notice: null };
   const $ = (id) => document.getElementById(id);
 
   function apiPath(input) {
@@ -43,6 +45,8 @@
     state.authenticated = !!data.authenticated;
     state.username = data.username || null;
     state.noAccounts = !!data.no_accounts;
+    state.passwordReset = !!data.password_reset;
+    state.email = data.email || null;
     window.accountInfo = { role: data.role || null, vehicleLimit: data.vehicle_limit, memberLimit: data.member_limit };
     if (typeof applyAccessLevel === 'function') applyAccessLevel();
     return data;
@@ -67,21 +71,37 @@
     if (!overlay) return;
     try {
       await fetchStatus();
-      if (state.authenticated) { state.locked = false; return; }   // the session is still alive: false alarm
+      if (state.authenticated && state.mode !== 'reset') { state.locked = false; return; }   // the session is still alive: false alarm
     } catch (e) { /* no network: show the login anyway */ }
     configureForm();
     overlay.hidden = false;
     document.body.classList.add('auth-open');
-    const first = $('authUsername');
+    const first = $({ forgot: 'authForgotLogin', reset: 'authResetNew' }[state.mode] || 'authUsername');
     if (first) setTimeout(() => first.focus(), 50);
   }
 
   function configureForm() {
+    const mode = state.mode;
+    const alt = mode === 'forgot' || mode === 'reset';
+    $('authForm').hidden = alt;
+    $('authForgotForm').hidden = mode !== 'forgot';
+    $('authResetForm').hidden = mode !== 'reset';
+    $('authForgotRow').hidden = alt || !!state.registerMode || !state.passwordReset;
+    if (alt) {
+      $('authTitle').textContent = mode === 'forgot' ? 'Recuperar la contraseña' : 'Contraseña nueva';
+      $('authSubtitle').textContent = mode === 'forgot'
+        ? 'Escribe tu usuario o el email de tu cuenta y te mandaremos un enlace para elegir otra contraseña.'
+        : 'Elige la contraseña nueva de tu cuenta de EVBro (al menos 10 caracteres). Se cerrarán todas sus sesiones abiertas.';
+      ['authSwitchRow', 'authConsentRow', 'authPasskeyRow'].forEach((id) => { if ($(id)) $(id).hidden = true; });
+      setError('authForgotError', '');
+      setError('authResetError', '');
+      return;
+    }
     const reg = !!state.registerMode;                          // creating a manager account with an invitation code
     $('authTitle').textContent = reg ? 'Crear cuenta' : 'Iniciar sesión';
     $('authSubtitle').textContent = reg
       ? 'Necesitas un código de invitación del administrador de este servidor. Elige tu usuario y una contraseña de al menos 10 caracteres.'
-      : (state.noAccounts
+      : state.notice || (state.noAccounts
         ? 'Este servidor aún no tiene cuentas. El administrador debe crearlas desde la consola de administración (o darte un código de invitación).'
         : 'Introduce tu usuario y contraseña de EVBro.');
     $('authInviteRow').hidden = !reg;
@@ -148,6 +168,126 @@
     }
   }
 
+  function setMode(mode) {
+    state.mode = mode;
+    state.notice = null;
+    if (mode !== 'reset') state.resetToken = null;
+    configureForm();
+    showOverlay();
+  }
+
+  // ───────────────────────── «¿Olvidaste la contraseña?» ─────────────────────────
+  async function submitForgot(event) {
+    event.preventDefault();
+    const login = $('authForgotLogin').value.trim();
+    if (!login) { setError('authForgotError', 'Escribe tu usuario o tu email.'); return; }
+    const btn = $('authForgotSubmit');
+    btn.disabled = true;
+    setError('authForgotError', '');
+    $('authForgotSent').hidden = true;
+    try {
+      const res = await nativeFetch('/api/auth/password-reset', {
+        method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ login }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) $('authForgotSent').hidden = false;
+      else setError('authForgotError', errorText(data, 'No se pudo pedir el enlace (HTTP ' + res.status + ').'));
+    } catch (e) {
+      setError('authForgotError', 'No hay conexión con el servidor.');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function submitReset(event) {
+    event.preventDefault();
+    const next = $('authResetNew').value;
+    if (!next) { setError('authResetError', 'Escribe la contraseña nueva.'); return; }
+    if (next !== $('authResetNew2').value) { setError('authResetError', 'Las contraseñas nuevas no coinciden.'); return; }
+    const btn = $('authResetSubmit');
+    btn.disabled = true;
+    setError('authResetError', '');
+    try {
+      const res = await nativeFetch('/api/auth/password-reset/confirm', {
+        method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: state.resetToken, new_password: next }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setError('authResetError', errorText(data, 'No se pudo cambiar la contraseña (HTTP ' + res.status + ').')); return; }
+      ['authResetNew', 'authResetNew2', 'authPassword'].forEach((id) => { $(id).value = ''; });
+      $('authUsername').value = data.username || '';
+      state.authenticated = false;               // every session of the account was closed, this one too if it was its own
+      setMode('login');
+      state.notice = 'Contraseña cambiada. Ya puedes entrar con la nueva.';      // kept: showOverlay paints the form again
+      configureForm();
+      setTimeout(() => $('authPassword').focus(), 60);
+    } catch (e) {
+      setError('authResetError', 'No hay conexión con el servidor.');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  /** The link of the e-mail (`#reset=<token>`): keep the token and take it out of the address bar (and of the history) at once. */
+  function takeResetToken() {
+    const hash = window.location.hash || '';
+    if (!hash.startsWith('#reset=')) return false;
+    state.resetToken = decodeURIComponent(hash.slice(7));
+    state.mode = 'reset';
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+    return true;
+  }
+  // The link opened in a tab where EVBro already runs: only the fragment changes and the page does not load again
+  window.addEventListener('hashchange', () => {
+    if (takeResetToken()) { state.locked = true; configureForm(); showOverlay(); }
+  });
+
+  // ───────────────────────── the account's e-mail ─────────────────────────
+  function paintEmail() {
+    const label = $('authCurrentEmail');
+    if (label) label.textContent = state.email || 'sin poner';
+    const noMail = $('authEmailNoMail');
+    if (noMail) noMail.hidden = state.passwordReset;
+  }
+
+  function openEmailModal() {
+    $('emailNew').value = state.email || '';
+    $('emailPassword').value = '';
+    setError('emailError', '');
+    $('emailModal').classList.add('open');
+    setTimeout(() => $('emailNew').focus(), 50);
+  }
+
+  function closeEmailModal() {
+    $('emailModal').classList.remove('open');
+    $('emailPassword').value = '';
+  }
+
+  async function submitEmail(event) {
+    event.preventDefault();
+    const email = $('emailNew').value.trim();
+    const password = $('emailPassword').value;
+    if (!password) { setError('emailError', 'Escribe tu contraseña de EVBro.'); return; }
+    const btn = $('emailSubmit');
+    btn.disabled = true;
+    setError('emailError', '');
+    try {
+      const res = await fetch('/api/auth/email', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email || null, current_password: password }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setError('emailError', errorText(data, 'No se pudo guardar el email.')); return; }
+      state.email = data.email || null;
+      paintEmail();
+      closeEmailModal();
+      if (typeof showToast === 'function') showToast(state.email ? 'Email guardado.' : 'Email quitado.', 'success', 4000);
+    } catch (e) {
+      setError('emailError', 'No hay conexión con el servidor.');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
   // ───────────────────────── sign-out and password ─────────────────────────
   async function logout() {
     try { await nativeFetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }); } catch (e) { /* does not matter */ }
@@ -198,13 +338,16 @@
   function ready() {
     if (!state.readyPromise) {
       state.readyPromise = (async () => {
+        takeResetToken();
         try {
           await fetchStatus();
         } catch (e) {
-          return true;                      // no network: the app works as before (Service Worker cache)
+          if (state.mode !== 'reset') return true;   // no network: the app works as before (Service Worker cache)
         }
         const label = $('authCurrentUser');
         if (label) label.textContent = state.username || '—';
+        paintEmail();
+        if (state.mode === 'reset') { state.locked = true; showOverlay(); return false; }
         if (state.authenticated) return true;
         state.locked = true;
         showOverlay();
@@ -229,16 +372,29 @@
     const form = $('authForm');
     if (form) form.addEventListener('submit', submitAuthForm);
     const sw = $('authSwitch');
-    if (sw) sw.addEventListener('click', () => { state.registerMode = !state.registerMode; configureForm(); });
+    if (sw) sw.addEventListener('click', () => { state.registerMode = !state.registerMode; state.notice = null; configureForm(); });
     const pk = $('authPasskey');
     if (pk) pk.addEventListener('click', submitPasskey);
     const pwdForm = $('passwordForm');
     if (pwdForm) pwdForm.addEventListener('submit', submitPasswordChange);
+    const forgot = $('authForgotLink');
+    if (forgot) forgot.addEventListener('click', () => {
+      $('authForgotLogin').value = $('authUsername').value.trim();
+      $('authForgotSent').hidden = true;
+      setMode('forgot');
+    });
+    document.querySelectorAll('[data-auth-back]').forEach((b) => b.addEventListener('click', () => setMode('login')));
+    const forgotForm = $('authForgotForm');
+    if (forgotForm) forgotForm.addEventListener('submit', submitForgot);
+    const resetForm = $('authResetForm');
+    if (resetForm) resetForm.addEventListener('submit', submitReset);
+    const emailForm = $('emailForm');
+    if (emailForm) emailForm.addEventListener('submit', submitEmail);
   });
 
   window.EbroAuth = {
     get locked() { return state.locked; },
     get username() { return state.username; },
-    ready, verify, logout, openPasswordModal, closePasswordModal,
+    ready, verify, logout, openPasswordModal, closePasswordModal, openEmailModal, closeEmailModal,
   };
 })();

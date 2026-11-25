@@ -30,6 +30,8 @@ El nombre del proyecto es fijo (`evbro`): los volúmenes (`evbro_evbro_data` con
 | `SESSION_DAYS` | `30` | Días que dura la sesión en un dispositivo |
 | `COOKIE_SECURE` / `FORWARDED_ALLOW_IPS` / `ALLOWED_ORIGINS` / `BIND_ADDRESS` / `WEB_PORT` | ver «HTTPS y publicación» | Proxy inverso y publicación |
 | `WEBAUTHN_RP_ID` / `WEBAUTHN_ORIGIN` | vacío (= el nombre con el que se abre la web) | Acceso con huella si el proxy no reenvía el `Host` |
+| `PUBLIC_URL` | vacío (= el primer `WEBAUTHN_ORIGIN`) | Dirección con la que se abre EVBro (`https://…`): los enlaces de los correos se construyen con ella, nunca con la cabecera `Host` |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_FROM` / `SMTP_SECURITY` | vacío / `587` / — / — / — / `starttls` | Correo para «¿Olvidaste la contraseña?» (ver «Correo») |
 | `TIMEZONE` | — | Zona IANA de la carga programada y las horas |
 | `VAPID_SUBJECT` | — | Contacto declarado a Google/Apple en Web Push (`mailto:…`) |
 | `LEGAL_OPERATOR` / `LEGAL_CONTACT` | vacío | Página `/legal` |
@@ -149,6 +151,32 @@ Restaurar: `gunzip -c evbro-db-*.sql.gz | docker exec -i evbro-db psql -U evbro 
 ## Aviso legal y privacidad
 
 `/legal` es pública y la enlazan el registro y Ajustes. Pon en el `.env` `LEGAL_OPERATOR` (quién responde de este servidor) y `LEGAL_CONTACT` (correo para pedir o borrar datos); sin ellos la página habla de «el administrador de este servidor». Si vas a invitar a gente que no conoces, léela entera antes y consulta [hosted-service.md](hosted-service.md), «Cobrar por el servicio».
+
+## Correo («¿Olvidaste la contraseña?»)
+
+Opcional. Con correo, cada cuenta puede poner su email en Ajustes → Cuenta de EVBRO y la pantalla de entrada ofrece «¿Olvidaste
+la contraseña?»: un enlace de un solo uso que caduca en 30 minutos ([security.md](security.md), «Recuperar la contraseña»). Sin
+`SMTP_HOST`, `SMTP_FROM` y una dirección pública (`PUBLIC_URL` o `WEBAUTHN_ORIGIN`), la opción no aparece y la contraseña la cambia el
+administrador desde la consola (o el gestor, la de sus miembros).
+
+Lo sensato es un servicio de envío de correo transaccional con el dominio del servidor (Brevo, Resend, Amazon SES, Mailgun…), no
+un buzón personal: la dirección personal saldría como remitente y su contraseña viviría en el servidor. Pasos generales:
+
+1. Da de alta el dominio en el servicio y añade en el DNS los registros que te pida (SPF, DKIM y, mejor, DMARC); sin ellos los
+   correos acaban en spam.
+2. Saca las credenciales SMTP y ponlas en `deploy/.env`:
+   ```
+   PUBLIC_URL=https://evbro.example.com
+   SMTP_HOST=smtp-relay.example.com
+   SMTP_PORT=587
+   SMTP_USER=usuario-smtp
+   SMTP_PASSWORD=clave-smtp
+   SMTP_FROM=EVBro <no-responder@example.com>
+   SMTP_SECURITY=starttls
+   ```
+   (`ssl` con el puerto 465; `none` solo para un relé en la misma máquina.)
+3. `docker compose up -d`. Prueba con tu cuenta: pon tu email en Ajustes y pide un enlace desde la pantalla de entrada (en una
+   ventana privada). Si no llega, el registro dice «Could not send an e-mail through …» con el tipo de error.
 
 ## App para Android (TWA)
 

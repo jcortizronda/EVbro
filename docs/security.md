@@ -5,9 +5,26 @@
 - **Primer arranque:** nadie puede crear el primer usuario sin el **código de configuración** (`SETUP_CODE`, o uno aleatorio por arranque impreso en el log). El primer usuario se inserta con `id=1` para que dos peticiones simultáneas no creen dos.
 - **Sesión:** cookie `evbro_session` (`HttpOnly`, `SameSite=Lax`, `Secure` si llegó por HTTPS o `COOKIE_SECURE=true`), 30 días renovables. En `auth_sessions` solo se guarda el **SHA-256** del token.
 - **Fuerza bruta:** 8 fallos / 15 min por IP y 5 / 15 min por IP+usuario, con `Retry-After`. No hay bloqueo global por usuario (para que quien sepa tu nombre no pueda dejarte fuera). Mensaje de error genérico y tiempo de respuesta igualado con el caso "usuario inexistente".
-- **Superficie pública:** `/api/auth/*` (incluida la entrada con huella, `/api/auth/passkeys/login/*`), `/api/ws` (se autentica él mismo), `/health`, la shell HTML y `static/`. **Todo lo demás de `/api` exige sesión.** El test `test_ninguna_ruta_de_la_api_queda_sin_proteger` recorre el esquema OpenAPI y falla si una ruta nueva queda sin proteger. **Los routers nuevos van en `protected` (`api/router.py`).**
+- **Superficie pública:** `/api/auth/*` (incluida la entrada con huella, `/api/auth/passkeys/login/*`, y «¿Olvidaste la contraseña?», `/api/auth/password-reset*`), `/api/ws` (se autentica él mismo), `/health`, la shell HTML y `static/`. **Todo lo demás de `/api` exige sesión.** El test `test_ninguna_ruta_de_la_api_queda_sin_proteger` recorre el esquema OpenAPI y falla si una ruta nueva queda sin proteger. **Los routers nuevos van en `protected` (`api/router.py`).**
 - **CSRF:** además de `SameSite=Lax`, las peticiones que modifican datos y el WebSocket se rechazan si su `Origin` no es el propio host (`ALLOWED_ORIGINS` añade otros).
 - **401 está reservado a "no has iniciado sesión en EVBro"** (la web muestra el login). Los errores de la cuenta Ebro usan **424** (`reason: "reauth"`) para no confundirse.
+
+## Recuperar la contraseña por correo (`services/password_reset.py`, `services/mailer.py`)
+- **El email de la cuenta** (`app_users.email`, opcional) lo pone la propia cuenta en Ajustes → Cuenta de EVBRO (`PUT /api/auth/email`),
+  **con su contraseña**: quien coja una sesión abierta no puede apuntar la cuenta a su correo. Al cambiarlo o quitarlo se avisa a la
+  dirección anterior. Solo se usa para estos enlaces.
+- **«¿Olvidaste la contraseña?»** (`POST /api/auth/password-reset`, público): con el usuario o el email. **Siempre la misma respuesta**,
+  exista o no la cuenta, tenga o no email; el correo se manda después de responder, para que el tiempo tampoco lo delate. Nunca para
+  administradores (su consola tiene su camino), ni para cuentas desactivadas o caducadas. **5 peticiones / 15 min por IP** y **3 enlaces
+  por hora por cuenta** (los demás se descartan sin decirlo).
+- **El enlace** lleva el token en el **fragmento** (`/#reset=…`), que el navegador no manda a ningún servidor ni en el `Referer`; la web lo
+  quita de la barra de direcciones nada más leerlo. Se construye con `PUBLIC_URL` (o el primer `WEBAUTHN_ORIGIN`), **nunca con la
+  cabecera `Host`** (que alguien podría falsear para recibir el enlace en su dominio). Token de 256 bits; en `password_resets` solo su
+  **SHA-256**; **30 minutos**, **un solo uso**, y pedir otro anula los anteriores. Si la contraseña nueva no cumple las reglas, el enlace
+  sigue valiendo.
+- **Al cambiarla** (`POST /api/auth/password-reset/confirm`, público: el token es la credencial) se cierran **todas** las sesiones de la
+  cuenta. Los tokens erróneos cuentan como fallos de entrada por IP (8 / 15 min).
+- Sin correo configurado (`SMTP_HOST`, `SMTP_FROM` y la dirección pública) la opción no aparece y la ruta da 404.
 
 ## Acceso con huella (passkeys; `security/passkeys.py`, `api/routes_passkeys.py`, `api/routes_passkey_login.py`)
 - **WebAuthn** con `py_webauthn`. La huella (o la cara, o el bloqueo de pantalla) se comprueba **en el móvil**; el servidor solo guarda en `passkey_credentials` el id de la credencial, su **clave pública**, el contador de firmas, los transportes, una etiqueta («Chrome en Android») y las fechas de alta y último uso. No hay ningún secreto que cifrar.

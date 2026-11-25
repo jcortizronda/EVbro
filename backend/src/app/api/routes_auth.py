@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -12,11 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.db.models import AppUser
-from app.db.session import get_db
+from app.db.session import async_session_factory, get_db
 from app.i18n import _
 from app.security import auth, passwords
 from app.security.throttle import LoginThrottle
-from app.services import invites
+from app.services import invites, mailer, password_reset
 from app.timeutil import utcnow
 
 _LOGGER = logging.getLogger("app.api.auth")
@@ -26,6 +26,9 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 # guesses your username cannot lock you out from anywhere.
 ip_throttle = LoginThrottle(max_failures=8)
 pair_throttle = LoginThrottle(max_failures=5)
+# «¿Olvidaste la contraseña?»: every request counts per IP; each account gets three links an hour at most (more are dropped silently)
+reset_ip_throttle = LoginThrottle(max_failures=5, window_s=900)
+reset_account_throttle = LoginThrottle(max_failures=3, window_s=3600)
 
 GENERIC_LOGIN_ERROR = "Usuario o contraseña incorrectos."
 
@@ -43,6 +46,20 @@ class RegisterRequest(Credentials):
 
 class PasswordChange(BaseModel):
     current_password: str = Field(max_length=passwords.MAX_LENGTH)
+    new_password: str = Field(max_length=passwords.MAX_LENGTH)
+
+
+class EmailChange(BaseModel):
+    email: str | None = Field(default=None, max_length=mailer.EMAIL_MAX_LENGTH)     # empty or null = take it away
+    current_password: str = Field(max_length=passwords.MAX_LENGTH)
+
+
+class ResetRequest(BaseModel):
+    login: str = Field(max_length=mailer.EMAIL_MAX_LENGTH)                          # the username or the account's e-mail
+
+
+class ResetConfirm(BaseModel):
+    token: str = Field(max_length=200)
     new_password: str = Field(max_length=passwords.MAX_LENGTH)
 
 
@@ -76,6 +93,8 @@ async def auth_status(request: Request, db: AsyncSession = Depends(get_db)):
         # No manager account yet: the login screen says that the administrator creates them (from the admin console)
         "no_accounts": (await db.execute(select(func.count(AppUser.id)).where(AppUser.role != "admin"))).scalar_one() == 0,
         "registration_open": True,                       # always with a single-use invitation token
+        "password_reset": mailer.enabled(),              # «¿Olvidaste la contraseña?» only when this server can send e-mail
+        "email": user.email if user else None,
     }
 
 
@@ -178,3 +197,75 @@ async def change_password(req: PasswordChange, request: Request, db: AsyncSessio
     await db.commit()
     await auth.revoke_user_sessions(db, user.id, keep_token=request.cookies.get(auth.COOKIE_NAME))
     return {"status": "ok"}
+
+
+# ───────────────────────── the account's e-mail and «¿Olvidaste la contraseña?» ─────────────────────────
+@router.put("/email")
+async def change_email(req: EmailChange, request: Request, background: BackgroundTasks, db: AsyncSession = Depends(get_db),
+                       user: AppUser = Depends(auth.require_auth)):
+    """The address the reset links go to. Asks for the password: whoever borrows an open session must not be able to take the
+    account over by pointing it at their own address. The old address is told (when this server sends e-mail)."""
+    ip = auth.client_ip(request)
+    _check_throttle((ip_throttle, f"ip:{ip}"))
+    if not await asyncio.to_thread(passwords.verify_password, req.current_password, user.password_hash):
+        ip_throttle.record_failure(f"ip:{ip}")
+        raise HTTPException(status_code=403, detail=_("La contraseña no es correcta."))
+    try:
+        email = mailer.normalize_email(req.email)
+    except ValueError:
+        raise HTTPException(status_code=422, detail=_("Ese email no parece válido.")) from None
+    old = user.email
+    user.email = email
+    await db.commit()
+    if old and old != email and mailer.enabled():
+        background.add_task(mailer.send, old, *password_reset.compose_email_changed(user, email))
+    _LOGGER.info("Account %s %s its recovery e-mail.", user.id, "set" if email else "removed")
+    return {"status": "ok", "email": email}
+
+
+async def _send_reset_links(login: str, ip: str) -> None:
+    """After the answer has gone (so its timing says nothing): a link to each account the login names."""
+    async with async_session_factory() as db:
+        for user in await password_reset.accounts_for(db, login):
+            key = f"user:{user.id}"
+            if reset_account_throttle.retry_after(key) or not await auth.account_usable(db, user):
+                continue
+            reset_account_throttle.record_failure(key)
+            link = await password_reset.issue(db, user, ip)
+            subject, body = password_reset.compose(user, link)
+            sent = await asyncio.to_thread(mailer.send, user.email, subject, body)
+            _LOGGER.info("Password reset link for account %s %s.", user.id, "sent" if sent else "NOT sent")
+
+
+@router.post("/password-reset")
+async def request_password_reset(req: ResetRequest, request: Request, background: BackgroundTasks):
+    """Public. Always the same answer: whoever asks learns nothing about which accounts exist or have an address."""
+    if not mailer.enabled():
+        raise HTTPException(status_code=404, detail=_("Este servidor no envía correos: pide al administrador que te cambie la contraseña."))
+    ip = auth.client_ip(request)
+    _check_throttle((reset_ip_throttle, f"ip:{ip}"))
+    reset_ip_throttle.record_failure(f"ip:{ip}")
+    if req.login.strip():
+        background.add_task(_send_reset_links, req.login, ip)
+    return {"status": "ok"}
+
+
+@router.post("/password-reset/confirm")
+async def confirm_password_reset(req: ResetConfirm, request: Request, db: AsyncSession = Depends(get_db)):
+    """Public. The new password with the link's token; every session of the account is closed."""
+    ip = auth.client_ip(request)
+    _check_throttle((ip_throttle, f"ip:{ip}"))
+    found = await password_reset.find(db, req.token.strip())
+    if found is None or not await auth.account_usable(db, found[1]):
+        ip_throttle.record_failure(f"ip:{ip}")
+        raise HTTPException(status_code=410, detail=_("El enlace no es válido o ha caducado. Pide otro."))
+    link, user = found
+    problem = passwords.password_problem(req.new_password, user.username)
+    if problem:
+        raise HTTPException(status_code=422, detail=problem)
+    user.password_hash = await _hash(req.new_password)
+    link.used_at = utcnow()
+    await db.commit()
+    await auth.revoke_user_sessions(db, user.id)
+    _LOGGER.info("Password of account %s reset with an e-mailed link (%s).", user.id, ip)
+    return {"status": "ok", "username": user.username}

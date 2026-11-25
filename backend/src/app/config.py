@@ -85,6 +85,17 @@ class Settings(BaseSettings):
     # Fingerprint login (passkeys/WebAuthn). Empty = the name the browser opens the site with (the proxy's Host header).
     WEBAUTHN_RP_ID: Optional[str] = None   # e.g. evbro.example.com (no scheme or port)
     WEBAUTHN_ORIGIN: Optional[str] = None  # e.g. https://evbro.example.com (several, comma-separated)
+    # The address people open EVBro at, e.g. https://evbro.example.com: the links in the e-mails are built on it, never on the
+    # request's Host header. Empty = the first WEBAUTHN_ORIGIN.
+    PUBLIC_URL: Optional[str] = None
+
+    # E-mail (optional): only for the «¿Olvidaste la contraseña?» links. Without SMTP_HOST and SMTP_FROM the option is not offered.
+    SMTP_HOST: Optional[str] = None
+    SMTP_PORT: int = 587
+    SMTP_USER: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    SMTP_FROM: Optional[str] = None        # e.g. "EVBro <no-responder@example.com>"
+    SMTP_SECURITY: str = "starttls"        # starttls (port 587) | ssl (port 465) | none (only a relay on the same machine)
 
     # Optional MQTT integration
     MQTT_ENABLED: bool = False

@@ -779,6 +779,7 @@ class AppUser(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     username = Column(String(64), index=True, nullable=False)
+    email = Column(String(254), index=True, nullable=True)    # optional, set by the account itself: only for the password-reset links
     is_admin = Column(Boolean, default=False, nullable=False, server_default="false")     # mirrors role == "admin"; used by the unique name
     password_hash = Column(String(255), nullable=False)
     created_at = Column(DateTime, default=utcnow)
@@ -847,6 +848,19 @@ class AuthSession(Base):
     expires_at = Column(DateTime, nullable=False, index=True)
     ip = Column(String(64), nullable=True)
     user_agent = Column(String(255), nullable=True)
+
+
+class PasswordReset(Base):
+    """A «¿Olvidaste la contraseña?» link sent by e-mail: single use, short-lived. Only the hash of its token is stored."""
+    __tablename__ = "password_resets"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("app_users.id", ondelete="CASCADE"), index=True, nullable=False)
+    token_hash = Column(String(64), unique=True, index=True, nullable=False)
+    created_at = Column(DateTime, default=utcnow, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    used_at = Column(DateTime, nullable=True)
+    ip = Column(String(64), nullable=True)
 
 
 class ChargePlan(Base):

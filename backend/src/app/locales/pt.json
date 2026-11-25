@@ -370,5 +370,17 @@
  "Ebro no ha restablecido el PIN: {p0}": "A Ebro não repôs o PIN: {p0}",
  "Ebro no ha restablecido la contraseña: {p0}": "A Ebro não repôs a palavra-passe: {p0}",
  "Has pedido muchos SMS seguidos. Espera {p0} min antes de pedir otro.": "Pediste muitos SMS seguidos. Aguarda {p0} min antes de pedir outro.",
- "Espera {p0} s antes de pedir otro SMS.": "Aguarda {p0} s antes de pedir outro SMS."
+ "Espera {p0} s antes de pedir otro SMS.": "Aguarda {p0} s antes de pedir outro SMS.",
+ "EVBro: restablecer la contraseña": "EVBro: repor a palavra-passe",
+ "Hola, {p0}:": "Olá, {p0}:",
+ "Alguien (seguramente tú) ha pedido restablecer la contraseña de tu cuenta de EVBro.": "Alguém (provavelmente tu) pediu para repor a palavra-passe da tua conta EVBro.",
+ "Para elegir una nueva, abre este enlace. Caduca en {p0} minutos y solo vale una vez:": "Para escolheres uma nova, abre esta ligação. Expira em {p0} minutos e só funciona uma vez:",
+ "Si no lo has pedido tú, ignora este correo: tu contraseña no cambia.": "Se não foste tu a pedir, ignora este e-mail: a tua palavra-passe não muda.",
+ "EVBro: el email de tu cuenta ha cambiado": "EVBro: o email da tua conta mudou",
+ "El email de recuperación de tu cuenta de EVBro ({p0}) ahora es otro.": "O email de recuperação da tua conta EVBro ({p0}) agora é outro.",
+ "Se ha quitado el email de recuperación de tu cuenta de EVBro ({p0}).": "O email de recuperação da tua conta EVBro ({p0}) foi retirado.",
+ "Si no lo has hecho tú, entra en EVBro, cambia la contraseña y vuelve a poner tu email.": "Se não foste tu, entra no EVBro, altera a palavra-passe e volta a definir o teu email.",
+ "Ese email no parece válido.": "Esse email não parece válido.",
+ "Este servidor no envía correos: pide al administrador que te cambie la contraseña.": "Este servidor não envia e-mails: pede ao administrador que altere a tua palavra-passe.",
+ "El enlace no es válido o ha caducado. Pide otro.": "A ligação não é válida ou expirou. Pede outra."
 }

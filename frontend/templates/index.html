@@ -1901,9 +1901,12 @@
             <p class="u-color-var-text-secondary_font-size-0p9rem_margin-bottom-1rem">
               Sesión iniciada como <strong id="authCurrentUser">—</strong>.
             </p>
+            <p class="setting-hint auth-email-line">Email para recuperar la contraseña: <strong id="authCurrentEmail">sin poner</strong></p>
+            <p class="setting-hint" id="authEmailNoMail" hidden>Este servidor no envía correos todavía: el email se usará cuando el administrador lo active.</p>
             <p class="vdoc-storage u-margin-0p5rem-0-1rem" id="vdocStorage" hidden></p>
             <div class="u-display-flex_gap-0p75rem_flex-wrap-wrap">
               <button class="btn-secondary" data-on-click="EbroAuth.openPasswordModal()">Cambiar contraseña</button>
+              <button class="btn-secondary" data-on-click="EbroAuth.openEmailModal()">Cambiar email</button>
               <button class="btn-secondary u-color-var-accent-red_border-color-rgba-255-61-0-0p3" data-on-click="EbroAuth.logout()">Cerrar sesión</button>
             </div>
           </details>
@@ -3485,6 +3488,32 @@
       </div>
       <label class="auth-consent" id="authConsentRow" hidden><input type="checkbox" id="authConsent"><span>He leído qué datos guarda este servidor y acepto el <a href="/legal" target="_blank" rel="noopener">aviso legal y de privacidad</a>.</span></label>
       <p class="auth-switch" id="authSwitchRow" hidden><button type="button" id="authSwitch" class="link-btn">Tengo una invitación</button></p>
+      <p class="auth-switch" id="authForgotRow" hidden><button type="button" id="authForgotLink" class="link-btn">¿Olvidaste la contraseña?</button></p>
+      <!-- «¿Olvidaste la contraseña?»: a link by e-mail to the address the account set (services/password_reset.py) -->
+      <form id="authForgotForm" class="auth-alt" novalidate hidden>
+        <label class="auth-field">
+          <span>Usuario o email</span>
+          <input type="text" id="authForgotLogin" autocomplete="username" autocapitalize="off" spellcheck="false" maxlength="254" />
+        </label>
+        <div id="authForgotError" class="auth-error" role="alert" hidden></div>
+        <p class="auth-sub" id="authForgotSent" role="status" hidden>Si hay una cuenta con ese usuario o email y tiene un email puesto, te llegará un enlace en unos minutos. Caduca en 30 minutos y solo vale una vez. Mira también en la carpeta de spam.</p>
+        <button type="submit" id="authForgotSubmit" class="btn-primary">Enviar el enlace</button>
+        <p class="auth-switch"><button type="button" class="link-btn" data-auth-back>Volver a entrar</button></p>
+      </form>
+      <!-- The link of the e-mail opens the app with #reset=…: the new password -->
+      <form id="authResetForm" class="auth-alt" novalidate hidden>
+        <label class="auth-field">
+          <span>Contraseña nueva</span>
+          <input type="password" id="authResetNew" autocomplete="new-password" />
+        </label>
+        <label class="auth-field">
+          <span>Repite la contraseña nueva</span>
+          <input type="password" id="authResetNew2" autocomplete="new-password" />
+        </label>
+        <div id="authResetError" class="auth-error" role="alert" hidden></div>
+        <button type="submit" id="authResetSubmit" class="btn-primary">Cambiar la contraseña</button>
+        <p class="auth-switch"><button type="button" class="link-btn" data-auth-back>Volver a entrar</button></p>
+      </form>
     </div>
   </div>
 
@@ -3501,6 +3530,23 @@
         <div class="modal-actions">
           <button type="button" class="btn-secondary" data-on-click="EbroAuth.closePasswordModal()">Cancelar</button>
           <button type="submit" class="btn-primary" id="pwdSubmit">Cambiar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: the e-mail the password-reset links go to (asks for the password) -->
+  <div id="emailModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="emailModalTitle">
+    <div class="modal-card">
+      <h3 class="u-margin-bottom-0p5rem_font-size-1p3rem" id="emailModalTitle">Email de la cuenta</h3>
+      <p class="u-color-var-text-secondary_font-size-0p9rem_margin-bottom-1rem">Solo se usa para mandarte un enlace si olvidas la contraseña de EVBro. Déjalo en blanco para quitarlo.</p>
+      <form id="emailForm" novalidate>
+        <label class="auth-field"><span>Email</span><input type="email" id="emailNew" autocomplete="email" autocapitalize="off" spellcheck="false" maxlength="254" /></label>
+        <label class="auth-field"><span>Contraseña de EVBro</span><input type="password" id="emailPassword" autocomplete="current-password" /></label>
+        <div id="emailError" class="auth-error" role="alert" hidden></div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" data-on-click="EbroAuth.closeEmailModal()">Cancelar</button>
+          <button type="submit" class="btn-primary" id="emailSubmit">Guardar</button>
         </div>
       </form>
     </div>

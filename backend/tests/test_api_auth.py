@@ -57,7 +57,7 @@ async def create_user(client, username=USER, password=PASSWORD):
 async def test_status_without_accounts_says_so(client) -> None:
     r = await client.get("/api/auth/status")
     assert r.json() == {"authenticated": False, "username": None, "role": None, "language": None, "vehicle_limit": None, "member_limit": None,
-                        "no_accounts": True, "registration_open": True}
+                        "no_accounts": True, "registration_open": True, "password_reset": False, "email": None}
 
 
 async def test_the_app_no_longer_has_setup_or_admin_routes(client) -> None:
@@ -71,7 +71,7 @@ async def test_correct_login_returns_the_full_status(client) -> None:
     await create_user(client)
     assert (await client.get("/api/auth/status")).json() == {
         "authenticated": True, "username": USER, "role": "manager", "language": "es", "vehicle_limit": 2, "member_limit": 5,
-        "no_accounts": False, "registration_open": True}
+        "no_accounts": False, "registration_open": True, "password_reset": False, "email": None}
 
 
 async def test_protected_routes_without_session_return_401(client) -> None:
@@ -188,6 +188,8 @@ async def test_extra_origins_allowed_by_configuration(client, monkeypatch) -> No
 # /api/auth/register is public on purpose: it needs a single-use invitation token issued by the administrator
 PUBLIC = {"/api/auth/status", "/api/auth/login", "/api/auth/logout", "/api/auth/register",
           "/api/auth/passkeys/login/options", "/api/auth/passkeys/login/verify",
+          # «¿Olvidaste la contraseña?»: same answer for every login; the link's token is the credential (docs/security.md)
+          "/api/auth/password-reset", "/api/auth/password-reset/confirm",
           # anonymous by design: other installations send their daily report; off (404) unless TELEMETRY_RECEIVER (docs/telemetry.md)
           "/api/telemetry/v1/report", "/api/catalog/online/signup"}
 _METHODS = ("get", "post", "put", "patch", "delete")

@@ -71,3 +71,6 @@ body:not(.is-root) .needs-root { display: none !important; }
 .pin-policy-title { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 0.4rem; }
 .pin-policy-seg .theme-seg-btn { min-height: 44px; font-size: 0.85rem; }
 .pin-policy .vp-hint { margin: 0.5rem 0 0; }
+
+/* Ajustes → Cuenta de EVBRO: the recovery e-mail, long addresses wrap */
+.auth-email-line strong { overflow-wrap: anywhere; }

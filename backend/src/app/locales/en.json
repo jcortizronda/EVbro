@@ -370,5 +370,17 @@
  "Ebro no ha restablecido el PIN: {p0}": "Ebro did not reset the PIN: {p0}",
  "Ebro no ha restablecido la contraseña: {p0}": "Ebro did not reset the password: {p0}",
  "Has pedido muchos SMS seguidos. Espera {p0} min antes de pedir otro.": "You have requested many SMS in a row. Wait {p0} min before requesting another.",
- "Espera {p0} s antes de pedir otro SMS.": "Wait {p0} s before requesting another SMS."
+ "Espera {p0} s antes de pedir otro SMS.": "Wait {p0} s before requesting another SMS.",
+ "EVBro: restablecer la contraseña": "EVBro: reset your password",
+ "Hola, {p0}:": "Hello, {p0}:",
+ "Alguien (seguramente tú) ha pedido restablecer la contraseña de tu cuenta de EVBro.": "Someone (most likely you) asked to reset the password of your EVBro account.",
+ "Para elegir una nueva, abre este enlace. Caduca en {p0} minutos y solo vale una vez:": "To choose a new one, open this link. It expires in {p0} minutes and works only once:",
+ "Si no lo has pedido tú, ignora este correo: tu contraseña no cambia.": "If you did not ask for it, ignore this e-mail: your password does not change.",
+ "EVBro: el email de tu cuenta ha cambiado": "EVBro: your account's email has changed",
+ "El email de recuperación de tu cuenta de EVBro ({p0}) ahora es otro.": "The recovery email of your EVBro account ({p0}) is now a different one.",
+ "Se ha quitado el email de recuperación de tu cuenta de EVBro ({p0}).": "The recovery email of your EVBro account ({p0}) has been removed.",
+ "Si no lo has hecho tú, entra en EVBro, cambia la contraseña y vuelve a poner tu email.": "If it was not you, sign in to EVBro, change the password and set your email again.",
+ "Ese email no parece válido.": "That email does not look valid.",
+ "Este servidor no envía correos: pide al administrador que te cambie la contraseña.": "This server does not send e-mail: ask the administrator to change your password.",
+ "El enlace no es válido o ha caducado. Pide otro.": "The link is not valid or has expired. Ask for another one."
 }
