@@ -277,4 +277,4 @@ async def test_ebro_writes_the_sms_in_the_users_language(web, monkeypatch) -> No
     assert langs == ["es-ES", "es-ES", "pt-PT"]
     ctx = CoreCtx(vin=VIN, accept_language="pt-PT")
     assert ebro_auth.headers_post("/x", ctx=ctx)["Accept-Language"] == "pt-PT"
-    assert ebro_auth.headers_post("/x", ctx=CoreCtx(vin=VIN))["Accept-Language"] == "it-IT"     # everything else: as before
+    assert ebro_auth.headers_post("/x", ctx=CoreCtx(vin=VIN))["Accept-Language"] == "es-ES"     # EVbro's default: Spanish

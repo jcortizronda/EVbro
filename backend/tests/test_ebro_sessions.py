@@ -133,6 +133,18 @@ async def test_the_cars_of_an_account_share_its_session_and_a_car_without_one_ke
     assert c.token_path == os.path.join(accounts.vehicle_data_dir(CAR_C), "token.json")
 
 
+async def test_each_car_speaks_its_managers_language_to_the_cloud(poller) -> None:
+    """The cloud writes its messages in the request's `Accept-Language`: they came in Italian until 25-11-2026."""
+    async with async_session_factory() as s:
+        s.add_all([AppUser(id=1, username="ana", role="manager", password_hash="x", language="pt"),
+                   AppUser(id=2, username="luis", role="manager", password_hash="x", language="es")])
+        await s.commit()
+    await poller.bind_sessions()
+    assert [poller._contexts[v].accept_language for v in (CAR_A, CAR_B, CAR_C)] == ["pt-PT", "pt-PT", "es-ES"]
+    assert CoreCtx(vin=CAR_A).accept_language == "es-ES"                    # EVbro's default for every other request
+    assert accounts.ebro_language("en") == "en-GB" and accounts.ebro_language(None) == "es-ES"
+
+
 async def test_another_account_of_the_manager_moves_its_cars_to_that_session(poller) -> None:
     await poller.bind_sessions()
     async with async_session_factory() as s:

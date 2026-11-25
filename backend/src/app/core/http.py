@@ -55,11 +55,16 @@ def bff_post(ctx, path: str, body: dict, *, headers: dict | None = None,
     return _as_dict(response)
 
 
-def bff_request(ctx, method: str, path: str, *, headers: dict, params: dict | None = None,
+def bff_request(ctx, method: str, path: str, *, headers: dict, params: dict | None = None, body: dict | None = None,
                 timeout: int = WRITE_TIMEOUT_S) -> dict:
-    """A GET or PUT to the BFF with no body: the app sends their map as query parameters (and signs it:
-    `ebro_auth.headers_post(..., values=params)`). Returns the JSON as a dict, like `bff_post`."""
-    response = requests.request(method, ctx.bff + path, headers=headers, params=params, timeout=timeout)
+    """A GET or PUT to the BFF. A GET carries its map as query parameters; a PUT as a JSON body (`body`): the BFF refuses a PUT
+    without one («Required request body is missing», 25-11-2026). Either way the app signs the map's values
+    (`ebro_auth.headers_post(..., values=…)`). Returns the JSON as a dict, like `bff_post`."""
+    data = None
+    if body is not None:
+        headers = {**headers, "Content-Type": "application/json; charset=UTF-8"}
+        data = json.dumps(body, ensure_ascii=False).encode("utf-8")
+    response = requests.request(method, ctx.bff + path, headers=headers, params=params, data=data, timeout=timeout)
     return _as_dict(response)
 
 

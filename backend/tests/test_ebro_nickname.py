@@ -48,24 +48,26 @@ def test_the_requests_are_the_ones_of_the_app(tmp_path, monkeypatch) -> None:
         def json(self):
             return self._body
 
-    def request(method, url, headers=None, params=None, timeout=None):
-        sent.append((method, url, headers, params))
+    def request(method, url, headers=None, params=None, data=None, timeout=None):
+        sent.append((method, url, headers, params, data))
         if method == "GET":
             return _Answer({"code": 0, "data": [{"vin": VIN, "nickname": "Viejo", "defaultFlag": 1}, "basura"]})
         return _Answer({"code": 0})
 
     monkeypatch.setattr(http.requests, "request", request)
     assert ebro_account.owner_cars(ctx) == [{"vin": VIN, "nickname": "Viejo", "defaultFlag": 1}]
-    method, url, headers, params = sent[-1]
-    assert (method, url, params) == ("GET", "https://bff.example/api/marketing/owner-auth/app/list", None)
+    method, url, headers, params, data = sent[-1]
+    assert (method, url, params, data) == ("GET", "https://bff.example/api/marketing/owner-auth/app/list", None, None)
     assert headers["Authorization"] == "Bearer acc-1" and "keys" not in headers
 
-    assert ebro_account.accepted(ebro_account.set_car_nickname(ctx, VIN, "Nuevo", 1))
-    method, url, headers, params = sent[-1]
-    assert (method, url) == ("PUT", "https://bff.example/api/marketing/owner-auth/app")
-    assert list(params.items()) == [("vin", VIN), ("defaultFlag", 1), ("nickname", "Nuevo")]      # the app's order
+    assert ebro_account.accepted(ebro_account.set_car_nickname(ctx, VIN, "Mi Ebro Ñandú", 1))
+    method, url, headers, params, data = sent[-1]
+    assert (method, url, params) == ("PUT", "https://bff.example/api/marketing/owner-auth/app", None)
+    body = json.loads(data.decode("utf-8"))                     # a JSON body: the BFF refuses a form or the fields in the URL
+    assert list(body.items()) == [("vin", VIN), ("defaultFlag", 1), ("nickname", "Mi Ebro Ñandú")]      # the app's order
+    assert headers["Content-Type"] == "application/json; charset=UTF-8"
     assert headers["keys"] == "vin,defaultFlag,nickname" and headers["url"] == "/marketing/owner-auth/app"
-    expected = ebro_auth.sign_values("/marketing/owner-auth/app", params, ts_ms=int(headers["timestamp"]))[0]
+    expected = ebro_auth.sign_values("/marketing/owner-auth/app", body, ts_ms=int(headers["timestamp"]))[0]
     assert headers["signature"] == expected
 
 

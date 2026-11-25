@@ -77,6 +77,9 @@ class _VehicleState:
     mint_inflight_lock: threading.Lock = field(default_factory=threading.Lock)
 
 
+DEFAULT_ACCEPT_LANGUAGE = "it-IT"   # what every request said until 25-11-2026; a host sets its own (EVbro: services/accounts.py)
+
+
 @dataclass
 class CoreCtx:
     """Everything `core/` needs to operate on a vehicle.
@@ -104,8 +107,9 @@ class CoreCtx:
     channel_id: str = DEFAULT_CHANNEL_ID
     country_id: str = DEFAULT_COUNTRY_ID
     tenant_code: str = DEFAULT_TENANT_CODE
-    # `Accept-Language` of the requests: the cloud writes its messages and SMS in it (the app sends the user's language)
-    accept_language: str = "it-IT"
+    # `Accept-Language` of the requests: the cloud writes its messages and SMS in it (the app sends the user's language).
+    # The default is read when the context is made, so a host can change it (EVbro: Spanish; the HA integration keeps it-IT).
+    accept_language: str = field(default_factory=lambda: DEFAULT_ACCEPT_LANGUAGE)
 
     # — behaviour —
     # automatic taskId minting: without it, commands cannot go out (they need a

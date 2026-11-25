@@ -28,6 +28,7 @@ from app.services.accounts import (
     account_ctx,
     change_account_password,
     change_account_pin,
+    ebro_language,
     fetch_account_vehicles,
     reset_captcha,
     reset_password_with_code,
@@ -509,13 +510,10 @@ async def _reset_account(session: AsyncSession, user: AppUser) -> EbroAccount:
     return account
 
 
-EBRO_LANGUAGES = {"es": "es-ES", "en": "en-GB", "pt": "pt-PT"}     # the app's own `Accept-Language` values
-
-
 def _reset_ctx(account: EbroAccount, user: AppUser):
     """The account's context, speaking the user's language: Ebro writes the SMS and its messages in it (it used to be Italian)."""
     ctx = account_ctx(account_session_path(account.id))
-    ctx.accept_language = EBRO_LANGUAGES.get(user.language or get_language(), "es-ES")
+    ctx.accept_language = ebro_language(user.language or get_language())
     return ctx
 
 

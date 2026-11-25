@@ -97,7 +97,8 @@ def pin_change_looks_accepted(answer: dict) -> bool:
 # ───────────────────────── The car's nickname in the Ebro account ─────────────────────────
 # Read from the official app 1.0.11 («Certificación de propietario» → edit; `CarOwnerCertifyApiService.updateCarInfo` and
 # `fetchCertifyList`, 24-11-2026), not yet sent from here. It is the `nickname` that `queryList` reports and EVbro shows as
-# the car's name. The PUT carries its fields as query parameters, signed with them (`ebro_auth.sign_values`).
+# the car's name. The PUT carries its fields as a JSON body, signed with them (`ebro_auth.sign_values`); sent for real on
+# 25-11-2026 (with the same name: «Operazione riuscita»). A form Content-Type or the fields in the URL are refused.
 # The list is the one the car-control screen reads (`marketing/owner-auth/app/list`): the app's `web/car-service/owner/list` lives
 # on another host and the BFF answers it 404 (seen 25-11-2026; the list read fine from the BFF the same day).
 OWNER_CARS_PATH = "/marketing/owner-auth/app/list"
@@ -127,4 +128,4 @@ def set_car_nickname(ctx, vin: str, nickname: str, default_flag) -> dict:
     from .http import bff_request
 
     values = {"vin": vin, "defaultFlag": default_flag, "nickname": nickname}
-    return bff_request(ctx, "PUT", OWNER_AUTH_PATH, headers=_bearer_headers(ctx, OWNER_AUTH_PATH, values), params=values)
+    return bff_request(ctx, "PUT", OWNER_AUTH_PATH, headers=_bearer_headers(ctx, OWNER_AUTH_PATH, values), body=values)

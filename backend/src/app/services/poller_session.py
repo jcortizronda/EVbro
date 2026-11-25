@@ -15,9 +15,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.core import ebro_login
-from app.db.models import EbroAccount, Vehicle
+from app.db.models import AppUser, EbroAccount, Vehicle
 from app.db.session import async_session_factory
-from app.services.accounts import vehicle_data_dir
+from app.services.accounts import ebro_language, vehicle_data_dir
 from app.services.car_events import CarEventHub
 from app.services.ebro_sessions import account_session_path, attach, seed_account_session, store_session
 from app.services.notification_service import NotificationService
@@ -79,6 +79,7 @@ class SessionMixin:
             accounts = (await session.execute(select(EbroAccount.id, EbroAccount.user_id).where(EbroAccount.is_active == True)  # noqa: E712
                                               .order_by(EbroAccount.id))).all()
             cars = (await session.execute(select(Vehicle.vin, Vehicle.owner_id).where(Vehicle.is_manual.is_(False)))).all()
+            languages = dict((await session.execute(select(AppUser.id, AppUser.language))).all())
             by_owner = {uid: acc_id for (acc_id, uid) in accounts if uid is not None}          # the newest account of a manager wins
             loop = asyncio.get_running_loop()
             for owner_id, acc_id in by_owner.items():
@@ -91,6 +92,8 @@ class SessionMixin:
                     _LOGGER.info("Ebro session of the account of user %s kept in one file for all its cars (from the %s's copy)", owner_id,
                                  "car" if origin == "car" else "account")
         for vin, owner_id in cars:
+            # The cloud answers this car's requests (refused orders, the name in the account…) in its manager's language
+            self._get_or_create_ctx(vin).accept_language = ebro_language(languages.get(owner_id))
             acc_id = by_owner.get(owner_id)
             path = account_session_path(acc_id) if acc_id is not None else os.path.join(vehicle_data_dir(vin), "token.json")
             if attach(self._get_or_create_ctx(vin), path):

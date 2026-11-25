@@ -15,6 +15,7 @@ import tempfile
 from typing import Optional
 
 from app.config import get_data_dir, settings
+from app.core import context as core_context
 from app.core import ebro_account, ebro_login, ebro_reset
 from app.core.context import CoreCtx
 from app.core.errors import CommandError
@@ -23,6 +24,16 @@ from app.core.wake import _bff_login
 from app.services.ebro_sessions import session_lock, store_session, write_token_file  # noqa: F401  (write_token_file: re-exported)
 
 _LOGGER = logging.getLogger("app.services.accounts")
+
+# The Ebro cloud writes its messages and SMS in the `Accept-Language` of each request (the official app sends the user's
+# language). EVbro speaks Spanish by default and, where the person is known, their language (`ebro_language`).
+EBRO_LANGUAGES = {"es": "es-ES", "en": "en-GB", "pt": "pt-PT"}     # the app's own values
+core_context.DEFAULT_ACCEPT_LANGUAGE = EBRO_LANGUAGES["es"]
+
+
+def ebro_language(lang: Optional[str]) -> str:
+    """The `Accept-Language` for an EVbro language (es | en | pt)."""
+    return EBRO_LANGUAGES.get((lang or "es")[:2].lower(), EBRO_LANGUAGES["es"])
 
 
 _VIN_RE = re.compile(r"[A-Za-z0-9]{5,32}")
