@@ -165,6 +165,30 @@ function placeVehicleMarker(latLng) {
   updateMapButtons();
 }
 
+// ───────────────────────── the geofence the car is in ─────────────────────────
+// The account's geofences (centre and radius), read at most every 5 minutes: under the map, the place's name instead of «Ubicación
+// detectada» (and before the address when there is one). Overlapping ones: the smallest, the most precise.
+let mapGeofences = { at: 0, list: [] };
+async function mapGeofenceList() {
+  if (Date.now() - mapGeofences.at < 5 * 60 * 1000) return mapGeofences.list;
+  mapGeofences.at = Date.now();
+  try {
+    const res = await fetch('/api/geofences');
+    if (res.ok) mapGeofences.list = (await res.json()) || [];
+  } catch (e) { /* offline: the last list */ }
+  return mapGeofences.list;
+}
+function geofenceAt(lat, lon, list) {
+  const rad = (d) => d * Math.PI / 180;
+  const metres = (g) => {
+    const dLat = rad(g.latitude - lat), dLon = rad(g.longitude - lon);
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(rad(lat)) * Math.cos(rad(g.latitude)) * Math.sin(dLon / 2) ** 2;
+    return 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  };
+  return (list || []).filter((g) => Number.isFinite(g.latitude) && Number.isFinite(g.longitude) && metres(g) <= (g.radius_meters || 100))
+    .sort((a, b) => (a.radius_meters || 100) - (b.radius_meters || 100))[0] || null;
+}
+
 function updateMapPosition(lat, lon, address) {
   if (!liveMap || !lat || !lon) return;
   // A car without an Ebro account: its tracker is its position, however old (the stored one is usually where it was registered)
@@ -176,6 +200,13 @@ function updateMapPosition(lat, lon, address) {
   const coordElem = document.getElementById('mapCoordinatesText');
   if (locElem) locElem.innerText = address || "Ubicación detectada";
   if (coordElem) coordElem.innerText = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+  if (locElem) {
+    mapGeofenceList().then((list) => {
+      const g = geofenceAt(lat, lon, list);
+      if (!g || !vehicleLatLng || vehicleLatLng[0] !== lat || vehicleLatLng[1] !== lon) return;    // a newer position won
+      locElem.innerText = address ? `${g.name} · ${address}` : g.name;
+    });
+  }
 }
 
 

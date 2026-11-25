@@ -14,3 +14,9 @@
 .comfort-tile .comfort-icon { color: var(--text-muted); transition: color 0.2s ease; }
 .comfort-tile.is-on .comfort-icon { color: var(--accent-green); }
 .native-card-btn[data-state="on"], .native-card-btn[data-state="on-waiting"] { border-color: var(--border-color); }
+
+/* Alarma: its state pill in the top right corner, beside the icon, so the card is as tall as the others (it made its row 26 px
+   taller, and «Localizar GPS» with it, 25-11-2026) */
+#btnAlarmCard { position: relative; }
+.native-action-grid .action-row-pair { grid-template-columns: 1fr 1fr; }     /* GPS and alarm: same spacing as the rows above */
+#btnAlarmCard .comfort-state { position: absolute; top: 14px; right: 13px; margin: 0; }

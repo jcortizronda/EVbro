@@ -2563,5 +2563,6 @@
  "Gris Galaxia": "Gris Galaxia",
  "{p0}, hasta las {p1}": "{p0}, until {p1}",
  "Al objetivo ({p0} %): unos {p1}, hacia las {p2}": "To the target ({p0} %): about {p1}, around {p2}",
- "mañana {p0}": "tomorrow {p0}"
+ "mañana {p0}": "tomorrow {p0}",
+ "Localizar Coche": "Locate car"
 }
