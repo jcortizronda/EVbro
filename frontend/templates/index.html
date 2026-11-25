@@ -1574,9 +1574,10 @@
           <p class="u-color-var-text-secondary_font-size-0p9rem_margin-6px-0-0">Consumo real, coste por 100 km y precio medio del litro. Los repostajes se detectan automáticamente; puedes añadir los que falten e indicar su importe.</p>
         </div>
         <!-- Fuel stations around the car with the price of one fuel (the Ministry's list; features/fuel-stations.js) -->
-        <div class="glass fs-card" id="fsCard">
+        <!-- Folded by default (the owner opens it when needed; remembered on this device); nothing is asked of the server while folded -->
+        <details class="glass fs-card" id="fsCard">
+          <summary class="fs-summary"><span class="fs-summary-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 22V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16"></path><path d="M3 22h12M5 10h8"></path><path d="M15 9h2a2 2 0 0 1 2 2v6a1.5 1.5 0 0 0 3 0v-7l-2.5-2.5"></path></svg></span>Gasolineras cercanas<span class="fs-chev" aria-hidden="true"></span></summary>
           <div class="fs-head">
-            <div class="card-title u-margin-0">Gasolineras cercanas</div>
             <select id="fsFuel" class="form-control fs-fuel" aria-label="Combustible" data-on-change="FuelStations.setFuel(this.value)">
               <option value="g95e5">Gasolina 95 E5</option>
               <option value="g95e10">Gasolina 95 E10</option>
@@ -1595,7 +1596,7 @@
           <p class="fs-status" id="fsStatus" hidden></p>
           <ol class="fs-list" id="fsList"></ol>
           <p class="fs-source" id="fsSource"></p>
-        </div>
+        </details>
         <div id="refuelsPeriod"></div>
         <div class="glass costs-hero rf-hero">
           <span class="costs-hero-label" id="rfHeroLabel">Consumo de gasolina</span>

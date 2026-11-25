@@ -1,7 +1,21 @@
 /* EVbro — Repostajes → «Gasolineras cercanas» (features/fuel-stations.js): map with a price pill per station and the list, cheapest first.
    Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
-.fs-card { padding: 1rem; margin-bottom: 12px; }
-.fs-head { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.7rem; }
+.fs-card { padding: 0.35rem 1rem; margin-bottom: 12px; }
+.fs-card[open] { padding-bottom: 1rem; }
+/* the fold: title with an icon and a chevron, 44 px to tap */
+.fs-summary {
+  display: flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; list-style: none;
+  font-size: 1rem; font-weight: 700; color: var(--text-primary); -webkit-tap-highlight-color: transparent;
+}
+.fs-summary::-webkit-details-marker { display: none; }
+.fs-summary-icon {
+  display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 10px;
+  color: var(--accent-amber); background: color-mix(in srgb, var(--accent-amber) 16%, transparent);
+}
+.fs-chev { margin-left: auto; width: 9px; height: 9px; border-right: 2px solid var(--text-muted); border-bottom: 2px solid var(--text-muted); transform: rotate(45deg); transition: transform 0.2s ease; }
+.fs-card[open] > .fs-summary { margin-bottom: 0.7rem; }
+.fs-card[open] > .fs-summary .fs-chev { transform: rotate(-135deg); }
+.fs-head { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.7rem; }
 .fs-fuel { min-height: 40px; max-width: 100%; }
 .fs-map-wrap { position: relative; }
 .fs-map { height: 260px; border-radius: 14px; overflow: hidden; border: 1px solid var(--border-color); z-index: 0; }

@@ -154,7 +154,8 @@
   }
 
   async function load() {
-    if (!$('fsCard') || typeof currentVin === 'undefined' || !currentVin || busy) return;
+    const card = $('fsCard');
+    if (!card || !card.open || typeof currentVin === 'undefined' || !currentVin || busy) return;      // folded: nothing is asked
     if (currentVin !== lastVin) { centre = null; lastVin = currentVin; }
     const select = $('fsFuel');
     if (select) select.value = fuel();
@@ -193,6 +194,21 @@
     centre = { lat: c.lat, lon: c.lng };
     load();
   }
+
+  // the fold: closed by default, remembered on this device; opening it loads the stations (and the map gets its real size)
+  const OPEN_STORE = 'evbro_fuel_open';
+  function wireFold() {
+    const card = $('fsCard');
+    if (!card) return;
+    try { card.open = localStorage.getItem(OPEN_STORE) === '1'; } catch (e) { /* closed */ }
+    card.addEventListener('toggle', () => {
+      try { localStorage.setItem(OPEN_STORE, card.open ? '1' : '0'); } catch (e) { /* not remembered */ }
+      if (!card.open) return;
+      if (map) setTimeout(() => map.invalidateSize(), 50);
+      load();
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wireFold); else wireFold();
 
   window.FuelStations = { load, setFuel, nearCar, searchHere };
 })();

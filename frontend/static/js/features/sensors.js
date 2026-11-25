@@ -214,12 +214,13 @@ function renderAllSensorsList(filterQuery = '', filterCategory = 'all') {
     {
       category: 'battery',
       catName: 'Batería & Rangos',
-      name: 'Consumo Medio de Combustible',
+      // like the electric one, the car's average over its last 50 km, not since new (it was labelled «histórico», 25-11-2026)
+      name: 'Consumo Medio de Combustible Reciente (50 km)',
       key: 'averageFuel',
       haEntity: 'sensor.ebro_consumo_medio_combustible',
       value: data.average_fuel_l100km !== null && data.average_fuel_l100km !== undefined ? `${data.average_fuel_l100km} L/100km` : (raw.averageFuel ? `${raw.averageFuel} L/100km` : 'Sin datos'),
       statusClass: 'parked',
-      details: 'Consumo promedio histórico de combustible'
+      details: 'Consumo de combustible en los últimos 50 km'
     },
     {
       category: 'battery',
