@@ -98,7 +98,9 @@ def pin_change_looks_accepted(answer: dict) -> bool:
 # Read from the official app 1.0.11 («Certificación de propietario» → edit; `CarOwnerCertifyApiService.updateCarInfo` and
 # `fetchCertifyList`, 24-11-2026), not yet sent from here. It is the `nickname` that `queryList` reports and EVbro shows as
 # the car's name. The PUT carries its fields as query parameters, signed with them (`ebro_auth.sign_values`).
-OWNER_CARS_PATH = "/web/car-service/owner/list"
+# The list is the one the car-control screen reads (`marketing/owner-auth/app/list`): the app's `web/car-service/owner/list` lives
+# on another host and the BFF answers it 404 (seen 25-11-2026; the list read fine from the BFF the same day).
+OWNER_CARS_PATH = "/marketing/owner-auth/app/list"
 OWNER_AUTH_PATH = "/marketing/owner-auth/app"
 NICKNAME_MAX_LENGTH = 30             # EVbro's own limit: the app's field limit is not known (the cloud says if it is too long)
 

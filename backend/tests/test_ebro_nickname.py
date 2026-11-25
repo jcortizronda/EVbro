@@ -57,7 +57,7 @@ def test_the_requests_are_the_ones_of_the_app(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr(http.requests, "request", request)
     assert ebro_account.owner_cars(ctx) == [{"vin": VIN, "nickname": "Viejo", "defaultFlag": 1}]
     method, url, headers, params = sent[-1]
-    assert (method, url, params) == ("GET", "https://bff.example/api/web/car-service/owner/list", None)
+    assert (method, url, params) == ("GET", "https://bff.example/api/marketing/owner-auth/app/list", None)
     assert headers["Authorization"] == "Bearer acc-1" and "keys" not in headers
 
     assert ebro_account.accepted(ebro_account.set_car_nickname(ctx, VIN, "Nuevo", 1))
