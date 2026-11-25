@@ -74,9 +74,232 @@
     return out;
   }
 
+  // ───────────────────────── the car as a picture (layers rendered from a 3D model) ─────────────────────────
+  /* When this server has the layers of the car's model (/static/car/<model>/layout.json: the body, and each door, window, hood,
+   * tailgate and roof in each position, with masks of the paint and of the roof), the figure is drawn with them instead of the
+   * plan above: the layer of each part follows what the car reported, the paint takes the colour of the car sheet (a multiply
+   * over a mask, so the shading stays) and an SVG on top keeps the pressures, the lock, the cable and what can be tapped.
+   * Without them (a server without the pictures) the plan stays as it was. */
+  const PHOTO_MODELS = { s700: 's900', s800: 's900', s900: 's900' };     // the S900 pictures stand for the three for now
+  const photo = { state: 'idle', model: null, layout: null, root: null, els: {}, last: null };
+
+  // Ebro's own colour names (Carwow, 25-11-2026), before the generic words; hex sampled from the maker's pictures
+  const EBRO_COLOURS = [
+    ['khaki', '#e4e6ea'], ['nieve', '#eeeeef'], ['phantom', '#6f6d6d'], ['tech', '#6d6a6b'], ['galaxia', '#817b7a'],
+    ['bambu', '#68707a'], ['eclipse', '#555858'], ['carbono', '#1c1c1b'], ['tinta', '#1c1c1b'], ['aurora', '#14211d'],
+    ['blood', '#b51c27'], ['black', '#1c1c1b'], ['white', '#eeeeef'], ['grey', '#8d9096'], ['gray', '#8d9096'], ['red', '#b51c27'],
+    ['green', '#14211d'], ['silver', '#c9cbcf'],
+  ];
+  /** {body, roof}: the paint of the car sheet's colour and, for a two-tone car («bitono», «… + …», «rojo y negro»), its roof. */
+  function photoPaint(name) {
+    const n = String(name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (!n.trim()) return { body: '#d7d9dc', roof: null };
+    // Ebro's names win («Verde Aurora» is Aurora's near-black green, not the generic «verde»); the generic words only when none is there
+    const find = (list) => {
+      const out = [];
+      for (const [word, hex] of list) {
+        const at = n.indexOf(word);
+        if (at >= 0 && !out.some((h) => at >= h.at && at < h.at + h.len)) out.push({ at, len: word.length, hex });
+      }
+      return out.sort((a, b) => a.at - b.at);
+    };
+    const own = find(EBRO_COLOURS);
+    const hits = own.length ? own : find(COLOURS);
+    const body = hits.length ? hits[0].hex : '#d7d9dc';
+    const twoTone = /bitono|bi-tono|two.?tone|\+/.test(n) || (hits.length > 1 && hits[1].hex !== body && / y | and /.test(n));
+    return { body, roof: twoTone ? (hits.find((h) => h.hex !== body) || { hex: '#1c1c1b' }).hex : null };
+  }
+
+  function photoModel() {
+    const v = typeof currentVehicle === 'function' ? currentVehicle() : null;
+    const m = String(v && v.model || '').toLowerCase().match(/s\s?([789])00/);
+    return v && !v.is_manual ? PHOTO_MODELS[m ? `s${m[1]}00` : 's900'] : null;
+  }
+
+  async function loadPhoto() {
+    const model = photoModel();
+    if (!model || photo.state === 'loading' || (photo.state === 'ready' && photo.model === model)) return;
+    photo.state = 'loading';
+    try {
+      const res = await fetch(`/static/car/${model}/layout.json`);
+      if (!res.ok) throw new Error(res.status);
+      photo.layout = await res.json();
+      photo.model = model;
+      buildPhoto();
+      showCredit(photo.layout.credit);
+      photo.state = 'ready';
+      if (photo.last) renderCarFigure(photo.last);
+    } catch (e) {
+      photo.state = 'none';                               // no pictures on this server: the plan stays
+    }
+  }
+
+  function buildPhoto() {
+    const L = photo.layout;
+    const base = `/static/car/${photo.model}/`;
+    const fig = $('carFigure');
+    let root = $('cfPhoto');
+    if (!root) {
+      root = document.createElement('div');
+      root.id = 'cfPhoto';
+      root.className = 'cf-photo';
+      fig.insertBefore(root, $('carFigureSummary'));
+    }
+    root.innerHTML = '';
+    root.style.aspectRatio = `${L.width} / ${L.height}`;
+    photo.els = {};
+    for (const key of L.layers) {
+      const layer = document.createElement('div');
+      layer.className = 'cf-layer';
+      layer.dataset.layer = key;
+      const img = document.createElement('img');
+      img.src = `${base}${key}.webp`;
+      img.alt = '';
+      img.decoding = 'async';
+      layer.appendChild(img);
+      for (const [cls, file] of [['cf-tint', `${key}.mask.webp`], ...((L.roof_layers || []).includes(key) ? [['cf-tint cf-tint-roof', `${key}.roof.webp`]] : [])]) {
+        const tint = document.createElement('span');
+        tint.className = cls;
+        tint.style.maskImage = tint.style.webkitMaskImage = `url("${base}${file}")`;
+        layer.appendChild(tint);
+      }
+      root.appendChild(layer);
+      photo.els[key] = layer;
+    }
+    root.appendChild(buildOverlay(L));
+    photo.root = root;
+  }
+
+  /** Ajustes → Versión: where the car's picture comes from, as the licence of its 3D model asks (title, author, licence, links). */
+  function showCredit(c) {
+    const box = $('carPictureCredit');
+    if (!box || !c || !c.title) return;
+    const link = (text, href) => {
+      if (!href) return document.createTextNode(text);
+      const a = document.createElement('a');
+      a.href = href; a.target = '_blank'; a.rel = 'noopener'; a.textContent = text;
+      return a;
+    };
+    box.replaceChildren(document.createTextNode(`${t('Imagen del coche basada en')} «`), link(c.title, c.url), document.createTextNode('», '),
+      link(c.author, c.author_url), document.createTextNode(' · '), link(c.license, c.license_url));
+    box.hidden = false;
+  }
+
+  /** The SVG on top of the picture, in its pixels: highlights of the windows and the roof, what can be tapped, pressures, lock, cable. */
+  function buildOverlay(L) {
+    const NS = 'http://www.w3.org/2000/svg';
+    const el = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v)); if (parent) parent.appendChild(e); return e; };
+    const svg = el('svg', { viewBox: `0 0 ${L.width} ${L.height}`, class: 'cf-overlay', role: 'img', 'aria-labelledby': 'carFigureSummary' });
+    const P = L.parts;
+    const rect = (b, attrs, parent) => el('rect', { x: b[0], y: b[1], width: b[2] - b[0], height: b[3] - b[1], ...attrs }, parent);
+    const ACTION = { trunk: 'openTrunkActionSheet()', hood: '', sunroof: 'openSunroofActionSheet()' };
+    // window strips: the glass hardly shows from above, so an open or ajar window is drawn in amber over its door
+    for (const k of ['fl', 'fr', 'rl', 'rr']) {
+      const b = P[`win-${k}`];
+      if (!b) continue;
+      const top = k === 'fr' || k === 'rr';                // the car's right side is the top of the picture
+      const h = 9, y = top ? b[1] + 2 : b[3] - 2 - h;
+      const g = el('g', { class: 'cf-hl cf-hl-window', 'data-part': `win-${k}`, 'data-state': 'unknown', 'data-on-click': 'openWindowsActionSheet()' }, svg);
+      el('rect', { x: b[0] + 6, y, width: b[2] - b[0] - 12, height: h, rx: 4.5 }, g);
+      el('title', {}, g).textContent = PART_LABELS[`win-${k}`];
+    }
+    if (P.sunroof) {
+      const g = el('g', { class: 'cf-hl cf-hl-roof', 'data-part': 'sunroof', 'data-state': 'unknown', 'data-on-click': ACTION.sunroof }, svg);
+      rect(P.sunroof, { rx: 10 }, g);
+      el('title', {}, g).textContent = PART_LABELS.sunroof;
+    }
+    // what can be tapped (invisible), from the closed parts
+    for (const [part, action] of [['trunk', ACTION.trunk], ['door-fl', 'openWindowsActionSheet()'], ['door-fr', 'openWindowsActionSheet()'],
+      ['door-rl', 'openWindowsActionSheet()'], ['door-rr', 'openWindowsActionSheet()']]) {
+      if (P[part] && action) rect(P[part], { class: 'cf-hit', 'data-on-click': action }, svg);
+    }
+    // pressures outside the body, beside each wheel
+    const body = L.body;
+    for (const [k, w] of Object.entries(L.wheels || {})) {
+      const top = k.endsWith('r');
+      const g = el('g', { class: 'cf-pill', 'data-pill': k, 'data-state': 'unknown', transform: `translate(${w[0]} ${top ? body[1] - 24 : body[3] + 24})` }, svg);
+      el('rect', { x: -34, y: -15, width: 68, height: 30, rx: 15 }, g);
+      const text = el('text', { class: 'cf-tyre', y: 7 }, g);
+      text.id = `cfPhotoTyre${k.toUpperCase()}`;
+    }
+    // lock on the hood, cable at the rear left corner (as in the plan)
+    const hood = P.hood || body;
+    const lock = el('g', { class: 'cf-lock', 'data-part': 'lock', 'data-state': 'unknown', 'data-on-click': 'toggleLockState()',
+      transform: `translate(${(hood[0] + hood[2]) / 2 - 20} ${(hood[1] + hood[3]) / 2 - 22}) scale(2)` }, svg);
+    el('title', {}, lock).textContent = 'Cierre centralizado';
+    el('path', { class: 'cf-lock-shackle', d: 'M6 10V7a4 4 0 0 1 8 0v3' }, lock);
+    el('rect', { x: 3, y: 10, width: 14, height: 11, rx: 2.5 }, lock);
+    const cable = el('g', { class: 'cf-cable', 'data-part': 'cable', 'data-state': 'off', transform: `translate(${body[2] - 40} ${body[3] - 6}) scale(2.2)` }, svg);
+    el('title', {}, cable).textContent = 'Cable de carga';
+    el('circle', { r: 7.5 }, cable);
+    el('path', { d: 'm-3 -1 h3 m-3 3 h3 m0 -5.5 v8 m0 -4 h3.5' }, cable);      // the plan's plug, in relative steps
+    return svg;
+  }
+
+  /** Window and roof positions: 0 closed; windows 1-2 ajar («Ventilar»), 3/10 open; roof 2 ajar (tilted), 3 open. */
+  const windowLevel = (v) => (!known(v) ? 'unknown' : Number(v) === 0 ? 'closed' : [1, 2].includes(Number(v)) ? 'vent' : 'open');
+  const roofLevel = (v) => (!known(v) ? 'unknown' : Number(v) === 0 ? 'closed' : Number(v) === 2 ? 'tilt' : 'open');
+
+  function renderPhoto(data) {
+    const root = photo.root;
+    if (!root) return;
+    const doors = data.doors || {};
+    const windows = data.windows || {};
+    const paint = photoPaint((typeof currentVehicle === 'function' ? currentVehicle() : null)?.color);
+    root.style.setProperty('--cf-paint', paint.body);
+    root.style.setProperty('--cf-paint-roof', paint.roof || paint.body);
+    const show = (key, on, state) => {
+      const layer = photo.els[key];
+      if (!layer) return;
+      layer.hidden = !on;
+      if (state) layer.dataset.state = state;
+    };
+    show('base', true);
+    const panel = (part, value) => {
+      const state = !known(value) ? 'unknown' : value ? 'open' : 'closed';
+      show(`${part}.closed`, state !== 'open', state);
+      show(`${part}.open`, state === 'open', state);
+    };
+    ['hood', 'trunk'].forEach((p) => panel(p, doors[p]));
+    for (const k of ['fl', 'fr', 'rl', 'rr']) {
+      panel(`door-${k}`, doors[k]);
+      const w = windowLevel(windows[k]);
+      const doorOpen = known(doors[k]) && Boolean(doors[k]);
+      show(`win-${k}.closed`, !doorOpen && (w === 'closed' || w === 'unknown'), w);
+      show(`win-${k}.vent`, !doorOpen && w === 'vent', w);
+      const hl = root.querySelector(`.cf-hl[data-part="win-${k}"]`);
+      if (hl) hl.dataset.state = w;
+    }
+    const r = roofLevel(windows.sunroof);
+    show('sunroof.closed', r === 'closed' || r === 'unknown', r);
+    show('sunroof.tilt', r === 'tilt', r);
+    show('sunroof.open', r === 'open', r);
+    const roofHl = root.querySelector('.cf-hl[data-part="sunroof"]');
+    if (roofHl) roofHl.dataset.state = r;
+    const lock = root.querySelector('[data-part="lock"]');
+    if (lock) lock.dataset.state = data.is_locked === true ? 'locked' : data.is_locked === false ? 'unlocked' : 'unknown';
+    const cable = root.querySelector('[data-part="cable"]');
+    if (cable) cable.dataset.state = data.cable_connected === true ? (data.is_charging ? 'charging' : 'plugged') : 'off';
+    const warn = tyreWarnings(data);
+    const tp = data.tyre_pressures || {};
+    for (const k of ['fl', 'fr', 'rl', 'rr']) {
+      const bar = tp[k];
+      const has = known(bar) && bar > 0;
+      const pill = root.querySelector(`.cf-pill[data-pill="${k}"]`);
+      if (pill) pill.dataset.state = !has ? 'unknown' : warn[k] ? 'warn' : 'ok';
+      const text = $(`cfPhotoTyre${k.toUpperCase()}`);
+      if (text) text.textContent = has ? historyNum(bar, 1) : '';
+    }
+  }
+
   function renderCarFigure(data) {
     const root = $('carFigure');
     if (!root || !data) return;
+    photo.last = data;
+    const wanted = photoModel();
+    if (wanted && (photo.state === 'idle' || (photo.state === 'ready' && photo.model !== wanted))) loadPhoto();
+    root.classList.toggle('has-photo', Boolean(wanted) && photo.state === 'ready' && photo.model === wanted);
+    if (root.classList.contains('has-photo')) renderPhoto(data);
     const doors = data.doors || {};
     const windows = data.windows || {};
     applyCarColour(root);
@@ -103,8 +326,14 @@
     // The hood is left out of that list: many cars never report it, and «sin dato de capó» on every reading was noise
     // (owner, 2026-11-01). It still shows open when the car says so, and stays dashed grey in the drawing without data.
     const values = Object.values(states);
-    const open = Object.entries(states).filter(([, v]) => known(v) && Boolean(v)).map(([k]) => PART_LABELS[k]);   // the car sends 0/1
-    const pending = Object.entries(states).filter(([k, v]) => !known(v) && k !== 'hood').map(([k]) => PART_LABELS[k]);
+    // Each label translated on its own (the joined line is no key of the dictionaries); a window or the roof left ajar says so
+    const label = (k, v) => {
+      if (k.startsWith('win-') && [1, 2].includes(Number(v))) return t('{p0} entreabierta', {p0: t(PART_LABELS[k])});
+      if (k === 'sunroof' && Number(v) === 2) return t('Techo entreabierto');
+      return t(PART_LABELS[k]);
+    };
+    const open = Object.entries(states).filter(([, v]) => known(v) && Boolean(v)).map(([k, v]) => label(k, v));   // the car sends 0/1
+    const pending = Object.entries(states).filter(([k, v]) => !known(v) && k !== 'hood').map(([k]) => t(PART_LABELS[k]));
     const summary = $('carFigureSummary');
     if (summary) {
       if (values.every((v) => !known(v))) { summary.textContent = 'Sin datos del coche'; summary.dataset.state = 'unknown'; }

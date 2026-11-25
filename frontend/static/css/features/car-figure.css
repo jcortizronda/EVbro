@@ -87,3 +87,33 @@
 .cf-cable circle { fill: var(--accent); stroke: var(--surface); stroke-width: 1.5; }
 .cf-cable[data-state="charging"] circle { fill: var(--accent-green); }
 .cf-cable path { stroke: var(--surface); stroke-width: 1.4; fill: none; }
+
+/* ───── The car as a picture (layers rendered from a 3D model; features/car-figure.js, «photo»). Without the pictures the plan
+   above stays. The paint is a colour multiplied over each layer through its paint mask, so the shading of the render stays. ───── */
+.car-figure.has-photo > svg { display: none; }
+.car-figure:not(.has-photo) .cf-photo { display: none; }
+.cf-photo { position: relative; width: 100%; max-width: 440px; margin: 0 auto; isolation: isolate; --cf-paint: #d7d9dc; --cf-paint-roof: var(--cf-paint); }
+.cf-layer { position: absolute; inset: 0; transition: opacity 0.25s ease; }
+.cf-layer[hidden] { display: none; }
+.cf-layer img { display: block; width: 100%; height: 100%; }
+.cf-layer[data-layer="base"] img { filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.28)); }
+.cf-tint {
+  position: absolute; inset: 0; pointer-events: none; background: var(--cf-paint); mix-blend-mode: multiply;
+  -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+}
+.cf-tint-roof { background: var(--cf-paint-roof); }
+/* open parts glow amber (the colour that means «open» everywhere in EVbro); a part without data is shown faded, never as «closed» */
+.cf-layer[data-state="open"] img { filter: drop-shadow(0 0 3px rgba(255, 159, 10, 0.95)) drop-shadow(0 0 7px rgba(255, 159, 10, 0.55)); }
+.cf-layer[data-state="unknown"] { opacity: 0.45; }
+
+.car-figure .cf-overlay { position: absolute; inset: 0; width: 100%; max-width: none; height: 100%; margin: 0; overflow: visible; pointer-events: none; }
+.cf-overlay .cf-hit, .cf-overlay .cf-hl, .cf-overlay .cf-lock { pointer-events: all; cursor: pointer; }
+.cf-hit { fill: transparent; }
+.cf-hl rect { fill: transparent; stroke: transparent; transition: fill 0.2s ease, stroke 0.2s ease; }
+.cf-hl-window[data-state="open"] rect { fill: rgba(255, 159, 10, 0.88); }
+.cf-hl-window[data-state="vent"] rect { fill: rgba(255, 159, 10, 0.3); stroke: var(--accent-amber); stroke-width: 3; stroke-dasharray: 9 6; }
+.cf-hl-roof[data-state="open"] rect { stroke: var(--accent-amber); stroke-width: 6; }
+.cf-hl-roof[data-state="tilt"] rect { stroke: var(--accent-amber); stroke-width: 5; stroke-dasharray: 14 9; }
+.cf-overlay .cf-pill rect { stroke-width: 2; }
+.cf-overlay .cf-tyre { font-size: 21px; }
+.car-credit { font-size: 0.75rem; margin: 0.5rem 0 0; overflow-wrap: anywhere; }

@@ -38,14 +38,15 @@ with sync_playwright() as p:
         pg.screenshot(path=f"{OUT}/inicio-cerrado-{theme}.png")
         # car figure: compact, and each part with the state the car reported
         box=pg.evaluate("(() => { const r=document.getElementById('carFigure').getBoundingClientRect(); return [r.width, r.height]; })()")
-        ok(box[1] <= 170 and box[0] <= 390, f"the car figure is compact ({box[0]:.0f}×{box[1]:.0f} px)")
+        photo=pg.evaluate("document.getElementById('carFigure').classList.contains('has-photo')")   # the car's pictures (private server) or the plan
+        ok(box[1] <= (340 if photo else 170) and box[0] <= 390, f"the car figure is compact ({box[0]:.0f}×{box[1]:.0f} px, {'picture' if photo else 'plan'})")
         st=lambda part: pg.get_attribute(f'#carFigure [data-part="{part}"]','data-state')
         ok(st("trunk")=="closed" and st("sunroof")=="closed" and st("win-fl")=="closed" and st("lock")=="locked", "figure: trunk, sunroof and window closed; lock locked")
         tel(doors={"hood":None,"fl":None})
         ok(st("hood")=="unknown" and st("door-fl")=="unknown" and st("trunk")=="closed", "figure: hood and doors without data stay as «sin datos», not closed")
         tel(is_locked=False, doors={"trunk":1}, windows={"fl":1,"sunroof":1})
         ok(txt("#cardLockStatus")=="Abierto" and txt("#cardTrunkStatus")=="Abierto" and txt("#cardSunroofStatus")=="Abierto","lock/trunk/sunroof «Abierto»")
-        ok(st("trunk")=="open" and st("win-fl")=="open" and st("lock")=="unlocked" and txt("#carFigureSummary")=="Maletero · Techo · Ventanilla del. izq.", f"figure: open parts in amber and summary ({txt('#carFigureSummary')})")
+        ok(st("trunk")=="open" and st("win-fl")=="open" and st("lock")=="unlocked" and txt("#carFigureSummary")=="Maletero · Techo · Ventanilla del. izq. entreabierta", f"figure: open parts in amber and summary ({txt('#carFigureSummary')})")
         tel(doors={"fl":0,"fr":0,"rl":0,"rr":0,"hood":0,"trunk":0}, windows={"fl":0,"sunroof":0}, tyre_pressures={"fl":2.4,"fr":2.4,"rl":2.3,"rr":1.8}, tyre_warnings={"rr":True})
         ok(txt("#carFigureSummary")=="Todo cerrado" and pg.text_content("#cfTyreRR")=="1,8" and pg.get_attribute('#carFigure [data-wheel="rr"]','data-state')=="warn", "figure: «Todo cerrado» and the flagged wheel in red with its pressure")
         pg.screenshot(path=f"{OUT}/figura-{theme}.png")

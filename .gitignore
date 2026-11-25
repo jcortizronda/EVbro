@@ -28,3 +28,5 @@ dist/
 # Directorios de trabajo de agentes y capturas locales
 .claude/worktrees/
 shots/
+
+# downloaded 3D models of the car (tools/car3d/README.md): never in any repository
