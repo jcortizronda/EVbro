@@ -19,7 +19,7 @@ Cada gasto se puede editar y borrar; la pantalla filtra por año y categoría y 
 ## Vencimientos y avisos (`services/renewal_alerts.py`)
 
 Dos fuentes: la **renovación del seguro** de la ficha (`insurance_renewal_date`) y el último gasto de cada concepto con `next_due_date` (cuando se registra el pago del año siguiente, el aviso pasa al nuevo).
-Un gasto de seguro con fecha no se avisa si la ficha ya tiene la renovación. Son **tres avisos**, uno por tramo: a **30 días**, en la **última semana** y al **vencer** (hasta el 18-11-2026 se repetían cada semana, cada día y cada 3 días). El poller comprueba cada 6 h y el interruptor está en Ajustes → Avisos («Vencimientos», `notify_renewals`).
+Un gasto de seguro con fecha no se avisa si la ficha ya tiene la renovación. Son **tres avisos**, uno por tramo: a **30 días**, en la **última semana** y al **vencer** (hasta el 18-11-2026 se repetían cada semana, cada día y cada 3 días). El **seguro** (la fecha de la ficha o un gasto de seguro con próxima fecha) tiene además dos tramos antes, a **60** y **45 días** (`INSURANCE_EARLY_DAYS`, claves `…:d60` y `…:d45`, desde el 25-11-2026): la póliza se renueva sola si no se avisa a la aseguradora con un mes de antelación. El poller comprueba cada 6 h y el interruptor está en Ajustes → Avisos («Vencimientos», `notify_renewals`).
 
 ## Ficha del coche (Más → Coches)
 

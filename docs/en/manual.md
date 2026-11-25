@@ -78,7 +78,7 @@ The menu with the remaining sections. On a computer, the side bar groups them as
 
 **Maintenance.** Two plans: the **official EBRO** one (the maker's schedule: 15,000 to 90,000 km, with what is replaced and inspected at each service and the official workshop time; each service is due 15,000 km or 12 months after the previous one recorded) or a **custom** one with your own tasks and intervals in kilometres or months. The **ITV** (roadworthiness test) is worked out from the registration date (or from the sticker you enter). Record each **service**, **one-off job** (pads, 12 V battery…) or ITV with date, kilometres, garage, cost, notes, the **parts fitted** and the **invoice** as PDF or photo; a wrong record is deleted with the bin in the history (if it was an official service, it becomes pending again). Maintenance alerts go out through the channels in Settings → Alerts.
 
-**Expenses.** Insurance, taxes, garage, tolls, fines and other payments, by category. For recurring ones (insurance, tax) you set the **next time** and EVbro reminds you 30 days before.
+**Expenses.** Insurance, taxes, garage, tolls, fines and other payments, by category. For recurring ones (insurance, tax) you set the **next time** and EVbro reminds you 30 days before, in the last week and when it is due. The **insurance** also reminds you **60 and 45 days** before: in Spain a policy renews itself unless the insurer is told a month ahead, so there is time to compare.
 
 **Costs.** The balance of everything: purchase, charges, fuel-ups, maintenance and expenses; total since purchase, running cost, cost per 100 km and by category, with a monthly chart and the period picker.
 

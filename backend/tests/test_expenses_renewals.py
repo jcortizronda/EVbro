@@ -94,7 +94,13 @@ async def renewals_at(now):
 
 async def test_insurance_renewal_alert_by_stages(web) -> None:
     await web.put(f"/api/vehicles/{VIN}", json={"insurance_renewal_date": "2026-12-01T00:00:00"})
-    assert await renewals_at(D(2026, 10, 1)) == []                                            # 61 days left
+    assert await renewals_at(D(2026, 9, 30)) == []                                            # 62 days left
+    (a,) = await renewals_at(D(2026, 10, 2))                                                   # 60 days: time to compare and give notice
+    assert a["key"] == "insurance:d60" and a["remaining_days"] == 60
+    (a,) = await renewals_at(D(2026, 10, 10))                                                  # 52 days: still the same band, no new alert
+    assert a["key"] == "insurance:d60"
+    (a,) = await renewals_at(D(2026, 10, 17))                                                  # 45 days
+    assert a["key"] == "insurance:d45" and a["remaining_days"] == 45
     (a,) = await renewals_at(D(2026, 11, 10))                                                  # 21 days
     assert a["key"] == "insurance:warning" and a["remaining_days"] == 21
     (a,) = await renewals_at(D(2026, 11, 28))
@@ -109,6 +115,13 @@ async def test_an_expense_with_a_next_date_alerts_until_the_next_year_one_is_rec
     assert a["remaining_days"] == 14 and "IVTM 2026" in a["label"]
     await add_expense(web, date="2027-02-20T00:00:00", title="IVTM 2026", amount=88, next_due_date="2028-03-01T00:00:00")   # already paid: the new one rules
     assert await renewals_at(D(2027, 2, 25)) == []
+
+
+async def test_an_insurance_expense_alerts_at_60_and_45_days_and_other_expenses_only_from_30(web) -> None:
+    await add_expense(web, category="insurance", title="Seguro", amount=400, next_due_date="2026-12-01T00:00:00", date="2025-12-01T00:00:00")
+    await add_expense(web, next_due_date="2026-12-01T00:00:00")                                # a tax due the same day
+    alerts = await renewals_at(D(2026, 10, 10))                                                # 52 days
+    assert [a["key"].split(":")[-1] for a in alerts] == ["d60"] and "Seguro" in alerts[0]["label"]
 
 
 async def test_insurance_dated_in_the_profile_is_not_alerted_twice(web) -> None:

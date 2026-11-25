@@ -79,7 +79,7 @@ El menú con el resto de secciones. En el ordenador, la barra lateral las agrupa
 
 **Mantenimiento.** Dos planes: el **oficial de EBRO** (la pauta de la marca: 15.000 a 90.000 km, con lo que se reemplaza y se inspecciona en cada revisión y el tiempo oficial de taller; cada revisión vence 15.000 km o 12 meses después de la anterior registrada) o uno **personalizado** con tus tareas e intervalos en kilómetros o meses. La **ITV** se calcula desde la matriculación (o desde la pegatina que indiques). Registra cada **revisión**, **intervención puntual** (pastillas, batería de 12 V…) o ITV con fecha, kilómetros, taller, coste, notas, las **piezas montadas** y la **factura** en PDF o foto; un registro equivocado se borra con la papelera del historial (si era una revisión oficial, vuelve a quedar pendiente). Los avisos de mantenimiento salen por los canales de Ajustes → Avisos.
 
-**Gastos.** Seguro, impuestos, garaje, peajes, multas y otros pagos, con categoría. Para los que se repiten (seguro, impuesto) se indica la **próxima vez** y EVbro avisa 30 días antes.
+**Gastos.** Seguro, impuestos, garaje, peajes, multas y otros pagos, con categoría. Para los que se repiten (seguro, impuesto) se indica la **próxima vez** y EVbro avisa 30 días antes, en la última semana y al vencer. El **seguro** avisa además a los **60 y 45 días**: en España se renueva solo si no se avisa a la aseguradora con un mes de antelación, y así hay tiempo de comparar.
 
 **Costes.** El balance de todo: compra, cargas, repostajes, mantenimiento y gastos; total desde la compra, gasto de uso, coste por 100 km y por categoría, con gráfica mensual y selector de periodo.
 
