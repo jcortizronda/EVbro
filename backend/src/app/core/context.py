@@ -104,6 +104,8 @@ class CoreCtx:
     channel_id: str = DEFAULT_CHANNEL_ID
     country_id: str = DEFAULT_COUNTRY_ID
     tenant_code: str = DEFAULT_TENANT_CODE
+    # `Accept-Language` of the requests: the cloud writes its messages and SMS in it (the app sends the user's language)
+    accept_language: str = "it-IT"
 
     # — behaviour —
     # automatic taskId minting: without it, commands cannot go out (they need a

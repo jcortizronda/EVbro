@@ -157,13 +157,14 @@ def headers_post(url_path: str, secret: str=SIGN_SECRET, nonce: str=SIGN_NONCE,
     channel_id = ctx.channel_id if ctx is not None else CHANNEL_ID
     country_id = ctx.country_id if ctx is not None else COUNTRY_ID
     tenant = ctx.tenant_code if ctx is not None else TENANT_CODE
+    language = getattr(ctx, "accept_language", None) or "it-IT"
     sig, ts, keys = sign_values(url_path, values or {}, secret=secret, nonce=nonce)
     # FULL header set as the app sends it (http_config.dart headersJson + headerSignature).
     # Content-Type/Authorization override the token builder's extraHeaderParams.
     h = {
         "Accept": "application/json, text/plain, */*",
         "Content-Type": "application/x-www-form-urlencoded",
-        "Accept-Language": "it-IT",
+        "Accept-Language": language,
         "Accept-Encoding": "gzip, deflate",
         "agent": "android",
         "version": APP_VERSION,

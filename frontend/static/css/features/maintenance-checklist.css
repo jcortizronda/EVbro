@@ -41,6 +41,15 @@
   filter: invert(1);
 }
 
+/* Dialogs with the Ebro logo: the logo on top, the title under it */
+.ebro-dialog-head {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
 .ebro-title-block h3 {
   font-size: 1.15rem;
   font-weight: 800;

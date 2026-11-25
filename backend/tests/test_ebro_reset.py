@@ -250,3 +250,22 @@ async def test_wrong_codes_wait_and_a_good_password_reset_keeps_the_new_one(web,
     acc = await _account()
     assert acc.password == "Nueva#2026" and acc.token_data == {"access_token": "n"}
     assert (await web.post("/api/account/ebro-reset/password", json={"code": "123456", "new_password": "corta"})).status_code == 422
+
+
+async def test_ebro_writes_the_sms_in_the_users_language(web, monkeypatch) -> None:
+    """The cloud wrote the SMS in Italian (25-11-2026): the requests said `Accept-Language: it-IT`. The reset speaks the user's."""
+    langs = []
+    monkeypatch.setattr(routes_account, "reset_captcha", lambda ctx: langs.append(ctx.accept_language) or
+                        {"background": "BG", "piece": "PC", "token": "TK", "secret_key": KEY})
+    monkeypatch.setattr(routes_account, "reset_send_sms", lambda ctx, *a: langs.append(ctx.accept_language) or
+                        {"sent": True, "captcha_failed": False, "reason": None})
+    await web.post("/api/account/ebro-reset/captcha", json={"purpose": "password"})
+    await web.post("/api/account/ebro-reset/sms", json={"x": 50})
+    async with async_session_factory() as s:
+        (await s.execute(select(AppUser).where(AppUser.id == 1))).scalar_one().language = "pt"
+        await s.commit()
+    await web.post("/api/account/ebro-reset/captcha", json={"purpose": "password"})
+    assert langs == ["es-ES", "es-ES", "pt-PT"]
+    ctx = CoreCtx(vin=VIN, accept_language="pt-PT")
+    assert ebro_auth.headers_post("/x", ctx=ctx)["Accept-Language"] == "pt-PT"
+    assert ebro_auth.headers_post("/x", ctx=CoreCtx(vin=VIN))["Accept-Language"] == "it-IT"     # everything else: as before

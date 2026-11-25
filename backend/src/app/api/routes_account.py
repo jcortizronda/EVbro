@@ -19,7 +19,7 @@ from app.core import ebro_account, ebro_login, ebro_reset
 from app.core.errors import CommandError
 from app.db.models import AppUser, EbroAccount, MqttLink, Vehicle
 from app.db.session import get_db
-from app.i18n import _
+from app.i18n import _, get_language
 from app.security import auth, passwords
 from app.security.access import foreign_vins, is_root, space_owner_id, within_vehicle_limit
 from app.security.throttle import LoginThrottle
@@ -507,6 +507,16 @@ async def _reset_account(session: AsyncSession, user: AppUser) -> EbroAccount:
     return account
 
 
+EBRO_LANGUAGES = {"es": "es-ES", "en": "en-GB", "pt": "pt-PT"}     # the app's own `Accept-Language` values
+
+
+def _reset_ctx(account: EbroAccount, user: AppUser):
+    """The account's context, speaking the user's language: Ebro writes the SMS and its messages in it (it used to be Italian)."""
+    ctx = account_ctx(account_session_path(account.id))
+    ctx.accept_language = EBRO_LANGUAGES.get(user.language or get_language(), "es-ES")
+    return ctx
+
+
 def _no_session(e: RuntimeError) -> HTTPException:
     if str(e) != "no_usertoken":
         raise e
@@ -527,7 +537,7 @@ async def reset_captcha_route(req: ResetCaptchaIn, session: AsyncSession = Depen
     """A puzzle from the Ebro cloud: the background, the piece and the width `x` is measured on."""
     account = await _reset_account(session, user)
     _check_throttle((ebro_sms_throttle, f"sms:{account.id}"))
-    ctx = account_ctx(account_session_path(account.id))
+    ctx = _reset_ctx(account, user)
     try:
         puzzle = await asyncio.get_running_loop().run_in_executor(None, reset_captcha, ctx)
     except RuntimeError as e:
@@ -553,7 +563,7 @@ async def reset_sms_route(req: ResetSmsIn, session: AsyncSession = Depends(get_d
         raise HTTPException(status_code=409, detail=_("El captcha ha caducado: pide otro."))
     key = f"sms:{account.id}"
     _check_throttle((ebro_sms_throttle, key))
-    ctx = account_ctx(account_session_path(account.id))
+    ctx = _reset_ctx(account, user)
     try:
         outcome = await asyncio.get_running_loop().run_in_executor(
             None, reset_send_sms, ctx, account.phone, account.area_code or "34", RESET_PURPOSES[pending["purpose"]],
@@ -627,7 +637,7 @@ async def reset_password_route(req: ResetPasswordIn, session: AsyncSession = Dep
     _check_throttle((ebro_code_throttle, key))
     path = account_session_path(account.id)
     try:
-        outcome = await asyncio.get_running_loop().run_in_executor(None, reset_password_with_code, account_ctx(path), path,
+        outcome = await asyncio.get_running_loop().run_in_executor(None, reset_password_with_code, _reset_ctx(account, user), path,
                                                                    account.phone, account.area_code or "34", req.code.strip(),
                                                                    req.new_password)
     except RuntimeError as e:
