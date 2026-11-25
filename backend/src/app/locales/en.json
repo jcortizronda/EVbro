@@ -360,5 +360,13 @@
  "La sesión de la cuenta de Ebro no abre: vuelve a conectarla antes de cambiar el nombre.": "The Ebro account session does not open: connect the account again before changing the name.",
  "Ebro aceptó el nombre, pero la cuenta todavía muestra el anterior; puede que lo revise antes de aplicarlo. EVBro no lo ha cambiado.": "Ebro accepted the name, but the account still shows the old one; it may review it before applying it. EVBro has not changed it.",
  "Ebro no ha cambiado el nombre: {p0}": "Ebro did not change the name: {p0}",
- "El PIN de Ebro tiene 6 dígitos.": "The Ebro PIN has 6 digits."
+ "El PIN de Ebro tiene 6 dígitos.": "The Ebro PIN has 6 digits.",
+ "La sesión de la cuenta de Ebro no abre: vuelve a conectarla antes de restablecer.": "The Ebro account session does not open: connect the account again before resetting.",
+ "Ebro no ha dado el captcha. Inténtalo de nuevo en unos minutos.": "Ebro did not give the captcha. Try again in a few minutes.",
+ "El captcha ha caducado: pide otro.": "The captcha has expired: ask for another one.",
+ "La pieza no ha encajado. Prueba con otro captcha.": "The piece did not fit. Try another captcha.",
+ "Ebro no ha enviado el SMS: {p0}": "Ebro did not send the SMS: {p0}",
+ "Ebro respondió sin error, pero todavía no acepta el PIN nuevo. Prueba en unos minutos una orden con el PIN nuevo; EVBro no ha cambiado el PIN guardado.": "Ebro answered without an error but does not accept the new PIN yet. In a few minutes try a command with the new PIN; EVBro has not changed the saved PIN.",
+ "Ebro no ha restablecido el PIN: {p0}": "Ebro did not reset the PIN: {p0}",
+ "Ebro no ha restablecido la contraseña: {p0}": "Ebro did not reset the password: {p0}"
 }

@@ -398,6 +398,161 @@ async function submitEbroPin() {
 }
 
 
+// ───────────────────────── Resetting the Ebro password or PIN with a code by SMS ─────────────────────────
+// The cloud only sends the SMS after a puzzle: the piece is slid along the background and `x` is measured on the cloud's 310 px wide
+// image, whatever width it is shown at (core/ebro_reset.py).
+window.EbroReset = (function () {
+  const el = (id) => document.getElementById(id);
+  let purpose = 'pin';
+  let width = 310;            // the width `x` is measured on (the server says it)
+  let busy = false;
+
+  function error(text) { const box = el('ebroResetError'); box.textContent = text || ''; box.hidden = !text; }
+  function step(code) {
+    el('ebroResetStepCaptcha').hidden = code;
+    el('ebroResetStepCode').hidden = !code;
+    el('btnEbroResetSubmit').hidden = !code;
+  }
+  /** Pixels on the shown background that the slider stands for, and the scale from the cloud's image to it. */
+  function geometry() {
+    const shown = el('ebroCaptchaBg').clientWidth || width;
+    const piece = el('ebroCaptchaPiece').clientWidth || 0;
+    return { scale: shown / width, travel: Math.max(0, shown - piece) };
+  }
+  function move(value) {
+    const { travel } = geometry();
+    el('ebroCaptchaPiece').style.left = `${(travel * value) / 1000}px`;
+  }
+
+  async function newCaptcha(keepError) {
+    if (!keepError) error('');
+    el('ebroCaptchaSlider').value = 0;
+    el('ebroCaptchaSlider').disabled = true;
+    el('ebroCaptchaLoading').hidden = false;
+    el('ebroCaptchaBg').removeAttribute('src');
+    el('ebroCaptchaPiece').removeAttribute('src');
+    try {
+      const res = await fetch('/api/account/ebro-reset/captcha', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ purpose }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(typeof data.detail === 'string' ? data.detail : res.status);
+      width = data.width || 310;
+      el('ebroCaptchaBg').src = `data:image/png;base64,${data.background}`;
+      el('ebroCaptchaPiece').src = `data:image/png;base64,${data.piece}`;
+      el('ebroCaptchaLoading').hidden = true;
+      el('ebroCaptchaSlider').disabled = false;
+      move(0);
+    } catch (e) {
+      el('ebroCaptchaLoading').hidden = true;
+      error(t('No se pudo cargar el captcha: {p0}', {p0: e.message || e}));
+    }
+  }
+
+  async function release() {
+    if (busy || el('ebroCaptchaSlider').disabled) return;
+    const value = Number(el('ebroCaptchaSlider').value);
+    if (!value) return;
+    const { scale, travel } = geometry();
+    const x = Math.round(((travel * value) / 1000 / scale) * 100) / 100;
+    busy = true;
+    el('ebroCaptchaSlider').disabled = true;
+    error('');
+    try {
+      const res = await fetch('/api/account/ebro-reset/sms', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ x }) });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 422 || res.status === 409) {           // the piece did not fit, or the puzzle expired: a new one
+        error(typeof data.detail === 'string' ? data.detail : t('La pieza no ha encajado. Prueba con otro captcha.'));
+        busy = false;
+        await newCaptcha(true);                                   // the reason stays on screen
+        return;
+      }
+      if (!res.ok) throw new Error(typeof data.detail === 'string' ? data.detail : res.status);
+      el('ebroResetSent').textContent = t('Ebro ha enviado un código por SMS a {p0}. Escríbelo aquí.', {p0: data.phone || t('tu teléfono')});
+      step(true);
+      el('ebroResetCode').focus();
+    } catch (e) {
+      error(e.message || String(e));
+      el('ebroCaptchaSlider').disabled = false;
+    } finally {
+      busy = false;
+    }
+  }
+
+  function setShow(show) {
+    ['ebroResetNew', 'ebroResetRepeat'].forEach((id) => { el(id).type = show ? 'text' : 'password'; });
+    el('ebroResetShow').textContent = show ? t('Ocultar') : t('Mostrar');
+    el('ebroResetShow').setAttribute('aria-pressed', String(show));
+  }
+  function toggleShow() { setShow(el('ebroResetNew').type === 'password'); }
+
+  function open(kind) {
+    purpose = kind === 'password' ? 'password' : 'pin';
+    const pin = purpose === 'pin';
+    el('ebroResetTitle').textContent = pin ? t('Restablecer PIN de Ebro') : t('Restablecer contraseña de Ebro');
+    el('ebroResetNewLabel').textContent = pin ? t('PIN nuevo') : t('Contraseña nueva');
+    el('ebroResetRepeatLabel').textContent = pin ? t('Repite el PIN nuevo') : t('Repite la contraseña nueva');
+    el('ebroResetHint').textContent = pin ? t('6 dígitos.') : t('De 8 a 16 caracteres, con letras, números y algún carácter especial (por ejemplo ! @ # $ % * . -).');
+    el('ebroResetNew').maxLength = pin ? 6 : 16;
+    el('ebroResetRepeat').maxLength = pin ? 6 : 16;
+    el('ebroResetNew').inputMode = pin ? 'numeric' : 'text';
+    el('ebroResetRepeat').inputMode = pin ? 'numeric' : 'text';
+    ['ebroResetCode', 'ebroResetNew', 'ebroResetRepeat'].forEach((id) => { el(id).value = ''; });
+    setShow(false);
+    step(false);
+    error('');
+    ['ebroPinModal', 'ebroPasswordModal'].forEach((id) => el(id).classList.remove('open'));
+    el('ebroResetModal').classList.add('open');
+    newCaptcha();
+  }
+
+  function close() {
+    el('ebroResetModal').classList.remove('open');
+    ['ebroResetCode', 'ebroResetNew', 'ebroResetRepeat'].forEach((id) => { el(id).value = ''; });     // never left behind
+    setShow(false);
+  }
+
+  async function submit() {
+    const code = el('ebroResetCode').value.trim();
+    const fresh = el('ebroResetNew').value;
+    const repeat = el('ebroResetRepeat').value;
+    const pin = purpose === 'pin';
+    if (!/^[0-9]{4,8}$/.test(code)) { error(t('Escribe el código que te ha llegado por SMS.')); return; }
+    if (pin ? !/^[0-9]{6}$/.test(fresh) : !ebroPasswordFormatOk(fresh)) {
+      error(pin ? t('El PIN nuevo tiene que tener 6 dígitos.') : t('La contraseña nueva debe tener de 8 a 16 caracteres, con letras, números y algún carácter especial.'));
+      return;
+    }
+    if (fresh !== repeat) { error(pin ? t('Los dos PIN nuevos no coinciden.') : t('Las dos contraseñas nuevas no coinciden.')); return; }
+    const car = pin ? ebroPinCar() : null;
+    if (pin && !car) { error(t('Tu cuenta de Ebro no tiene ningún coche.')); return; }
+    const btn = el('btnEbroResetSubmit');
+    btn.disabled = true;
+    error('');
+    try {
+      const res = await fetch(pin ? '/api/account/ebro-reset/pin' : '/api/account/ebro-reset/password', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(pin ? { vin: car.vin, code, new_pin: fresh } : { code, new_password: fresh }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(typeof data.detail === 'string' ? data.detail : res.status);
+      close();
+      if (pin && typeof commandPinMap !== 'undefined') commandPinMap = null;
+      await checkAccountStatus();
+      showToast(pin
+        ? (data.stored_pin_updated ? t('PIN de Ebro restablecido. El PIN guardado en EVBro ya es el nuevo.') : t('PIN de Ebro restablecido.'))
+        : (data.session_renewed ? t('Contraseña de Ebro restablecida. EVBro ya usa la nueva.') : t('Ebro ha cambiado la contraseña, pero todavía no deja entrar con la nueva. EVBro la ha guardado y lo volverá a intentar; si no conecta, vuelve a conectar la cuenta.')),
+        'success', 8000);
+    } catch (e) {
+      error(e.message || String(e));
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  return { open, close, move, release, newCaptcha: () => newCaptcha(false), toggleShow, submit };
+})();
+function openEbroResetModal(kind) { EbroReset.open(kind); }
+function closeEbroResetModal() { EbroReset.close(); }
+
+
 // ───────────────────────── When orders ask for the PIN ─────────────────────────
 const PIN_POLICY_HINT = {
   open: 'Las órdenes que abren, desbloquean o desarman el coche (puertas, maletero, ventanillas, techo, ventilar y quitar la alarma) piden el PIN cada vez; las demás (clima, luces, cerrar…) usan el PIN guardado.',

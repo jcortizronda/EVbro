@@ -15,7 +15,7 @@ import tempfile
 from typing import Optional
 
 from app.config import get_data_dir, settings
-from app.core import ebro_account, ebro_login
+from app.core import ebro_account, ebro_login, ebro_reset
 from app.core.context import CoreCtx
 from app.core.errors import CommandError
 from app.core.vehicles import iter_vehicles, query_list
@@ -187,3 +187,75 @@ def rename_car_in_ebro(ctx, nickname: str) -> dict:
         return {"changed": False, "unconfirmed": False, "reason": ebro_account.refusal(answer), "code": code}
     now = (listed() or {}).get("nickname")
     return {"changed": now == nickname, "unconfirmed": now != nickname, "reason": None, "code": code}
+
+
+# ───────────────────────── Resetting the password or the PIN with a code by SMS (core/ebro_reset.py) ─────────────────────────
+def reset_open_session(ctx) -> str:
+    """Make sure the account's session opens (renewing it if it expired) and return the `tUserId`. Raises RuntimeError("no_usertoken").
+    BLOCKING."""
+    user_token, t_user_id = _bff_login(ctx)
+    if not user_token:
+        raise RuntimeError("no_usertoken")
+    return str(t_user_id or "")
+
+
+def reset_captcha(ctx) -> dict:
+    """A new puzzle from the cloud (see `ebro_reset.captcha_create`). BLOCKING."""
+    reset_open_session(ctx)
+    return ebro_reset.captcha_create(ctx)
+
+
+def reset_send_sms(ctx, phone: str, area_code: str, module: str, token: str, secret_key: str, x: float) -> dict:
+    """Check the puzzle and, if the piece fits, ask for the SMS. {"sent": bool, "captcha_failed": bool, "reason": text}. BLOCKING."""
+    reset_open_session(ctx)
+    verification = ebro_reset.captcha_check(ctx, token, secret_key, x)
+    if verification is None:
+        return {"sent": False, "captcha_failed": True, "reason": None}
+    answer = ebro_reset.send_sms_code(ctx, phone, area_code, module, verification)
+    _LOGGER.info("Ebro SMS code (%s) answered code=%s", module, answer.get("code"))
+    if not ebro_reset.succeeded(answer):
+        return {"sent": False, "captcha_failed": False, "reason": ebro_reset.refusal(answer)}
+    return {"sent": True, "captcha_failed": False, "reason": None}
+
+
+def reset_pin_with_code(ctx, phone: str, area_code: str, code: str, new_pin: str) -> dict:
+    """Set a new PIN with the SMS code, then prove it with `checkPassword`. {"changed", "unconfirmed", "reason"}. BLOCKING."""
+    from app.core import taskid
+
+    tuid = reset_open_session(ctx)
+    check, answer = ebro_reset.reset_pin(ctx, tuid, phone, area_code, code, new_pin)
+    _LOGGER.info("Ebro PIN reset of %s: smsCheck code=%s, retrievePassword code=%s", ctx.vin[-6:], check.get("code"),
+                 None if answer is None else answer.get("code"))
+    if answer is None:
+        return {"changed": False, "unconfirmed": False, "reason": ebro_reset.refusal(check)}
+    if not ebro_reset.succeeded(answer):
+        return {"changed": False, "unconfirmed": False, "reason": ebro_reset.refusal(answer)}
+    ctx.invalidate_taskid()
+    try:
+        taskid.mint_with_pin(ctx, tuid, new_pin)
+    except CommandError as err:
+        return {"changed": False, "unconfirmed": True, "reason": str(err)}
+    ctx.invalidate_taskid()
+    return {"changed": True, "unconfirmed": False, "reason": None}
+
+
+def reset_password_with_code(ctx, session_path: str, phone: str, area_code: str, code: str, new_password: str) -> dict:
+    """Set a new password with the SMS code, then sign in with it and keep the new session for every car of the account.
+    {"changed", "reason", "token_data"}. BLOCKING."""
+    reset_open_session(ctx)
+    answer = ebro_reset.reset_password(ctx, phone, area_code, code, new_password)
+    _LOGGER.info("Ebro password reset answered code=%s", answer.get("code"))
+    if not ebro_reset.succeeded(answer):
+        return {"changed": False, "reason": ebro_reset.refusal(answer), "token_data": None}
+    ok, token_data = ebro_login.password_login(phone, new_password, area_code, host=settings.EBRO_BFF_HOST)
+    if not ok or not isinstance(token_data, dict):
+        return {"changed": True, "reason": None, "token_data": None}
+    store_session(session_path, token_data)
+    return {"changed": True, "reason": None, "token_data": token_data}
+
+
+def account_ctx(session_path: str) -> CoreCtx:
+    """A context on the account's shared session (no car): for what belongs to the account, not to a car."""
+    ctx = CoreCtx(tsp_host=settings.EBRO_TSP_HOST, bff=settings.EBRO_BFF_HOST, channel_id=settings.EBRO_CHANNEL_ID, token_path=session_path)
+    ctx.state.token_lock = session_lock(session_path)
+    return ctx

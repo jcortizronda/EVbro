@@ -77,3 +77,24 @@
 .ad-survey .setting-hint { margin: 0 0 0.5rem; }
 #accountDeleteModal .btn-danger:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
 #adDeleteConfirmLabel { text-transform: none; font-size: 0.85rem; }   /* it shows the username: as it is written */
+
+/* Ebro reset: the puzzle the cloud asks for before the SMS (features/account.js, EbroReset). Up to the cloud's 310 px, narrower on a
+   small phone; the piece moves over the background */
+.ebro-captcha {
+  position: relative;
+  width: 100%;
+  max-width: 310px;
+  margin: 0 auto 0.75rem;
+  aspect-ratio: 2 / 1;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--bg-glass-inset);
+  border: 1px solid var(--border-color);
+}
+.ebro-captcha-bg { display: block; width: 100%; height: 100%; object-fit: fill; }
+.ebro-captcha-bg:not([src]), .ebro-captcha-piece:not([src]) { visibility: hidden; }
+.ebro-captcha-piece { position: absolute; top: 0; left: 0; height: 100%; width: auto; pointer-events: none; }
+.ebro-captcha-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; margin: 0; color: var(--text-muted); font-size: 0.85rem; }
+.ebro-captcha-loading[hidden] { display: none; }
+.ebro-captcha-slider { display: block; width: 100%; max-width: 310px; margin: 0 auto 0.5rem; min-height: 44px; accent-color: var(--accent-bright, var(--primary)); }
+.ebro-reset-link { display: block; margin: 0 0 0.75rem; text-align: left; }

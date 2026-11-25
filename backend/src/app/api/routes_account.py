@@ -5,6 +5,7 @@ import asyncio
 import hmac
 import logging
 import re
+import time
 from typing import Any, Dict, List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -14,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.routes_auth import _check_throttle, ip_throttle
 from app.config import settings
-from app.core import ebro_account, ebro_login
+from app.core import ebro_account, ebro_login, ebro_reset
 from app.core.errors import CommandError
 from app.db.models import AppUser, EbroAccount, MqttLink, Vehicle
 from app.db.session import get_db
@@ -23,7 +24,16 @@ from app.security import auth, passwords
 from app.security.access import foreign_vins, is_root, space_owner_id, within_vehicle_limit
 from app.security.throttle import LoginThrottle
 from app.services import command_policy, exit_survey, mqtt_hub, storage, tenant, vehicle_profiles
-from app.services.accounts import change_account_password, change_account_pin, fetch_account_vehicles
+from app.services.accounts import (
+    account_ctx,
+    change_account_password,
+    change_account_pin,
+    fetch_account_vehicles,
+    reset_captcha,
+    reset_password_with_code,
+    reset_pin_with_code,
+    reset_send_sms,
+)
 from app.services.car_events import CarEventHub
 from app.services.command_policy import pin_throttle, pin_throttle_key
 from app.services.ebro_sessions import account_session_path
@@ -457,8 +467,16 @@ async def change_ebro_pin(req: EbroPinChange, request: Request, session: AsyncSe
 
     ebro_pin_throttle.reset(key)
     await poller._audit_command(car.vin, "cambiar_pin_ebro", None, True, str(outcome["code"]), "PIN de Ebro cambiado", ip)
+    stored = await _adopt_new_pin(session, account, user, poller, new)
+    _LOGGER.info("Ebro PIN changed for account %s through %s (stored copy updated: %s)", account.id, car.vin[-6:], stored)
+    return {"status": "ok", "stored_pin_updated": stored}
+
+
+async def _adopt_new_pin(session: AsyncSession, account: EbroAccount, user: AppUser, poller: VehiclePoller, new: str) -> bool:
+    """The cloud has a new PIN: EVBro's copy (if there is one) becomes it, and the account's cars drop their lockout and the taskId
+    minted with the old one. Returns whether there was a copy."""
     stored = bool(account.pin)
-    if stored:                                               # EVBro's copy follows the cloud
+    if stored:
         account.pin = new
         await session.commit()
     for vin in await _own_vins(session, user.id):
@@ -466,10 +484,171 @@ async def change_ebro_pin(req: EbroPinChange, request: Request, session: AsyncSe
         if own_ctx is not None:
             if stored:
                 own_ctx.pin = new
-            own_ctx.reset_pin_lockout()                      # also drops the taskId minted with the old PIN
+            own_ctx.reset_pin_lockout()
         pin_throttle.reset(pin_throttle_key(vin))
-    _LOGGER.info("Ebro PIN changed for account %s through %s (stored copy updated: %s)", account.id, car.vin[-6:], stored)
+    return stored
+
+
+# ───────────────────────── Resetting the Ebro password or PIN with a code by SMS ─────────────────────────
+# The cloud only sends the SMS after a puzzle captcha (core/ebro_reset.py). The puzzle waiting for an answer is kept here, per
+# manager, with its secret key (never sent to the browser); each one is good for one try.
+RESET_PURPOSES = {"pin": ebro_reset.MODULE_PIN, "password": ebro_reset.MODULE_PASSWORD}
+CAPTCHA_MAX_AGE_S = 300
+_pending_captcha: Dict[int, Dict[str, Any]] = {}
+ebro_sms_throttle = LoginThrottle(max_failures=3, window_s=600)       # SMS sent per account
+ebro_code_throttle = LoginThrottle(max_failures=3, window_s=600)      # wrong SMS codes per account
+
+
+async def _reset_account(session: AsyncSession, user: AppUser) -> EbroAccount:
+    stmt = select(EbroAccount).where(EbroAccount.is_active == True, EbroAccount.user_id == user.id).order_by(EbroAccount.id.desc())  # noqa: E712
+    account = (await session.execute(stmt)).scalars().first()
+    if not account:
+        raise HTTPException(status_code=404, detail="No hay ninguna cuenta Ebro conectada.")
+    return account
+
+
+def _no_session(e: RuntimeError) -> HTTPException:
+    if str(e) != "no_usertoken":
+        raise e
+    return HTTPException(status_code=424, detail=_("La sesión de la cuenta de Ebro no abre: vuelve a conectarla antes de restablecer."))
+
+
+def _network(e: Exception, what: str) -> HTTPException:
+    _LOGGER.error("Network error in the Ebro reset (%s): %s", what, type(e).__name__)
+    return HTTPException(status_code=502, detail="No se pudo conectar con el servidor de Ebro. Inténtalo de nuevo en unos minutos.")
+
+
+class ResetCaptchaIn(BaseModel):
+    purpose: Literal["pin", "password"]
+
+
+@router.post("/ebro-reset/captcha")
+async def reset_captcha_route(req: ResetCaptchaIn, session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)):
+    """A puzzle from the Ebro cloud: the background, the piece and the width `x` is measured on."""
+    account = await _reset_account(session, user)
+    _check_throttle((ebro_sms_throttle, f"sms:{account.id}"))
+    ctx = account_ctx(account_session_path(account.id))
+    try:
+        puzzle = await asyncio.get_running_loop().run_in_executor(None, reset_captcha, ctx)
+    except RuntimeError as e:
+        raise _no_session(e) from e
+    except Exception as e:
+        raise _network(e, "captcha") from e
+    if not puzzle:
+        raise HTTPException(status_code=424, detail=_("Ebro no ha dado el captcha. Inténtalo de nuevo en unos minutos."))
+    _pending_captcha[user.id] = {"token": puzzle["token"], "secret_key": puzzle["secret_key"], "purpose": req.purpose, "at": time.monotonic()}
+    return {"background": puzzle["background"], "piece": puzzle["piece"], "width": ebro_reset.CAPTCHA_WIDTH}
+
+
+class ResetSmsIn(BaseModel):
+    x: float = Field(ge=0, le=ebro_reset.CAPTCHA_WIDTH)
+
+
+@router.post("/ebro-reset/sms")
+async def reset_sms_route(req: ResetSmsIn, session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)):
+    """Where the piece was left: if it fits, Ebro sends the code by SMS to the account's phone. Each puzzle is good for one try."""
+    account = await _reset_account(session, user)
+    pending = _pending_captcha.pop(user.id, None)
+    if not pending or time.monotonic() - pending["at"] > CAPTCHA_MAX_AGE_S:
+        raise HTTPException(status_code=409, detail=_("El captcha ha caducado: pide otro."))
+    key = f"sms:{account.id}"
+    _check_throttle((ebro_sms_throttle, key))
+    ctx = account_ctx(account_session_path(account.id))
+    try:
+        outcome = await asyncio.get_running_loop().run_in_executor(
+            None, reset_send_sms, ctx, account.phone, account.area_code or "34", RESET_PURPOSES[pending["purpose"]],
+            pending["token"], pending["secret_key"], req.x)
+    except RuntimeError as e:
+        raise _no_session(e) from e
+    except Exception as e:
+        raise _network(e, "sms") from e
+    if outcome["captcha_failed"]:
+        raise HTTPException(status_code=422, detail=_("La pieza no ha encajado. Prueba con otro captcha."))
+    ebro_sms_throttle.record_failure(key)                    # every SMS sent counts: three in ten minutes at most
+    if not outcome["sent"]:
+        raise HTTPException(status_code=424, detail=_("Ebro no ha enviado el SMS: {p0}", p0=outcome["reason"] or "sin motivo"))
+    return {"status": "ok", "phone": mask_phone(account.phone)}
+
+
+class ResetPinIn(BaseModel):
+    vin: str = Field(max_length=32)
+    code: str = Field(min_length=4, max_length=8)
+    new_pin: str = Field(max_length=8)
+
+
+@router.post("/ebro-reset/pin")
+async def reset_pin_route(req: ResetPinIn, request: Request, session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)):
+    """The new PIN with the SMS code. Not yet tried against the real cloud (docs/ebro-protocol.md)."""
+    account = await _reset_account(session, user)
+    car = (await session.execute(select(Vehicle).where(Vehicle.vin == req.vin, Vehicle.owner_id == user.id,
+                                                       Vehicle.is_manual == False))).scalar_one_or_none()  # noqa: E712
+    if car is None:
+        raise HTTPException(status_code=404, detail=_("Ese coche no es de tu cuenta de Ebro."))
+    new, code = req.new_pin.strip(), req.code.strip()
+    if not ebro_account.pin_format_ok(new):
+        raise HTTPException(status_code=422, detail=_("El PIN nuevo tiene que tener 6 dígitos."))
+    key = f"code:{account.id}"
+    _check_throttle((ebro_code_throttle, key))
+    poller = VehiclePoller.get_instance()
+    ctx = poller._get_or_create_ctx(car.vin)
+    try:
+        outcome = await asyncio.get_running_loop().run_in_executor(None, reset_pin_with_code, ctx, account.phone,
+                                                                   account.area_code or "34", code, new)
+    except RuntimeError as e:
+        raise _no_session(e) from e
+    except Exception as e:
+        raise _network(e, "pin") from e
+    ip = auth.client_ip(request)
+    if not outcome["changed"]:
+        ebro_code_throttle.record_failure(key)
+        await poller._audit_command(car.vin, "restablecer_pin_ebro", None, False, None, outcome["reason"], ip)
+        if outcome["unconfirmed"]:
+            raise HTTPException(status_code=424, detail=_("Ebro respondió sin error, pero todavía no acepta el PIN nuevo. Prueba en unos minutos una orden con el PIN nuevo; EVBro no ha cambiado el PIN guardado."))
+        raise HTTPException(status_code=424, detail=_("Ebro no ha restablecido el PIN: {p0}", p0=outcome["reason"] or "sin motivo"))
+    ebro_code_throttle.reset(key)
+    await poller._audit_command(car.vin, "restablecer_pin_ebro", None, True, None, "PIN de Ebro restablecido", ip)
+    stored = await _adopt_new_pin(session, account, user, poller, new)
+    _LOGGER.info("Ebro PIN reset for account %s through %s (stored copy updated: %s)", account.id, car.vin[-6:], stored)
     return {"status": "ok", "stored_pin_updated": stored}
+
+
+class ResetPasswordIn(BaseModel):
+    code: str = Field(min_length=4, max_length=8)
+    new_password: str = Field(max_length=128)
+
+
+@router.post("/ebro-reset/password")
+async def reset_password_route(req: ResetPasswordIn, session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)):
+    """The new password with the SMS code; EVBro keeps it and signs in with it. Not yet tried against the real cloud."""
+    account = await _reset_account(session, user)
+    if not ebro_account.password_format_ok(req.new_password):
+        raise HTTPException(status_code=422, detail=_("La contraseña nueva debe tener de 8 a 16 caracteres, con letras, números y algún carácter especial."))
+    key = f"code:{account.id}"
+    _check_throttle((ebro_code_throttle, key))
+    path = account_session_path(account.id)
+    try:
+        outcome = await asyncio.get_running_loop().run_in_executor(None, reset_password_with_code, account_ctx(path), path,
+                                                                   account.phone, account.area_code or "34", req.code.strip(),
+                                                                   req.new_password)
+    except RuntimeError as e:
+        raise _no_session(e) from e
+    except Exception as e:
+        raise _network(e, "password") from e
+    if not outcome["changed"]:
+        ebro_code_throttle.record_failure(key)
+        raise HTTPException(status_code=424, detail=_("Ebro no ha restablecido la contraseña: {p0}", p0=outcome["reason"] or "sin motivo"))
+    ebro_code_throttle.reset(key)
+    account.password = req.new_password
+    if outcome["token_data"]:
+        account.token_data = outcome["token_data"]
+        account.last_login = utcnow()
+    await session.commit()
+    _LOGGER.info("Ebro password reset for account %s (new session: %s)", account.id, bool(outcome["token_data"]))
+    if outcome["token_data"]:
+        poller = VehiclePoller.get_instance()
+        await poller.bind_sessions()
+        asyncio.create_task(CarEventHub.get_instance().restart_owner(account.user_id, poller))
+    return {"status": "ok", "session_renewed": bool(outcome["token_data"])}
 
 
 class LanguageRequest(BaseModel):

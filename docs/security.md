@@ -69,6 +69,12 @@ erróneos de siempre); no hace falta que coincida con el guardado en EVBro (hast
 esperan **10 minutos** por cuenta. Los dos PIN son el de Ebro: **6 dígitos** (EVBro decía «4 a 6» y guardaba cualquier cosa). Si la nube lo acepta y el PIN nuevo abre un `checkPassword`, la copia de EVBro (si la había) pasa a ser el nuevo; si
 no había copia, no se guarda. Queda en el registro de órdenes como `cambiar_pin_ebro`. Probado contra la nube real el 24-11-2026.
 
+**Restablecer la contraseña o el PIN de Ebro con un SMS** (`/api/account/ebro-reset/captcha`, `/sms`, `/pin`, `/password`; solo el gestor
+dueño de la cuenta). El puzle se pide a Ebro y su `secretKey` se queda en el servidor (en memoria, por gestor, 5 minutos y un solo
+intento); el navegador solo recibe las imágenes y manda dónde dejó la pieza. **Tres SMS cada 10 minutos** por cuenta y **tres códigos
+erróneos cada 10 minutos**. El SMS va al teléfono de la cuenta; la respuesta solo lleva el teléfono enmascarado. Lo nuevo se guarda como al
+cambiarlo. Sin probar todavía contra la nube real.
+
 **Nombre del coche en Ebro** (`PUT /api/vehicles/{vin}/ebro-name`, nivel `owner`, solo coches con cuenta): cambia el apodo del coche en la
 cuenta de Ebro y lo guarda como nombre en EVBro. Sin probar todavía contra la nube real.
 

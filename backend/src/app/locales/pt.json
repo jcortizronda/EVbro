@@ -360,5 +360,13 @@
  "La sesión de la cuenta de Ebro no abre: vuelve a conectarla antes de cambiar el nombre.": "A sessão da conta Ebro não abre: volta a ligá-la antes de alterar o nome.",
  "Ebro aceptó el nombre, pero la cuenta todavía muestra el anterior; puede que lo revise antes de aplicarlo. EVBro no lo ha cambiado.": "A Ebro aceitou o nome, mas a conta ainda mostra o anterior; pode revê-lo antes de o aplicar. O EVBro não o alterou.",
  "Ebro no ha cambiado el nombre: {p0}": "A Ebro não alterou o nome: {p0}",
- "El PIN de Ebro tiene 6 dígitos.": "O PIN da Ebro tem 6 dígitos."
+ "El PIN de Ebro tiene 6 dígitos.": "O PIN da Ebro tem 6 dígitos.",
+ "La sesión de la cuenta de Ebro no abre: vuelve a conectarla antes de restablecer.": "A sessão da conta Ebro não abre: volta a ligá-la antes de repor.",
+ "Ebro no ha dado el captcha. Inténtalo de nuevo en unos minutos.": "A Ebro não deu o captcha. Tenta de novo dentro de uns minutos.",
+ "El captcha ha caducado: pide otro.": "O captcha expirou: pede outro.",
+ "La pieza no ha encajado. Prueba con otro captcha.": "A peça não encaixou. Experimenta outro captcha.",
+ "Ebro no ha enviado el SMS: {p0}": "A Ebro não enviou o SMS: {p0}",
+ "Ebro respondió sin error, pero todavía no acepta el PIN nuevo. Prueba en unos minutos una orden con el PIN nuevo; EVBro no ha cambiado el PIN guardado.": "A Ebro respondeu sem erro, mas ainda não aceita o PIN novo. Dentro de uns minutos experimenta uma ordem com o PIN novo; o EVBro não alterou o PIN guardado.",
+ "Ebro no ha restablecido el PIN: {p0}": "A Ebro não repôs o PIN: {p0}",
+ "Ebro no ha restablecido la contraseña: {p0}": "A Ebro não repôs a palavra-passe: {p0}"
 }

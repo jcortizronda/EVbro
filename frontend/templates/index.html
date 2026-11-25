@@ -2476,6 +2476,7 @@
           <button type="button" class="btn-secondary acc-password-show" id="ebroPwdShow" aria-pressed="false" data-on-click="toggleEbroPasswordFields()">Mostrar</button>
         </div>
       </div>
+      <button type="button" class="link-btn ebro-reset-link" data-on-click="openEbroResetModal('password')">¿No recuerdas la contraseña? Restablécela con un SMS</button>
       <div id="ebroPwdError" class="auth-error" role="alert" hidden></div>
       <div class="modal-actions">
         <button class="btn-secondary" data-on-click="closeEbroPasswordModal()">Cancelar</button>
@@ -2514,10 +2515,60 @@
           <button type="button" class="btn-secondary acc-password-show" id="ebroPinShow" aria-pressed="false" data-on-click="toggleEbroPinFields()">Mostrar</button>
         </div>
       </div>
+      <button type="button" class="link-btn ebro-reset-link" data-on-click="openEbroResetModal('pin')">¿No recuerdas el PIN? Restablécelo con un SMS</button>
       <div id="ebroPinError" class="auth-error" role="alert" hidden></div>
       <div class="modal-actions">
         <button class="btn-secondary" data-on-click="closeEbroPinModal()">Cancelar</button>
         <button class="btn-primary" id="btnEbroPinSubmit" data-on-click="submitEbroPin()">Cambiar PIN</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: reset the Ebro password or PIN with a code by SMS; the cloud asks for a puzzle first (features/account.js, core/ebro_reset.py) -->
+  <div id="ebroResetModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="ebroResetTitle">
+    <div class="modal-card u-max-width-480px">
+      <div class="u-display-flex_justify-content-space-between_align-items-flex-start_gap-0p5rem_margin-bottom-0p5rem">
+        <div class="u-display-flex_align-items-center_flex-wrap-wrap_gap-0p4rem-0p6rem_min-width-0">
+          <img class="ebro-logo" src="/static/icons/ebro-logo.png" alt="Ebro" width="90" height="20" />
+          <h3 class="u-font-size-1p2rem_min-width-0_overflow-wrap-anywhere" id="ebroResetTitle">Restablecer PIN de Ebro</h3>
+        </div>
+        <button class="nav-btn u-padding-0p2rem-0p5rem_flex-shrink-0" data-on-click="closeEbroResetModal()" aria-label="Cerrar">✕</button>
+      </div>
+      <!-- Step 1: the puzzle -->
+      <div id="ebroResetStepCaptcha">
+        <p class="u-color-var-text-secondary_font-size-0p85rem_margin-bottom-1p25rem_line-height-1p5">Desliza la pieza hasta su hueco. Si encaja, Ebro te enviará un código por SMS al teléfono de la cuenta.</p>
+        <div class="ebro-captcha" id="ebroCaptcha">
+          <img class="ebro-captcha-bg" id="ebroCaptchaBg" alt="" />
+          <img class="ebro-captcha-piece" id="ebroCaptchaPiece" alt="" />
+          <p class="ebro-captcha-loading" id="ebroCaptchaLoading">Cargando…</p>
+        </div>
+        <input type="range" class="ebro-captcha-slider" id="ebroCaptchaSlider" min="0" max="1000" step="1" value="0" aria-label="Mover la pieza" data-on-input="EbroReset.move(this.value)" data-on-change="EbroReset.release()" />
+        <button type="button" class="link-btn" data-on-click="EbroReset.newCaptcha()">Otro captcha</button>
+      </div>
+      <!-- Step 2: the SMS code and the new value -->
+      <div id="ebroResetStepCode" hidden>
+        <p class="u-color-var-text-secondary_font-size-0p85rem_margin-bottom-1p25rem_line-height-1p5" id="ebroResetSent"></p>
+        <div class="form-group u-margin-bottom-0p85rem">
+          <label for="ebroResetCode">Código del SMS</label>
+          <input type="text" id="ebroResetCode" class="form-control" maxlength="8" inputmode="numeric" autocomplete="one-time-code" />
+        </div>
+        <div class="form-group u-margin-bottom-0p85rem">
+          <label for="ebroResetNew" id="ebroResetNewLabel">PIN nuevo</label>
+          <input type="password" id="ebroResetNew" class="form-control" autocomplete="new-password" autocapitalize="none" autocorrect="off" spellcheck="false" />
+          <small class="u-color-var-text-muted_font-size-0p75rem_margin-top-0p2rem" id="ebroResetHint"></small>
+        </div>
+        <div class="form-group u-margin-bottom-0p85rem">
+          <label for="ebroResetRepeat" id="ebroResetRepeatLabel">Repite el PIN nuevo</label>
+          <div class="acc-password-row">
+            <input type="password" id="ebroResetRepeat" class="form-control" autocomplete="new-password" autocapitalize="none" autocorrect="off" spellcheck="false" />
+            <button type="button" class="btn-secondary acc-password-show" id="ebroResetShow" aria-pressed="false" data-on-click="EbroReset.toggleShow()">Mostrar</button>
+          </div>
+        </div>
+      </div>
+      <div id="ebroResetError" class="auth-error" role="alert" hidden></div>
+      <div class="modal-actions">
+        <button class="btn-secondary" data-on-click="closeEbroResetModal()">Cancelar</button>
+        <button class="btn-primary" id="btnEbroResetSubmit" data-on-click="EbroReset.submit()" hidden>Restablecer</button>
       </div>
     </div>
   </div>
