@@ -730,6 +730,7 @@
           <p class="energy-status" id="chargeStatusLine" data-tone="neutral">Cargando estado…</p>
           <!-- Computed by the car: time to 100 %, regardless of the target set in EVbro -->
           <p class="energy-remaining" id="energyRemainLine" hidden>Tiempo restante a carga completa: <strong id="energyRemainTime">—</strong></p>
+          <p class="energy-remaining" id="energyTargetEtaLine" hidden><span id="energyTargetEtaText"></span></p>
         </div>
 
         </div>
@@ -1748,7 +1749,9 @@
                   <input type="text" id="vpModelText" class="form-control" maxlength="100" placeholder="Ej. Corolla" aria-label="Modelo" hidden />
                 </label>
                 <label class="vp-field"><span>Versión / acabado</span><input type="text" id="vpTrim" class="form-control" maxlength="60" placeholder="Ej. Luxury" /></label>
-                <label class="vp-field"><span>Color</span><input type="text" id="vpColor" class="form-control" maxlength="40" /></label>
+                <label class="vp-field"><span>Color</span>
+                  <select id="vpColorSelect" class="form-control" aria-label="Color"></select>
+                  <input type="text" id="vpColor" class="form-control" maxlength="40" placeholder="Escribe el color" aria-label="Otro color" hidden /></label>
                 <label class="vp-field"><span>Etiqueta ambiental DGT</span>
                   <select id="vpEnvLabel" class="form-control"><option value="">Sin indicar</option><option value="0">0 emisiones</option><option value="ECO">ECO</option><option value="C">C</option><option value="B">B</option></select>
                 </label>

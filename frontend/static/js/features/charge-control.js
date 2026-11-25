@@ -323,5 +323,7 @@
     }, 3000);
   });
 
-  window.ChargeControl = { load, setTarget, start, stop, clearSchedule };
+  window.ChargeControl = { load, setTarget, start, stop, clearSchedule,
+    /** The battery target set in EVbro (50–100), once the plan has loaded: the time to reach it is estimated from it (core/telemetry.js). */
+    get target() { return plan ? plan.target_pct : null; } };
 })();

@@ -112,11 +112,9 @@ function applyTelemetry(data) {
       }
     }
     if (chargeRemain) {
-      if (data.remaining_charge_time_min) {
-        chargeRemain.innerText = `${data.remaining_charge_time_min} min`;
-      } else {
-        chargeRemain.innerText = `-- min`;
-      }
+      // the time left and, so nobody has to add it up, the clock time it ends at
+      const min = Number(data.remaining_charge_time_min);
+      chargeRemain.innerText = min > 0 ? `${chargeDuration(min)} · ${chargeClock(min)}` : '-- min';
     }
 
     if (!window._lastChargeRefresh || Date.now() - window._lastChargeRefresh > 20000) {
@@ -224,7 +222,16 @@ function applyTelemetry(data) {
     const min = Number(data.remaining_charge_time_min);
     remainLine.hidden = !(charging && min > 0);
     if (!remainLine.hidden) {
-      document.getElementById('energyRemainTime').innerText = min >= 60 ? `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60} min` : ''}` : `${min} min`;
+      document.getElementById('energyRemainTime').innerText = t('{p0}, hasta las {p1}', {p0: chargeDuration(min), p1: chargeClock(min)});
+    }
+  }
+  // With a battery target below 100 %: how long to reach it, at today's pace (an estimate: the power is taken as constant)
+  const targetLine = document.getElementById('energyTargetEtaLine');
+  if (targetLine) {
+    const eta = charging ? chargeTargetEta(data) : null;
+    targetLine.hidden = !eta;
+    if (eta) {
+      document.getElementById('energyTargetEtaText').innerText = t('Al objetivo ({p0} %): unos {p1}, hacia las {p2}', {p0: eta.target, p1: chargeDuration(eta.min), p2: chargeClock(eta.min)});
     }
   }
   const energyPower = document.getElementById('energyPowerKw');
@@ -242,6 +249,35 @@ function applyTelemetry(data) {
   }
 
   if (typeof renderComfort === 'function') renderComfort();
+}
+
+/** «2 h 10 min», «45 min». */
+function chargeDuration(min) {
+  const m = Math.max(0, Math.round(min));
+  if (m < 60) return `${m} min`;
+  return m % 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${Math.floor(m / 60)} h`;
+}
+
+/** The clock time `min` minutes from now («18:45»), «mañana 06:10» when it is past midnight. */
+function chargeClock(min) {
+  const end = new Date(Date.now() + Math.round(min) * 60000);
+  const hhmm = end.toLocaleTimeString((window.I18n && I18n.locale) || 'es-ES', { hour: '2-digit', minute: '2-digit' });
+  const days = Math.round((new Date(end).setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0)) / 86400000);
+  return days === 0 ? hhmm : days === 1 ? t('mañana {p0}', {p0: hhmm}) : end.toLocaleString((window.I18n && I18n.locale) || 'es-ES', { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
+/** Minutes to the battery target set in EVbro (below 100 %), or null. The car's own time to 100 % shared out in proportion (so its
+ * pace is kept); without it, the battery's capacity at the present power. Both take the power as constant: an estimate. */
+function chargeTargetEta(data) {
+  const target = window.ChargeControl && ChargeControl.target;
+  const soc = Number(data.battery_level);
+  if (!target || target >= 100 || !(soc >= 0) || soc >= target) return null;
+  const toFull = Number(data.remaining_charge_time_min);
+  if (toFull > 0 && soc < 100) return { target, min: toFull * (target - soc) / (100 - soc) };
+  const v = typeof currentVehicle === 'function' ? currentVehicle() : null;
+  const kw = Number(data.charge_power_kw), kwh = Number(v && v.battery_capacity_kwh);
+  if (kw > 0.3 && kwh > 0) return { target, min: ((target - soc) / 100) * kwh / kw * 60 };
+  return null;
 }
 
 /** Text of an open/closed state; with `null`/`undefined` (the car has not reported yet) it does NOT guess. */

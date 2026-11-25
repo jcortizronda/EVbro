@@ -93,11 +93,49 @@ function vpSyncModelField() {
   vpEl('vpModelText').hidden = ebro;
 }
 
+// ───────────────────────── colour: Ebro's own paints per model (Carwow, 25-11-2026), or any other written by hand ─────────────────────────
+// The car figure tints the car with it (features/car-figure.js knows these names; «… + …» is a two-tone car with a black roof).
+const VP_PAINTS = {
+  'S700 PHEV': ['Blanco Khaki', 'Gris Phantom', 'Negro Carbono', 'Blanco Khaki + Negro Carbono', 'Rojo Blood Stone + Negro Carbono'],
+  'S800 PHEV': ['Blanco Khaki', 'Gris Bambú', 'Negro Carbono', 'Verde Aurora', 'Gris Eclipse (mate)'],
+  'S900 PHEV': ['Blanco Nieve', 'Gris Tech', 'Negro Tinta', 'Verde Aurora', 'Gris Galaxia'],
+};
+const VP_PAINT_OTHER = '__other';
+const vpPaintKey = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+
+/** The colour field: a list of the model's paints (plus «Otro…» with a text box), or only the text box for another brand. */
+function vpRenderColour(current) {
+  const select = vpEl('vpColorSelect');
+  const input = vpEl('vpColor');
+  if (!select || !input) return;
+  const paints = vpIsEbroBrand() ? (VP_PAINTS[vpEl('vpModel').value] || []) : [];
+  const value = current !== undefined ? (current || '') : vpColourValue() || '';
+  select.replaceChildren(new Option(t('Sin indicar'), ''), ...paints.map((p) => new Option(p, p)), new Option(t('Otro…'), VP_PAINT_OTHER));
+  const hit = paints.find((p) => vpPaintKey(p) === vpPaintKey(value));
+  select.value = hit || (value ? VP_PAINT_OTHER : '');
+  input.value = hit ? '' : value;
+  select.hidden = !paints.length;
+  input.hidden = paints.length > 0 && select.value !== VP_PAINT_OTHER;
+}
+
+function vpColourValue() {
+  const select = vpEl('vpColorSelect');
+  if (select && !select.hidden && select.value !== VP_PAINT_OTHER) return select.value || null;
+  return vpEl('vpColor').value.trim() || null;
+}
+
+function vpOnColourChange() {
+  const other = vpEl('vpColorSelect').value === VP_PAINT_OTHER;
+  vpEl('vpColor').hidden = !other;
+  if (other) vpEl('vpColor').focus();
+}
+
 function vpOnBrandChange() {
   const other = vpEl('vpBrand').value === VP_BRAND_OTHER;
   vpEl('vpBrandOther').hidden = !other;
   if (other) vpEl('vpBrandOther').focus();
   vpSyncModelField();
+  vpRenderColour();
 }
 
 /** Connected car: its real VIN, read-only. Manual car: its `vin` is internal, so the field edits the informative chassis number. */
@@ -141,7 +179,7 @@ function loadVehicleProfile() {
   const set = (id, val) => { const el = vpEl(id); if (el) el.value = val ?? ''; };
   const day = (iso) => (iso ? iso.slice(0, 10) : '');
   set('vpName', v.name); vpSetBrand(v.brand);
-  vpRenderNameField(v); set('vpTrim', v.trim); set('vpColor', v.color); set('vpEnvLabel', v.env_label);
+  vpRenderNameField(v); set('vpTrim', v.trim); set('vpEnvLabel', v.env_label);
   // Closed list of models; if the car carries another value (older installs) it is kept as an extra option
   const sel = vpEl('vpModel');
   sel.querySelectorAll('option[data-extra]').forEach((o) => o.remove());
@@ -151,6 +189,7 @@ function loadVehicleProfile() {
   sel.value = v.model && Array.from(sel.options).some((o) => o.value === v.model) ? v.model : 'S900 PHEV';
   set('vpModelText', /^S[789]00 PHEV$/.test(v.model || '') || v.model === 'Ebro Auto' ? '' : v.model);
   vpSyncModelField();
+  vpRenderColour(v.color);
   set('vpYear', v.model_year); set('vpPlate', v.license_plate);
   vpRenderChassis(v);
   set('vpPurchasePrice', v.purchase_price); set('vpPurchaseOdo', v.purchase_odometer ?? 0);
@@ -190,7 +229,7 @@ async function saveVehicleProfile() {
     registration_date: day('vpRegDate'), delivery_date: day('vpDeliveryDate'),
     insurance_company: text('vpInsurer'), insurance_policy: text('vpPolicy'),
     insurance_coverage: text('vpInsCoverage'), insurance_assistance_phone: text('vpInsPhone'), insurance_renewal_date: day('vpInsRenewal'),
-    trim: text('vpTrim'), color: text('vpColor'), env_label: vpEl('vpEnvLabel').value || null,
+    trim: text('vpTrim'), color: vpColourValue(), env_label: vpEl('vpEnvLabel').value || null,
     tyre_front_size: text('vpTyreFrontSize'), tyre_rear_size: text('vpTyreRearSize'),
     tyre_front_pressure_bar: num('vpTyreFrontBar'), tyre_rear_pressure_bar: num('vpTyreRearBar'),
   };
@@ -217,6 +256,7 @@ async function saveVehicleProfile() {
     if (!res.ok) throw new Error(Array.isArray(data.detail) ? data.detail.map((d) => `${d.loc?.slice(-1)[0]}: ${d.msg}`).join(' · ') : (data.detail || res.status));
     replaceVehicle(data);
     showToast('Ficha del vehículo guardada', 'success');
+    if (typeof renderCarFigure === 'function' && typeof latestTelemetryData !== 'undefined' && latestTelemetryData) renderCarFigure(latestTelemetryData);   // its new colour
     loadVehicleProfile();                                               // the brand decides the model field
     if (typeof loadMaintenance === 'function') loadMaintenance();      // dates and brand change the official plan and the ITV
   } catch (e) {
@@ -282,6 +322,7 @@ async function loadModelSpecs() {
   return ebroModelSpecs;
 }
 async function vpOnModelChange() {
+  vpRenderColour();                                   // the new model's paints (the colour already chosen stays if it has it)
   const spec = (await loadModelSpecs())[vpEl('vpModel').value];
   if (!spec || !vpIsEbroBrand()) return;
   vpEl('vpEnvLabel').value = spec.env_label;
@@ -293,7 +334,8 @@ async function vpOnModelChange() {
 
 document.addEventListener('DOMContentLoaded', () => { vpEl('vpBrand')?.addEventListener('change', vpOnBrandChange);
   vpEl('vpModel')?.addEventListener('change', vpOnModelChange);
-  vpEl('vpBrandOther')?.addEventListener('input', vpSyncModelField);
+  vpEl('vpBrandOther')?.addEventListener('input', () => { vpSyncModelField(); vpRenderColour(); });
+  vpEl('vpColorSelect')?.addEventListener('change', vpOnColourChange);
 });
 
 document.addEventListener('DOMContentLoaded', initVehicleFolds);
