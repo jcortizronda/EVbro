@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from app import extensions, i18n
+from app import __version__, build_commit, extensions, i18n
 from app.api.errors import install_error_handlers
 from app.api.routes_admin import router as admin_router
 from app.api.routes_admin_auth import router as admin_auth_router
@@ -84,8 +84,12 @@ def create_admin_app() -> FastAPI:
         html = html.replace('<html lang="es">', f'<html lang="{lang}">', 1).replace(
             "</head>", f'  <script type="application/json" id="i18nData">{i18n.page_dictionary_json(lang)}</script>\n'
                        '  <script src="/static/js/core/i18n.js"></script>\n</head>', 1)
+        # The build in every asset's address: a browser that kept yesterday's admin.js would mix it with today's page (25-11-2026)
+        stamp = (build_commit() or __version__)[:12]
+        html = html.replace('src="/assets/admin.js"', f'src="/assets/admin.js?v={stamp}"', 1).replace(
+            'href="/assets/admin.css"', f'href="/assets/admin.css?v={stamp}"', 1)
         if scripts:                                    # after the console's own script, so they can use its helpers
-            tags = "".join(f'<script src="/ext/{name}"></script>\n' for name in scripts)
+            tags = "".join(f'<script src="/ext/{name}?v={stamp}"></script>\n' for name in scripts)
             html = html.replace("</body>", tags + "</body>", 1)
         return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 

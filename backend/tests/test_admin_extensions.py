@@ -60,3 +60,10 @@ async def test_unknown_extension_scripts_are_not_served(db) -> None:
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=admin_app), base_url="http://testserver") as c:
         assert (await c.get("/ext/nada.js")).status_code == 404
         assert (await c.get("/ext/..%2F..%2Fconfig.py")).status_code == 404
+
+
+async def test_the_console_asks_for_its_files_with_the_build_in_the_address(admin) -> None:
+    """A browser kept yesterday's admin.js after a deploy and mixed it with today's page (25-11-2026)."""
+    page = (await admin.get("/")).text
+    assert '<script src="/assets/admin.js?v=' in page and '<link rel="stylesheet" href="/assets/admin.css?v=' in page
+    assert (await admin.get("/assets/admin.js?v=abc")).status_code == 200
