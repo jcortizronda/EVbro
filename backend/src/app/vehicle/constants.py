@@ -1,6 +1,6 @@
 """Car channel constants, shared with the Home Assistant integration.
 
-They belong to Chery's protocol, not to EVBro: if they change there, change them here too.
+They belong to Chery's protocol, not to EVbro: if they change there, change them here too.
 """
 
 # The 4 files expected in the certificates folder.

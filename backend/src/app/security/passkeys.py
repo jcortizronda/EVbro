@@ -17,7 +17,7 @@ from urllib.parse import urlparse
 
 from app.config import settings
 
-RP_NAME = "EVBro"
+RP_NAME = "EVbro"
 CHALLENGE_TTL_S = 300
 _MAX_PENDING = 5000                    # bound memory if somebody floods the options endpoints
 

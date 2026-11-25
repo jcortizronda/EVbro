@@ -90,7 +90,7 @@ protected.include_router(telemetry_client_router)
 
 @protected.get("/version", tags=["System"])
 async def get_version():
-    """Version of EVBro and the commit the image was built from (Ajustes → Sistema)."""
+    """Version of EVbro and the commit the image was built from (Ajustes → Sistema)."""
     return {"version": __version__, "commit": build_commit()}
 
 

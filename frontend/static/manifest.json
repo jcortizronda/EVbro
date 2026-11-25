@@ -1,7 +1,7 @@
 {
-  "name": "EVBro — El compañero de tu coche",
-  "short_name": "EVBro",
-  "description": "EVBro, el compañero de tu coche Ebro: telemetría en directo, viajes, control remoto, mantenimiento y costes, sin suscripciones.",
+  "name": "EVbro — El compañero de tu coche",
+  "short_name": "EVbro",
+  "description": "EVbro, el compañero de tu coche Ebro: telemetría en directo, viajes, control remoto, mantenimiento y costes, sin suscripciones.",
   "start_url": "/",
   "id": "/",
   "display": "standalone",
@@ -44,7 +44,7 @@
     {
       "name": "Cerrar el coche",
       "short_name": "Cerrar",
-      "description": "Abre EVBro y pide confirmación para cerrar el coche.",
+      "description": "Abre EVbro y pide confirmación para cerrar el coche.",
       "url": "/?go=lock",
       "icons": [
         {

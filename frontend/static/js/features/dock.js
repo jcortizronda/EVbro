@@ -1,4 +1,4 @@
-/* EVBro — The phone's bottom bar, chosen by each account: Inicio always on the left, Más always on the right and up to four
+/* EVbro — The phone's bottom bar, chosen by each account: Inicio always on the left, Más always on the right and up to four
  * sections in between (six icons at most). Any section of Más can go there, as well as Carga and Confort (the default).
  * - The icons are taken from the Más menu itself (and the original Carga/Confort buttons), so they never drift apart.
  * - Each button keeps the `mobTab<Tab>` id: switchTab() lights it up, and lights Más only for sections not in the bar.

@@ -29,10 +29,10 @@ NOT_IN_COMPOSE = {
     "FRONTEND_DIR": "fixed in the image",
     "DATA_DIR": "fixed in the image (the volume is mounted at /app/data)",
     "CAR_MQTT_CERTS_SRC": "development only: the image carries the certificate bundle",
-    "NOMINATIM_USER_AGENT": "the default identifies EVBro as OpenStreetMap asks",
+    "NOMINATIM_USER_AGENT": "the default identifies EVbro as OpenStreetMap asks",
     "NOMINATIM_ENABLED": "on by default; no install has needed to turn it off",
 }
-# Variables of the Compose file that are not EVBro settings: read by uvicorn itself
+# Variables of the Compose file that are not EVbro settings: read by uvicorn itself
 NOT_SETTINGS = {"FORWARDED_ALLOW_IPS"}
 
 

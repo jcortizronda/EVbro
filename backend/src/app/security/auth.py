@@ -1,7 +1,7 @@
-"""Access to EVBro: cookie sessions, origin check and FastAPI dependencies.
+"""Access to EVbro: cookie sessions, origin check and FastAPI dependencies.
 
 Model:
-  * An EVBro user of its own (table `app_users`), distinct from the Ebro/Chery account.
+  * An EVbro user of its own (table `app_users`), distinct from the Ebro/Chery account.
   * Logging in creates a session in `auth_sessions` and the browser gets an `HttpOnly`
     cookie with a random token. The DB only stores its SHA-256: a dump of the DB
     cannot be used to impersonate sessions.

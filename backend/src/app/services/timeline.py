@@ -1,6 +1,6 @@
 """The car's timeline and the global search.
 
-Timeline: every dated thing EVBro knows about one car (drives, charges, refuels, workshop interventions, expenses, documents,
+Timeline: every dated thing EVbro knows about one car (drives, charges, refuels, workshop interventions, expenses, documents,
 geofence entries and exits) merged into one list, newest first, paged with `before`. Each entry carries the tab of the app that shows
 it in full, so the interface only has to jump there.
 

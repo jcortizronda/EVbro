@@ -1,7 +1,7 @@
 """Scheduled departure («Reserva tu viaje» in the official app): the car keeps its battery warm before the time you leave.
 
 The app's own text: «El aislamiento de la batería comienza 1 hora y 30 minutos antes de su salida». The plan lives in the car;
-EVBro stores nothing. It is READ from what the cloud already returns on every reading (`travelQuery`, merged into the raw
+EVbro stores nothing. It is READ from what the cloud already returns on every reading (`travelQuery`, merged into the raw
 data: `mainSwitcher` and `appointmentTravelSetVOS`) and CHANGED with the `appointmentTravel` order (core/catalog.py).
 docs/ebro-protocol.md, «Salida programada».
 
@@ -9,7 +9,7 @@ What is known and what is not (2026-11-21):
   * `travelTime` is minutes of the day in UTC, like the scheduled charge: the official app passes both through the same
     time-zone helper (`CommonUtils::dateTimeZone`). Checked on 2026-11-22: the app showed 08:00 (UTC+1) for a stored 420.
   * ONE schedule, like the official app, which offers a single time with its days (not a time per day). The reading is a
-    list and a car can hold more than one entry (an S800 had two): EVBro shows the first and, on saving, sends that one alone,
+    list and a car can hold more than one entry (an S800 had two): EVbro shows the first and, on saving, sends that one alone,
     as the official app does. What the cloud does with the other entries then has not been observed.
   * Weekdays (`travelWeekday` / `travelDate`) are taken as 1 = Monday … 7 = Sunday: the week picker of the official app lists
     them from Monday to Sunday. DEDUCED from that picker, not yet checked against a car with a single day chosen. The

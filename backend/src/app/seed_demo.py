@@ -1,4 +1,4 @@
-"""Demo script / test data for EVBro.
+"""Demo script / test data for EVbro.
 
 Fills the database with an 'Ebro S900 Demo' vehicle,
 live telemetry, several drives with GPS track and fuel,

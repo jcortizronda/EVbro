@@ -1,4 +1,4 @@
-"""Drives: the trips EVBro did not see (`drives.unseen`). Idempotent.
+"""Drives: the trips EVbro did not see (`drives.unseen`). Idempotent.
 
 A car asleep is read once an hour; with its live channel stopped, a short trip between two readings left only an odometer a
 few km higher, and those km were in no trip. They are now recorded as a trip of their own, built from the reading before and

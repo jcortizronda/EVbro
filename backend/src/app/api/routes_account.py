@@ -157,7 +157,7 @@ async def login_ebro_account(req: EbroLoginRequest, session: AsyncSession = Depe
         token_data = await loop.run_in_executor(None, _do_auth)
     except RuntimeError as e:
         # The cloud answered and said no (`login_with_password` raises with its text, e.g. «HTTP 401: El nombre de usuario no
-        # existe o la contraseña es incorrecta»): a typo of the manager, not a failure of EVBro — it used to come out as a 502
+        # existe o la contraseña es incorrecta»): a typo of the manager, not a failure of EVbro — it used to come out as a 502
         # «could not connect» and an error in the log (09-11-2026)
         _LOGGER.warning("The Ebro cloud refused the login of user %s: %s", user.id, cloud_refusal(str(e)),
                         extra={"telemetry": False})          # a mistyped password is not a fault to report to the project
@@ -366,7 +366,7 @@ async def change_ebro_password(req: EbroPasswordChange, session: AsyncSession = 
         raise HTTPException(status_code=422, detail=_("La contraseña nueva debe tener de 8 a 16 caracteres, con letras, números y algún carácter especial."))
     if req.new_password == req.current_password:
         raise HTTPException(status_code=422, detail=_("La contraseña nueva es igual que la actual."))
-    # The one EVBro keeps is the one that works (the session opens with it): a different one is a typo, refused here without
+    # The one EVbro keeps is the one that works (the session opens with it): a different one is a typo, refused here without
     # spending one of the attempts the cloud allows before blocking the account
     if account.password and not hmac.compare_digest(req.current_password.encode(), account.password.encode()):
         ebro_password_throttle.record_failure(key)
@@ -418,7 +418,7 @@ ebro_pin_throttle = LoginThrottle(max_failures=2, window_s=600)
 async def change_ebro_pin(req: EbroPinChange, request: Request, session: AsyncSession = Depends(get_db),
                           user: AppUser = Depends(auth.require_auth)):
     """Changes the car-control PIN of the connected Ebro account IN THE EBRO CLOUD (the one the official app asks for), through one
-    of the account's cars. Not the PIN stored in EVBro (`POST /pin`), which is only EVBro's copy: that copy, if there is one, is
+    of the account's cars. Not the PIN stored in EVbro (`POST /pin`), which is only EVbro's copy: that copy, if there is one, is
     replaced by the new PIN once the cloud accepts it. Worked against the real cloud on 24-11-2026 (docs/ebro-protocol.md)."""
     stmt = select(EbroAccount).where(EbroAccount.is_active == True, EbroAccount.user_id == user.id).order_by(EbroAccount.id.desc())  # noqa: E712
     account = (await session.execute(stmt)).scalars().first()
@@ -437,7 +437,7 @@ async def change_ebro_pin(req: EbroPinChange, request: Request, session: AsyncSe
         raise HTTPException(status_code=422, detail=_("Escribe el PIN actual de Ebro."))
     if new == current:
         raise HTTPException(status_code=422, detail=_("El PIN nuevo es igual que el actual."))
-    # The current PIN is checked by the Ebro cloud (`checkPassword`), as the official app does; EVBro's stored copy is not required
+    # The current PIN is checked by the Ebro cloud (`checkPassword`), as the official app does; EVbro's stored copy is not required
     # to match it (24-11-2026: it was, and it got in the way). The wrong-PIN lockout and the throttle below keep the account safe.
 
     poller = VehiclePoller.get_instance()
@@ -462,7 +462,7 @@ async def change_ebro_pin(req: EbroPinChange, request: Request, session: AsyncSe
         ebro_pin_throttle.record_failure(key)
         await poller._audit_command(car.vin, "cambiar_pin_ebro", None, False, str(outcome["code"]), outcome["reason"], ip)
         if outcome["unconfirmed"]:
-            raise HTTPException(status_code=424, detail=_("Ebro respondió sin error, pero todavía no acepta el PIN nuevo. Prueba en unos minutos una orden con el PIN de siempre; EVBro no ha cambiado el PIN guardado."))
+            raise HTTPException(status_code=424, detail=_("Ebro respondió sin error, pero todavía no acepta el PIN nuevo. Prueba en unos minutos una orden con el PIN de siempre; EVbro no ha cambiado el PIN guardado."))
         raise HTTPException(status_code=424, detail=_("Ebro no ha cambiado el PIN: {p0}", p0=outcome["reason"] or "sin motivo"))
 
     ebro_pin_throttle.reset(key)
@@ -473,7 +473,7 @@ async def change_ebro_pin(req: EbroPinChange, request: Request, session: AsyncSe
 
 
 async def _adopt_new_pin(session: AsyncSession, account: EbroAccount, user: AppUser, poller: VehiclePoller, new: str) -> bool:
-    """The cloud has a new PIN: EVBro's copy (if there is one) becomes it, and the account's cars drop their lockout and the taskId
+    """The cloud has a new PIN: EVbro's copy (if there is one) becomes it, and the account's cars drop their lockout and the taskId
     minted with the old one. Returns whether there was a copy."""
     stored = bool(account.pin)
     if stored:
@@ -520,7 +520,7 @@ def _reset_ctx(account: EbroAccount, user: AppUser):
 
 
 def _check_sms_allowed(key: str) -> None:
-    """A minute between two SMS, as the official app, and five in ten minutes at most (EVBro's own cap: it may face the internet)."""
+    """A minute between two SMS, as the official app, and five in ten minutes at most (EVbro's own cap: it may face the internet)."""
     gap, cap = ebro_sms_gap.retry_after(key), ebro_sms_throttle.retry_after(key)
     if cap:
         raise HTTPException(status_code=429, headers={"Retry-After": str(cap)},
@@ -627,7 +627,7 @@ async def reset_pin_route(req: ResetPinIn, request: Request, session: AsyncSessi
         ebro_code_throttle.record_failure(key)
         await poller._audit_command(car.vin, "restablecer_pin_ebro", None, False, None, outcome["reason"], ip)
         if outcome["unconfirmed"]:
-            raise HTTPException(status_code=424, detail=_("Ebro respondió sin error, pero todavía no acepta el PIN nuevo. Prueba en unos minutos una orden con el PIN nuevo; EVBro no ha cambiado el PIN guardado."))
+            raise HTTPException(status_code=424, detail=_("Ebro respondió sin error, pero todavía no acepta el PIN nuevo. Prueba en unos minutos una orden con el PIN nuevo; EVbro no ha cambiado el PIN guardado."))
         raise HTTPException(status_code=424, detail=_("Ebro no ha restablecido el PIN: {p0}", p0=outcome["reason"] or "sin motivo"))
     ebro_code_throttle.reset(key)
     await poller._audit_command(car.vin, "restablecer_pin_ebro", None, True, None, "PIN de Ebro restablecido", ip)
@@ -643,7 +643,7 @@ class ResetPasswordIn(BaseModel):
 
 @router.post("/ebro-reset/password")
 async def reset_password_route(req: ResetPasswordIn, session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)):
-    """The new password with the SMS code; EVBro keeps it and signs in with it. Not yet tried against the real cloud."""
+    """The new password with the SMS code; EVbro keeps it and signs in with it. Not yet tried against the real cloud."""
     account = await _reset_account(session, user)
     if not ebro_account.password_format_ok(req.new_password):
         raise HTTPException(status_code=422, detail=_("La contraseña nueva debe tener de 8 a 16 caracteres, con letras, números y algún carácter especial."))
@@ -792,7 +792,7 @@ async def _mqtt_link(session: AsyncSession, user_id: int) -> Optional[MqttLink]:
 
 @router.get("/mqtt")
 async def get_mqtt_link(session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)):
-    """The manager's broker and whether EVBro is connected to it (never the password)."""
+    """The manager's broker and whether EVbro is connected to it (never the password)."""
     return _mqtt_out(await _mqtt_link(session, user.id), user.id)
 
 

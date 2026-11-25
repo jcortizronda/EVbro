@@ -32,7 +32,7 @@ APP_BASIC    = "Basic bGVnZW5kQXBwOmxlZ2VuZEFwcA=="   # legendApp:legendApp (OAu
 APP_VERSION  = "1.0.11"
 
 # Region defaults, used only when `headers_post` is called without a context
-# (command-line diagnostics). In EVBro the context is always there.
+# (command-line diagnostics). In EVbro the context is always there.
 #
 # Imported from `context`, where the definition lives: they used to be four `os.environ`
 # READ AT IMPORT, i.e. a second source of truth for the same region parameters
@@ -152,7 +152,7 @@ def headers_post(url_path: str, secret: str=SIGN_SECRET, nonce: str=SIGN_NONCE,
     parameters of a request the app signs with them (a PUT or a GET with parameters; see `sign_values`).
 
     Without a context the module defaults are used — only useful for command-line
-    diagnostics. EVBro always passes the vehicle's context, so two
+    diagnostics. EVbro always passes the vehicle's context, so two
     entries with different regions do not step on each other."""
     channel_id = ctx.channel_id if ctx is not None else CHANNEL_ID
     country_id = ctx.country_id if ctx is not None else COUNTRY_ID

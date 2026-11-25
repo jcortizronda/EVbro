@@ -1,4 +1,4 @@
-"""Charges written down by the user (Carga → «Añadir carga» and «Importar»): the ones from before EVBro, or one it missed.
+"""Charges written down by the user (Carga → «Añadir carga» and «Importar»): the ones from before EVbro, or one it missed.
 Only the kWh are required; they never feed the figures that need what the car measured."""
 from __future__ import annotations
 
@@ -75,7 +75,7 @@ async def test_only_the_kwh_are_needed_and_the_rest_is_kept_when_given(world) ->
     assert (dated.charge_type, dated.battery_gain_pct, dated.cost_mode) == ("dc", 90.0, "manual")
     # the typed kWh are the charger's; what reached the battery is estimated from the % (90 % of 19.27 kWh)
     assert (dated.kwh_used, dated.kwh_added) == (22.4, 17.34)
-    # without a day it is filed the day before the car joined EVBro, at midday, and says so
+    # without a day it is filed the day before the car joined EVbro, at midday, and says so
     assert undated.date_unknown and undated.start_time == datetime.datetime(2026, 10, 9, 10, 0) and undated.cost_mode is None
     # both are in the history and in the totals, labelled
     listed = (await juan.get(f"/api/vehicles/{VIN}/charges")).json()

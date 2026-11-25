@@ -1,4 +1,4 @@
-/* EVBro — One period picker for every list and statistic (Estadísticas, Costes, Repostajes, Gastos, Cargas, Viajes, Cronología).
+/* EVbro — One period picker for every list and statistic (Estadísticas, Costes, Repostajes, Gastos, Cargas, Viajes, Cronología).
  * Preset chips («Este mes», «Año pasado», «12 meses»…) plus «Elegir…», which opens two month fields (desde / hasta, both optional).
  * The choice is remembered per view in localStorage and sent to the API as `period=<preset>` or `period=custom&from=AAAA-MM&to=AAAA-MM`
  * (backend/src/app/services/periods.py). (Classic script: shares the global scope; load it before the features that use it.)

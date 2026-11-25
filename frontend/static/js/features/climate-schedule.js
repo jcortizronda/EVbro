@@ -1,4 +1,4 @@
-/* EVBro — Scheduled climate (Confort): at a set time on the chosen days, EVBro turns the climate control on at the
+/* EVbro — Scheduled climate (Confort): at a set time on the chosen days, EVbro turns the climate control on at the
  * given temperature. The server sends it with the saved PIN (like the charge manager): the car wakes up.
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */

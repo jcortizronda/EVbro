@@ -30,7 +30,7 @@ El nombre del proyecto es fijo (`evbro`): los volúmenes (`evbro_evbro_data` con
 | `SESSION_DAYS` | `30` | Días que dura la sesión en un dispositivo |
 | `COOKIE_SECURE` / `FORWARDED_ALLOW_IPS` / `ALLOWED_ORIGINS` / `BIND_ADDRESS` / `WEB_PORT` | ver «HTTPS y publicación» | Proxy inverso y publicación |
 | `WEBAUTHN_RP_ID` / `WEBAUTHN_ORIGIN` | vacío (= el nombre con el que se abre la web) | Acceso con huella si el proxy no reenvía el `Host` |
-| `PUBLIC_URL` | vacío (= el primer `WEBAUTHN_ORIGIN`) | Dirección con la que se abre EVBro (`https://…`): los enlaces de los correos se construyen con ella, nunca con la cabecera `Host` |
+| `PUBLIC_URL` | vacío (= el primer `WEBAUTHN_ORIGIN`) | Dirección con la que se abre EVbro (`https://…`): los enlaces de los correos se construyen con ella, nunca con la cabecera `Host` |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_FROM` / `SMTP_SECURITY` | vacío / `587` / — / — / — / `starttls` | Correo para «¿Olvidaste la contraseña?» (ver «Correo») |
 | `TIMEZONE` | — | Zona IANA de la carga programada y las horas |
 | `VAPID_SUBJECT` | — | Contacto declarado a Google/Apple en Web Push (`mailto:…`) |
@@ -45,15 +45,15 @@ El nombre del proyecto es fijo (`evbro`): los volúmenes (`evbro_evbro_data` con
 | `TELEMETRY_RECEIVER` | `false` | Solo el servidor del proyecto: recibe los informes de otras instalaciones y los muestra en la pestaña Informes de su consola |
 | `POLL_INTERVAL_PARKED_MIN` / `_PLUGGED_MIN` / `_CHARGING_MIN` / `_DRIVING_MIN` / `_DRIVING_IDLE_MIN` | `60` / `30` / `2` / `1` / `3` | Cada cuánto se consulta la nube según el estado (0 = no sondear). No despierta el coche, pero compite con la app oficial: no bajarlos sin motivo |
 | `CAR_MQTT_ENABLED` / `CAR_MQTT_HOST` / `CAR_MQTT_PORT` | `false` / nube de Ebro / `8083` | Canal en directo con el coche (puertas, cierre, cable, motor, confirmaciones). Solo la cuenta propietaria; la nube admite un cliente por cuenta |
-| `AUTO_LOCATE_ENABLED` | `true` | Cuando la nube repite la misma posición con el coche en marcha, EVBro manda «Localizar coche (GPS)» con el PIN guardado (uno cada 5 min y dos por episodio como mucho, y uno al pararse si el último punto se quedó 2 km atrás; [trips.md](trips.md), «Posición congelada»). Necesita el PIN guardado en la cuenta; sin él no se manda. Activado por defecto desde el 21-11-2026, cuando se vio funcionar en un S900; `false` lo apaga. |
+| `AUTO_LOCATE_ENABLED` | `true` | Cuando la nube repite la misma posición con el coche en marcha, EVbro manda «Localizar coche (GPS)» con el PIN guardado (uno cada 5 min y dos por episodio como mucho, y uno al pararse si el último punto se quedó 2 km atrás; [trips.md](trips.md), «Posición congelada»). Necesita el PIN guardado en la cuenta; sin él no se manda. Activado por defecto desde el 21-11-2026, cuando se vio funcionar en un S900; `false` lo apaga. |
 | `MQTT_ENABLED` / `MQTT_HOST` / `MQTT_PORT` / `MQTT_USER` / `MQTT_PASSWORD` / `MQTT_TOPIC_PREFIX` / `MQTT_PUBLISH_SCOPE` / `MQTT_HA_DISCOVERY` / `MQTT_HA_PREFIX` | `false` / `mosquitto` / `1883` / — / — / `evbro` / `owner` / `true` / `homeassistant` | Publicar los coches en tu broker MQTT (Home Assistant los descubre). Cada gestor puede conectar el suyo desde Ajustes → Cuenta |
 | `EVBRO_TAG` / `EVBRO_IMAGE_OWNER` / `EVBRO_COMMIT` | `latest` / `jcortizronda` / vacío | Imagen a usar y commit que se muestra en Ajustes → Sistema |
 
-**Versión y compilación.** Ajustes → Sistema muestra «EVBro <versión>» (`__version__` en `backend/src/app/__init__.py`, igual que `backend/pyproject.toml`) y, si se conoce, el commit del que sale la imagen (`GET /api/version`). El commit entra como argumento de construcción `EVBRO_COMMIT` (`ARG`/`ENV` en `backend/Dockerfile`, `build.args` en `deploy/docker-compose.yml`): `EVBRO_COMMIT=$(git rev-parse --short HEAD) docker compose up -d --build`. Sin repositorio en el servidor se puede poner `EVBRO_COMMIT=<hash>` en `deploy/.env`.
+**Versión y compilación.** Ajustes → Sistema muestra «EVbro <versión>» (`__version__` en `backend/src/app/__init__.py`, igual que `backend/pyproject.toml`) y, si se conoce, el commit del que sale la imagen (`GET /api/version`). El commit entra como argumento de construcción `EVBRO_COMMIT` (`ARG`/`ENV` en `backend/Dockerfile`, `build.args` en `deploy/docker-compose.yml`): `EVBRO_COMMIT=$(git rev-parse --short HEAD) docker compose up -d --build`. Sin repositorio en el servidor se puede poner `EVBRO_COMMIT=<hash>` en `deploy/.env`.
 
 ## Instalar con la imagen pública (sin el código)
 
-Cada push a `main` y cada etiqueta `vX.Y.Z` publican la imagen en el registro de GitHub (`.github/workflows/image.yml`): `ghcr.io/jcortizronda/evbro:latest`, `:vX.Y.Z` y `:sha-<commit>`. El paquete nace privado: la primera vez hay que hacerlo público en GitHub → Packages → evbro → *Package settings* → *Change visibility*. Con eso, quien quiera autoalojar EVBro solo necesita dos ficheros de `deploy/` (`docker-compose.yml` y `.env.example` copiado a `.env`), Docker y PostgreSQL del propio compose:
+Cada push a `main` y cada etiqueta `vX.Y.Z` publican la imagen en el registro de GitHub (`.github/workflows/image.yml`): `ghcr.io/jcortizronda/evbro:latest`, `:vX.Y.Z` y `:sha-<commit>`. El paquete nace privado: la primera vez hay que hacerlo público en GitHub → Packages → evbro → *Package settings* → *Change visibility*. Con eso, quien quiera autoalojar EVbro solo necesita dos ficheros de `deploy/` (`docker-compose.yml` y `.env.example` copiado a `.env`), Docker y PostgreSQL del propio compose:
 
 ```bash
 mkdir evbro && cd evbro
@@ -76,7 +76,7 @@ cd /opt/evbro/deploy && docker compose up -d --build
 
 ## HTTPS y publicación
 
-EVBro **no termina TLS**: va detrás de un proxy inverso. Necesita HTTPS válido para dos cosas: la cookie de sesión `Secure` y las **notificaciones Web Push** (el navegador solo ofrece `PushManager` en HTTPS o `localhost`).
+EVbro **no termina TLS**: va detrás de un proxy inverso. Necesita HTTPS válido para dos cosas: la cookie de sesión `Secure` y las **notificaciones Web Push** (el navegador solo ofrece `PushManager` en HTTPS o `localhost`).
 
 Variables en `deploy/.env` cuando hay proxy:
 
@@ -112,17 +112,17 @@ evbro.example.com {
 
 ## Primer arranque
 
-1. Abre la URL pública, crea el usuario de EVBro con el **código de configuración** del log.
+1. Abre la URL pública, crea el usuario de EVbro con el **código de configuración** del log.
 2. **Ajustes → Cuenta**: conecta tu teléfono, contraseña y PIN de Ebro (se guardan cifrados).
 3. **Ajustes → Avisos → Activar en este dispositivo** para las notificaciones.
 
 ## El reloj del servidor
 
-EVBro fecha todo con el reloj de la máquina y no lo pone en duda. Si el equipo arranca con el reloj atrasado (una pila de placa agotada: el 22-11-2026 el servidor del proyecto arrancó creyendo que era abril, y la hora de red tardó menos de un minuto en corregirlo), lo que se guarde entretanto lleva una fecha falsa: aquel día fueron seis lecturas, un punto de una curva de carga, un punto de una ruta y una orden, que se borraron a mano. Conviene que el equipo tenga la sincronización de hora activa y que el contenedor no arranque antes de que el reloj esté en hora.
+EVbro fecha todo con el reloj de la máquina y no lo pone en duda. Si el equipo arranca con el reloj atrasado (una pila de placa agotada: el 22-11-2026 el servidor del proyecto arrancó creyendo que era abril, y la hora de red tardó menos de un minuto en corregirlo), lo que se guarde entretanto lleva una fecha falsa: aquel día fueron seis lecturas, un punto de una curva de carga, un punto de una ruta y una orden, que se borraron a mano. Conviene que el equipo tenga la sincronización de hora activa y que el contenedor no arranque antes de que el reloj esté en hora.
 
 ## Registro
 
-Además de la salida de `docker compose logs app`, EVBro escribe el registro en el **volumen de datos**, `logs/evbro.log`: el de Docker se pierde cada vez que se recrea el contenedor, es decir, en cada actualización. El fichero rota a los 5 MB y guarda cuatro anteriores (`evbro.log.1` … `evbro.log.4`), y entra en la copia diaria del volumen. Para leerlo:
+Además de la salida de `docker compose logs app`, EVbro escribe el registro en el **volumen de datos**, `logs/evbro.log`: el de Docker se pierde cada vez que se recrea el contenedor, es decir, en cada actualización. El fichero rota a los 5 MB y guarda cuatro anteriores (`evbro.log.1` … `evbro.log.4`), y entra en la copia diaria del volumen. Para leerlo:
 
 ```bash
 docker compose exec app tail -n 200 /app/data/logs/evbro.log
@@ -171,7 +171,7 @@ un buzón personal: la dirección personal saldría como remitente y su contrase
    SMTP_PORT=587
    SMTP_USER=usuario-smtp
    SMTP_PASSWORD=clave-smtp
-   SMTP_FROM=EVBro <no-responder@example.com>
+   SMTP_FROM=EVbro <no-responder@example.com>
    SMTP_SECURITY=starttls
    ```
    (`ssl` con el puerto 465; `none` solo para un relé en la misma máquina.)
@@ -188,7 +188,7 @@ bubblewrap init --manifest https://evbro.ejemplo.es/manifest.json     # pide nom
 bubblewrap build                                                       # app-release-signed.apk + la huella SHA-256 de la clave
 ```
 
-Al terminar, Bubblewrap imprime el **assetlinks.json**. Pégalo en una sola línea en `ANDROID_ASSETLINKS_JSON` del `.env` y reinicia: EVBro lo sirve en `/.well-known/assetlinks.json` (público, con caché de una hora). Sin él, Android abre la app con la barra del navegador. Requiere HTTPS con el mismo dominio que `start_url` del manifiesto. **No se ha generado ni probado un APK todavía**: es la receta, no un paquete publicado.
+Al terminar, Bubblewrap imprime el **assetlinks.json**. Pégalo en una sola línea en `ANDROID_ASSETLINKS_JSON` del `.env` y reinicia: EVbro lo sirve en `/.well-known/assetlinks.json` (público, con caché de una hora). Sin él, Android abre la app con la barra del navegador. Requiere HTTPS con el mismo dominio que `start_url` del manifiesto. **No se ha generado ni probado un APK todavía**: es la receta, no un paquete publicado.
 
 ## Sin conexión
 

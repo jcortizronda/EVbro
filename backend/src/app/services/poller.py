@@ -340,7 +340,7 @@ class VehiclePoller(SessionMixin, CommandsMixin, AlertsMixin, PositionWatchMixin
             try:
                 token_data = await loop.run_in_executor(None, _do_login)
             except RuntimeError as e:
-                # The cloud answered and said no: a manager's wrong or changed password, not a failure of EVBro
+                # The cloud answered and said no: a manager's wrong or changed password, not a failure of EVbro
                 who = f"of user {acc_user_id}" if acc_user_id is not None else "of the environment"
                 _LOGGER.warning("The Ebro cloud rejected the password of the account %s: %s", who, without_secrets(str(e)),
                                 extra={"telemetry": False})
@@ -714,7 +714,7 @@ class VehiclePoller(SessionMixin, CommandsMixin, AlertsMixin, PositionWatchMixin
 
     async def _poller_loop(self) -> None:
         """Main adaptive, continuous polling loop."""
-        _LOGGER.info("Starting the EVBro smart polling loop...")
+        _LOGGER.info("Starting the EVbro smart polling loop...")
         while self._running:
             try:
                 await self.bind_sessions()                    # a connected, changed or new account takes effect on the next pass

@@ -1,4 +1,4 @@
-/* EVBro — «Viajes largos» (Más → Viajes): a named span of days (a holiday, a road trip) that adds up every drive, charge,
+/* EVbro — «Viajes largos» (Más → Viajes): a named span of days (a holiday, a road trip) that adds up every drive, charge,
  * refuel and expense recorded between its dates. The server does the sums (services/journeys.py); here the list, the form with a
  * live preview, and the detail sheet. (Classic script: shares the global scope; feedback.js and history-list.js load before it.)
  */

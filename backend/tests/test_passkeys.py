@@ -129,7 +129,7 @@ async def test_register_options_need_a_session_and_ask_for_user_verification(use
     try:
         body = (await ana.post("/api/passkeys/register/options")).json()
         o = body["options"]
-        assert o["rp"] == {"id": "localhost", "name": "EVBro"} and o["user"]["name"] == "ana"
+        assert o["rp"] == {"id": "localhost", "name": "EVbro"} and o["user"]["name"] == "ana"
         assert o["authenticatorSelection"]["userVerification"] == "required" and o["authenticatorSelection"]["residentKey"] == "preferred"
         assert body["challenge_id"] and o["challenge"]
     finally:

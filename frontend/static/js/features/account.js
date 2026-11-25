@@ -1,4 +1,4 @@
-/* EVBro — Ebro account: status, connection and disconnection.
+/* EVbro — Ebro account: status, connection and disconnection.
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
@@ -303,8 +303,8 @@ async function submitEbroPassword() {
     closeEbroPasswordModal();
     await checkAccountStatus();
     showToast(data.session_renewed
-      ? t('Contraseña de Ebro cambiada. EVBro ya usa la nueva.')
-      : t('Ebro ha cambiado la contraseña, pero todavía no deja entrar con la nueva. EVBro la ha guardado y lo volverá a intentar; si no conecta, vuelve a conectar la cuenta.'),
+      ? t('Contraseña de Ebro cambiada. EVbro ya usa la nueva.')
+      : t('Ebro ha cambiado la contraseña, pero todavía no deja entrar con la nueva. EVbro la ha guardado y lo volverá a intentar; si no conecta, vuelve a conectar la cuenta.'),
       data.session_renewed ? 'success' : 'warning', 9000);
   } catch (e) {
     showEbroPasswordError(e.message || String(e));
@@ -314,7 +314,7 @@ async function submitEbroPassword() {
 }
 
 
-// ───────────────────────── Changing the PIN of the Ebro account (in the cloud, not EVBro's copy) ─────────────────────────
+// ───────────────────────── Changing the PIN of the Ebro account (in the cloud, not EVbro's copy) ─────────────────────────
 const EBRO_PIN_FIELDS = ['ebroPinCurrent', 'ebroPinNew', 'ebroPinRepeat'];
 
 /** The car the change goes through: the one on screen when it is a car of the account, else the account's first one. */
@@ -389,7 +389,7 @@ async function submitEbroPin() {
     closeEbroPinModal();
     if (typeof commandPinMap !== 'undefined') commandPinMap = null;
     await checkAccountStatus();
-    showToast(data.stored_pin_updated ? t('PIN de Ebro cambiado. El PIN guardado en EVBro ya es el nuevo.') : t('PIN de Ebro cambiado. Úsalo en las órdenes que te lo pidan.'), 'success', 7000);
+    showToast(data.stored_pin_updated ? t('PIN de Ebro cambiado. El PIN guardado en EVbro ya es el nuevo.') : t('PIN de Ebro cambiado. Úsalo en las órdenes que te lo pidan.'), 'success', 7000);
   } catch (e) {
     showEbroPinError(e.message || String(e));
   } finally {
@@ -565,8 +565,8 @@ window.EbroReset = (function () {
       if (pin && typeof commandPinMap !== 'undefined') commandPinMap = null;
       await checkAccountStatus();
       showToast(pin
-        ? (data.stored_pin_updated ? t('PIN de Ebro restablecido. El PIN guardado en EVBro ya es el nuevo.') : t('PIN de Ebro restablecido.'))
-        : (data.session_renewed ? t('Contraseña de Ebro restablecida. EVBro ya usa la nueva.') : t('Ebro ha cambiado la contraseña, pero todavía no deja entrar con la nueva. EVBro la ha guardado y lo volverá a intentar; si no conecta, vuelve a conectar la cuenta.')),
+        ? (data.stored_pin_updated ? t('PIN de Ebro restablecido. El PIN guardado en EVbro ya es el nuevo.') : t('PIN de Ebro restablecido.'))
+        : (data.session_renewed ? t('Contraseña de Ebro restablecida. EVbro ya usa la nueva.') : t('Ebro ha cambiado la contraseña, pero todavía no deja entrar con la nueva. EVbro la ha guardado y lo volverá a intentar; si no conecta, vuelve a conectar la cuenta.')),
         'success', 8000);
     } catch (e) {
       error(e.message || String(e));
@@ -585,7 +585,7 @@ function closeEbroResetModal() { EbroReset.close(); }
 const PIN_POLICY_HINT = {
   open: 'Las órdenes que abren, desbloquean o desarman el coche (puertas, maletero, ventanillas, techo, ventilar y quitar la alarma) piden el PIN cada vez; las demás (clima, luces, cerrar…) usan el PIN guardado.',
   always: 'Todas las órdenes piden el PIN, también encender el clima o cerrar.',
-  never: 'Ninguna orden pide el PIN: con el PIN guardado, quien entre en EVBro con tu cuenta puede abrir el coche.',
+  never: 'Ninguna orden pide el PIN: con el PIN guardado, quien entre en EVbro con tu cuenta puede abrir el coche.',
 };
 
 function renderPinPolicy(data) {
@@ -604,7 +604,7 @@ function renderPinPolicy(data) {
 async function setPinPolicy(policy) {
   if (policy === 'never') {
     if (!currentAccountInfo?.has_pin) { showToast('Guarda primero el PIN en la cuenta.', 'warning', 5000); return; }
-    const sure = await confirmDialog('Ninguna orden pedirá el PIN: quien entre en EVBro con tu cuenta podrá abrir y desbloquear el coche sin teclearlo. ¿Seguro?',
+    const sure = await confirmDialog('Ninguna orden pedirá el PIN: quien entre en EVbro con tu cuenta podrá abrir y desbloquear el coche sin teclearlo. ¿Seguro?',
       { title: 'No pedir nunca el PIN', confirmText: 'No pedirlo nunca', danger: true });
     if (!sure) return;
   }

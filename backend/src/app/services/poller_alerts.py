@@ -120,7 +120,7 @@ class AlertsMixin:
                     vehicle.name, battery or 0.0, telemetry.get("electric_range_km"), vin=vin
                 )
             elif was_charging and not is_charging:
-                # If it stopped before completing (< 95%) and EVBro did not stop it itself (target reached, «Parar carga»)
+                # If it stopped before completing (< 95%) and EVbro did not stop it itself (target reached, «Parar carga»)
                 if battery is not None and battery < 95 and not ChargeManager.get_instance().holds_charge(vin):
                     await NotificationService.notify_charge_interrupted(
                         vehicle.name, battery, "Suministro eléctrico cortado o manguera desconectada.", vin=vin

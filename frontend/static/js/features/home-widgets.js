@@ -1,4 +1,4 @@
-/* EVBro — Pages made of widgets (Inicio, Carga and Confort): each account chooses which blocks it sees and in what order
+/* EVbro — Pages made of widgets (Inicio, Carga and Confort): each account chooses which blocks it sees and in what order
  * (drag or arrows), and can add more. One engine, one «board» per page: `HomeWidgets`, `EnergyWidgets`, `ComfortWidgets`.
  *
  * - The blocks that were already on Inicio (range, car figure, orders, figures, charging, map, tyres, all data) are widgets that
@@ -432,7 +432,7 @@ const WidgetBoards = (function () {
   };
 
   LOADERS.charge_plan = async (vin) => {
-    const p = await getJson(`/api/vehicles/${vin}/charge/plan`);        // without `live`: what EVBro keeps, no question to the cloud
+    const p = await getJson(`/api/vehicles/${vin}/charge/plan`);        // without `live`: what EVbro keeps, no question to the cloud
     const s = p.schedule || {};
     const sched = s.enabled && s.start ? t('Programada de {p0} a {p1}', { p0: s.start, p1: s.end || '—' }) : t('Sin horario de carga');
     return `<div class="hw-big">${num(p.target_pct ?? 100)} <small>%</small></div>`

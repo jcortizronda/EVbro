@@ -1,4 +1,4 @@
-/* EVBro — Compact top-view car figure on the home tab: doors, hood, trunk, windows, sunroof, lock, charge cable and the four
+/* EVbro — Compact top-view car figure on the home tab: doors, hood, trunk, windows, sunroof, lock, charge cable and the four
  * tyre pressures, each coloured by what the car last reported (amber = open, neutral = closed, dashed grey = no data).
  * Tapping a part opens the matching action (windows, trunk, sunroof, lock). Nothing here assumes «closed» without data.
  * (Classic script: shares the global scope; telemetry.js calls `renderCarFigure(data)` after each reading.)

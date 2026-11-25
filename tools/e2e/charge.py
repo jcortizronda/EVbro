@@ -61,7 +61,7 @@ with sync_playwright() as p:
         # target
         drag(pg,100,80); pg.wait_for_timeout(400)
         toasts=pg.inner_text("#appToastContainer") if pg.query_selector("#appToastContainer") else ""
-        ok("guardado en EVBro" in toasts and "enviado al coche" not in toasts,"changing the target does NOT say «enviado al coche»: «guardado en EVBro»")
+        ok("guardado en EVbro" in toasts and "enviado al coche" not in toasts,"changing the target does NOT say «enviado al coche»: «guardado en EVbro»")
         drag(pg,80,85); pg.wait_for_timeout(400)
         ok(reqs[-1]==("PUT","target",{"target_pct":85}),"the circle accepts 85 % (steps of 5)")
         drag(pg,85,80); pg.wait_for_timeout(400)

@@ -1,4 +1,4 @@
-"""Server to server: another EVBro installation reads this server's approved catalogue or sends a proposal with its catalogue key.
+"""Server to server: another EVbro installation reads this server's approved catalogue or sends a proposal with its catalogue key.
 
 No session and no cookies: the caller is a server, authenticated by `Authorization: Bearer ebc_…` (services/catalog_remote.py).
 A wrong key answers 401 and counts against the caller's IP like a failed login.

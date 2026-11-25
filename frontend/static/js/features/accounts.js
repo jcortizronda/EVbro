@@ -1,4 +1,4 @@
-/* EVBro — Linked accounts (Ajustes → Cuentas): who else can use your cars and with which permission, and cars without an Ebro account.
+/* EVbro — Linked accounts (Ajustes → Cuentas): who else can use your cars and with which permission, and cars without an Ebro account.
  * Only managers (and the admin, in their own space) see this. Levels: view < edit < control; the owner is always you.
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */

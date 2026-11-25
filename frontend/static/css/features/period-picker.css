@@ -1,4 +1,4 @@
-/* EVBro — Shared period picker (features/period-picker.js): preset chips plus «desde / hasta» month fields.
+/* EVbro — Shared period picker (features/period-picker.js): preset chips plus «desde / hasta» month fields.
    Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
 .period-picker { display: grid; gap: 8px; margin: 12px 0 10px; }

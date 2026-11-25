@@ -12,7 +12,7 @@ Header: Authorization=<userToken>, timestamp=<ms>, Content-Type=application/json
         User-Agent=okhttp/4.9.2
 
 ⚠️  Every send() with a valid taskId ACTS on the car. It is meant to be invoked ONLY
-    when the user taps a button in EVBro's interface (= their explicit consent).
+    when the user taps a button in EVbro's interface (= their explicit consent).
     The catalogue bodies are rebuilt 1:1 from real captured envelopes.
 """
 import contextlib
@@ -150,7 +150,7 @@ def query_charge_schedule(ctx):
     or wake the car. Returns the raw `body` (`mainSwitch` + `chargeAppointPlans`) or `None`.
 
     It exists because the schedule can be changed from the official app or from the car
-    itself, and EVBro learns nothing of it that way: the interface's time and duration fields
+    itself, and EVbro learns nothing of it that way: the interface's time and duration fields
     are the PREFERENCE of what will be sent, not what the vehicle currently has set."""
     token, _tuid = wake._bff_login(ctx)
     if not token:

@@ -1,4 +1,4 @@
-/* EVBro — admin console. No dependencies on the rest of the web app: it is another application, on another port.
+/* EVbro — admin console. No dependencies on the rest of the web app: it is another application, on another port.
  * The admin manages accounts, invitations, limits and server settings; of the managers it only sees counts and status, never their cars.
  * All text coming from the server is rendered with textContent (never innerHTML) and there are no inline handlers (CSP). */
 'use strict';

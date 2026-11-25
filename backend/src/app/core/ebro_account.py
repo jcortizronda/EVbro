@@ -61,7 +61,7 @@ def refusal(answer: dict) -> str:
 
 # ───────────────────────── The car-control PIN of the account ─────────────────────────
 # Read from the official app 1.0.11 (`RusApiService.changePassword`, `CarSettingPasswordViewModel.controlAddPsw`, 24-11-2026). The first
-# try from EVBro (scene 0) got A00089; with scene 2 not yet tried. The body does not carry the current PIN: the `taskId` proves it, minted by `checkPassword` with that PIN and
+# try from EVbro (scene 0) got A00089; with scene 2 not yet tried. The body does not carry the current PIN: the `taskId` proves it, minted by `checkPassword` with that PIN and
 # `scene = 2` (the app asks for the PIN to open the car settings; with the commands' `scene = 0` the cloud answered A00089, 24-11-2026). `newPassword` is encoded like `checkPassword.password`.
 CHANGE_PIN_PATH = "/tsp/v1/app/cpm/changePassword"
 PIN_LENGTH = 6                       # the app's field: «Introduce la contraseña de 6 dígitos»
@@ -96,11 +96,11 @@ def pin_change_looks_accepted(answer: dict) -> bool:
 
 # ───────────────────────── The car's nickname in the Ebro account ─────────────────────────
 # Read from the official app 1.0.11 («Certificación de propietario» → edit; `CarOwnerCertifyApiService.updateCarInfo` and
-# `fetchCertifyList`, 24-11-2026), not yet sent from here. It is the `nickname` that `queryList` reports and EVBro shows as
+# `fetchCertifyList`, 24-11-2026), not yet sent from here. It is the `nickname` that `queryList` reports and EVbro shows as
 # the car's name. The PUT carries its fields as query parameters, signed with them (`ebro_auth.sign_values`).
 OWNER_CARS_PATH = "/web/car-service/owner/list"
 OWNER_AUTH_PATH = "/marketing/owner-auth/app"
-NICKNAME_MAX_LENGTH = 30             # EVBro's own limit: the app's field limit is not known (the cloud says if it is too long)
+NICKNAME_MAX_LENGTH = 30             # EVbro's own limit: the app's field limit is not known (the cloud says if it is too long)
 
 
 def _bearer_headers(ctx, path: str, values: dict | None = None) -> dict:

@@ -1,4 +1,4 @@
-/* EVBro — Vehicles: picker, header, car editing and telemetry reading.
+/* EVbro — Vehicles: picker, header, car editing and telemetry reading.
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
@@ -71,7 +71,7 @@ function updateVehicleHeaderInfo(vehicle) {
   if (typeof applyAccessLevel === 'function') applyAccessLevel();
 
   // Update the browser title
-  document.title = t('EVBro — {p0}', {p0: displayName});
+  document.title = t('EVbro — {p0}', {p0: displayName});
 
   if (vinEl) {
     const vin = vehicle?.vin || currentVin;

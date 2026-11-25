@@ -21,7 +21,7 @@ TOU_HOLIDAYS = frozenset({(1, 1), (1, 6), (5, 1), (8, 15), (10, 12), (11, 1), (1
 
 
 def to_local(dt: datetime.datetime, zone: Optional[str] = None) -> datetime.datetime:
-    """The tariffs follow the local clock. Naive datetimes are UTC (how EVBro stores times); the Canary Islands use their own clock."""
+    """The tariffs follow the local clock. Naive datetimes are UTC (how EVbro stores times); the Canary Islands use their own clock."""
     from zoneinfo import ZoneInfo
 
     from app.config import get_timezone

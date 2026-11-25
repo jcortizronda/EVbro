@@ -1,4 +1,4 @@
-/* EVBro — buttons with real state (ON/OFF): Confort tab (climate, windows, steering wheel, seats) and the
+/* EVbro — buttons with real state (ON/OFF): Confort tab (climate, windows, steering wheel, seats) and the
  * alarm switch on the home tab. (Charging and scheduled charging are handled by charge.js.)
  *
  * The state comes from the car's telemetry (`latestTelemetryData`), NOT from local flags: each button used to

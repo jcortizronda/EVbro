@@ -4,7 +4,7 @@
 **The risk this module exists to contain.** The PIN for remote commands
 is verified by the Chery backend (`checkPassword`). Every failed verification increments
 an error counter ON THE CHERY SIDE: past the threshold the account gets locked — and that
-lock cannot be undone from EVBro. That is why the component limits itself: after
+lock cannot be undone from EVbro. That is why the component limits itself: after
 `max_fail` consecutive rejections within `window_s` it stops querying the backend and asks the
 user to reconfigure the PIN.
 

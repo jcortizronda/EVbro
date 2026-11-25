@@ -1,5 +1,5 @@
-/* EVBro — Charges written down by the user (Carga → Historial de cargas): «Añadir carga» for one, «Importar» for a spreadsheet
- * (Excel or CSV). They are the charges from before EVBro, or one it missed: only the kWh are required, and they show in the
+/* EVbro — Charges written down by the user (Carga → Historial de cargas): «Añadir carga» for one, «Importar» for a spreadsheet
+ * (Excel or CSV). They are the charges from before EVbro, or one it missed: only the kWh are required, and they show in the
  * history with the «Manual» tag. Server side: services/manual_charges.py and services/charge_import.py.
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
@@ -276,7 +276,7 @@
   }
 
   function drawReview() {
-    el('ciFileName').textContent = t('{p0} · {p1} filas. Así ha entendido EVBro las columnas:', {p0: review.filename || file.name, p1: review.total});
+    el('ciFileName').textContent = t('{p0} · {p1} filas. Así ha entendido EVbro las columnas:', {p0: review.filename || file.name, p1: review.total});
     el('ciMap').innerHTML = FIELD_ORDER.map((f) => {
       const options = [`<option value="">${t('No está')}</option>`]
         .concat(review.columns.map((title, i) => `<option value="${i}" ${review.mapping[f] === i ? 'selected' : ''}>«${escapeHtml(title)}»</option>`));
@@ -315,7 +315,7 @@
       const span = done.from ? (done.from === done.to ? day(done.from) : t('del {p0} al {p1}', {p0: day(done.from), p1: day(done.to)})) : '';
       el('ciDoneText').textContent = [
         t('{p0} kWh y {p1} € más en tu historial', {p0: historyNum(done.kwh), p1: historyNum(done.cost, 2)}) + (span ? `, ${span}` : '') + '.',
-        done.undated ? t('Sin fecha, apuntadas como anteriores a EVBro: {p0}.', {p0: done.undated}) : '',
+        done.undated ? t('Sin fecha, apuntadas como anteriores a EVbro: {p0}.', {p0: done.undated}) : '',
       ].filter(Boolean).join(' ');
       step(3);
     } catch (e) {

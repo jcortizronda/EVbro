@@ -71,7 +71,7 @@ async def get_commands_catalog(session: AsyncSession = Depends(get_db), user: Ap
 
 
 # HTTP status from the stable `reason` of the result. 401 is reserved for "you are not logged in
-# to EVBro" (the web app reacts to it by showing the login), which is why an expired Ebro account
+# to EVbro" (the web app reacts to it by showing the login), which is why an expired Ebro account
 # session uses 424.
 _STATUS_BY_REASON = {
     "pin_required": 422,

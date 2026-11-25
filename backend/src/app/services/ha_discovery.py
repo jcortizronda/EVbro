@@ -1,6 +1,6 @@
 """Home Assistant MQTT discovery: the car as a device with the SAME entities as the Home Assistant integration.
 
-EVBro already publishes one retained JSON per car (`<prefix>/cars/<VIN>/json`, services/mqtt_publisher.py). This module describes
+EVbro already publishes one retained JSON per car (`<prefix>/cars/<VIN>/json`, services/mqtt_publisher.py). This module describes
 that JSON to Home Assistant through MQTT discovery (https://www.home-assistant.io/integrations/mqtt/#mqtt-discovery), so the car
 appears without any configuration, and it keeps the names, `unique_id`s and `entity_id`s of the integration
 `unique_id = "<VIN>_<suffix>"`, `entity_id = "<domain>.ebro_<last 4 of VIN>_<key>"`
@@ -198,7 +198,7 @@ BUTTONS: List[Dict[str, Any]] = [
 COVER_PAYLOADS = {"OPEN": "open", "CLOSE": "close"}
 
 
-# Entities EVBro no longer publishes, as (component, suffix). Their discovery topic gets an empty retained message, which is how
+# Entities EVbro no longer publishes, as (component, suffix). Their discovery topic gets an empty retained message, which is how
 # Home Assistant is told to delete an entity it had created; otherwise it would stay there for ever, unavailable.
 #   rt_km_hibrido («Kilometraje híbrido», `hybridMileage`): the cloud sends 0 for every car (eight cars, some 15,800 readings, 21-11-2026)
 RETIRED: List[Tuple[str, str]] = [("sensor", "rt_km_hibrido")]
@@ -219,7 +219,7 @@ def object_id(vin: str, key: str) -> str:
 
 def device(vin: str, name: Optional[str], brand: Optional[str], model: Optional[str]) -> Dict[str, Any]:
     return {"identifiers": [f"{DOMAIN}_{vin}"], "name": name or "Ebro Auto", "manufacturer": brand or "Ebro", "model": model or None,
-            "sw_version": "EVBro"}
+            "sw_version": "EVbro"}
 
 
 def topics(prefix: str, vin: str) -> Dict[str, str]:

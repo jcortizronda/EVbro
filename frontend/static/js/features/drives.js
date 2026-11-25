@@ -1,4 +1,4 @@
-/* EVBro — Trips (Viajes): filters, summary, editing and route.
+/* EVbro — Trips (Viajes): filters, summary, editing and route.
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
@@ -150,7 +150,7 @@ function driveRow(d) {
   const detail = `
     <p class="hist-route"><b>${drivePlace(d, d.start_address)}</b> → <b>${drivePlace(d, d.end_address)}</b></p>
     ${facts}
-    ${d.unseen ? `<p class="hist-note">${escapeHtml(t('Viaje no visto: EVBro no leyó el coche durante este trayecto (dormía entre dos lecturas). Los kilómetros, la batería y el depósito son la diferencia entre la lectura anterior y la siguiente; las horas son aproximadas y no hay ruta.'))}</p>` : ''}
+    ${d.unseen ? `<p class="hist-note">${escapeHtml(t('Viaje no visto: EVbro no leyó el coche durante este trayecto (dormía entre dos lecturas). Los kilómetros, la batería y el depósito son la diferencia entre la lectura anterior y la siguiente; las horas son aproximadas y no hay ruta.'))}</p>` : ''}
     ${d.start_estimated && !d.unseen ? '<p class="hist-note">Inicio estimado: el viaje se detectó con el coche ya en marcha; la hora, el origen y el odómetro de inicio son los de la última lectura en parado.</p>' : ''}
     ${noPosition ? '<p class="hist-note">Sin posición: la nube no da la ubicación de este coche, así que el viaje no tiene ruta ni direcciones; los kilómetros son del cuentakilómetros.</p>' : ''}
     ${d.notes ? `<p class="hist-note">${escapeHtml(d.notes)}</p>` : ''}

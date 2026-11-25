@@ -1,4 +1,4 @@
-/* EVBro — Scheduled battery preheating (Confort): «Reserva tu viaje» of the official app. The car warms the battery before
+/* EVbro — Scheduled battery preheating (Confort): «Reserva tu viaje» of the official app. The car warms the battery before
  * the time you leave. The plan lives in the car: it is read from what the car already reports (so «Activado» / «Desactivado» is
  * what the car says, not a local flag) and changed with one order, sent by the server with the saved PIN (like the charge
  * schedule). One schedule, like the official app: a time, its days (1 = Monday … 7 = Sunday, services/departure.py) and its

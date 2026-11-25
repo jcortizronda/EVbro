@@ -1,4 +1,4 @@
-/* EVBro — Declarative event handlers, with no inline code.
+/* EVbro — Declarative event handlers, with no inline code.
  *
  * The app's Content-Security-Policy allows neither `onclick="…"` nor inline `<script>` (so text slipped into the HTML can never
  * run anything). Instead, elements declare which function to call:

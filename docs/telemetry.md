@@ -29,8 +29,8 @@ Uno al día (el primero 10 minutos después de arrancar, para que un bucle de re
 
 ## Fallos
 
-- **Servidor:** un manejador de `logging` recoge cada `WARNING` y `ERROR` mientras los informes están activados. Con excepción: su tipo y las líneas **del código de EVBro** (`app/services/poller.py:310 poll_vehicle`); las de librerías no viajan. Sin excepción: el nombre del registrador y el sitio de la llamada.
-- **Web:** `core/error-report.js` envía los errores de JavaScript de una sesión iniciada a `POST /api/telemetry/client-error` (ruta protegida): tipo, mensaje y líneas `fichero.js:línea función` de los scripts de EVBro. Nunca la dirección de la página ni lo que hay en pantalla. Como mucho 8 por visita, y deja de enviar en cuanto el servidor contesta que no recoge.
+- **Servidor:** un manejador de `logging` recoge cada `WARNING` y `ERROR` mientras los informes están activados. Con excepción: su tipo y las líneas **del código de EVbro** (`app/services/poller.py:310 poll_vehicle`); las de librerías no viajan. Sin excepción: el nombre del registrador y el sitio de la llamada.
+- **Web:** `core/error-report.js` envía los errores de JavaScript de una sesión iniciada a `POST /api/telemetry/client-error` (ruta protegida): tipo, mensaje y líneas `fichero.js:línea función` de los scripts de EVbro. Nunca la dirección de la página ni lo que hay en pantalla. Como mucho 8 por visita, y deja de enviar en cuanto el servidor contesta que no recoge.
 - **Limpieza del mensaje** (`scrub`): se sustituyen direcciones web, correos, VIN, IPs, claves largas, coordenadas y números, y el texto entre comillas se conserva solo si parece un identificador (`'battery_level'`). El receptor vuelve a limpiarlo.
 - **Agrupación:** la huella es el tipo más las cuatro últimas líneas de código sin el número de línea, así que el mismo fallo en el mismo sitio es un solo grupo aunque cambie el mensaje. En la instalación se guardan como mucho 300 grupos (`telemetry_local_errors`) hasta que un informe aceptado los lleva.
 

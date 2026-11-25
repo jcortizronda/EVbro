@@ -44,7 +44,7 @@ RICH_KEYS = ("lat", "lon", "altitude", "direction", "gpsSpeed", "vehicleSpeed",
 # GEOGRAPHIC subset of RICH_KEYS: the POSITION. Excluded from the readable message —
 # not from telemetry. The `probe_status` message ends up in a sensor's state (and
 # therefore in the database), in the diagnostic files and in
-# EVBro's log; writing «lat=…, lon=…» there leaked where the car is in plain text in all
+# EVbro's log; writing «lat=…, lon=…» there leaked where the car is in plain text in all
 # three places (found in the field on 2026-07-20). The position still reaches
 # telemetry by its own path (`on_data` receives the RAW data, not this summary), so
 # nothing is lost: it only disappears from the TEXT. Odometer/energy/range/temperature

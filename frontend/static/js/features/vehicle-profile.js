@@ -1,4 +1,4 @@
-/* EVBro — Vehicle sheet (Ajustes → Coche): identity, purchase, paperwork, tyres, energy, and the photo.
+/* EVbro — Vehicle sheet (Ajustes → Coche): identity, purchase, paperwork, tyres, energy, and the photo.
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
@@ -107,7 +107,7 @@ function vpRenderChassis(v) {
   input.value = (v.is_manual ? v.chassis_number : v.vin) || '';
   input.placeholder = v.is_manual ? '17 letras y números' : '';
   vpEl('vpVinHint').textContent = v.is_manual
-    ? 'Solo informativo: este coche no tiene cuenta Ebro y EVBro lo identifica por su cuenta.'
+    ? 'Solo informativo: este coche no tiene cuenta Ebro y EVbro lo identifica por su cuenta.'
     : 'Se lee de tu cuenta Ebro; no se puede cambiar.';
 }
 

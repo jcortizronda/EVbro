@@ -1,4 +1,4 @@
-/* EVBro — PWA: Service Worker registration and installation as an app.
+/* EVbro — PWA: Service Worker registration and installation as an app.
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
@@ -23,13 +23,13 @@ window.addEventListener('beforeinstallprompt', (e) => {
 
 function installPWA() {
   if (!deferredInstallPrompt) {
-    alertDialog("En iPhone o iPad: pulsa el botón Compartir de Safari y elige «Añadir a la pantalla de inicio».", { title: 'Instalar EVBro' });
+    alertDialog("En iPhone o iPad: pulsa el botón Compartir de Safari y elige «Añadir a la pantalla de inicio».", { title: 'Instalar EVbro' });
     return;
   }
   deferredInstallPrompt.prompt();
   deferredInstallPrompt.userChoice.then((choiceResult) => {
     if (choiceResult.outcome === 'accepted') {
-      console.log('The user installed the EVBro PWA');
+      console.log('The user installed the EVbro PWA');
     }
     deferredInstallPrompt = null;
     const btn = document.getElementById('btnInstallApp');

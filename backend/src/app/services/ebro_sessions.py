@@ -1,6 +1,6 @@
 """One Ebro session per account, shared by all its cars.
 
-Chery rotates the refresh token every time it is used: the previous one stops working. Until 2026-11-09 EVBro kept a copy of the
+Chery rotates the refresh token every time it is used: the previous one stops working. Until 2026-11-09 EVbro kept a copy of the
 session per car (`data/<vin>/token.json`) plus one in the account (`ebro_accounts.token_data`), and each car renewed only its own
 copy. So two cars of one account invalidated each other's session on every renewal, the account's copy aged until «Buscar
 vehículos» had to log in with the password again, and two cars read in parallel could renew at the same instant.

@@ -1,8 +1,8 @@
-/* EVBro — Shared UI state (global variables used by the other files).
+/* EVbro — Shared UI state (global variables used by the other files).
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
-// EVBro Frontend Application
+// EVbro Frontend Application
 let currentVin = null;
 
 let currentTargetTemp = 21.0;

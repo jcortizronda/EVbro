@@ -1,6 +1,6 @@
-// EVBro Service Worker - v2.5.0
+// EVbro Service Worker - v2.5.0
 const CACHE_NAME = 'evbro-cache-v1';
-// Last good copy of the API reads that paint the app, served with `X-EVBro-Offline` when there is no network (core/offline.js)
+// Last good copy of the API reads that paint the app, served with `X-EVbro-Offline` when there is no network (core/offline.js)
 const API_CACHE = 'evbro-api-v1';
 const OFFLINE_API = [/^\/api\/auth\/status$/, /^\/api\/account\/status$/, /^\/api\/vehicles(\/|$)/, /^\/api\/geofences(\/|$)/, /^\/api\/commands\/catalog$/, /^\/api\/version$/];
 const STATIC_ASSETS = [
@@ -206,7 +206,7 @@ async function apiNetworkFirst(request) {
     const cached = await caches.match(request, { cacheName: API_CACHE });
     if (!cached) throw err;
     const headers = new Headers(cached.headers);
-    headers.set('X-EVBro-Offline', cached.headers.get('Date') || new Date().toISOString());
+    headers.set('X-EVbro-Offline', cached.headers.get('Date') || new Date().toISOString());
     return new Response(await cached.blob(), { status: 200, statusText: 'OK (offline)', headers });
   }
 }
@@ -215,7 +215,7 @@ async function apiNetworkFirst(request) {
 self.addEventListener('push', (event) => {
   let data = {};
   try { data = event.data ? event.data.json() : {}; } catch (e) { data = { body: event.data && event.data.text() }; }
-  const title = data.title || 'EVBro';
+  const title = data.title || 'EVbro';
   event.waitUntil(self.registration.showNotification(title, {
     body: data.body || '',
     icon: '/static/icons/icon-192.png',

@@ -1,4 +1,4 @@
-/* EVBro — Car book: a PDF with the sections you pick (Coches → sheet → «Libro del coche»).
+/* EVbro — Car book: a PDF with the sections you pick (Coches → sheet → «Libro del coche»).
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 (function () {

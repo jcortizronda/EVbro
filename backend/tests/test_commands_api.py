@@ -70,7 +70,7 @@ class _FakeRequest:
 
 
 async def prepare(db, *, pin=STORED_PIN) -> httpx.AsyncClient:
-    """Vehicle + Ebro account (with or without a stored PIN) + EVBro user with the session already started.
+    """Vehicle + Ebro account (with or without a stored PIN) + EVbro user with the session already started.
 
     The client is returned NOT opened: each test uses it with `async with`."""
     async with async_session_factory() as s:

@@ -13,7 +13,7 @@ HTML = (FRONTEND / "templates" / "index.html").read_text(encoding="utf-8")
 
 
 def test_the_service_worker_keeps_the_last_good_api_reads_and_marks_them_offline() -> None:
-    assert "const API_CACHE" in SW and "X-EVBro-Offline" in SW and "apiNetworkFirst" in SW
+    assert "const API_CACHE" in SW and "X-EVbro-Offline" in SW and "apiNetworkFirst" in SW
     assert "/static/js/core/offline.js" in SW                      # precached like every script
     assert "key !== CACHE_NAME && key !== API_CACHE" in SW          # activating a new version keeps the offline copies
     assert 'id="offlineBanner"' in HTML and "core/offline.js" in HTML

@@ -1,8 +1,8 @@
-/* EVBro — Design variables (tokens), typography and light/dark themes.
+/* EVbro — Design variables (tokens), typography and light/dark themes.
    Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
 /* ========================================================
-   EVBro — Modern Automotive Interface Design System
+   EVbro — Modern Automotive Interface Design System
    Exact tokens, typography, dark OLED styling & mobile native aesthetics
    ======================================================== */
 /* Installed on an iPhone, the page may start under the status bar (the notch): what is anchored at the top steps down by this
@@ -23,13 +23,13 @@
   --line-subtle: rgba(0, 0, 0, 0.04);
   --graphite: #17181b;
   
-  --accent: #234f70;          /* EVBro Sapphire Blue */
+  --accent: #234f70;          /* EVbro Sapphire Blue */
   --accent-rgb: 35, 79, 112;  /* the accent as r, g, b: rgba(var(--accent-rgb), .2) for tints */
   --accent-bright: #0071e3;   /* Apple iOS Accent Blue */
   --accent-soft: #e9eef2;
   --accent-glow: rgba(35, 79, 112, 0.22);
-  --success: #2d6a4f;         /* EVBro Evergreen Success */
-  --warning: #8a6428;         /* EVBro Amber Warning */
+  --success: #2d6a4f;         /* EVbro Evergreen Success */
+  --warning: #8a6428;         /* EVbro Amber Warning */
   --danger: #dc2626;
 
   /* Backward compatibility aliases */

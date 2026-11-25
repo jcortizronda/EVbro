@@ -1,4 +1,4 @@
-/* EVBro — Live telemetry WebSocket.
+/* EVbro — Live telemetry WebSocket.
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 

@@ -1,4 +1,4 @@
-/* EVBro — interface helpers for phones.
+/* EVbro — interface helpers for phones.
  *
  * 1. Tables as cards: on narrow screens the CSS (`.data-table`) shows each row as a card and puts
  *    the column name before each cell. That name comes from the <thead>: here it is copied to

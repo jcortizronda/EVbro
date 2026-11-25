@@ -1,4 +1,4 @@
-/* EVBro — Maintenance: attached invoices and receipts.
+/* EVbro — Maintenance: attached invoices and receipts.
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 

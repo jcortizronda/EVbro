@@ -1,4 +1,4 @@
-/* EVBro — Light/dark/automatic theme.
+/* EVbro — Light/dark/automatic theme.
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 

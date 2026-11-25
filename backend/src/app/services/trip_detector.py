@@ -52,7 +52,7 @@ MIN_TRIP_SECONDS = 60
 # when the trip closed (04-11-2026: the morning's position for an hour): the end moves there. Only this long after the end.
 RELOCATE_METERS = 250.0
 RELOCATE_MAX_AGE = datetime.timedelta(hours=6)
-# A trip EVBro did not see: the car is read off again with more km than at the last stopped reading and no trip in between (it
+# A trip EVbro did not see: the car is read off again with more km than at the last stopped reading and no trip in between (it
 # slept between two hourly readings and its live channel was stopped; 16-11-2026: 4 km and 3 battery points more, same spot, with
 # data the car had produced 72 minutes after parking). It is recorded as its own trip, marked `unseen`, never added to the
 # previous one. Less than this is the odometer ticking (it counts whole km), and faster than this between the two readings is

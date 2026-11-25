@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="frontend/static/icons/icon.svg" width="112" alt="EVBro">
+  <img src="frontend/static/icons/icon.svg" width="112" alt="EVbro">
 </p>
 
-<h1 align="center">EVBro</h1>
+<h1 align="center">EVbro</h1>
 <p align="center"><strong>Your car's companion.</strong><br>
 Your Ebro on your phone: live data, remote control, trips, charges, maintenance and costs. On your own server, no subscriptions.</p>
 
@@ -33,7 +33,7 @@ Your Ebro on your phone: live data, remote control, trips, charges, maintenance 
 
 ## What it is
 
-EVBro is a **self-hosted** application for **Ebro** cars (S700, S800, S900 PHEV…). It talks to the Ebro cloud with the same protocol as the official app and gathers in one place what the official app does not keep: the car's full history, its maintenance, what it costs and the alerts that matter to you. It installs on a home computer with Docker, is used from the phone like an app, and the data never leaves your server.
+EVbro is a **self-hosted** application for **Ebro** cars (S700, S800, S900 PHEV…). It talks to the Ebro cloud with the same protocol as the official app and gathers in one place what the official app does not keep: the car's full history, its maintenance, what it costs and the alerts that matter to you. It installs on a home computer with Docker, is used from the phone like an app, and the data never leaves your server.
 
 ## Screenshots
 
@@ -88,11 +88,11 @@ The app, the alerts, the car book and the console are in **Spanish, English and 
 
 ## Support the project
 
-If EVBro is useful to you, you can support its development:
+If EVbro is useful to you, you can support its development:
 
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/jcortizronda)
 [![PayPal](https://img.shields.io/badge/PayPal-Donate-00457C?logo=paypal&logoColor=white)](https://www.paypal.me/jcortizronda/)
 
 ## Licence
 
-[GPL-3.0](LICENSE). EVBro is not affiliated with Ebro or Chery.
+[GPL-3.0](LICENSE). EVbro is not affiliated with Ebro or Chery.

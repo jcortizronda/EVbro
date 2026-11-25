@@ -4,7 +4,7 @@
 No command goes out without a `taskId` validated by `checkPassword`, and `checkPassword` verifies
 the command PIN against Chery's backend. **Every failed verification increments an
 error counter on the Chery side**, and past the threshold the account gets locked — a lock
-that cannot be undone from EVBro. Hence this module does three things before
+that cannot be undone from EVbro. Hence this module does three things before
 asking:
 
 1. if the PIN is empty, it fails BEFORE touching the backend: an unconfigured PIN is not a
@@ -32,7 +32,7 @@ _LOGGER = logging.getLogger(__name__)
 
 # lockout: stops after N consecutive failed checkPassword calls within a window, so as not to
 # trip the PIN lock of the Chery ACCOUNT (every wrong PIN increments the errors on
-# their side, and that lock cannot be undone from EVBro).
+# their side, and that lock cannot be undone from EVbro).
 #
 # The state and its lock now live inside `PinLockout` (core/pin_lockout.py): the only way
 # to mint is `attempt()`, which serialises guard + POST + counter update.

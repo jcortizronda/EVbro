@@ -1,4 +1,4 @@
-/* EVBro — Immediate cloud poll (refresh button). The poll intervals belong to the server and are set in the admin
+/* EVbro — Immediate cloud poll (refresh button). The poll intervals belong to the server and are set in the admin
  * console, not here.
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */

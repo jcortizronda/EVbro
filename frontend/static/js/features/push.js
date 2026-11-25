@@ -45,8 +45,8 @@
   }
 
   const TEXT = {
-    insecure: ['Requiere HTTPS', 'Los navegadores solo permiten notificaciones en páginas seguras (https:// o localhost). Abre EVBro detrás de tu proxy con HTTPS.'],
-    unsupported: ['No disponible en este navegador', 'En iPhone/iPad hay que añadir EVBro a la pantalla de inicio (Compartir → Añadir a pantalla de inicio) y abrirla desde ahí.'],
+    insecure: ['Requiere HTTPS', 'Los navegadores solo permiten notificaciones en páginas seguras (https:// o localhost). Abre EVbro detrás de tu proxy con HTTPS.'],
+    unsupported: ['No disponible en este navegador', 'En iPhone/iPad hay que añadir EVbro a la pantalla de inicio (Compartir → Añadir a pantalla de inicio) y abrirla desde ahí.'],
     denied: ['Bloqueadas en el navegador', 'Permite las notificaciones de este sitio en los ajustes del navegador y vuelve aquí.'],
     off: ['Desactivadas en este dispositivo', 'Actívalas para recibir los avisos como notificaciones del sistema, también con la app cerrada.'],
     on: ['Activas en este dispositivo', 'Recibirás los avisos como notificaciones del sistema, también con la app cerrada.'],

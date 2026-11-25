@@ -2,7 +2,7 @@
 """
 codes.py — The SINGLE map of Chery tspconsole/BFF response codes → readable text.
 
-Source of truth for the ONLY diagnostic texts shown to the user (EVBro's interface and log).
+Source of truth for the ONLY diagnostic texts shown to the user (EVbro's interface and log).
 The same code (e.g. A07900) used to have 3 different meanings spread across
 commands/wake/probe/provision; this map unifies them. It does NOT change the command logic:
 the modules decide the flow from the codes, this only translates a code into

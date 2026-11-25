@@ -1,6 +1,6 @@
 """Changing the car-control PIN of the Ebro account in the cloud (core/ebro_account.py, POST /api/account/ebro-pin), which is not the
-PIN stored in EVBro (POST /api/account/pin, only EVBro's copy). Read from the official app and tried against the real cloud on 24-11-2026
-(it works with the taskId of the car settings, `scene = 2`): these tests pin the request and what EVBro does with each answer."""
+PIN stored in EVbro (POST /api/account/pin, only EVbro's copy). Read from the official app and tried against the real cloud on 24-11-2026
+(it works with the taskId of the car settings, `scene = 2`): these tests pin the request and what EVbro does with each answer."""
 from __future__ import annotations
 
 import json
@@ -192,7 +192,7 @@ async def test_bad_input_never_reaches_the_cloud(web, monkeypatch) -> None:
 
 
 async def test_the_cloud_checks_the_current_pin_not_evbros_copy_and_two_failures_wait(web, monkeypatch) -> None:
-    """24-11-2026: the current PIN had to match the one stored in EVBro, and that got in the way; the cloud checks it now."""
+    """24-11-2026: the current PIN had to match the one stored in EVbro, and that got in the way; the cloud checks it now."""
     calls = _cloud(monkeypatch, {"changed": True, "unconfirmed": False, "reason": None, "code": 0})
     r = await web.post("/api/account/ebro-pin", json=_body(current_pin="999999"))       # not the stored 222222
     assert r.status_code == 200 and calls == [(VIN, "999999", "333333")]
@@ -216,7 +216,7 @@ async def test_a_manual_car_is_not_an_ebro_car(web, monkeypatch) -> None:
 
 
 async def test_the_stored_pin_is_the_ebro_pin_six_digits_or_nothing(web) -> None:
-    """The official app's PIN has 6 digits; EVBro said «4 a 6» and saved anything (24-11-2026)."""
+    """The official app's PIN has 6 digits; EVbro said «4 a 6» and saved anything (24-11-2026)."""
     for bad in ("1234", "12345a", "1234567"):
         assert (await web.post("/api/account/pin", json={"pin": bad})).status_code == 422
     assert await _stored_pin() == "222222"

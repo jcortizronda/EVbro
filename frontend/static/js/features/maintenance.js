@@ -1,4 +1,4 @@
-/* EVBro — Maintenance: plan switch (official / custom), custom tasks and history.
+/* EVbro — Maintenance: plan switch (official / custom), custom tasks and history.
  * The official view (next service, full plan, log a step) is in maintenance-official.js.
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */

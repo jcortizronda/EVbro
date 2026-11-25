@@ -1,4 +1,4 @@
-/* EVBro — Reusable toasts and action sheets.
+/* EVbro — Reusable toasts and action sheets.
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 

@@ -1,4 +1,4 @@
-/* EVBro — Navigation: tabs, sub-tabs and accordions.
+/* EVbro — Navigation: tabs, sub-tabs and accordions.
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
@@ -36,7 +36,7 @@ function switchTab(tabName) {
     loadGeofencesForFilter();
     if (typeof loadPlaces === 'function') loadPlaces();
   } else if (tabName === 'charges') {
-    // Charge control: what EVBro stores paints the state and the buttons at once; the car's real schedule (a cloud query,
+    // Charge control: what EVbro stores paints the state and the buttons at once; the car's real schedule (a cloud query,
     // seconds) completes it after. It used to wait for the 3 s refresh timer and then for that query.
     if (window.ChargeControl) ChargeControl.load(false).then(() => ChargeControl.load(true));
     loadLatestCharge();
@@ -175,7 +175,7 @@ async function loadAppVersion() {
     const res = await fetch('/api/version');
     if (!res.ok) return;
     const data = await res.json();
-    document.getElementById('appVersion').textContent = `EVBro ${data.version}`;
+    document.getElementById('appVersion').textContent = `EVbro ${data.version}`;
     const commit = document.getElementById('appCommit');
     if (data.commit) document.getElementById('appCommitHash').textContent = data.commit;
     commit.hidden = !data.commit;

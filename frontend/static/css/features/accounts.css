@@ -1,4 +1,4 @@
-/* EVBro — Linked accounts (Ajustes → Cuentas) and hiding by access level.
+/* EVbro — Linked accounts (Ajustes → Cuentas) and hiding by access level.
    Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
 /* What the account's level does not allow is hidden (the server enforces it anyway). */

@@ -84,7 +84,7 @@ def base_url(host: str, port: Optional[int], use_ssl: bool) -> str:
 
 
 class TraccarClient:
-    """The few calls EVBro needs, with the token as `Authorization: Bearer` (REST) or as a session (WebSocket)."""
+    """The few calls EVbro needs, with the token as `Authorization: Bearer` (REST) or as a session (WebSocket)."""
 
     def __init__(self, host: str, token: str, port: Optional[int] = None, use_ssl: bool = False, verify_ssl: bool = True) -> None:
         self.base = base_url(host, port, use_ssl)

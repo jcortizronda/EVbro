@@ -18,7 +18,7 @@ _LOGGER = logging.getLogger("app.services.poller")
 # one per gap at most. The odometer counts whole km, so 1 km can be a few metres (1364.9 → 1365): 12/13/14-11-2026, four false
 # alarms of exactly 1.0 km, one of them «1097 min frozen» for a car asleep overnight whose first reading of the morning had ticked.
 # The km only count on readings with the car on: an odometer that advanced between two readings of a sleeping car is a drive
-# EVBro did not see, not a position stuck while driving (16-11-2026: +4 km an hour after a 98 km trip, the car asleep at its real
+# EVbro did not see, not a position stuck while driving (16-11-2026: +4 km an hour after a 98 km trip, the car asleep at its real
 # position after a short round trip; taken for a frozen position, it got three «Localizar» in three hours, each one waking it
 # up). For the same reason the fixes asked per episode are limited, and a car that is off gets none for a frozen position. The one
 # exception is the moment it stops: a car that drove 2 km or more on its last point asks once for where it really stopped

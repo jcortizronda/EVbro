@@ -1,4 +1,4 @@
-"""The online catalogue: one EVBro server publishes its approved catalogue, other installations mirror it and send proposals.
+"""The online catalogue: one EVbro server publishes its approved catalogue, other installations mirror it and send proposals.
 
 Two roles, both in every installation:
 

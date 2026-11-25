@@ -1,4 +1,4 @@
-/* EVBro — Refuels (Más → Repostajes): real consumption, cost per 100 km and list of refuels.
+/* EVbro — Refuels (Más → Repostajes): real consumption, cost per 100 km and list of refuels.
    Reuses the Costes classes (period, main card, bars and rows). Standalone sheet: the load ORDER matters. */
 
 .rf-kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-color); }

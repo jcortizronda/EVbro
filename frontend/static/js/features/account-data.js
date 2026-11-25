@@ -1,4 +1,4 @@
-/* EVBro — Tus datos (Ajustes → Cuenta): download everything as a ZIP, import an EVBro ZIP into this account, and delete the account.
+/* EVbro — Tus datos (Ajustes → Cuenta): download everything as a ZIP, import an EVbro ZIP into this account, and delete the account.
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 (function () {

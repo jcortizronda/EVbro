@@ -1,4 +1,4 @@
-/* EVBro — Inline SVG icons (stroke, colour = currentColor).
+/* EVbro — Inline SVG icons (stroke, colour = currentColor).
  * They replace the emojis in buttons and toasts: they look the same on every phone and follow the theme.
  * Usage: `icon('edit')` returns the <svg> as text to put into innerHTML/a template.
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)

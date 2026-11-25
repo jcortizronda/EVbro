@@ -1,4 +1,4 @@
-"""SQLAlchemy database models for EVBro."""
+"""SQLAlchemy database models for EVbro."""
 from __future__ import annotations
 
 from sqlalchemy import (
@@ -58,7 +58,7 @@ class Vehicle(Base):
     insurance_company = Column(String(100), nullable=True)
     insurance_policy = Column(String(60), nullable=True)
     insurance_coverage = Column(String(40), nullable=True)           # third party, extended third party, comprehensive…
-    insurance_renewal_date = Column(DateTime, nullable=True)         # next renewal: EVBro sends a notice before it
+    insurance_renewal_date = Column(DateTime, nullable=True)         # next renewal: EVbro sends a notice before it
     insurance_assistance_phone = Column(String(30), nullable=True)
     trim = Column(String(60), nullable=True)                         # version / trim level
     color = Column(String(40), nullable=True)
@@ -211,7 +211,7 @@ class Drive(Base):
     # the drive was detected with the car already moving: the start time, position, odometer and battery are those of the
     # last reading while parked (see services/trip_detector.py)
     start_estimated = Column(Boolean, default=False, nullable=False, server_default="false")
-    # EVBro did not see this trip: the car was read off before and after it with more km in between (it slept between two readings
+    # EVbro did not see this trip: the car was read off before and after it with more km in between (it slept between two readings
     # and its live channel was stopped). Km, battery and fuel are the difference between those readings; times are estimated and
     # there is no route (services/trip_detector.py, `_record_unseen_drive`)
     unseen = Column(Boolean, default=False, nullable=False, server_default="false")
@@ -269,7 +269,7 @@ class ChargingSession(Base):
     charge_type = Column(String(4), nullable=True)
     effective_cost_per_kwh = Column(Float, nullable=True)
     # Typed by the user or imported from a file (services/manual_charges.py), not detected from the car: a charge from before
-    # EVBro, or one it missed. `kwh_added` is then what the charger or the invoice says; there is no curve and no start/end %.
+    # EVbro, or one it missed. `kwh_added` is then what the charger or the invoice says; there is no curve and no start/end %.
     manual = Column(Boolean, default=False, nullable=False, server_default="false")
     date_unknown = Column(Boolean, default=False, nullable=False, server_default="false")     # the user did not know the day: `start_time` is a placeholder
     battery_gain_pct = Column(Float, nullable=True)                   # «+70 %» as typed (manual charges have no start and end)
@@ -290,7 +290,7 @@ class Expense(Base):
     title = Column(String(150), nullable=False)
     amount = Column(Float, nullable=False)
     notes = Column(Text, nullable=True)
-    next_due_date = Column(DateTime, nullable=True)       # when it is due again: EVBro sends a notice before it
+    next_due_date = Column(DateTime, nullable=True)       # when it is due again: EVbro sends a notice before it
 
 
 class Journey(Base):
@@ -419,7 +419,7 @@ class CatalogEntry(Base):
 
 
 class CatalogKey(Base):
-    """A key that lets another EVBro installation read this server's approved catalogue and send proposals to its queue
+    """A key that lets another EVbro installation read this server's approved catalogue and send proposals to its queue
     (the «online catalogue», docs/hosted-service.md). Only the hash is stored; the key is shown once, as a link."""
     __tablename__ = "catalog_keys"
 
@@ -587,7 +587,7 @@ class AccountExitSurvey(Base):
 
 
 class ClimateSchedule(Base):
-    """Pre-conditioning on a timetable: at `time_local` on the chosen weekdays EVBro sends `clima_on` with `temperature`.
+    """Pre-conditioning on a timetable: at `time_local` on the chosen weekdays EVbro sends `clima_on` with `temperature`.
 
     Runs with the account's stored PIN (like the charge manager); `last_run_on` guarantees one send per day."""
     __tablename__ = "climate_schedules"
@@ -771,7 +771,7 @@ class EbroAccount(Base):
 
 
 class AppUser(Base):
-    """User who can log in to EVBro (not to be confused with the Ebro/Chery account)."""
+    """User who can log in to EVbro (not to be confused with the Ebro/Chery account)."""
     __tablename__ = "app_users"
     # The same person may have an administrator account and a manager account, even with the same username: they are different
     # accounts that live behind different doors (the admin console and the app), so the name only has to be unique per kind.
@@ -1004,7 +1004,7 @@ class TelemetryLocalError(Base):
     level = Column(String(10), nullable=False)                # warning | error
     error_type = Column(String(120), nullable=True)           # exception class, or the logger name for a plain log line
     message = Column(Text, nullable=True)                     # scrubbed
-    location = Column(String(240), nullable=True)             # file:line:function of EVBro's own code
+    location = Column(String(240), nullable=True)             # file:line:function of EVbro's own code
     frames = Column(JSON, nullable=True)                      # ["app/services/poller.py:310 poll_vehicle", ...]
     count = Column(Integer, default=0, nullable=False)
     first_seen = Column(DateTime, default=utcnow, nullable=False)

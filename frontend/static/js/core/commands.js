@@ -1,4 +1,4 @@
-/* EVBro — Orders to the car: action sheets, PIN dialog and sending.
+/* EVbro — Orders to the car: action sheets, PIN dialog and sending.
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
@@ -336,7 +336,7 @@ async function saveAccountPin(pin) {
  * Opens a dialog to change or save the PIN in Ajustes -> Cuenta Ebro.
  */
 async function openUpdatePinModal() {
-  const currentStatus = currentAccountInfo?.has_pin ? "Hay un PIN guardado en EVBro." : "No hay ningún PIN guardado en EVBro.";
+  const currentStatus = currentAccountInfo?.has_pin ? "Hay un PIN guardado en EVbro." : "No hay ningún PIN guardado en EVbro.";
   // What happens after saving depends on «Pedir el PIN» (services/command_policy.py): say only what is true for the current choice
   const policy = currentAccountInfo?.pin_policy || 'open';
   const policyNote = {
@@ -344,8 +344,8 @@ async function openUpdatePinModal() {
     always: t('Con «Pedir el PIN: Siempre», todas las órdenes te lo pedirán igualmente.'),
     never: t('Con «Pedir el PIN: Nunca», ninguna orden te lo pedirá.'),
   }[policy] || '';
-  const newPin = await promptDialog(t('{p0}\nIntroduce el PIN de 6 dígitos que usará EVBro para las órdenes que no te lo pidan (déjalo en blanco para eliminarlo). Solo cambia la copia guardada en EVBro, no el PIN de Ebro: para eso está «Cambiar PIN de Ebro». {p1}', {p0: currentStatus, p1: policyNote}),
-    { title: 'PIN guardado en EVBro', type: 'password', inputmode: 'numeric', placeholder: '••••••', maxLength: 6, confirmText: 'Guardar' });
+  const newPin = await promptDialog(t('{p0}\nIntroduce el PIN de 6 dígitos que usará EVbro para las órdenes que no te lo pidan (déjalo en blanco para eliminarlo). Solo cambia la copia guardada en EVbro, no el PIN de Ebro: para eso está «Cambiar PIN de Ebro». {p1}', {p0: currentStatus, p1: policyNote}),
+    { title: 'PIN guardado en EVbro', type: 'password', inputmode: 'numeric', placeholder: '••••••', maxLength: 6, confirmText: 'Guardar' });
   if (newPin === null) return; // Cancelled
   const pin = newPin.trim();
   if (pin && !/^[0-9]{6}$/.test(pin)) { showToast(t('El PIN de Ebro tiene 6 dígitos.'), 'warning', 6000); return; }

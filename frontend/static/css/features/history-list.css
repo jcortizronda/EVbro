@@ -1,4 +1,4 @@
-/* EVBro — Trip and charge history: compact rows that unfold, month separators and «Ver más» (features/history-list.js). */
+/* EVbro — Trip and charge history: compact rows that unfold, month separators and «Ver más» (features/history-list.js). */
 
 .hist-list { display: flex; flex-direction: column; gap: 0.45rem; }
 

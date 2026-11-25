@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import AppUser, PasswordReset
 from app.i18n import _, reset_language, set_language
-from app.services import mailer
+from app.services import email_templates, mailer
 from app.timeutil import utcnow
 
 _LOGGER = logging.getLogger("app.services.password_reset")
@@ -40,32 +40,51 @@ async def accounts_for(db: AsyncSession, login: str) -> list[AppUser]:
     return list(rows)
 
 
-def compose(user: AppUser, link: str) -> tuple[str, str]:
-    """Subject and body of the e-mail, in the account's language."""
+def _frame(user: AppUser) -> dict:
+    """What every message shares: the greeting with the name apart (bold in the HTML), the footer and the tagline."""
+    return {"lang": user.language or "es", "greeting": _("Hola, {p0}:", p0="{name}"), "greeting_name": user.username,
+            "footer": _("Este es un mensaje automático de EVbro; no respondas a este correo."), "tagline": _("El compañero de tu coche")}
+
+
+def compose(user: AppUser, link: str) -> tuple[str, str, str]:
+    """Subject, plain text and HTML of the reset e-mail, in the account's language."""
     token = set_language(user.language)
     try:
         minutes = int(RESET_TTL.total_seconds() // 60)
-        subject = _("EVBro: restablecer la contraseña")
-        body = "\n\n".join([
+        subject = _("EVbro: restablecer la contraseña")
+        asked = _("Alguien (seguramente tú) ha pedido restablecer la contraseña de tu cuenta de EVbro.")
+        ignore = _("Si no lo has pedido tú, ignora este correo: tu contraseña no cambia.")
+        text = "\n\n".join([
             _("Hola, {p0}:", p0=user.username),
-            _("Alguien (seguramente tú) ha pedido restablecer la contraseña de tu cuenta de EVBro."),
+            asked,
             _("Para elegir una nueva, abre este enlace. Caduca en {p0} minutos y solo vale una vez:", p0=minutes) + "\n" + link,
-            _("Si no lo has pedido tú, ignora este correo: tu contraseña no cambia."),
+            ignore,
         ]) + "\n"
-        return subject, body
+        html = email_templates.render(email_templates.Email(
+            **_frame(user), preheader=_("El enlace caduca en {p0} minutos.", p0=minutes), title=_("Restablece tu contraseña"),
+            paragraphs=[asked, _("Pulsa el botón para elegir una contraseña nueva.")],
+            button_label=_("Elegir contraseña nueva"), button_url=link,
+            after_button=_("El enlace caduca en {p0} minutos y solo vale una vez.", p0=minutes),
+            fallback_label=_("Si el botón no funciona, copia esta dirección en el navegador:"), notice=ignore), mailer.public_url() or "")
+        return subject, text, html
     finally:
         reset_language(token)
 
 
-def compose_email_changed(user: AppUser, new_email: str | None) -> tuple[str, str]:
-    """The notice to the address that stops being the account's, in the account's language."""
+def compose_email_changed(user: AppUser, new_email: str | None) -> tuple[str, str, str]:
+    """The notice to the address that stops being the account's (subject, plain text, HTML), in the account's language."""
     token = set_language(user.language)
     try:
-        subject = _("EVBro: el email de tu cuenta ha cambiado")
-        change = (_("El email de recuperación de tu cuenta de EVBro ({p0}) ahora es otro.", p0=user.username) if new_email
-                  else _("Se ha quitado el email de recuperación de tu cuenta de EVBro ({p0}).", p0=user.username))
-        body = "\n\n".join([change, _("Si no lo has hecho tú, entra en EVBro, cambia la contraseña y vuelve a poner tu email.")]) + "\n"
-        return subject, body
+        subject = _("EVbro: el email de tu cuenta ha cambiado")
+        change = (_("El email de recuperación de tu cuenta de EVbro ({p0}) ahora es otro.", p0=user.username) if new_email
+                  else _("Se ha quitado el email de recuperación de tu cuenta de EVbro ({p0}).", p0=user.username))
+        warning = _("Si no lo has hecho tú, entra en EVbro, cambia la contraseña y vuelve a poner tu email.")
+        text = "\n\n".join([change, warning]) + "\n"
+        base = mailer.public_url() or ""
+        html = email_templates.render(email_templates.Email(
+            **_frame(user), preheader=change, title=_("El email de tu cuenta ha cambiado"), paragraphs=[change],
+            button_label=_("Abrir EVbro") if base else None, button_url=base or None, notice=warning), base)
+        return subject, text, html
     finally:
         reset_language(token)
 

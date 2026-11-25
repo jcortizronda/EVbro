@@ -248,7 +248,7 @@ async def test_connections_lasting_seconds_stop_the_service() -> None:
 
 
 async def test_a_channel_stopped_by_another_app_only_comes_back_when_the_manager_asks() -> None:
-    """Owner's decision, 14-11-2026: after the official app takes the account, EVBro does not reconnect the channel by itself, not
+    """Owner's decision, 14-11-2026: after the official app takes the account, EVbro does not reconnect the channel by itself, not
     after reopening the session on its own and not after a restart of the server; «Reconectar» or «Sincronizar» do."""
     svc, poller = await start_service()
     client = FakeClient.instances[0]
@@ -263,7 +263,7 @@ async def test_a_channel_stopped_by_another_app_only_comes_back_when_the_manager
     await again.start(poller)
     assert again.state == "conflict" and len(FakeClient.instances) == 1
 
-    # EVBro reopened the session with the stored password: the channel is left alone
+    # EVbro reopened the session with the stored password: the channel is left alone
     hub = ce.CarEventHub()
     hub._services[0] = again
     async def vins_of(owner_id):

@@ -1,6 +1,6 @@
 """What a journey cost and consumed: everything the car recorded between two instants, added up on demand.
 
-A `Journey` row only keeps the name and the two dates. The figures come from the tables EVBro already fills: drives (km, hours,
+A `Journey` row only keeps the name and the two dates. The figures come from the tables EVbro already fills: drives (km, hours,
 kWh and litres), charging sessions (kWh, euros, AC/DC), refuels (litres, euros), expenses (tolls, parking, fines… the person's own
 notes) and workshop visits inside the span. Nothing is copied, so editing a charge or adding a toll later changes the journey too.
 Per-day km and the first and last addresses give the shape of the trip. The route itself is the drives' tracks (GET …/drives/{id}).

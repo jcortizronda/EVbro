@@ -1,4 +1,4 @@
-/* EVBro — Consumables and part numbers: what the car takes (Más → Coches → Consumibles) and the parts of each intervention.
+/* EVbro — Consumables and part numbers: what the car takes (Más → Coches → Consumibles) and the parts of each intervention.
  * The same row editor is used in the car sheet and in the maintenance modals (a "picker" that returns the parts to send).
  * With «Ver catálogo online» the list also shows the approved entries of the shared catalogue for the car's model, under my own
  * parts (each with its state: not proposed, proposal sent, in the catalogue, rejected); tapping one copies it to the car.

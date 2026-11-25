@@ -1,4 +1,4 @@
-/* EVBro — Theme before the first paint: avoids the light/dark flash. It used to be an inline <script> in index.html; the
+/* EVbro — Theme before the first paint: avoids the light/dark flash. It used to be an inline <script> in index.html; the
  * Content-Security-Policy no longer allows inline code, so it lives here and loads synchronously in the <head>. */
 (function () {
   try {

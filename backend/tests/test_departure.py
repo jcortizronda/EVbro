@@ -1,4 +1,4 @@
-"""Scheduled departure («Reserva tu viaje» in the official app): the plan lives in the car. EVBro reads it from what the car
+"""Scheduled departure («Reserva tu viaje» in the official app): the plan lives in the car. EVbro reads it from what the car
 already reports and changes its time, its days and its switch. One schedule, like the official app.
 
 Captured from the official app on 21-11-2026: the order is `appointmentTravel` and the reading comes in `travelQuery`.

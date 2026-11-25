@@ -8,7 +8,7 @@ built on top of that:
     outside the window, the car does not charge. That window opens again the next day at the same time:
     the manager moves it on its own before it arrives (`hold_needs_refresh`), transparently.
   * **Start charging** → removes the pause and gives the car back what it had: its schedule (the one stored in
-    EVBro or, if «Stop» replaced it, the one the car had set) or, if there was none, turns the main switch
+    EVbro or, if «Stop» replaced it, the one the car had set) or, if there was none, turns the main switch
     off and the car charges right away.
   * **Schedule** → a start/end (or start/duration) window written to the car.
   * **Battery target** (< 100 %) → when it is reached while charging, it switches to «paused at target». It releases
@@ -52,7 +52,7 @@ _LOGGER = logging.getLogger("app.services.charge_manager")
 HYSTERESIS = 5            # points below the target before charging is allowed again
 MIN_AUTO_GAP_MIN = 10     # minimum gap between the manager's automatic actions
 TICK_EVERY_S = 300        # how often to check that the pause window is still «closed»
-TARGET_CHOICES = tuple(range(50, 101, 5))     # in steps of 5; the target is NOT sent to the car: EVBro watches it
+TARGET_CHOICES = tuple(range(50, 101, 5))     # in steps of 5; the target is NOT sent to the car: EVbro watches it
 VERIFY_DELAY_S = 20        # wait before checking that the car applied the command
 VERIFY_RECHECK_S = 30      # if it does not show yet, wait this much more before resending: the car may still be running it
 PENDING_WINDOW_S = 90      # during this time a reading that does not match counts as «being applied»
@@ -134,7 +134,7 @@ class ChargeManager:
         self._orders: dict[str, int] = {}            # orders sent per car: a check only looks at the latest one
         self._clock = clock
         self._locks: dict[str, asyncio.Lock] = {}
-        self._holds: dict[str, Optional[str]] = {}   # why EVBro is holding each car's charge (None = it is not)
+        self._holds: dict[str, Optional[str]] = {}   # why EVbro is holding each car's charge (None = it is not)
         self._last_auto: dict[str, datetime.datetime] = {}   # last AUTOMATIC action attempted (successful or not)
         self._hold_failed_told: set[str] = set()     # cars whose manager already heard that the pause at the target failed
         self._last_tick = 0.0
@@ -162,7 +162,7 @@ class ChargeManager:
         return self._holds.get(vin) == HOLD_TARGET
 
     def holds_charge(self, vin: str) -> bool:
-        """EVBro itself stopped this car's charge (target reached or «Parar carga»): the stop is no interruption."""
+        """EVbro itself stopped this car's charge (target reached or «Parar carga»): the stop is no interruption."""
         return self._holds.get(vin) is not None
 
     @staticmethod
@@ -233,7 +233,7 @@ class ChargeManager:
             await asyncio.sleep(VERIFY_RECHECK_S)
             if not superseded():
                 await self.verify_applied(vin)
-        except ChargeError as exc:                           # the car refused the resend: its answer, not a failure of EVBro
+        except ChargeError as exc:                           # the car refused the resend: its answer, not a failure of EVbro
             _LOGGER.warning("Charge manager (%s): the resend was not accepted (%s)", vin, exc.reason)
         except Exception:                                    # noqa: BLE001 - must never break anything
             _LOGGER.exception("Charge manager (%s): error while verifying", vin)
@@ -276,7 +276,7 @@ class ChargeManager:
         return await self.state(vin)
 
     async def _remember_car_schedule(self, row: ChargePlan) -> None:
-        """If the car has an active schedule EVBro does not know about, it is stored before the pause overwrites it."""
+        """If the car has an active schedule EVbro does not know about, it is stored before the pause overwrites it."""
         try:
             car = await self._reader(row.vin)
         except Exception:                                    # noqa: BLE001 - an extra: stopping must not fail because of this
@@ -305,7 +305,7 @@ class ChargeManager:
         return await self.state(vin)
 
     async def clear_schedule(self, vin: str, origin: str = "usuario") -> dict:
-        """Removes the schedule (also one created outside EVBro). If paused, the pause stays (no charging)."""
+        """Removes the schedule (also one created outside EVbro). If paused, the pause stays (no charging)."""
         async with self._lock(vin), async_session_factory() as s:
             row = await self._row(s, vin)
             row.sched_enabled = False
@@ -316,7 +316,7 @@ class ChargeManager:
         return await self.state(vin)
 
     async def set_target(self, vin: str, pct: int, origin: str = "usuario") -> dict:
-        """Sets the battery target (stored in EVBro only; the car has no such feature). 100 = no limit.
+        """Sets the battery target (stored in EVbro only; the car has no such feature). 100 = no limit.
 
         The car is only contacted to lift a pause at the target (when raised to 100 %) or, when evaluating
         the latest reading, if the new target is already reached and it is time to pause."""

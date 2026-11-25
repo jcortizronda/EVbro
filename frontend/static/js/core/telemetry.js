@@ -1,4 +1,4 @@
-/* EVBro — Telemetry rendering (home tab, car status, tyres).
+/* EVbro — Telemetry rendering (home tab, car status, tyres).
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 

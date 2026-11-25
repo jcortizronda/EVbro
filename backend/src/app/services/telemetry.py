@@ -10,7 +10,7 @@ Two roles, both in every installation:
   its console (`summary`). It never stores the sender's IP; the reverse proxy in front of it should not log that host either.
 
 What a report never carries: names, usernames, e-mails, VINs, plates, positions, addresses, geofences, trips, times of use,
-kilometres, amounts, tokens or anything a manager wrote. Error messages are scrubbed (`scrub`) and only frames of EVBro's own code
+kilometres, amounts, tokens or anything a manager wrote. Error messages are scrubbed (`scrub`) and only frames of EVbro's own code
 travel, as `file:line function`.
 """
 from __future__ import annotations
@@ -99,7 +99,7 @@ def scrub(text: Optional[str]) -> Optional[str]:
 
 
 def _app_frames(tb) -> List[str]:
-    """`file:line function` of the frames that belong to EVBro (innermost last); library frames are left out."""
+    """`file:line function` of the frames that belong to EVbro (innermost last); library frames are left out."""
     frames = []
     for fs in traceback.extract_tb(tb):
         path = os.path.abspath(fs.filename)
@@ -463,7 +463,7 @@ async def build_report(session: AsyncSession, include_errors: bool = True) -> Di
 async def _http(url: str, payload: Dict[str, Any]) -> Tuple[int, Any]:
     """One POST to the receiver. Replaced in tests."""
     timeout = aiohttp.ClientTimeout(total=TIMEOUT_S)
-    async with aiohttp.ClientSession(timeout=timeout, headers={"User-Agent": f"EVBro/{__version__}"}) as s:
+    async with aiohttp.ClientSession(timeout=timeout, headers={"User-Agent": f"EVbro/{__version__}"}) as s:
         async with s.post(url, json=payload) as r:
             try:
                 body = await r.json(content_type=None)

@@ -1,4 +1,4 @@
-/* EVBro — Refuels (Más → Repostajes): real fuel consumption between fill-ups, cost per 100 km, price per litre,
+/* EVbro — Refuels (Más → Repostajes): real fuel consumption between fill-ups, cost per 100 km, price per litre,
  * km between refuels, monthly totals and the list of refuels (detected or manual) with its form.
  * The overall money balance stays in Costes; here only fuel.
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)

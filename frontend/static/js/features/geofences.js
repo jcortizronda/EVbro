@@ -1,4 +1,4 @@
-/* EVBro — Geofences: map, list, create/edit and charging tariffs.
+/* EVbro — Geofences: map, list, create/edit and charging tariffs.
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 

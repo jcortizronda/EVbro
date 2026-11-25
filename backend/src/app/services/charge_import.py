@@ -339,7 +339,7 @@ TEMPLATE_ROWS = [
 
 
 def template() -> bytes:
-    """An example book: the titles EVBro understands best and three rows showing what may be left empty."""
+    """An example book: the titles EVbro understands best and three rows showing what may be left empty."""
     from openpyxl import Workbook
     from openpyxl.styles import Font
 

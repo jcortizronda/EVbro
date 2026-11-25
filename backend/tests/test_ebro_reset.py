@@ -1,6 +1,6 @@
 """Resetting the Ebro password or PIN with a code by SMS (core/ebro_reset.py, /api/account/ebro-reset/*). The cloud refuses the SMS
 without the puzzle captcha (seen on 24-11-2026); the rest is read from the official app and not yet tried against the real cloud: these
-tests pin the requests and what EVBro does with each answer."""
+tests pin the requests and what EVbro does with each answer."""
 from __future__ import annotations
 
 import base64

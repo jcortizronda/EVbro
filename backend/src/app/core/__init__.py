@@ -1,4 +1,4 @@
-"""EVBro's Ebro/Chery protocol core.
+"""EVbro's Ebro/Chery protocol core.
 
 Holds the logic verified in the field: BFF authentication, request signing, the command
 catalogue and sending, the realtime probe, waking the car. It comes from the Home Assistant
@@ -8,5 +8,5 @@ goes through here.
 
 The modules in this folder import each other with package-relative imports
 (`from .core import …` / `from . import …`), so Python guarantees which module gets
-loaded and the loggers are attributed to EVBro.
+loaded and the loggers are attributed to EVbro.
 """

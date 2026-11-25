@@ -30,7 +30,7 @@ _LOGGER = logging.getLogger("app.admin")
 
 
 def create_admin_app() -> FastAPI:
-    app = FastAPI(title="EVBro Admin", docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(title="EVbro Admin", docs_url=None, redoc_url=None, openapi_url=None)
     install_error_handlers(app)
 
     @app.middleware("http")

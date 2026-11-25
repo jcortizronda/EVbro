@@ -1,4 +1,4 @@
-/* EVBro — Costs (Más → Costes): the balance of everything the car costs. Read only.
+/* EVbro — Costs (Más → Costes): the balance of everything the car costs. Read only.
  * Adds up purchase, charges, refuels, maintenance and expenses (api/routes_costs.py computes the totals; here they are only drawn).
  * To add something: expenses in Gastos, refuels in Repostajes, charges in Energía, interventions in Mantenimiento.
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)

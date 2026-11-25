@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="frontend/static/icons/icon.svg" width="112" alt="EVBro">
+  <img src="frontend/static/icons/icon.svg" width="112" alt="EVbro">
 </p>
 
-<h1 align="center">EVBro</h1>
+<h1 align="center">EVbro</h1>
 <p align="center"><strong>El compañero de tu coche.</strong><br>
 Tu Ebro en el móvil: datos en directo, control remoto, viajes, cargas, mantenimiento y costes. En tu propio servidor, sin suscripciones.</p>
 
@@ -33,7 +33,7 @@ Tu Ebro en el móvil: datos en directo, control remoto, viajes, cargas, mantenim
 
 ## Qué es
 
-EVBro es una aplicación **autoalojada** para coches **Ebro** (S700, S800, S900 PHEV…). Habla con la nube de Ebro con el mismo protocolo que la app oficial y junta en un solo sitio lo que la app oficial no guarda: el historial completo del coche, su mantenimiento, lo que cuesta y los avisos que te importan. Se instala en un ordenador de casa con Docker, se usa desde el móvil como una app y los datos no salen de tu servidor.
+EVbro es una aplicación **autoalojada** para coches **Ebro** (S700, S800, S900 PHEV…). Habla con la nube de Ebro con el mismo protocolo que la app oficial y junta en un solo sitio lo que la app oficial no guarda: el historial completo del coche, su mantenimiento, lo que cuesta y los avisos que te importan. Se instala en un ordenador de casa con Docker, se usa desde el móvil como una app y los datos no salen de tu servidor.
 
 ## Capturas
 
@@ -86,11 +86,11 @@ La aplicación, los avisos, el libro del coche y la consola están en **español
 
 ## Apoya el proyecto
 
-Si EVBro te resulta útil, puedes apoyar su desarrollo:
+Si EVbro te resulta útil, puedes apoyar su desarrollo:
 
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Apoyar-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/jcortizronda)
 [![PayPal](https://img.shields.io/badge/PayPal-Donar-00457C?logo=paypal&logoColor=white)](https://www.paypal.me/jcortizronda/)
 
 ## Licencia
 
-[GPL-3.0](LICENSE). EVBro no está afiliado a Ebro ni a Chery.
+[GPL-3.0](LICENSE). EVbro no está afiliado a Ebro ni a Chery.

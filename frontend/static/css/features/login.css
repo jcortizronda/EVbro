@@ -1,7 +1,7 @@
-/* EVBro — EVBro sign-in screen.
+/* EVbro — EVbro sign-in screen.
    Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
-/* ==================== Acceso a EVBro (login) ==================== */
+/* ==================== Acceso a EVbro (login) ==================== */
 [hidden] { display: none !important; }
 
 body.auth-open { overflow: hidden; }

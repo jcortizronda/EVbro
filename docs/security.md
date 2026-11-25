@@ -1,13 +1,13 @@
 # Seguridad
 
 ## Acceso (`security/auth.py`, `api/routes_auth.py`)
-- **Usuario de EVBro** (`app_users`), distinto de la cuenta Ebro. Contraseña de 10–128 caracteres, hash **scrypt** (N=2¹⁵, r=8, p=1, sal aleatoria).
+- **Usuario de EVbro** (`app_users`), distinto de la cuenta Ebro. Contraseña de 10–128 caracteres, hash **scrypt** (N=2¹⁵, r=8, p=1, sal aleatoria).
 - **Primer arranque:** nadie puede crear el primer usuario sin el **código de configuración** (`SETUP_CODE`, o uno aleatorio por arranque impreso en el log). El primer usuario se inserta con `id=1` para que dos peticiones simultáneas no creen dos.
 - **Sesión:** cookie `evbro_session` (`HttpOnly`, `SameSite=Lax`, `Secure` si llegó por HTTPS o `COOKIE_SECURE=true`), 30 días renovables. En `auth_sessions` solo se guarda el **SHA-256** del token.
 - **Fuerza bruta:** 8 fallos / 15 min por IP y 5 / 15 min por IP+usuario, con `Retry-After`. No hay bloqueo global por usuario (para que quien sepa tu nombre no pueda dejarte fuera). Mensaje de error genérico y tiempo de respuesta igualado con el caso "usuario inexistente".
 - **Superficie pública:** `/api/auth/*` (incluida la entrada con huella, `/api/auth/passkeys/login/*`, y «¿Olvidaste la contraseña?», `/api/auth/password-reset*`), `/api/ws` (se autentica él mismo), `/health`, la shell HTML y `static/`. **Todo lo demás de `/api` exige sesión.** El test `test_ninguna_ruta_de_la_api_queda_sin_proteger` recorre el esquema OpenAPI y falla si una ruta nueva queda sin proteger. **Los routers nuevos van en `protected` (`api/router.py`).**
 - **CSRF:** además de `SameSite=Lax`, las peticiones que modifican datos y el WebSocket se rechazan si su `Origin` no es el propio host (`ALLOWED_ORIGINS` añade otros).
-- **401 está reservado a "no has iniciado sesión en EVBro"** (la web muestra el login). Los errores de la cuenta Ebro usan **424** (`reason: "reauth"`) para no confundirse.
+- **401 está reservado a "no has iniciado sesión en EVbro"** (la web muestra el login). Los errores de la cuenta Ebro usan **424** (`reason: "reauth"`) para no confundirse.
 
 ## Recuperar la contraseña por correo (`services/password_reset.py`, `services/mailer.py`)
 - **El email de la cuenta** (`app_users.email`, opcional) lo pone la propia cuenta en Ajustes → Cuenta de EVBRO (`PUT /api/auth/email`),
@@ -71,30 +71,30 @@ Documentos del coche, facturas de mantenimiento y foto del coche pasan por el mi
 
 ## Contraseña de la cuenta de Ebro (`api/routes_account.py`, `POST /api/account/ebro-password`)
 
-Solo el gestor dueño de la cuenta de Ebro conectada. Pide la contraseña actual, que tiene que ser la que EVBro tiene guardada (una distinta
+Solo el gestor dueño de la cuenta de Ebro conectada. Pide la contraseña actual, que tiene que ser la que EVbro tiene guardada (una distinta
 se rechaza aquí, sin gastar un intento en la nube, que bloquea la cuenta tras varios fallos), y la nueva con la regla de la app oficial.
 **Dos fallos** (no coincide o la nube dice que no) esperan **10 minutos** por cuenta. La nueva se guarda cifrada como la anterior y la API
 no la devuelve. Si la nube la rechaza responde 424 con su motivo. Probado contra la nube real el 24-11-2026 (ver
 [ebro-protocol.md](ebro-protocol.md)).
 
-## PIN de Ebro (`POST /api/account/ebro-pin`) frente al PIN guardado en EVBro (`POST /api/account/pin`)
+## PIN de Ebro (`POST /api/account/ebro-pin`) frente al PIN guardado en EVbro (`POST /api/account/pin`)
 
-Son dos cosas distintas y la interfaz las separa. **«PIN guardado en EVBro»** es solo la copia cifrada que EVBro usa para las órdenes que
+Son dos cosas distintas y la interfaz las separa. **«PIN guardado en EVbro»** es solo la copia cifrada que EVbro usa para las órdenes que
 no lo piden: cambiarla no toca la nube. **«Cambiar PIN de Ebro»** cambia el PIN en la nube de Ebro (el que pide la app oficial): solo el
 gestor, a través de un coche suyo con cuenta de Ebro. Pide el PIN actual, que se prueba con `checkPassword` (cuenta para el bloqueo de PIN
-erróneos de siempre); no hace falta que coincida con el guardado en EVBro (hasta el 24-11-2026 se exigía y estorbaba). **Dos fallos**
-esperan **10 minutos** por cuenta. Los dos PIN son el de Ebro: **6 dígitos** (EVBro decía «4 a 6» y guardaba cualquier cosa). Si la nube lo acepta y el PIN nuevo abre un `checkPassword`, la copia de EVBro (si la había) pasa a ser el nuevo; si
+erróneos de siempre); no hace falta que coincida con el guardado en EVbro (hasta el 24-11-2026 se exigía y estorbaba). **Dos fallos**
+esperan **10 minutos** por cuenta. Los dos PIN son el de Ebro: **6 dígitos** (EVbro decía «4 a 6» y guardaba cualquier cosa). Si la nube lo acepta y el PIN nuevo abre un `checkPassword`, la copia de EVbro (si la había) pasa a ser el nuevo; si
 no había copia, no se guarda. Queda en el registro de órdenes como `cambiar_pin_ebro`. Probado contra la nube real el 24-11-2026.
 
 **Restablecer la contraseña o el PIN de Ebro con un SMS** (`/api/account/ebro-reset/captcha`, `/sms`, `/pin`, `/password`; solo el gestor
 dueño de la cuenta). El puzle se pide a Ebro y su `secretKey` se queda en el servidor (en memoria, por gestor, 5 minutos y un solo
 intento); el navegador solo recibe las imágenes y manda dónde dejó la pieza. **Un minuto entre dos SMS** (como la
-app oficial, que pone esa cuenta atrás) y **cinco SMS cada 10 minutos** por cuenta (tope propio de EVBro: la app no lo tiene),
+app oficial, que pone esa cuenta atrás) y **cinco SMS cada 10 minutos** por cuenta (tope propio de EVbro: la app no lo tiene),
 y **tres códigos erróneos cada 10 minutos**. El SMS va al teléfono de la cuenta; la respuesta solo lleva el teléfono enmascarado. Lo nuevo se guarda como al
 cambiarlo. El SMS se ha visto llegar (25-11-2026); el resto, sin probar todavía contra la nube real.
 
 **Nombre del coche en Ebro** (`PUT /api/vehicles/{vin}/ebro-name`, nivel `owner`, solo coches con cuenta): cambia el apodo del coche en la
-cuenta de Ebro y lo guarda como nombre en EVBro. Sin probar todavía contra la nube real.
+cuenta de Ebro y lo guarda como nombre en EVbro. Sin probar todavía contra la nube real.
 
 ## Comandos (`services/command_policy.py`)
 - **Piden el PIN en cada envío:** `desbloquear`, `maletero_abrir`, `ventanillas_abrir`, `ventilar_ventanillas`, `techo_abrir`, `techo_ventilar`, `alarma_off`. El catálogo (`GET /api/commands/catalog`) lo indica con `requires_pin`.
@@ -106,7 +106,7 @@ cuenta de Ebro y lo guarda como nombre en EVBro. Sin probar todavía contra la n
 - Respuesta de error de la API: `{success:false, detail, reason}`, con `reason` ∈ `pin_required` (422), `pin_invalid` (403), `pin_locked` (429), `params_invalid` (422), `pin` (422), `reauth` (424), `config` (422). La web decide por `reason`, no por el texto.
 - Los intentos rechazados quedan en `command_audit`. Un `A00084` («sin permiso para este mando en este coche») se recuerda por coche en `vehicles.rejected_commands`: la interfaz lo enseña como «No permitido» y Home Assistant no recibe el interruptor; un envío aceptado lo borra.
 - Si la **pausa automática al objetivo de batería** no llega al coche (sin PIN guardado, sesión muerta, el coche dice no), el gestor recibe una notificación «No se pudo pausar la carga» (categoría `charge_control`, no desactivable), una vez por racha de fallos; la web avisa junto al deslizador cuando hay objetivo y no hay PIN guardado.
-- **Órdenes que EVBro se manda a sí mismo** (`execute_internal`: el gestor de carga y la **climatización programada**, `services/climate_schedule.py`): usan el **PIN guardado** de la cuenta Ebro y se auditan con origen `charge_manager`/`schedule`. Sin PIN guardado no se envía nada y la programación guarda el motivo en `last_result`. Crear o cambiar una programación exige el nivel `control` del coche (`POST /api/vehicles/{vin}/climate-schedules`, `PUT/DELETE /api/climate-schedules/{schedule_id}`; `schedule_id` resuelve al coche como los demás recursos) y un coche manual responde 409. `clima_on` no está en la lista de órdenes con PIN por envío (no abre el coche).
+- **Órdenes que EVbro se manda a sí mismo** (`execute_internal`: el gestor de carga y la **climatización programada**, `services/climate_schedule.py`): usan el **PIN guardado** de la cuenta Ebro y se auditan con origen `charge_manager`/`schedule`. Sin PIN guardado no se envía nada y la programación guarda el motivo en `last_result`. Crear o cambiar una programación exige el nivel `control` del coche (`POST /api/vehicles/{vin}/climate-schedules`, `PUT/DELETE /api/climate-schedules/{schedule_id}`; `schedule_id` resuelve al coche como los demás recursos) y un coche manual responde 409. `clima_on` no está en la lista de órdenes con PIN por envío (no abre el coche).
 
 ## Notificaciones Web Push
 - `security/vapid.py` genera la clave VAPID en `DATA_DIR/vapid_private.pem`; la pública se sirve en `GET /api/notifications/push/public-key`. Cada dispositivo se suscribe desde **Ajustes → Avisos** (`push.js`) con `POST /push/subscribe`; la suscripción se guarda **cifrada** y la API no devuelve endpoints ni claves.
@@ -116,7 +116,7 @@ cuenta de Ebro y lo guarda como nombre en EVBro. Sin probar todavía contra la n
 ## Tus datos: exportar, importar, consentimiento y registro del administrador
 
 - **Exportar** (`GET /api/account/export`, solo el gestor): un ZIP con `evbro-export.json` (formato `evbro-account/1`; se leen también las exportaciones con el formato anterior, cada tabla columna a columna) y los ficheros **descifrados** (documentos, facturas, fotos). **Sin secretos**: ni credenciales de Ebro, ni PIN, ni tokens de Traccar, ni canales de aviso, ni huellas. Quien lo descarga tiene todo lo suyo en claro: hay que guardarlo con cuidado.
-- **Importar** (`POST /api/account/import`, solo el gestor, hasta 500 MB): los coches entran como **coches sin cuenta de Ebro** del gestor que importa, los bastidores que ya existen en el servidor se saltan, el límite de coches de la cuenta se respeta y las geocercas se casan por nombre. Los ficheros se vuelven a cifrar al guardarse. Un ZIP que no es de EVBro responde 422.
+- **Importar** (`POST /api/account/import`, solo el gestor, hasta 500 MB): los coches entran como **coches sin cuenta de Ebro** del gestor que importa, los bastidores que ya existen en el servidor se saltan, el límite de coches de la cuenta se respeta y las geocercas se casan por nombre. Los ficheros se vuelven a cifrar al guardarse. Un ZIP que no es de EVbro responde 422.
 - **Borrar la cuenta** (`POST /api/account/delete`, solo el gestor; Ajustes → Cuenta → «Borrar la cuenta», desde el 21-11-2026): borra el **espacio entero** del gestor con `services/tenant.py:delete_manager_space`, lo mismo que hace el administrador desde la consola. No se puede deshacer, así que pide dos cosas: el **nombre de usuario escrito a mano** (contra el despiste; 409 si no coincide) y la **contraseña** (contra otra persona delante de una sesión abierta; 403 si falla, y los fallos cuentan en el mismo freno por IP que el inicio de sesión, 429). Una cuenta asociada no puede (403): la borra su gestor. El diálogo lleva una **encuesta opcional** (`reasons`, `comment`; `services/exit_survey.py`, desde el 22-11-2026): motivos de una lista cerrada y un comentario de hasta 1.000 caracteres, que se guardan en `account_exit_surveys` **con el nombre de usuario** (decisión del dueño, para saber quién dijo qué; sin id de cuenta), la fecha, los días que vivió la cuenta y cuántos coches y cuentas asociadas tenía, y se leen en la consola (`GET /api/admin/exit-surveys`, Gestores → «Por qué se borran las cuentas»). Es **lo único que sobrevive a la cuenta**: lo dicen `/legal` y el manual; el diálogo no (el dueño quitó esa frase el mismo día); quien no contesta no deja nada. Una encuesta mal formada nunca impide el borrado (los motivos desconocidos se descartan), y solo se guarda si el borrado se hace.
   - **Qué se borra:** los coches del gestor con todo lo que cuelga de ellos (cualquier tabla con columna `vin`: lecturas, viajes y trazados, cargas, repostajes, gastos, mantenimiento, piezas, órdenes, accesos, Traccar…), sus cuentas asociadas, geocercas, la cuenta de Ebro con su sesión (`data/accounts/<id>/`), el enlace MQTT, los canales y el historial de avisos, dispositivos con push, huellas y sesiones, y los ficheros (documentos, facturas, fotos y la carpeta de cada coche).
   - **Lo que estaba en marcha** (`release_manager_runtime`, también al borrar desde la consola, que antes lo dejaba hasta el reinicio): se para el canal del coche y se quita su marca «parado», se cierra el enlace MQTT y Traccar, y se olvida lo que el servidor tenía **en memoria** de cada coche (`forget_vehicle_state`: la sesión con su PIN, la última lectura con su posición y el viaje o la carga que seguían los detectores; al borrar un solo coche también).
@@ -128,7 +128,7 @@ cuenta de Ebro y lo guarda como nombre en EVBro. Sin probar todavía contra la n
 
 ## Traccar (`api/routes_traccar.py`, `services/traccar.py`)
 
-El token de la API de Traccar se guarda **cifrado** y nunca se devuelve (`has_token`); configurar, probar o quitar el enlace exige nivel `owner` del coche; la última posición (`GET /api/vehicles/{vin}/gps/latest`) la ve quien ve el coche. EVBro es **cliente** de Traccar (WebSocket saliente): no abre ninguna ruta pública ni recibe nada sin sesión. Con «aceptar certificado no verificable» se desactiva la comprobación TLS solo hacia ese servidor. Detalle en [traccar.md](traccar.md).
+El token de la API de Traccar se guarda **cifrado** y nunca se devuelve (`has_token`); configurar, probar o quitar el enlace exige nivel `owner` del coche; la última posición (`GET /api/vehicles/{vin}/gps/latest`) la ve quien ve el coche. EVbro es **cliente** de Traccar (WebSocket saliente): no abre ninguna ruta pública ni recibe nada sin sesión. Con «aceptar certificado no verificable» se desactiva la comprobación TLS solo hacia ese servidor. Detalle en [traccar.md](traccar.md).
 
 ## Catálogo en línea (`api/routes_catalog_online.py`, `services/catalog_remote.py`)
 
@@ -138,7 +138,7 @@ Rutas de servidor a servidor sin sesión: `GET /api/catalog/online/export` y `PO
 
 ## Informes anónimos (`services/telemetry.py`, `api/routes_telemetry.py`)
 
-Desactivados hasta que el administrador decide en la consola, que antes le enseña el informe exacto. Lo que sale: versión, tamaños por tramos, modelos, funciones usadas (sí/no), resultados de consultas y órdenes, y fallos con el mensaje limpio de números, VIN, correos, direcciones y claves, y solo con líneas del código de EVBro. Detalle en [telemetry.md](telemetry.md).
+Desactivados hasta que el administrador decide en la consola, que antes le enseña el informe exacto. Lo que sale: versión, tamaños por tramos, modelos, funciones usadas (sí/no), resultados de consultas y órdenes, y fallos con el mensaje limpio de números, VIN, correos, direcciones y claves, y solo con líneas del código de EVbro. Detalle en [telemetry.md](telemetry.md).
 
 - `POST /api/telemetry/client-error` va en el router `protected`: solo una sesión iniciada informa de errores de su página, y solo cuentan mientras los informes están activados.
 - `POST /api/telemetry/v1/report` es la segunda ruta pública de servidor a servidor (aparte del catálogo en línea), y la única **sin clave**: está en la lista `PUBLIC` de `tests/test_api_auth.py` con su motivo. Fuera del servidor del proyecto (`TELEMETRY_RECEIVER=false`, lo normal) contesta 404. En el receptor: tope de tamaño, un informe cada 30 minutos por identificador, validación del formato, textos limpiados otra vez y sin guardar la IP.

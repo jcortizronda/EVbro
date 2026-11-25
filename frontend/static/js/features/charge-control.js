@@ -1,4 +1,4 @@
-/* EVBro — charge control (Energía tab): battery target, stop/start and scheduled charging.
+/* EVbro — charge control (Energía tab): battery target, stop/start and scheduled charging.
  *
  * Ebro does not let you start or stop charging directly: everything goes through the car's SCHEDULE, and the
  * server (`services/charge_manager.py`) takes care of the details (pause window, renewing it, time in UTC).
@@ -38,7 +38,7 @@
       case 'scheduled':
         return { tone: 'info', title: 'Carga programada', detail: t('Cargará de {p0} a {p1} ({p2}).{p3}', {p0: sched.start, p1: sched.end, p2: fmtDuration(sched.duration_min), p3: limit}) };
       case 'hold_user': {
-        const refresh = p.hold_refresh_in_min != null ? ` ${t('EVBro renueva la pausa solo (próxima en unas {p0} h).', {p0: Math.max(1, Math.round(p.hold_refresh_in_min / 60))})}` : '';
+        const refresh = p.hold_refresh_in_min != null ? ` ${t('EVbro renueva la pausa solo (próxima en unas {p0} h).', {p0: Math.max(1, Math.round(p.hold_refresh_in_min / 60))})}` : '';
         const back = sched.enabled ? ` ${t('Al iniciar se recupera tu programación ({p0} → {p1}).', {p0: sched.start, p1: sched.end})}` : ' Al iniciar, el coche carga en cuanto esté enchufado.';
         return { tone: 'warn', title: 'Carga en pausa',
           detail: t('No cargará hasta que pulses «Iniciar carga» o programes una carga.{p0}{p1}', {p0: back, p1: refresh}) };
@@ -71,7 +71,7 @@
     const warn = $('chargeWarning');
     if (warn) {
       let msg = plan.last_error ? t('El último cambio no llegó al coche: {p0}', {p0: plan.last_error}) : '';
-      // A target below 100 % is enforced by EVBro itself sending the pause: that needs the PIN saved in the account (09-11-2026:
+      // A target below 100 % is enforced by EVbro itself sending the pause: that needs the PIN saved in the account (09-11-2026:
       // a car charged past its target because there was none, and the only trace was a line in the audit log)
       const noPin = typeof currentAccountInfo !== 'undefined' && currentAccountInfo && currentAccountInfo.has_pin === false;
       if (!msg && plan.target_pct < 100 && noPin) msg = t('Para pausar la carga al llegar al objetivo hace falta el PIN guardado en Ajustes → Cuenta.');
@@ -102,12 +102,12 @@
       state = 'paused'; badge = 'En pausa';
       main = sched && sched.enabled ? win(sched) : 'Sin programación propia';
       sub = (plan.status === 'hold_target'
-        ? 'EVBro pausó la carga al llegar al objetivo. '
+        ? 'EVbro pausó la carga al llegar al objetivo. '
         : 'La carga está parada. ') + (sched && sched.enabled ? 'Tu programación queda en espera y se recupera al iniciar la carga.' : 'Al iniciar, el coche carga en cuanto esté enchufado.');
     } else if (car && car.enabled) {
       state = 'external'; badge = 'Activa en el coche';
       main = win(car);
-      sub = t('{p0} · creada fuera de EVBro (app oficial)', {p0: fmtDuration(car.duration_min)});
+      sub = t('{p0} · creada fuera de EVbro (app oficial)', {p0: fmtDuration(car.duration_min)});
     } else if (car === null && lastLoad) {
       state = 'unknown'; badge = 'Sin lectura'; main = '—'; sub = 'No se pudo leer la programación del coche.';
     } else if (car === undefined) {
@@ -250,7 +250,7 @@
     showToast(`${esc(detail)}${hint}`, 'error', 7000);
   }
 
-  // `localLabel`: text for orders EVBro only stores and watches (the target): do not say «enviado al coche»
+  // `localLabel`: text for orders EVbro only stores and watches (the target): do not say «enviado al coche»
   // unless the response shows the car was actually contacted (the last action time changed).
   async function act(label, method, path, body, localLabel) {
     if (busy) return;
@@ -281,9 +281,9 @@
   // ───────────────────────── actions ─────────────────────────
   function setTarget(value) {
     const pct = Number(value);
-    // The car has no «battery target»: it is stored in EVBro, which pauses charging when it is reached
+    // The car has no «battery target»: it is stored in EVbro, which pauses charging when it is reached
     act(t('Objetivo {p0} %', {p0: pct}), 'PUT', 'target', { target_pct: pct },
-        pct >= 100 ? 'Objetivo 100 %: sin límite' : t('Objetivo {p0} % guardado en EVBro (pausará la carga al llegar)', {p0: pct}));
+        pct >= 100 ? 'Objetivo 100 %: sin límite' : t('Objetivo {p0} % guardado en EVbro (pausará la carga al llegar)', {p0: pct}));
   }
   function start() { act('Iniciar carga', 'POST', 'start'); }
   async function stop() {

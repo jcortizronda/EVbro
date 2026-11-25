@@ -31,7 +31,7 @@ def test_discovery_keeps_the_integration_names_ids_and_device() -> None:
     assert bat["default_entity_id"] == "sensor.ebro_1234_bateria"                     # what HA ≥ 2025.8 reads (object_id is ignored there)
     assert all(p["default_entity_id"] == f"{t.split('/')[1]}.{p['object_id']}" for t, p in msgs)
     assert bat["device_class"] == "battery" and bat["unit_of_measurement"] == "%" and bat["state_topic"] == f"evbro/cars/{VIN}/json"
-    assert bat["device"] == {"identifiers": [f"ebro_{VIN}"], "name": "Mi Ebro", "manufacturer": "Ebro", "model": "S900 PHEV", "sw_version": "EVBro"}
+    assert bat["device"] == {"identifiers": [f"ebro_{VIN}"], "name": "Mi Ebro", "manufacturer": "Ebro", "model": "S900 PHEV", "sw_version": "EVbro"}
     assert bat["availability_topic"] == "evbro/status"
     odo = by_topic[f"homeassistant/sensor/ebro_{VIN}/rt_odometro/config"]
     assert odo["object_id"] == "ebro_1234_cuentakilometros" and odo["state_class"] == "total_increasing"
@@ -110,7 +110,7 @@ async def test_the_publisher_announces_once_publishes_location_and_runs_commands
     MqttPublisher.publish_telemetry(VIN, telemetry, car)
     configs = [t for t, payload, retain in fake.published if t.startswith("homeassistant/") and retain and payload]
     assert len(configs) == len(ha_discovery.discovery_messages("evbro", "homeassistant", VIN, None, None, None))   # announced once, not twice
-    # an entity EVBro stopped publishing is deleted in Home Assistant: an empty retained message on its discovery topic
+    # an entity EVbro stopped publishing is deleted in Home Assistant: an empty retained message on its discovery topic
     hybrid = f"homeassistant/sensor/ebro_{VIN}/rt_km_hibrido/config"
     assert [(t, p, r) for t, p, r in fake.published if t == hybrid] == [(hybrid, "", True)] and hybrid not in configs
     js = json.loads(next(p for t, p, _ in fake.published if t == f"evbro/cars/{VIN}/json"))

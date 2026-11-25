@@ -1,11 +1,11 @@
 # Posición por GPS desde un servidor Traccar
 
-**Para qué.** Un coche con su propio localizador GPS (un rastreador que reporta a un servidor [Traccar](https://www.traccar.org/)) puede dar a EVBro su posición en directo aunque no tenga cuenta de Ebro, o cuando la nube no la dé. Con esas posiciones EVBro **construye los viajes** (coches manuales) o **completa el trazado** del viaje abierto (coches conectados). La idea del GPS del móvil (OwnTracks/Traccar Client) se descartó el mismo día: la nube actualiza la posición con el coche encendido y no aportaba nada.
+**Para qué.** Un coche con su propio localizador GPS (un rastreador que reporta a un servidor [Traccar](https://www.traccar.org/)) puede dar a EVbro su posición en directo aunque no tenga cuenta de Ebro, o cuando la nube no la dé. Con esas posiciones EVbro **construye los viajes** (coches manuales) o **completa el trazado** del viaje abierto (coches conectados). La idea del GPS del móvil (OwnTracks/Traccar Client) se descartó el mismo día: la nube actualiza la posición con el coche encendido y no aportaba nada.
 
 ## Cómo se conecta (igual que la integración `traccar_server` de Home Assistant)
 
 - **Un token de la API** por servidor (en Traccar: usuario → Preferencias → Token), nunca usuario y contraseña. Se guarda cifrado (`traccar_links.api_token`) y la API no lo devuelve (`has_token`).
-- **Traccar empuja, EVBro no sondea:** `services/traccar.py` abre el WebSocket `/api/socket` (que solo admite cookie de sesión, así que antes hace `GET /api/session?token=…` y al terminar `DELETE /api/session`, como `pytraccar`) y recibe cada posición nueva. El REST se usa solo para validar (`GET /api/server`), listar dispositivos (`GET /api/devices`) y sembrar la última posición conocida al conectar (`GET /api/positions`). Si la conexión cae, reintenta a los 10, 30, 60, 120 y 300 s y el error queda visible en la ficha.
+- **Traccar empuja, EVbro no sondea:** `services/traccar.py` abre el WebSocket `/api/socket` (que solo admite cookie de sesión, así que antes hace `GET /api/session?token=…` y al terminar `DELETE /api/session`, como `pytraccar`) y recibe cada posición nueva. El REST se usa solo para validar (`GET /api/server`), listar dispositivos (`GET /api/devices`) y sembrar la última posición conocida al conectar (`GET /api/positions`). Si la conexión cae, reintenta a los 10, 30, 60, 120 y 300 s y el error queda visible en la ficha.
 - **Un WebSocket por servidor** (`TraccarHub`): varios coches en el mismo Traccar comparten la conexión; cada posición se enruta por `deviceId`.
 - Alternativa no usada: Traccar también puede reenviar posiciones a una URL (`forward.url`), pero exige tocar la configuración del servidor; el token no.
 

@@ -1,4 +1,4 @@
-/* EVBro — Costs (Más → Costes).
+/* EVbro — Costs (Más → Costes).
    Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
 .costs-period { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 5px; margin: 14px 0; background: var(--surface-secondary); border: 1px solid var(--border-color); border-radius: 16px; }

@@ -1,4 +1,4 @@
-/* EVBro — Energía: charging sessions (history and charts), charts, mini map and PVPC banner.
+/* EVbro — Energía: charging sessions (history and charts), charts, mini map and PVPC banner.
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
@@ -83,7 +83,7 @@ function chargeRow(c) {
 
   const dc = c.charge_type === 'dc';                       // AC unless the car (or the user) said DC
   const head = {
-    when: escapeHtml(c.date_unknown ? t('Sin fecha · antes de EVBro') : (c.manual ? historyWhen(c.start_time).split(' · ')[0] : historyWhen(c.start_time))),
+    when: escapeHtml(c.date_unknown ? t('Sin fecha · antes de EVbro') : (c.manual ? historyWhen(c.start_time).split(' · ')[0] : historyWhen(c.start_time))),
     place: `${c.manual ? `<span class="hist-tag is-manual">${t('Manual')}</span>` : ''}<span class="hist-tag ${dc ? 'is-dc' : 'is-ac'}">${dc ? 'DC' : 'AC'}</span>${escapeHtml(c.address || (c.manual ? t('Sin sitio') : 'Ubicación de recarga'))}`,
     // a manual charge shows the charger's kWh when it has them; only the battery estimate (from the %) carries «≈»
     big: c.manual && !c.kwh_used ? `≈ +${escapeHtml(historyNum(c.kwh_added))} kWh` : `+${escapeHtml(historyNum(c.manual ? c.kwh_used : c.kwh_added))} kWh`,

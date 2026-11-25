@@ -1,4 +1,4 @@
-/* EVBro — Live map of the car (Leaflet).
+/* EVbro — Live map of the car (Leaflet).
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 

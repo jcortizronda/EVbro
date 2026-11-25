@@ -8,7 +8,7 @@ from app.services.electricity_tariffs import get_time_of_use_period
 
 
 def utc(*args) -> datetime.datetime:
-    return datetime.datetime(*args)                  # naive = UTC, as EVBro stores times
+    return datetime.datetime(*args)                  # naive = UTC, as EVbro stores times
 
 
 def test_periods_follow_the_spanish_clock_not_utc(monkeypatch) -> None:

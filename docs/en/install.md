@@ -1,19 +1,19 @@
-# Installing EVBro step by step (no Docker knowledge needed)
+# Installing EVbro step by step (no Docker knowledge needed)
 
 *Versión en español: [docs/instalacion.md](../instalacion.md).*
 
-This guide is for anyone who wants **EVBro, your car's companion**, at home and has never set up a server. There is nothing to compile and no code to touch: EVBro ships as a ready-made **image** and starts from two files. If something does not go as described, copy the error message as is and ask in the repository ([github.com/jcortizronda/EVbro](https://github.com/jcortizronda/EVbro)).
+This guide is for anyone who wants **EVbro, your car's companion**, at home and has never set up a server. There is nothing to compile and no code to touch: EVbro ships as a ready-made **image** and starts from two files. If something does not go as described, copy the error message as is and ask in the repository ([github.com/jcortizronda/EVbro](https://github.com/jcortizronda/EVbro)).
 
 Estimated time: 20 minutes the first time.
 
 ## 1. What you need
 
-- **A computer that is always on** at home: a mini PC, a Raspberry Pi 4 or 5 (64-bit), a NAS with Docker or a virtual machine. 1 GB of RAM and 2 GB of free disk are plenty. EVBro uses about 300 MB of memory.
+- **A computer that is always on** at home: a mini PC, a Raspberry Pi 4 or 5 (64-bit), a NAS with Docker or a virtual machine. 1 GB of RAM and 2 GB of free disk are plenty. EVbro uses about 300 MB of memory.
 - **Linux** on it (Debian, Ubuntu, Raspberry Pi OS…). It also runs on Windows or Mac with *Docker Desktop*, but this guide assumes Linux because that is what a home server usually runs.
-- **Your official Ebro app account** (phone, password and remote-control PIN). EVBro talks to the car through that account.
+- **Your official Ebro app account** (phone, password and remote-control PIN). EVbro talks to the car through that account.
 - Optional but recommended: a **domain** pointing to your home and HTTPS (section 7). Without HTTPS everything works inside your network; phone notifications and fingerprint sign-in require HTTPS.
 
-EVBro is **two programs** that start together: the application and its database (PostgreSQL). Both are prepared in the `docker-compose.yml` file; you do not install or configure the database yourself. Data lives in two Docker "volumes" (the database and the files: invoices, photos, keys) that survive restarts and updates.
+EVbro is **two programs** that start together: the application and its database (PostgreSQL). Both are prepared in the `docker-compose.yml` file; you do not install or configure the database yourself. Data lives in two Docker "volumes" (the database and the files: invoices, photos, keys) that survive restarts and updates.
 
 ## 2. Install Docker
 
@@ -32,7 +32,7 @@ docker compose version
 
 It should answer something like `Docker Compose version v2.x`. If it says "command not found", Docker did not install properly: run the first command again and read what it says.
 
-## 3. Download the two EVBro files
+## 3. Download the two EVbro files
 
 ```bash
 mkdir -p ~/evbro && cd ~/evbro
@@ -63,7 +63,7 @@ Change **only these lines**; leave the rest as it is:
 Save with `Ctrl+O`, Enter, and exit with `Ctrl+X`.
 
 One warning:
-- `WEB_PORT=8080` is the port EVBro will open on. If 8080 is already used by something else on that computer, change the number (for example `8081`).
+- `WEB_PORT=8080` is the port EVbro will open on. If 8080 is already used by something else on that computer, change the number (for example `8081`).
 
 ## 5. Start
 
@@ -82,7 +82,7 @@ docker compose ps
 
 ## 6. First start: the administrator and your user
 
-EVBro has **two doors**:
+EVbro has **two doors**:
 
 - **The application** (port `WEB_PORT`, 8080 by default): the one you and whoever shares your cars use. This is the one published on the internet.
 - **The admin console** (port 8082, local network only): accounts are created and the server is tuned from here. It is never published on the internet.
@@ -94,16 +94,16 @@ Steps:
    docker compose logs app | grep "código de configuración"
    ```
 2. Open the console in a browser **on the server itself** or, if the server has no screen, first remove the `#` from the `ADMIN_BIND_ADDRESS` line in `.env` and put the server's IP on your network (for example `ADMIN_BIND_ADDRESS=192.168.1.50`), run `docker compose up -d` again and open `http://SERVER-IP:8082`.
-3. Create the administrator with the code, a name and a password of at least 10 characters. The administrator **has no cars**: it only runs the server. The same form asks two questions you can change later: whether to use the **project's consumables catalogue** (online, recommended) or only your server's, and whether to send **anonymous reports** to help improve EVBro.
+3. Create the administrator with the code, a name and a password of at least 10 characters. The administrator **has no cars**: it only runs the server. The same form asks two questions you can change later: whether to use the **project's consumables catalogue** (online, recommended) or only your server's, and whether to send **anonymous reports** to help improve EVbro.
 4. In the **Managers** tab press **Create manager**: that will be **your real user**, the one who owns the cars. Note the username and password.
 5. Open the application: `http://SERVER-IP:8080`, sign in with the manager.
-6. Go to **More → Settings → Account → Connect** and enter the phone, password and PIN of the official Ebro app. Your cars appear within seconds and EVBro starts collecting data.
+6. Go to **More → Settings → Account → Connect** and enter the phone, password and PIN of the official Ebro app. Your cars appear within seconds and EVbro starts collecting data.
 
 It is working. The rest of this guide is about getting the most out of it.
 
 ## 7. HTTPS and access from outside home (recommended)
 
-Without HTTPS, EVBro is only comfortable at home, and the phone cannot receive alerts or use the fingerprint. The simplest way is to put **Caddy** in front: it obtains and renews certificates on its own. You need a domain (a free DuckDNS one works) pointing to your home's public IP and ports 80 and 443 forwarded in the router to the server.
+Without HTTPS, EVbro is only comfortable at home, and the phone cannot receive alerts or use the fingerprint. The simplest way is to put **Caddy** in front: it obtains and renews certificates on its own. You need a domain (a free DuckDNS one works) pointing to your home's public IP and ports 80 and 443 forwarded in the router to the server.
 
 1. Install Caddy on the same server: [caddyserver.com/docs/install](https://caddyserver.com/docs/install).
 2. Edit `/etc/caddy/Caddyfile` and leave only this (with your domain):
@@ -118,14 +118,14 @@ Without HTTPS, EVBro is only comfortable at home, and the phone cannot receive a
        }
    }
    ```
-3. In EVBro's `.env` remove the `#` from the three lines of the "Behind an HTTPS reverse proxy" block (`COOKIE_SECURE=true`, `BIND_ADDRESS=127.0.0.1` so only Caddy sees port 8080, and `FORWARDED_ALLOW_IPS=172.16.0.0/12`), then restart: `docker compose up -d`.
+3. In EVbro's `.env` remove the `#` from the three lines of the "Behind an HTTPS reverse proxy" block (`COOKIE_SECURE=true`, `BIND_ADDRESS=127.0.0.1` so only Caddy sees port 8080, and `FORWARDED_ALLOW_IPS=172.16.0.0/12`), then restart: `docker compose up -d`.
 4. Reload Caddy (`sudo systemctl reload caddy`) and open `https://mycar.duckdns.org`.
 
 **Never publish port 8082** (the admin console) in the router or in Caddy.
 
-## 8. Install EVBro on the phone
+## 8. Install EVbro on the phone
 
-Open EVBro's address in Chrome (Android) or Safari (iPhone) and use **"Add to Home Screen"** (Chrome offers it on its own; on iPhone it is in the Share button). It opens full screen, like an app, and works offline with the latest data.
+Open EVbro's address in Chrome (Android) or Safari (iPhone) and use **"Add to Home Screen"** (Chrome offers it on its own; on iPhone it is in the Share button). It opens full screen, like an app, and works offline with the latest data.
 
 For alerts: **More → Settings → Alerts → Enable on this device**, then **Send a test**. Choose which alerts you want (geofences, charging, maintenance, tyre pressure, due dates…).
 
@@ -146,7 +146,7 @@ cp .env evbro-env-$(date +%F).txt
 
 Those three files are all you need to keep (on another disk or in the cloud). To do it every night on its own, put those three lines in a script and schedule it with `cron`.
 
-To **export your data** from the app itself (without touching the server): **More → Settings → Account → Your data → Download everything (ZIP)**. That ZIP can be imported into another EVBro server.
+To **export your data** from the app itself (without touching the server): **More → Settings → Account → Your data → Download everything (ZIP)**. That ZIP can be imported into another EVbro server.
 
 ## 11. Updating
 
@@ -163,7 +163,7 @@ The database updates itself on start. Make the backup of section 10 before updat
 | :--- | :--- |
 | The page does not open | `docker compose ps` (are both containers there?) and `docker compose logs --tail 50 app` |
 | "Could not sign in" when connecting the Ebro account | The phone goes **without the country code**, which goes in its own field (34 for Spain). The password is the one of the official app. If the official app asked for SMS verification recently, wait a few minutes |
-| Data does not refresh | EVBro queries the cloud every hour with the car parked and every minute while driving; it does not wake the car. **Settings → Connections → Car channel** must say "Listening to the car". If the official app is open on the phone, the cloud keeps only one live connection: the last one in |
+| Data does not refresh | EVbro queries the cloud every hour with the car parked and every minute while driving; it does not wake the car. **Settings → Connections → Car channel** must say "Listening to the car". If the official app is open on the phone, the cloud keeps only one live connection: the last one in |
 | No alerts on the phone | HTTPS is needed (section 7) and they must be enabled on that device (section 8) |
 | I lost `ENCRYPTION_KEY` | Put a new one in `.env`, start, and connect the Ebro account again in Settings → Account. Nothing else is lost |
 | I want to start over | `docker compose down -v` deletes **everything** (database and files). Without `-v` it only stops the containers |

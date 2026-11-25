@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Daily backup of EVBro: a dump of the database, an archive of the data volume (tokens, encrypted documents/invoices/photos,
+# Daily backup of EVbro: a dump of the database, an archive of the data volume (tokens, encrypted documents/invoices/photos,
 # VAPID key, secret.key) and deploy/.env, which holds ENCRYPTION_KEY (without the key nothing of the above can be read).
 # Keeps KEEP_DAYS days in backups/ and removes Docker build leftovers older than 3 days (each deploy leaves hundreds of MB).
 #   Install (as root, on the server):   0 4 * * * /opt/evbro/deploy/backup.sh >> /opt/evbro/backups/backup.log 2>&1

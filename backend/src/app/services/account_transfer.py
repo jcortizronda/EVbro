@@ -150,7 +150,7 @@ async def import_account(session: AsyncSession, user_id: int, blob: bytes, vehic
         zf = zipfile.ZipFile(io.BytesIO(blob))
         payload = json.loads(zf.read(EXPORT_FILE))
     except (zipfile.BadZipFile, KeyError, ValueError) as ex:
-        raise ImportError_(422, "No es una exportación de EVBro (falta evbro-export.json).") from ex
+        raise ImportError_(422, "No es una exportación de EVbro (falta evbro-export.json).") from ex
     if payload.get("format") != FORMAT:
         raise ImportError_(422, f"Formato no reconocido: {payload.get('format')!r}.")
     names = set(zf.namelist())

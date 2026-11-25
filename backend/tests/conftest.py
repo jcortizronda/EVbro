@@ -1,4 +1,4 @@
-"""EVBro test harness.
+"""EVbro test harness.
 
 The snapshots in `tests/core/` come from the Home Assistant integration, which keeps them in
 `snapshots/` (and not in syrupy's default `__snapshots__/`). That folder is kept so the core tests
@@ -10,7 +10,7 @@ import os
 import shutil
 import tempfile
 
-# EVBro's configuration is read when `app.config` is imported: the test environment must be
+# EVbro's configuration is read when `app.config` is imported: the test environment must be
 # set BEFORE any module imports it (this conftest is loaded first).
 _TMP = tempfile.mkdtemp(prefix="evbro-tests-")
 _DB_FILE = os.path.join(_TMP, "test.db")
@@ -36,7 +36,7 @@ def snapshot(snapshot: SnapshotAssertion) -> SnapshotAssertion:
     return snapshot.use_extension(_EbroSnapshotExtension)
 
 
-# ───────────────────────── EVBro fixtures (app, DB, encryption) ─────────────────────────
+# ───────────────────────── EVbro fixtures (app, DB, encryption) ─────────────────────────
 @pytest.fixture
 def data_dir(tmp_path, monkeypatch):
     """Isolated data folder with its own encryption key."""

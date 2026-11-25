@@ -369,7 +369,7 @@ async def test_a_late_detected_trip_without_a_position_still_recovers_its_start_
     assert T0 - datetime.timedelta(minutes=40) <= d.start_time < T0
 
 
-# ───────────────────────── trips EVBro did not see ─────────────────────────
+# ───────────────────────── trips EVbro did not see ─────────────────────────
 async def _a_closed_trip(car, km=98):
     await process(car, reading(0, 22768, HOME, soc=80.0), T0)
     await process(car, reading(60, 22768 + km // 2, (40.002, -2.998), soc=50.0), T0 + datetime.timedelta(minutes=40))

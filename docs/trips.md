@@ -108,11 +108,11 @@ ningún localizar: no hay una relación «localizar → X días de posición». 
 (localizar o incluso desbloquear), no la del último fix: no sirve para detectar la congelación. `travelQuery` es la «salida programada», no un
 historial de viajes: no hay otra fuente de trazados.
 
-EVBro lo **detecta** (`services/poller_position.py:_watch_frozen_position`: el mismo punto redondeado a 4 decimales durante 3 min **desde que el
+EVbro lo **detecta** (`services/poller_position.py:_watch_frozen_position`: el mismo punto redondeado a 4 decimales durante 3 min **desde que el
 cuentakilómetros empieza a subir**, y al menos 2 km. Hasta el 14-11-2026 bastaba 1 km y el reloj corría desde que se vio el punto: el cuentakilómetros va
 en km enteros, así que un solo salto al arrancar tras una noche aparcado daba «1097 min congelado, 1,0 km»; hubo cuatro falsas alarmas así en dos días) y lo escribe en el log («Frozen position on …», y «moves again after …» cuando se descongela). Desde el 09-11-2026, primero como **experimento**
 (`AUTO_LOCATE_ENABLED`, activado por defecto desde el 21-11-2026), al detectarlo manda él mismo `localizar_coche_gps` con el PIN guardado (origen `auto_locate` en la
-auditoría), como mucho uno cada 5 min y **dos por episodio**. Los km solo cuentan en lecturas con el coche encendido: el 16-11-2026 un coche aparcado tras un viaje de 98 km recibió tres «localizar» en tres horas, dormido y en su posición real, porque el cuentakilómetros marcaba 4 km más una hora después de aparcar (una salida corta que EVBro no vio, entre dos lecturas horarias); cada uno lo despertó. Si la cuenta no tiene PIN guardado no lo reintenta en ese episodio y lo
+auditoría), como mucho uno cada 5 min y **dos por episodio**. Los km solo cuentan en lecturas con el coche encendido: el 16-11-2026 un coche aparcado tras un viaje de 98 km recibió tres «localizar» en tres horas, dormido y en su posición real, porque el cuentakilómetros marcaba 4 km más una hora después de aparcar (una salida corta que EVbro no vio, entre dos lecturas horarias); cada uno lo despertó. Si la cuenta no tiene PIN guardado no lo reintenta en ese episodio y lo
 anota como información, no como aviso. El log dice cuántos segundos tarda la posición en moverse
 tras cada localizar: con eso se decide si vale.
 

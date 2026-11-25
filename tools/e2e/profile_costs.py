@@ -251,7 +251,7 @@ with sync_playwright() as p:
         # Sistema: the version
         pg.evaluate("switchTab('settings'); switchSettingsSubTab('system')")
         pg.wait_for_timeout(700)
-        ok(txt("#appVersion").startswith("EVBro ") and len(txt("#appVersion")) > 9, f"{tag}: Sistema shows the version ({txt('#appVersion')})")
+        ok(txt("#appVersion").startswith("EVbro ") and len(txt("#appVersion")) > 9, f"{tag}: Sistema shows the version ({txt('#appVersion')})")
         ok("Información del Servidor" not in pg.text_content("#settingsSubTabSystem"), f"{tag}: the server info card is gone")
         pg.screenshot(path=f"{OUT}/system-{theme}.png", full_page=True)
 

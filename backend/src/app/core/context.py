@@ -2,7 +2,7 @@
 """`CoreCtx` — configuration and state of ONE vehicle, passed explicitly.
 
 One `CoreCtx` per vehicle, created by the poller and passed as the first argument to
-every function in `core/`. No mutable module globals, no `os.environ` on EVBro's
+every function in `core/`. No mutable module globals, no `os.environ` on EVbro's
 live path.
 
 **Why the context also holds STATE and not just configuration.** The PIN lockout,
@@ -134,7 +134,7 @@ class CoreCtx:
     # PRIVACY: the probe's raw log contains the VIN and coordinates → OPT-IN. Empty =
     # nothing is written. For manual diagnostics only.
     probe_log_path: str = ""
-    # Diagnostic monitor (diag.py): optional diagnostic callback (EVBro does not use it for now).
+    # Diagnostic monitor (diag.py): optional diagnostic callback (EVbro does not use it for now).
     # `None` = dormant, zero cost. `core/` does not know the poller.
     diag_hook: object | None = None
 
@@ -143,7 +143,7 @@ class CoreCtx:
 
     def __post_init__(self) -> None:
         # Fallback paths for command-line/diagnostic use only: in
-        # EVBro the poller always sets them (per VIN, in data/<vin>/).
+        # EVbro the poller always sets them (per VIN, in data/<vin>/).
         if not self.token_path:
             self.token_path = os.path.join(HERE, "token.json")
         if not self.taskid_file:
@@ -179,7 +179,7 @@ def ctx_from_environ() -> CoreCtx:
     """Context built from `os.environ` — ONLY for command-line use.
 
     The `core/` modules can still be launched by hand for diagnostics (`python -m …`) and in
-    that case the environment is the handiest way to pass the parameters. EVBro NEVER
+    that case the environment is the handiest way to pass the parameters. EVbro NEVER
     goes through here: the poller builds the context from the configuration and the
     database, which are the source of truth."""
     return CoreCtx(

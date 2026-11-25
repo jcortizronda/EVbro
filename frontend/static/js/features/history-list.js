@@ -1,4 +1,4 @@
-/* EVBro — Shared pieces of the trip and charge history lists: one compact row per item that unfolds its details,
+/* EVbro — Shared pieces of the trip and charge history lists: one compact row per item that unfolds its details,
  * month separators with totals from the server and a «Ver más» button that loads the next page.
  * (Classic script: shares the global scope; it must load before drives.js and charge-sessions.js.)
  */

@@ -1,4 +1,4 @@
-/* EVBro — Maintenance: official EBRO plan (next service, full plan and logging of steps).
+/* EVbro — Maintenance: official EBRO plan (next service, full plan and logging of steps).
  * The server computes everything (services/maintenance_official.py); here it is only drawn and the actions requested.
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */

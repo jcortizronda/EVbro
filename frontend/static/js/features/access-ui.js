@@ -1,4 +1,4 @@
-/* EVBro — Interface according to the account's access level on the current car and its role.
+/* EVbro — Interface according to the account's access level on the current car and its role.
  * The SERVER enforces everything (backend/src/app/security/access.py); this only hides what would answer 403.
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */

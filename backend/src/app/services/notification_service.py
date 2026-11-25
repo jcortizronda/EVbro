@@ -309,7 +309,7 @@ class NotificationService:
         return results
 
     # ------------------------------------------------------------------------
-    # High-level methods for EVBro events. The texts are `M()` messages (Spanish with placeholders) that `_dispatch_to_user`
+    # High-level methods for EVbro events. The texts are `M()` messages (Spanish with placeholders) that `_dispatch_to_user`
     # renders in the language of each recipient (app.i18n); `Message.join` glues parts that are translated one by one.
     # ------------------------------------------------------------------------
 
@@ -545,14 +545,14 @@ class NotificationService:
             category="windows_open",
             title=M("Ventanas Olvidadas Abiertas: {p0}", p0=vehicle_name),
             message=Message.join("\n", [M("El vehículo está cerrado pero se detectaron aberturas:"), *(Message.join(" ", ["•", i]) for i in issues),
-                                        M("Puedes cerrarlas de inmediato desde el botón 'Cerrar ventanas' en EVBro.")]),
+                                        M("Puedes cerrarlas de inmediato desde el botón 'Cerrar ventanas' en EVbro.")]),
             tags=["window", "warning"],
             priority="high",
         )
 
     @classmethod
     async def notify_charge_hold_failed(cls, vehicle_name: str, target_pct: int, detail: str, vin: Optional[str] = None):
-        """EVBro reached the battery target but could not pause the charge: the car keeps charging. Not a switchable category:
+        """EVbro reached the battery target but could not pause the charge: the car keeps charging. Not a switchable category:
         the manager asked for the target and must learn it is not being enforced."""
         await cls.dispatch(
             vin=vin,

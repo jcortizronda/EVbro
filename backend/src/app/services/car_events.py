@@ -6,7 +6,7 @@
   * `1301` — position. **This car never sends it**; if it ever arrives, it is merged all the same.
   Battery, range and odometer do NOT come this way: they still come from the poll.
 
-**What it is for in EVBro**
+**What it is for in EVbro**
   * Door/lock/cable/engine telemetry updates instantly (WebSocket), without waiting
     for the poll. The push wins over the poll when both carry the same key.
   * Waking up, a driving burst and plugging/unplugging the cable trigger an immediate poll, which
@@ -73,7 +73,7 @@ _RESULT_TASKS: set = set()
 
 
 def sent_at_from_seq(vin: str, seq: Any) -> Optional[datetime.datetime]:
-    """When EVBro sent the order a confirmation answers (naive UTC), or None when the `seq` is not one of ours."""
+    """When EVbro sent the order a confirmation answers (naive UTC), or None when the `seq` is not one of ours."""
     prefix = f"{vin}-"
     if not isinstance(seq, str) or not seq.startswith(prefix) or not seq[len(prefix):].isdigit():
         return None
@@ -189,7 +189,7 @@ class CarEventService:
         self._mark_stopped(False)
         await self.start(poller, vins)
 
-    # Stopped because another app took the account (official app, Home Assistant): kept in a file so that EVBro never reconnects on
+    # Stopped because another app took the account (official app, Home Assistant): kept in a file so that EVbro never reconnects on
     # its own, not even after a restart; it would throw the other app out (owner's decision, 14-11-2026)
     def _stopped_path(self) -> str:
         return os.path.join(get_data_dir(), "car_channel", f"stopped-{self.owner_id if self.owner_id is not None else 0}")
@@ -429,7 +429,7 @@ class CarEventHub:
         await self.service_for(owner_id).restart(poller, await self._vins_of(owner_id))
 
     async def resume_owner(self, owner_id: int, poller) -> None:
-        """After EVBro reopened the account's session on its own: the channel needs it too, unless another app stopped it."""
+        """After EVbro reopened the account's session on its own: the channel needs it too, unless another app stopped it."""
         service = self.service_for(owner_id)
         if service.state != "conflict" and not service.stopped_by_conflict():
             await service.restart(poller, await self._vins_of(owner_id))

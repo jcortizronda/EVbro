@@ -26,10 +26,10 @@ def outbox(monkeypatch, data_dir):
     """SMTP configured, nothing leaves: the messages land here."""
     sent = []
     monkeypatch.setattr(settings, "SMTP_HOST", "smtp.example.com")
-    monkeypatch.setattr(settings, "SMTP_FROM", "EVBro <no-responder@example.com>")
+    monkeypatch.setattr(settings, "SMTP_FROM", "EVbro <no-responder@example.com>")
     monkeypatch.setattr(settings, "PUBLIC_URL", "https://evbro.example.com/")
     monkeypatch.setattr(settings, "WEBAUTHN_ORIGIN", None)
-    monkeypatch.setattr(mailer, "send", lambda to, subject, body: sent.append((to, subject, body)) or True)
+    monkeypatch.setattr(mailer, "send", lambda to, subject, body, html=None: sent.append((to, subject, body, html)) or True)
     for t in (routes_auth.ip_throttle, routes_auth.pair_throttle, routes_auth.reset_ip_throttle, routes_auth.reset_account_throttle):
         t._fails.clear()
     return sent
@@ -96,14 +96,18 @@ def test_smtp_with_starttls_and_login(monkeypatch) -> None:
 
         def send_message(self, msg):
             calls.append(("send", msg["To"], msg["Subject"], msg["From"]))
+            calls.append(("parts", [p.get_content_type() for p in msg.iter_parts()] if msg.is_multipart() else [msg.get_content_type()]))
 
     monkeypatch.setattr(mailer.smtplib, "SMTP", _Smtp)
     for k, v in (("SMTP_HOST", "smtp.example.com"), ("SMTP_PORT", 587), ("SMTP_USER", "u"), ("SMTP_PASSWORD", "p"),
-                 ("SMTP_FROM", "EVBro <no-responder@example.com>"), ("SMTP_SECURITY", "starttls")):
+                 ("SMTP_FROM", "EVbro <no-responder@example.com>"), ("SMTP_SECURITY", "starttls")):
         monkeypatch.setattr(settings, k, v)
     assert mailer.send("ana@example.com", "Asunto", "Cuerpo") is True
     assert calls == [("open", "smtp.example.com", 587), ("starttls",), ("login", "u"),
-                     ("send", "ana@example.com", "Asunto", "EVBro <no-responder@example.com>")]
+                     ("send", "ana@example.com", "Asunto", "EVbro <no-responder@example.com>"), ("parts", ["text/plain"])]
+    calls.clear()
+    assert mailer.send("ana@example.com", "Asunto", "Cuerpo", "<p>Cuerpo</p>") is True
+    assert calls[-1] == ("parts", ["text/plain", "text/html"])                     # the text first: clients show the last they can
 
     def broken(*a, **kw):
         raise OSError("refused")
@@ -122,7 +126,7 @@ async def test_the_email_needs_the_password_and_the_old_address_is_told(client, 
     assert (await client.put("/api/auth/email", json={"email": "no-es-un-email", "current_password": PASSWORD})).status_code == 422
     r = await client.put("/api/auth/email", json={"email": "Nueva@Example.com", "current_password": PASSWORD})
     assert r.status_code == 200 and r.json()["email"] == "nueva@example.com"
-    assert [m[0] for m in outbox] == ["vieja@example.com"] and "ha cambiado" in outbox[0][1]
+    assert [m[0] for m in outbox] == ["vieja@example.com"] and "ha cambiado" in outbox[0][1] and "<html" in outbox[0][3]
     r = await client.put("/api/auth/email", json={"email": "", "current_password": PASSWORD})
     assert r.status_code == 200 and r.json()["email"] is None
     assert (await client.get("/api/auth/status")).json() == {**(await client.get("/api/auth/status")).json(), "email": None, "password_reset": True}
@@ -140,9 +144,18 @@ async def test_the_answer_is_the_same_whether_the_account_exists_or_not(client, 
     answers = [await client.post("/api/auth/password-reset", json={"login": login}) for login in ("nadie", "luis", "ANA@example.com ")]
     assert {(r.status_code, r.text) for r in answers} == {(200, '{"status":"ok"}')}
     assert [m[0] for m in outbox] == ["ana@example.com"]
-    to, subject, body = outbox[0]
+    to, subject, body, html = outbox[0]
     assert "contraseña" in subject and "ana" in body and "30 minutos" in body
-    assert _token(body)
+    token = _token(body)
+    assert f'href="https://evbro.example.com/#reset={token}"' in html                   # the button carries the same link
+    assert "https://evbro.example.com/static/icons/icon-192.png" in html and "Elegir contraseña nueva" in html
+
+
+async def test_the_html_escapes_what_the_user_typed(client, outbox) -> None:
+    await _user(1, "<b>ana</b>", "ana@example.com")
+    await client.post("/api/auth/password-reset", json={"login": "<b>ana</b>"})
+    html = outbox[0][3]
+    assert "<b>ana</b>" not in html and "&lt;b&gt;ana&lt;/b&gt;" in html
 
 
 async def test_a_link_changes_the_password_once_and_closes_every_session(client, outbox) -> None:

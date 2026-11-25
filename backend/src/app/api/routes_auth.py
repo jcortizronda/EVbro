@@ -1,4 +1,4 @@
-"""Access to EVBro: first user, login and logout, password change."""
+"""Access to EVbro: first user, login and logout, password change."""
 from __future__ import annotations
 
 import asyncio
@@ -232,8 +232,8 @@ async def _send_reset_links(login: str, ip: str) -> None:
                 continue
             reset_account_throttle.record_failure(key)
             link = await password_reset.issue(db, user, ip)
-            subject, body = password_reset.compose(user, link)
-            sent = await asyncio.to_thread(mailer.send, user.email, subject, body)
+            subject, body, html = password_reset.compose(user, link)
+            sent = await asyncio.to_thread(mailer.send, user.email, subject, body, html)
             _LOGGER.info("Password reset link for account %s %s.", user.id, "sent" if sent else "NOT sent")
 
 

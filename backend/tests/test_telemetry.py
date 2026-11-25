@@ -139,7 +139,7 @@ async def test_errors_are_grouped_by_place_scrubbed_and_survive_a_flush(world) -
         except KeyError:
             log.error("Exception polling", exc_info=True)
     try:
-        electricity_tariffs.to_local("not a date")                       # raised inside EVBro's own code
+        electricity_tariffs.to_local("not a date")                       # raised inside EVbro's own code
     except AttributeError:
         log.error("tariff", exc_info=True)
     log.warning(f"Car MQTT channel kicked for {VIN}")
@@ -151,7 +151,7 @@ async def test_errors_are_grouped_by_place_scrubbed_and_survive_a_flush(world) -
         assert await telemetry.flush(s) == 4
         rows = {r.kind + ":" + (r.error_type or ""): r for r in (await s.execute(select(TelemetryLocalError))).scalars()}
     boom = rows["server:KeyError"]
-    assert boom.count == 3 and boom.frames == []                          # frames of the tests are not EVBro's code: they do not travel
+    assert boom.count == 3 and boom.frames == []                          # frames of the tests are not EVbro's code: they do not travel
     assert rows["server:AttributeError"].frames[-1].startswith("app/services/electricity_tariffs.py:")
     assert VIN not in (boom.message or "") and "ana@example.com" not in boom.message and "legend.ebroauto" not in boom.message
     assert rows["server:app.services.poller"].level == "warning" and VIN not in rows["server:app.services.poller"].message

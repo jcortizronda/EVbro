@@ -1,5 +1,5 @@
-/* EVBro — GPS position from a Traccar server (Ajustes → Conexiones → «Posición por GPS (Traccar)», for the chosen car).
- * The car has its own tracker that reports to Traccar; EVBro connects with the API token and receives each
+/* EVbro — GPS position from a Traccar server (Ajustes → Conexiones → «Posición por GPS (Traccar)», for the chosen car).
+ * The car has its own tracker that reports to Traccar; EVbro connects with the API token and receives each
  * position live. For a car without an Ebro account, those positions build the trips.
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */

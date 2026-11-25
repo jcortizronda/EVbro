@@ -1,4 +1,4 @@
-"""Telemetry, drive, charge and geofence services for EVBro."""
+"""Telemetry, drive, charge and geofence services for EVbro."""
 from app.services.charge_detector import ChargeDetector
 from app.services.geofence import find_geofence, haversine_distance_meters, reverse_geocode
 from app.services.mqtt_publisher import MqttPublisher

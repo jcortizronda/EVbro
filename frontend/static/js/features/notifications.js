@@ -1,4 +1,4 @@
-/* EVBro — Notifications: channels, events, history and in-app alerts.
+/* EVbro — Notifications: channels, events, history and in-app alerts.
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 

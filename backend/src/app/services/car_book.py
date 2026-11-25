@@ -1,4 +1,4 @@
-"""The car book («Libro del coche»): a PDF with everything EVBro knows about a car, section by section, made with reportlab.
+"""The car book («Libro del coche»): a PDF with everything EVbro knows about a car, section by section, made with reportlab.
 
 Sections (the user picks): `sheet` (identity, purchase, insurance, tyres, energy), `maintenance` (plan and interventions),
 `parts` (consumables and references), `drives`, `charges`, `refuels`, `expenses` (with the cost balance), `geofences`,
@@ -448,7 +448,7 @@ def _on_page(vehicle: Vehicle):
         canvas.setFont("Helvetica", 7.5)
         canvas.setFillColor(MUTED)
         canvas.drawString(doc.leftMargin, 10 * mm, label)
-        canvas.drawRightString(A4[0] - doc.rightMargin, 10 * mm, _("EVBro · página {p0}", p0=doc.page))
+        canvas.drawRightString(A4[0] - doc.rightMargin, 10 * mm, _("EVbro · página {p0}", p0=doc.page))
         canvas.restoreState()
     return draw
 
@@ -464,7 +464,7 @@ def _cover(vehicle: Vehicle, sections: List[str], width: float) -> List[Any]:
     if photo:
         out += [photo, Spacer(1, 8 * mm)]
     now = datetime.datetime.now()
-    out.append(Paragraph(_("Generado por EVBro el {p0} a las {p1}.", p0=now.strftime("%d/%m/%Y"), p1=now.strftime("%H:%M")), BODY))
+    out.append(Paragraph(_("Generado por EVbro el {p0} a las {p1}.", p0=now.strftime("%d/%m/%Y"), p1=now.strftime("%H:%M")), BODY))
     out.append(Paragraph(_("Contenido: {p0}.", p0=", ".join(_(SECTION_TITLES[s]) for s in sections)), BODY))
     out.append(Paragraph(_("Los consumos, kWh y litros de los viajes y las cargas son estimaciones a partir de lo que informa el coche; los repostajes detectados llevan litros estimados salvo que se corrigieran con el ticket."), SMALL))
     out.append(PageBreak())
@@ -476,7 +476,7 @@ async def build(session: AsyncSession, vehicle: Vehicle, sections: Iterable[str]
     data = await collect(session, vehicle, chosen)
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=16 * mm, rightMargin=16 * mm, topMargin=16 * mm, bottomMargin=18 * mm,
-                            title=f"{_('Libro del coche')} · {vehicle.name or vehicle.vin}", author="EVBro")
+                            title=f"{_('Libro del coche')} · {vehicle.name or vehicle.vin}", author="EVbro")
     width = A4[0] - doc.leftMargin - doc.rightMargin
     story: List[Any] = _cover(vehicle, chosen, width)
     for i, key in enumerate(chosen):

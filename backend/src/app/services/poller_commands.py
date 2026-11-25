@@ -1,4 +1,4 @@
-"""Commands of the poller: what the web and EVBro itself send to the car, with the PIN rules, the audit and the commands
+"""Commands of the poller: what the web and EVbro itself send to the car, with the PIN rules, the audit and the commands
 each car refuses.
 
 Part of `VehiclePoller` (services/poller.py), split out on 2026-11-09 without changing behaviour.
@@ -115,12 +115,12 @@ class CommandsMixin:
         return {"success": success, "message": message, "reason": reason, "code": code, "retry_after": 0}
 
     async def execute_internal(self, vin: str, command_key: str, params: Optional[Dict], origin: str) -> Dict:
-        """A command EVBro sends itself (e.g. the charge manager): it uses the stored PIN and does NOT go through the
-        API's parameter whitelist, which exists to restrain a client, not EVBro. It is audited all the same."""
+        """A command EVbro sends itself (e.g. the charge manager): it uses the stored PIN and does NOT go through the
+        API's parameter whitelist, which exists to restrain a client, not EVbro. It is audited all the same."""
         ctx = self._get_or_create_ctx(vin)
         stored_pin = await self._stored_pin(ctx)
         if not stored_pin:
-            msg = "Falta el PIN de la cuenta Ebro: guárdalo en Ajustes → Cuenta Ebro para que EVBro pueda gestionar la carga."
+            msg = "Falta el PIN de la cuenta Ebro: guárdalo en Ajustes → Cuenta Ebro para que EVbro pueda gestionar la carga."
             await self._audit_command(vin, command_key, params, False, "pin", msg, origin)
             return {"success": False, "message": msg, "reason": "pin"}
         cmd_ctx = dataclasses.replace(ctx, pin=stored_pin)

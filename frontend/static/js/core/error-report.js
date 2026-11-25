@@ -22,7 +22,7 @@
   function report(type, message, stack) {
     if (off || sent >= MAX_PER_VISIT || navigator.onLine === false) return;
     const st = frames(stack);
-    if (!st.length) return;                               // not from EVBro's own scripts (an extension, a map tile…)
+    if (!st.length) return;                               // not from EVbro's own scripts (an extension, a map tile…)
     const key = `${type}|${st[0]}`;
     if (seen.has(key)) return;
     seen.add(key);

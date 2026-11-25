@@ -1,6 +1,6 @@
 """Re-estimate the energy of past drives and charges when the car sheet's battery capacity changes.
 
-EVBro never measures energy: a drive's kWh are its battery points spent × the sheet's capacity, and a charge's kWh added are
+EVbro never measures energy: a drive's kWh are its battery points spent × the sheet's capacity, and a charge's kWh added are
 the points gained × the same capacity (charge_detector.py, trip_detector.py). A car whose sheet had no capacity when those rows
 were written got the default (19.27 kWh), so an S900 with 34.5 kWh ended up with roughly half of its real figures. When the
 owner sets or corrects the capacity, everything estimated from it is recomputed here, including the cost of charges priced per

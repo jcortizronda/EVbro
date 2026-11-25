@@ -1,4 +1,4 @@
-/* EVBro — Rendering on touch devices: no `backdrop-filter`.
+/* EVbro — Rendering on touch devices: no `backdrop-filter`.
    Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it (it goes LAST).
 
    Why: Chrome for Android composites `backdrop-filter` layers badly when several are present at once (header, dock,

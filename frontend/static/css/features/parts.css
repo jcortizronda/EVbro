@@ -1,4 +1,4 @@
-/* EVBro — Consumables and part numbers (car sheet) and the parts picker of interventions.
+/* EVbro — Consumables and part numbers (car sheet) and the parts picker of interventions.
    Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
 .vp-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 5px; margin-bottom: 12px; background: var(--surface-secondary); border: 1px solid var(--border-color); border-radius: 16px; }

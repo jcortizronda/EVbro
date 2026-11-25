@@ -1,4 +1,4 @@
-/* EVBro — home tab access tiles (lock, boot, windows, sunroof).
+/* EVbro — home tab access tiles (lock, boot, windows, sunroof).
  *
  * Each tile changes ICON with the state (padlock locked/unlocked, tailgate closed/raised, window up/down,
  * sunroof closed/open) and the icon changes COLOUR (green = closed, amber = open, grey = no data); the button

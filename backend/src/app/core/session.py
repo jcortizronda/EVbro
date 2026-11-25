@@ -8,7 +8,7 @@ It can "drop" in two ways:
   2) the official app is opened             -> the session is invalidated and not even refresh is enough
                                                -> the user must authenticate again (password).
 
-This module exposes the session-health primitives EVBro uses:
+This module exposes the session-health primitives EVbro uses:
   - check()   -> (ok, detail, status)  : is the token valid? (tries a BFF login)
   - refresh() -> bool                  : renews the access_token (keep-alive)
 """

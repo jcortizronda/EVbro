@@ -1,4 +1,4 @@
-/* EVBro — Car documents (Ajustes → Coche): purchase invoice, insurance policy and others (registration certificate, technical sheet).
+/* EVbro — Car documents (Ajustes → Coche): purchase invoice, insurance policy and others (registration certificate, technical sheet).
  * They upload immediately (they do not depend on «Guardar cambios»). The server decides the type from the content and only lets the owner upload and delete.
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */

@@ -1,6 +1,6 @@
 """The car's name in the Ebro account (its nickname): core/ebro_account.py, PUT /api/vehicles/{vin}/ebro-name. Read from the official app
 on 24-11-2026 and not yet sent to the real cloud: these tests pin the request (a PUT whose fields go in the query string and in the
-signature, `ebro_auth.sign_values`) and what EVBro does with each answer."""
+signature, `ebro_auth.sign_values`) and what EVbro does with each answer."""
 from __future__ import annotations
 
 import hashlib

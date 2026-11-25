@@ -1,4 +1,4 @@
-/* EVBro — sign-in (own login, cookie session).
+/* EVbro — sign-in (own login, cookie session).
  *
  * Loaded BEFORE app.js. It does three things:
  *   1. Intercepts fetch: if the API answers 401 (no session or expired) it shows the sign-in
@@ -91,7 +91,7 @@
       $('authTitle').textContent = mode === 'forgot' ? 'Recuperar la contraseña' : 'Contraseña nueva';
       $('authSubtitle').textContent = mode === 'forgot'
         ? 'Escribe tu usuario o el email de tu cuenta y te mandaremos un enlace para elegir otra contraseña.'
-        : 'Elige la contraseña nueva de tu cuenta de EVBro (al menos 10 caracteres). Se cerrarán todas sus sesiones abiertas.';
+        : 'Elige la contraseña nueva de tu cuenta de EVbro (al menos 10 caracteres). Se cerrarán todas sus sesiones abiertas.';
       ['authSwitchRow', 'authConsentRow', 'authPasskeyRow'].forEach((id) => { if ($(id)) $(id).hidden = true; });
       setError('authForgotError', '');
       setError('authResetError', '');
@@ -103,7 +103,7 @@
       ? 'Necesitas un código de invitación del administrador de este servidor. Elige tu usuario y una contraseña de al menos 10 caracteres.'
       : state.notice || (state.noAccounts
         ? 'Este servidor aún no tiene cuentas. El administrador debe crearlas desde la consola de administración (o darte un código de invitación).'
-        : 'Introduce tu usuario y contraseña de EVBro.');
+        : 'Introduce tu usuario y contraseña de EVbro.');
     $('authInviteRow').hidden = !reg;
     $('authPassword2Row').hidden = !reg;
     $('authPassword').autocomplete = reg ? 'new-password' : 'current-password';
@@ -237,7 +237,7 @@
     history.replaceState(null, '', window.location.pathname + window.location.search);
     return true;
   }
-  // The link opened in a tab where EVBro already runs: only the fragment changes and the page does not load again
+  // The link opened in a tab where EVbro already runs: only the fragment changes and the page does not load again
   window.addEventListener('hashchange', () => {
     if (takeResetToken()) { state.locked = true; configureForm(); showOverlay(); }
   });
@@ -267,7 +267,7 @@
     event.preventDefault();
     const email = $('emailNew').value.trim();
     const password = $('emailPassword').value;
-    if (!password) { setError('emailError', 'Escribe tu contraseña de EVBro.'); return; }
+    if (!password) { setError('emailError', 'Escribe tu contraseña de EVbro.'); return; }
     const btn = $('emailSubmit');
     btn.disabled = true;
     setError('emailError', '');

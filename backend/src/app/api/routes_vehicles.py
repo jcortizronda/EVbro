@@ -253,7 +253,7 @@ class EbroNameIn(BaseModel):
 
 @router.put("/{vin}/ebro-name")
 async def rename_in_ebro(vin: str, payload: EbroNameIn, session: AsyncSession = Depends(get_db)):
-    """Changes the car's name (its nickname) in the Ebro account too, and keeps it as the name in EVBro: «Sincronizar» takes the
+    """Changes the car's name (its nickname) in the Ebro account too, and keeps it as the name in EVbro: «Sincronizar» takes the
     car's name from the account, so a name changed only here would be replaced by the account's one. Not yet tried against the
     real cloud (docs/ebro-protocol.md)."""
     vehicle = await _get_vehicle(session, vin)
@@ -273,7 +273,7 @@ async def rename_in_ebro(vin: str, payload: EbroNameIn, session: AsyncSession = 
         raise HTTPException(status_code=502, detail="No se pudo conectar con el servidor de Ebro. Inténtalo de nuevo en unos minutos.") from e
     if not outcome["changed"]:
         if outcome["unconfirmed"]:
-            raise HTTPException(status_code=424, detail=_("Ebro aceptó el nombre, pero la cuenta todavía muestra el anterior; puede que lo revise antes de aplicarlo. EVBro no lo ha cambiado."))
+            raise HTTPException(status_code=424, detail=_("Ebro aceptó el nombre, pero la cuenta todavía muestra el anterior; puede que lo revise antes de aplicarlo. EVbro no lo ha cambiado."))
         raise HTTPException(status_code=424, detail=_("Ebro no ha cambiado el nombre: {p0}", p0=outcome["reason"] or "sin motivo"))
     vehicle.name = name
     await session.commit()

@@ -1,7 +1,7 @@
-/* EVBro — Offline: a fixed notice when the app shows saved data instead of fresh data.
+/* EVbro — Offline: a fixed notice when the app shows saved data instead of fresh data.
  *
  * The Service Worker (sw.js) keeps the last good response of the API reads that render the app and, without a network,
- * returns it with the header `X-EVBro-Offline: <date of that response>`. Here `fetch` is wrapped to see it and show
+ * returns it with the header `X-EVbro-Offline: <date of that response>`. Here `fetch` is wrapped to see it and show
  * the «Sin conexión» strip; it hides as soon as a fresh response arrives again or the browser reports the network is back.
  * (Classic script: shares the global scope with the other files; loaded right after core/feedback.js.)
  */
@@ -32,7 +32,7 @@
     try {
       const url = typeof input === 'string' ? input : (input && input.url) || '';
       if (url.startsWith('/api/') || url.includes('/api/')) {
-        const since = response.headers.get('X-EVBro-Offline');
+        const since = response.headers.get('X-EVbro-Offline');
         if (since) showOffline(since);
         else if (response.ok && (!init || !init.method || init.method === 'GET')) hideOffline();
       }

@@ -1,4 +1,4 @@
-"""Main entry point of the EVBro application."""
+"""Main entry point of the EVbro application."""
 from __future__ import annotations
 
 import hashlib
@@ -42,7 +42,7 @@ async def lifespan(app: FastAPI):
     """Application lifecycle: startup and shutdown."""
     # 0. a copy of the log in the data volume: Docker's goes away with the container on every deploy (logging_setup.py)
     install_file_logging(get_data_dir())
-    _LOGGER.info("Arrancando EVBro Server...")
+    _LOGGER.info("Arrancando EVbro Server...")
 
     # 1. initialise the database schema
     try:
@@ -74,7 +74,7 @@ async def lifespan(app: FastAPI):
     yield
 
     # 5. stop background tasks
-    _LOGGER.info("Deteniendo EVBro...")
+    _LOGGER.info("Deteniendo EVbro...")
     await TelemetryService.get_instance().stop()
     await console.stop()
     await TraccarHub.get_instance().stop()
@@ -82,7 +82,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="EVBro",
+    title="EVbro",
     description="Servidor autoalojado de telemetría, gestión y seguimiento para vehículos Ebro",
     version=__version__,
     lifespan=lifespan,
@@ -225,7 +225,7 @@ async def get_favicon():
 @app.get("/health")
 async def health_check():
     """Health endpoint for Docker / Kubernetes."""
-    return {"status": "healthy", "service": "EVBro"}
+    return {"status": "healthy", "service": "EVbro"}
 
 
 if __name__ == "__main__":

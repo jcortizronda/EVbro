@@ -1,6 +1,6 @@
 """Statistics of a car's history, ready to draw (Más → Estadísticas).
 
-Everything comes from what EVBro already stores: drives, charging sessions, refuels, expenses and workshop logs. Nothing is read
+Everything comes from what EVbro already stores: drives, charging sessions, refuels, expenses and workshop logs. Nothing is read
 from the car here. Months follow the server's time zone. Only drives of at least `MIN_DRIVE_KM` enter the consumption figures, and the
 battery capacity is MEASURED from each charge's curve (services/battery_capacity.py): the energy the pack took ÷ the points gained,
 only for charges of at least 20 points with a complete curve.

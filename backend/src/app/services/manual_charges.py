@@ -1,4 +1,4 @@
-"""Charges the user writes down: the ones from before EVBro, or one it missed. Typed one by one (Carga → «Añadir carga») or
+"""Charges the user writes down: the ones from before EVbro, or one it missed. Typed one by one (Carga → «Añadir carga») or
 brought from a spreadsheet (services/charge_import.py).
 
 Two sides of a charge, as with the detected ones:
@@ -9,7 +9,7 @@ Two sides of a charge, as with the detected ones:
     price per kWh, if any, is applied to that. There is no efficiency: there is nothing to compare it with.
 The % is never worked out from the kWh, nor the other way round. Any two of kWh, price per kWh and total paid give the third.
 
-The day, the hour, the place and the cost are optional. Without a day the charge is filed the day before the car joined EVBro
+The day, the hour, the place and the cost are optional. Without a day the charge is filed the day before the car joined EVbro
 (`date_unknown`), so that it still adds up in the totals without landing in a real month. A manual charge has no curve and no
 start/end percentages: the battery-health figures never see it. The place is one of the manager's geofences (the charge is then
 counted with the ones detected there) or free text.
@@ -109,7 +109,7 @@ def local_day(moment: datetime.datetime) -> datetime.date:
 
 
 async def undated_moment(db: AsyncSession, vehicle: Vehicle) -> datetime.datetime:
-    """Where a charge without a day is filed: the day before the car joined EVBro."""
+    """Where a charge without a day is filed: the day before the car joined EVbro."""
     joined = vehicle.created_at or datetime.datetime.utcnow()
     return to_utc(local_day(joined) - datetime.timedelta(days=1), DEFAULT_HOUR)
 

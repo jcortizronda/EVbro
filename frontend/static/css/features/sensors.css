@@ -1,4 +1,4 @@
-/* EVBro — «Todos los datos» (features/sensors.js): one layout for every reading.
+/* EVbro — «Todos los datos» (features/sensors.js): one layout for every reading.
    Name, the car's field and its explanation on the left; the value on the right, coloured only by what it means:
    plain for a figure or a closed/off state, accent for something working, amber for something open, red for a warning from
    the car, muted for «Sin datos» (no data is never shown as closed). */

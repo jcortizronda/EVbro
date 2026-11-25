@@ -226,7 +226,7 @@ async def test_notification(
 ):
     """Sends a test notification right away to the requested channel (to this account)."""
     config = await NotificationService.get_or_create_config(session, user.id)
-    title = _("Prueba de Notificación EVBro")
+    title = _("Prueba de Notificación EVbro")
     msg = _("¡Conexión establecida con éxito! Tu dispositivo (Android / iOS) recibirá aquí las alertas de geocercas, mantenimiento de fábrica y estado de tu vehículo Ebro.")
 
     channel = req.channel.lower()

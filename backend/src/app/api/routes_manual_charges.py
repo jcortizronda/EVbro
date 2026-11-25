@@ -65,7 +65,7 @@ async def charge_places(vin: str, session: AsyncSession = Depends(get_db)):
 
 @router.post("/vehicles/{vin}/charges")
 async def add_charge(vin: str, req: ManualCharge, session: AsyncSession = Depends(get_db)):
-    """Writes down a charge the car did not report: one from before EVBro, or one it missed. Only the kWh are required."""
+    """Writes down a charge the car did not report: one from before EVbro, or one it missed. Only the kWh are required."""
     vehicle = await _vehicle(session, vin)
     try:
         charge = await manual_charges.create(session, vehicle, req.data())

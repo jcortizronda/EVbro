@@ -1,4 +1,4 @@
-/* EVBro — fingerprint sign-in (passkeys / WebAuthn).
+/* EVbro — fingerprint sign-in (passkeys / WebAuthn).
  *
  * The fingerprint (or face, or screen lock) is checked on the phone itself: the server only receives a signature made with a
  * key that never leaves the device. Here are the base64url ↔ bytes conversions, the registration of this device (Ajustes → Cuenta)
@@ -63,7 +63,7 @@
     const name = e && e.name;
     if (name === 'NotAllowedError') return 'Se ha cancelado o se ha agotado el tiempo. Vuelve a intentarlo.';
     if (name === 'InvalidStateError') return registering ? 'Este dispositivo ya está registrado para entrar con huella.' : 'Este dispositivo no tiene una huella registrada.';
-    if (name === 'SecurityError') return 'La huella solo funciona abriendo EVBro por HTTPS y con su nombre (no con una dirección IP).';
+    if (name === 'SecurityError') return 'La huella solo funciona abriendo EVbro por HTTPS y con su nombre (no con una dirección IP).';
     if (name === 'NotSupportedError') return 'Este dispositivo o navegador no admite el acceso con huella.';
     if (name === 'AbortError') return 'Se ha cancelado la operación.';
     return null;

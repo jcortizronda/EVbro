@@ -1,4 +1,4 @@
-/* EVBro — Language of the interface (docs/i18n.md).
+/* EVbro — Language of the interface (docs/i18n.md).
  * Spanish is the source text of the whole app. The server puts the dictionary of the account's language in the
  * `#i18nData` JSON block (empty for Spanish) and sets `<html lang>`; this script, loaded in <head> before anything paints:
  *   * translates every text node and translatable attribute of the page as the parser adds them (MutationObserver), and again

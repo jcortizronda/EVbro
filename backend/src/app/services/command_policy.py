@@ -1,7 +1,7 @@
 """Command policy: which commands need the PIN, which parameters are accepted and how the PIN is checked.
 
 **Why it exists.** With a signed-in session, the API can open the car. Being «inside»
-EVBro must not be enough to unlock it: the commands that open or disarm require typing the
+EVbro must not be enough to unlock it: the commands that open or disarm require typing the
 PIN on EVERY send, and the PIN is not stored in the browser.
 
 **How it is checked.**

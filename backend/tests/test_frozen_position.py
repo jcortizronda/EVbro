@@ -1,4 +1,4 @@
-"""The cloud sometimes repeats one position for hours while the car drives; EVBro notices it and, when asked to, requests a fix.
+"""The cloud sometimes repeats one position for hours while the car drives; EVbro notices it and, when asked to, requests a fix.
 
 An S900, 31-10-2026 20:00-21:58 and 03-11 22:30 to 04-11 15:06: the same point for up to 112 readings and 27 km per trip while the
 realtime data (speed, odometer) was fresh. A manual «Localizar coche (GPS)» gave a fresh point every time it was sent.

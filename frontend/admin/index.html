@@ -4,13 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
-  <title>EVBro · Consola de administración</title>
+  <title>EVbro · Consola de administración</title>
   <link rel="icon" type="image/svg+xml" href="/assets/logo.svg">
   <link rel="stylesheet" href="/assets/admin.css">
 </head>
 <body>
   <header class="top">
-    <div class="brand"><span class="logo" aria-hidden="true"></span><strong>EVBro</strong><span class="sub">Consola de administración</span></div>
+    <div class="brand"><span class="logo" aria-hidden="true"></span><strong>EVbro</strong><span class="sub">Consola de administración</span></div>
     <div class="who" id="who" hidden>
       <span id="whoName"></span>
       <select id="adminLanguage" class="lang" data-i18n-skip title="Idioma"><option value="es">Español</option><option value="en">English</option><option value="pt">Português</option></select>
@@ -37,7 +37,7 @@
           <label class="choice"><input type="radio" name="setupCatalog" value="own"><span><strong>Solo el de este servidor.</strong> Únicamente lo que apruebes aquí; no se conecta a nadie.</span></label>
         </fieldset>
         <fieldset class="choices" id="rowTelemetry" hidden>
-          <legend>¿Ayudas a mejorar EVBro?</legend>
+          <legend>¿Ayudas a mejorar EVbro?</legend>
           <p class="hint">Este servidor puede enviar una vez al día un informe anónimo al proyecto: versión, qué funciones se usan y los fallos que haya registrado. Sirve para encontrar y corregir errores. No lleva nombres, usuarios, matrículas, VIN, posiciones, viajes ni importes. Dentro puedes ver el informe exacto y cambiarlo cuando quieras en la pestaña Servidor.</p>
           <label class="choice"><input type="radio" name="setupTelemetry" value="yes"><span><strong>Sí, enviar informes anónimos</strong></span></label>
           <label class="choice"><input type="radio" name="setupTelemetry" value="no"><span><strong>No, gracias</strong></span></label>
@@ -62,12 +62,12 @@
 
       <div class="card notice" id="catalogAsk" hidden>
         <h2>¿Conectas al catálogo del proyecto?</h2>
-        <p class="hint">El catálogo de consumibles (qué aceite, filtros o escobillas lleva cada coche) puede ser solo el de este servidor o el que comparten los propietarios de EVBro. Si lo conectas, se descarga una vez al día y las piezas que propongan tus usuarios llegan también a él, sin su nombre. Este servidor se da de alta solo, con un clic, y lo puedes cambiar cuando quieras en la pestaña Catálogo.</p>
+        <p class="hint">El catálogo de consumibles (qué aceite, filtros o escobillas lleva cada coche) puede ser solo el de este servidor o el que comparten los propietarios de EVbro. Si lo conectas, se descarga una vez al día y las piezas que propongan tus usuarios llegan también a él, sin su nombre. Este servidor se da de alta solo, con un clic, y lo puedes cambiar cuando quieras en la pestaña Catálogo.</p>
         <div class="actions"><button type="button" class="primary" id="btnCatYes">Sí, conectar</button> <button type="button" class="ghost" id="btnCatNo">No, solo el de este servidor</button></div>
       </div>
 
       <div class="card notice" id="telemetryAsk" hidden>
-        <h2>¿Ayudas a mejorar EVBro?</h2>
+        <h2>¿Ayudas a mejorar EVbro?</h2>
         <p class="hint">Este servidor puede enviar una vez al día un informe anónimo al proyecto: versión, qué funciones se usan, cómo responden la nube de Ebro y las órdenes, y los fallos que haya registrado. Sirve para encontrar y corregir errores. No lleva nombres, usuarios, matrículas, VIN, posiciones, viajes ni importes. Antes de decidir puedes ver el informe exacto.</p>
         <div class="actions"><button type="button" class="primary" id="btnTelYes">Sí, enviar informes</button> <button type="button" class="ghost" id="btnTelPreviewAsk">Ver qué se envía</button> <button type="button" class="ghost" id="btnTelNo">No, gracias</button></div>
       </div>
@@ -252,7 +252,7 @@
 
         <div class="card">
           <h2>Origen del catálogo de este servidor</h2>
-          <p class="hint">«Propio»: solo lo que apruebas aquí. «En línea»: además se descarga a diario el catálogo de otro servidor EVBro y las propuestas de tus usuarios se envían también a su cola. Para el catálogo del proyecto basta con el botón «Conectar» (o con pegar la clave que te hayan dado, <code>ebc_…</code>); para otro servidor, pega el enlace completo (<code>https://servidor#clave</code>). La clave se guarda cifrada y no se vuelve a mostrar. Sin clave válida, el servidor sigue con su catálogo propio.</p>
+          <p class="hint">«Propio»: solo lo que apruebas aquí. «En línea»: además se descarga a diario el catálogo de otro servidor EVbro y las propuestas de tus usuarios se envían también a su cola. Para el catálogo del proyecto basta con el botón «Conectar» (o con pegar la clave que te hayan dado, <code>ebc_…</code>); para otro servidor, pega el enlace completo (<code>https://servidor#clave</code>). La clave se guarda cifrada y no se vuelve a mostrar. Sin clave válida, el servidor sigue con su catálogo propio.</p>
           <form id="formCatalogSource" class="inline-form">
             <label><span>Origen</span><select id="srcMode"><option value="own">Propio</option><option value="remote">En línea</option></select></label>
             <label class="wide"><span>Clave o enlace del catálogo en línea</span><input id="srcLink" type="text" autocomplete="off" placeholder="ebc_…"><small id="srcLinkInfo"></small></label>
@@ -264,7 +264,7 @@
 
         <div class="card">
           <h2>Claves para otros servidores</h2>
-          <p class="hint">Cada clave deja a otra instalación de EVBro leer tu catálogo aprobado y enviarte propuestas, que verás en la cola de arriba con la nota de la clave (nunca con una persona). La clave se enseña una sola vez, como enlace; si pones la URL pública de este servidor, el enlace sale completo.</p>
+          <p class="hint">Cada clave deja a otra instalación de EVbro leer tu catálogo aprobado y enviarte propuestas, que verás en la cola de arriba con la nota de la clave (nunca con una persona). La clave se enseña una sola vez, como enlace; si pones la URL pública de este servidor, el enlace sale completo.</p>
           <form id="formPublicUrl" class="inline-form">
             <label class="wide"><span>URL pública de este servidor</span><input id="pubUrl" type="text" autocomplete="off" placeholder="https://catalogo.tudominio.es"></label>
             <div class="actions"><button type="submit" class="ghost">Guardar URL</button></div>

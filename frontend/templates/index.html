@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <title>EVBro</title>
+  <title>EVbro</title>
   
   <!-- PWA & Mobile Capabilities -->
   <link rel="manifest" href="/manifest.json">
@@ -11,7 +11,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="EVBro">
+  <meta name="apple-mobile-web-app-title" content="EVbro">
   <link rel="icon" type="image/svg+xml" href="/static/icons/favicon.svg">
   <link rel="alternate icon" type="image/png" href="/static/icons/favicon.png">
   <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
@@ -102,12 +102,12 @@
   <header class="app-header">
     <div class="navbar-main">
       <div class="navbar-left">
-        <div class="brand u-cursor-pointer" data-on-click="switchTab('overview')" title="EVBro">
+        <div class="brand u-cursor-pointer" data-on-click="switchTab('overview')" title="EVbro">
           <div class="brand-crest">
             <img src="/static/icons/icon.svg" width="38" height="38" alt="" aria-hidden="true">
           </div>
           <div class="brand-copy">
-            <strong>EVBro</strong>
+            <strong>EVbro</strong>
             <small id="headerVehicleSubtitle">Ebro Auto</small>
           </div>
         </div>
@@ -192,7 +192,7 @@
         <!-- The car's live channel is stopped because another app used the Ebro account: «Sincronizar» brings it back
              (features/account.js, showAccountChannelNotice) -->
         <div class="channel-banner" id="homeChannelBanner" role="status" hidden>
-          <span>EVBro está desconectado del coche en directo: otra app usaba tu cuenta de Ebro. Cuando la cierres, pulsa «Sincronizar».</span>
+          <span>EVbro está desconectado del coche en directo: otra app usaba tu cuenta de Ebro. Cuando la cierres, pulsa «Sincronizar».</span>
           <button type="button" class="btn-primary btn-sm" data-on-click="triggerVehicleDiscovery()">Sincronizar</button>
         </div>
 
@@ -728,7 +728,7 @@
             <div class="energy-thumb" id="energyTargetThumb"></div>
           </div>
           <p class="energy-status" id="chargeStatusLine" data-tone="neutral">Cargando estado…</p>
-          <!-- Computed by the car: time to 100 %, regardless of the target set in EVBro -->
+          <!-- Computed by the car: time to 100 %, regardless of the target set in EVbro -->
           <p class="energy-remaining" id="energyRemainLine" hidden>Tiempo restante a carga completa: <strong id="energyRemainTime">—</strong></p>
         </div>
 
@@ -765,10 +765,10 @@
           </div>
           <details class="comfort-info charge-info">
             <summary>Cómo funciona</summary>
-            <p class="comfort-hint">Ebro no permite arrancar ni parar la carga directamente. EVBro lo consigue con la <strong>carga programada del coche</strong>:</p>
+            <p class="comfort-hint">Ebro no permite arrancar ni parar la carga directamente. EVbro lo consigue con la <strong>carga programada del coche</strong>:</p>
             <ul class="comfort-hint charge-list">
-              <li><strong>Parar</strong> programa una ventana que ya terminó, así que el coche no carga. Esa ventana vuelve a abrirse cada día a la misma hora, y EVBro la desplaza solo antes de que llegue.</li>
-              <li><strong>Iniciar</strong> quita la pausa y devuelve el coche a lo que tenía: tu programación (si había una; EVBro la recuerda al parar) o, si no, carga en cuanto esté enchufado.</li>
+              <li><strong>Parar</strong> programa una ventana que ya terminó, así que el coche no carga. Esa ventana vuelve a abrirse cada día a la misma hora, y EVbro la desplaza solo antes de que llegue.</li>
+              <li><strong>Iniciar</strong> quita la pausa y devuelve el coche a lo que tenía: tu programación (si había una; EVbro la recuerda al parar) o, si no, carga en cuanto esté enchufado.</li>
               <li><strong>Objetivo</strong> inferior a 100 %: al alcanzarlo cargando se pausa; se reanuda sola al enchufar con la batería 5 puntos por debajo. Con 100 % no se hace nada.</li>
               <li>Cada cambio tarda unos segundos en verse en el coche.</li>
             </ul>
@@ -1913,7 +1913,7 @@
 
           <details class="glass details-card vp-section set-section passkey-card" id="passkeyCard" data-tone="violet" data-key="passkeys">
             <summary class="vp-section-title"><span class="vp-section-icon"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/><path d="M14 13.12c0 2.38 0 6.38-1 8.88"/><path d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/><path d="M2 12a10 10 0 0 1 18-6"/><path d="M2 16h.01"/><path d="M21.8 16c.2-2 .131-5.354 0-6"/><path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2"/><path d="M8.65 22c.21-.66.45-1.32.57-2"/><path d="M9 6.8a6 6 0 0 1 9 5.2v2"/></svg></span>Acceso con huella<span class="vp-chev" aria-hidden="true"></span></summary>
-            <p class="setting-hint">Entra sin escribir la contraseña. La huella nunca sale del móvil: EVBro solo guarda una clave pública.</p>
+            <p class="setting-hint">Entra sin escribir la contraseña. La huella nunca sale del móvil: EVbro solo guarda una clave pública.</p>
             <p class="setting-hint passkey-unsupported" id="passkeyUnsupported" hidden>Este navegador no admite el acceso con huella.</p>
             <ul id="passkeyList" class="passkey-list"></ul>
             <p class="passkey-empty" id="passkeyEmpty">Aún no hay dispositivos registrados.</p>
@@ -1939,10 +1939,10 @@
                   <div class="u-font-size-1p05rem_font-weight-700_color-var-primary" id="settingsAccountVehicles">0 detectados</div>
                 </div>
                 <div>
-                  <div class="u-font-size-0p75rem_color-var-text-muted_text-transform-uppercase_font-weight-600">PIN guardado en EVBro</div>
+                  <div class="u-font-size-0p75rem_color-var-text-muted_text-transform-uppercase_font-weight-600">PIN guardado en EVbro</div>
                   <div class="u-display-flex_align-items-center_gap-0p5rem_margin-top-0p15rem">
                     <div class="u-font-size-0p95rem_font-weight-600_color-var-text-secondary" id="settingsAccountPinStatus">No guardado</div>
-                    <button class="btn-sm btn-secondary u-font-size-0p72rem_padding-0p15rem-0p45rem" data-on-click="openUpdatePinModal()" title="Solo la copia que EVBro usa para las órdenes; no cambia el PIN de Ebro">Cambiar</button>
+                    <button class="btn-sm btn-secondary u-font-size-0p72rem_padding-0p15rem-0p45rem" data-on-click="openUpdatePinModal()" title="Solo la copia que EVbro usa para las órdenes; no cambia el PIN de Ebro">Cambiar</button>
                   </div>
                 </div>
               </div>
@@ -1969,7 +1969,7 @@
           <!-- Your data: export everything and import (manager only) -->
           <details class="glass details-card vp-section set-section needs-root" id="accountDataCard" data-tone="amber" data-key="data">
             <summary class="vp-section-title"><span class="vp-section-icon"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></span>Tus datos<span class="vp-chev" aria-hidden="true"></span></summary>
-            <p class="setting-hint">Un ZIP con todo lo tuyo (coches, historial, documentos y fotos; sin contraseñas), que sirve de copia y para llevarlo a otro servidor de EVBro.</p>
+            <p class="setting-hint">Un ZIP con todo lo tuyo (coches, historial, documentos y fotos; sin contraseñas), que sirve de copia y para llevarlo a otro servidor de EVbro.</p>
             <div class="ad-actions">
               <button type="button" class="btn-primary" id="adExport" data-on-click="AccountData.download()">Descargar todo (ZIP)</button>
               <button type="button" class="btn-secondary" data-on-click="AccountData.pick()">Importar un ZIP</button>
@@ -2304,7 +2304,7 @@
           <details class="glass details-card vp-section set-section needs-owner tr-card" id="vpTraccarSection" data-tone="green" data-key="traccar">
             <summary class="vp-section-title"><span class="vp-section-icon"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s7-6.2 7-11a7 7 0 0 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></span>Posición por GPS (Traccar)<span class="vp-chev" aria-hidden="true"></span></summary>
             <label class="vp-field tr-car"><span>Coche</span><select id="trCar" class="form-control" data-on-change="Traccar.pickCar(this.value)"></select></label>
-            <p class="vp-hint">Si el coche lleva su propio localizador GPS que reporta a un servidor Traccar, EVBro recibe sus posiciones en directo; en un coche sin cuenta de Ebro construye los viajes con ellas.</p>
+            <p class="vp-hint">Si el coche lleva su propio localizador GPS que reporta a un servidor Traccar, EVbro recibe sus posiciones en directo; en un coche sin cuenta de Ebro construye los viajes con ellas.</p>
             <p class="vp-status" id="trStatus" data-tone="neutral"></p>
             <div class="vp-grid">
               <label class="vp-field vp-wide"><span>Servidor Traccar</span><input type="text" id="trHost" class="form-control" data-on-change="Traccar.onCredentialsChange()" maxlength="255" placeholder="traccar.midominio.es o https://…" autocomplete="off" /></label>
@@ -2358,7 +2358,7 @@
           <details class="glass details-card vp-section set-section" id="versionCard" data-tone="violet" data-key="version">
             <summary class="vp-section-title"><span class="vp-section-icon"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></span>Versión<span class="vp-chev" aria-hidden="true"></span></summary>
             <p class="setting-hint"><a href="/legal" target="_blank" rel="noopener">Aviso legal y privacidad de este servidor</a></p>
-            <p class="setting-hint u-margin-0"><strong id="appVersion">EVBro</strong><span id="appCommit" hidden> · compilación <code id="appCommitHash"></code></span></p>
+            <p class="setting-hint u-margin-0"><strong id="appVersion">EVbro</strong><span id="appCommit" hidden> · compilación <code id="appCommitHash"></code></span></p>
           </details>
           </div>
         </div>
@@ -2399,13 +2399,13 @@
 
         <div class="form-group u-margin-bottom-0p85rem">
           <label>Contraseña</label>
-          <!-- `new-password`: the browser must not fill in (or offer to overwrite) the password of the EVBro account, saved for this
+          <!-- `new-password`: the browser must not fill in (or offer to overwrite) the password of the EVbro account, saved for this
                same site; with «Mostrar» the manager sees what is about to be sent -->
           <div class="acc-password-row">
             <input type="password" id="accPassword" class="form-control" placeholder="Tu contraseña de la app Ebro" autocomplete="new-password" autocapitalize="none" autocorrect="off" spellcheck="false" />
             <button type="button" class="btn-secondary acc-password-show" id="accPasswordShow" aria-pressed="false" data-on-click="toggleEbroPassword()">Mostrar</button>
           </div>
-          <small class="u-color-var-text-muted_font-size-0p75rem_margin-top-0p2rem">Es la de la app oficial de Ebro, no el PIN del coche ni la contraseña de EVBro. Si en la app oficial entras con un código por SMS, puede que no tengas contraseña: créala antes allí. Tras cinco intentos fallidos, Ebro bloquea la cuenta 5 minutos.</small>
+          <small class="u-color-var-text-muted_font-size-0p75rem_margin-top-0p2rem">Es la de la app oficial de Ebro, no el PIN del coche ni la contraseña de EVbro. Si en la app oficial entras con un código por SMS, puede que no tengas contraseña: créala antes allí. Tras cinco intentos fallidos, Ebro bloquea la cuenta 5 minutos.</small>
         </div>
 
         <div class="form-group u-margin-bottom-1p25rem">
@@ -2460,9 +2460,9 @@
         <button class="nav-btn u-padding-0p2rem-0p5rem_flex-shrink-0" data-on-click="closeEbroPasswordModal()" aria-label="Cerrar">✕</button>
       </div>
       <p class="u-color-var-text-secondary_font-size-0p85rem_margin-bottom-1p25rem_line-height-1p5">
-        Cambia la contraseña de tu cuenta de Ebro. EVBro la cambia en la nube de Ebro y sigue conectado con la nueva.
+        Cambia la contraseña de tu cuenta de Ebro. EVbro la cambia en la nube de Ebro y sigue conectado con la nueva.
       </p>
-      <!-- `new-password` on the three: the browser must not fill in the EVBro password saved for this same site -->
+      <!-- `new-password` on the three: the browser must not fill in the EVbro password saved for this same site -->
       <div class="form-group u-margin-bottom-0p85rem">
         <label for="ebroPwdCurrent">Contraseña actual</label>
         <input type="password" id="ebroPwdCurrent" class="form-control" autocomplete="new-password" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="128" />
@@ -2488,7 +2488,7 @@
     </div>
   </div>
 
-  <!-- Modal: change the car-control PIN IN THE EBRO CLOUD (POST /api/account/ebro-pin); not EVBro's stored copy («Cambiar» next to it) -->
+  <!-- Modal: change the car-control PIN IN THE EBRO CLOUD (POST /api/account/ebro-pin); not EVbro's stored copy («Cambiar» next to it) -->
   <div id="ebroPinModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="ebroPinTitle">
     <div class="modal-card u-max-width-480px">
       <div class="u-display-flex_justify-content-space-between_align-items-flex-start_gap-0p5rem_margin-bottom-0p5rem">
@@ -2499,7 +2499,7 @@
         <button class="nav-btn u-padding-0p2rem-0p5rem_flex-shrink-0" data-on-click="closeEbroPinModal()" aria-label="Cerrar">✕</button>
       </div>
       <p class="u-color-var-text-secondary_font-size-0p85rem_margin-bottom-1p25rem_line-height-1p5">
-        Cambia el PIN de 6 dígitos de tu cuenta de Ebro, el que autoriza las órdenes al coche. Si tienes un PIN guardado en EVBro, se cambia también.
+        Cambia el PIN de 6 dígitos de tu cuenta de Ebro, el que autoriza las órdenes al coche. Si tienes un PIN guardado en EVbro, se cambia también.
       </p>
       <p class="u-color-var-text-secondary_font-size-0p85rem_margin-bottom-1p25rem" id="ebroPinCar" hidden></p>
       <div class="form-group u-margin-bottom-0p85rem">
@@ -2727,7 +2727,7 @@
       <small class="vp-hint" id="chargeCostBase"></small>
       <label class="vp-field u-margin-top-12px"><span>kWh de tu contador o cargador (opcional)</span><input type="number" id="chargeCostMeter" class="form-control" min="0" step="0.01" inputmode="decimal" />
         <small class="vp-hint">Es la energía que sale de la red. Con ella se calcula la eficiencia real de la carga y el coste se cuenta sobre esos kWh.</small></label>
-      <p class="cc-note">El precio por kWh puede no coincidir con el que marca el cargador. El cargador factura la energía que entrega; EVBro cuenta la que llega a la batería, que es algo menor por las pérdidas de la carga (suelen rondar el 10-15 %). Con el mismo importe, el precio por kWh resulta un poco más alto. Si indicas los kWh de tu contador o cargador, se calcula sobre ellos.</p>
+      <p class="cc-note">El precio por kWh puede no coincidir con el que marca el cargador. El cargador factura la energía que entrega; EVbro cuenta la que llega a la batería, que es algo menor por las pérdidas de la carga (suelen rondar el 10-15 %). Con el mismo importe, el precio por kWh resulta un poco más alto. Si indicas los kWh de tu contador o cargador, se calcula sobre ellos.</p>
       <div class="modal-actions u-margin-top-16px">
         <button class="btn-secondary" data-on-click="closeChargeCostModal()">Cancelar</button>
         <button class="btn-primary" data-on-click="saveChargeCost()">Guardar</button>
@@ -2974,11 +2974,11 @@
   <div id="chargeManualModal" class="modal-overlay">
     <div class="modal-card u-max-width-460px">
       <h3 id="mcTitle">Añadir una carga</h3>
-      <p class="mc-lead">Para apuntar cargas de antes de usar EVBro, o una que no llegó a registrarse. Rellena lo que sepas.</p>
+      <p class="mc-lead">Para apuntar cargas de antes de usar EVbro, o una que no llegó a registrarse. Rellena lo que sepas.</p>
       <div class="form-grid">
         <div class="form-group"><label for="mcDay">Fecha (opcional)</label><input type="date" id="mcDay" class="form-control" /></div>
         <div class="form-group"><label for="mcHour">Hora de inicio (opcional)</label><input type="time" id="mcHour" class="form-control" /></div>
-        <div class="form-group full"><p class="vp-hint mc-tight">Sin fecha, la carga se apunta como anterior a tu primer día en EVBro: cuenta en los totales, pero no en un mes concreto.</p></div>
+        <div class="form-group full"><p class="vp-hint mc-tight">Sin fecha, la carga se apunta como anterior a tu primer día en EVbro: cuenta en los totales, pero no en un mes concreto.</p></div>
         <!-- Any two of the three give the third (features/charge-manual.js) -->
         <div class="form-group full"><label for="mcKwh">kWh del cargador</label><input type="number" id="mcKwh" class="form-control mc-trio" min="0" max="500" step="0.01" inputmode="decimal" placeholder="Los del cargador o la factura" /></div>
         <div class="form-group"><label for="mcPrice">Precio por kWh (€)</label><input type="number" id="mcPrice" class="form-control mc-trio" min="0" max="5" step="0.001" inputmode="decimal" /></div>
@@ -3023,7 +3023,7 @@
         <div class="ci-help">
           <p class="ci-strong">Cada fila necesita la energía: los kWh del cargador, el total y el precio por kWh, o el % de batería.</p>
           <p>Si los tienes, también: fecha, hora, lugar y si fue AC o DC. Se aplican las mismas reglas que al añadir una carga a mano.</p>
-          <p>Las columnas pueden llamarse como quieras y estar en cualquier orden: en el paso siguiente ves cómo las ha entendido EVBro y lo corriges si hace falta.</p>
+          <p>Las columnas pueden llamarse como quieras y estar en cualquier orden: en el paso siguiente ves cómo las ha entendido EVbro y lo corriges si hace falta.</p>
         </div>
         <div class="auth-error" id="ciError1" role="alert" hidden></div>
         <div class="modal-actions"><button class="btn-secondary" data-on-click="ManualCharges.closeImport()">Cancelar</button></div>
@@ -3391,7 +3391,7 @@
         <span class="notice-head-ico" aria-hidden="true"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></span>
         <div>
           <h3 id="noticeCenterTitle">Avisos</h3>
-          <p>Lo que EVBro te ha avisado, lo más reciente arriba.</p>
+          <p>Lo que EVbro te ha avisado, lo más reciente arriba.</p>
         </div>
       </div>
       <!-- Only when this device can receive push notifications and does not yet -->
@@ -3455,7 +3455,7 @@
     <div class="auth-card">
       <div class="auth-brand">
         <img src="/static/icons/icon.svg" width="40" height="40" alt="" class="auth-logo">
-        <span class="auth-brand-copy"><span data-i18n-skip>EVBro</span><small class="auth-tagline">El compañero de tu coche</small></span>
+        <span class="auth-brand-copy"><span data-i18n-skip>EVbro</span><small class="auth-tagline">El compañero de tu coche</small></span>
       </div>
       <h2 id="authTitle">Iniciar sesión</h2>
       <p id="authSubtitle" class="auth-sub"></p>
@@ -3517,7 +3517,7 @@
     </div>
   </div>
 
-  <!-- Modal: change the EVBro password -->
+  <!-- Modal: change the EVbro password -->
   <div id="passwordModal" class="modal-overlay">
     <div class="modal-card">
       <h3 class="u-margin-bottom-0p5rem_font-size-1p3rem">Cambiar contraseña</h3>
@@ -3539,10 +3539,10 @@
   <div id="emailModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="emailModalTitle">
     <div class="modal-card">
       <h3 class="u-margin-bottom-0p5rem_font-size-1p3rem" id="emailModalTitle">Email de la cuenta</h3>
-      <p class="u-color-var-text-secondary_font-size-0p9rem_margin-bottom-1rem">Solo se usa para mandarte un enlace si olvidas la contraseña de EVBro. Déjalo en blanco para quitarlo.</p>
+      <p class="u-color-var-text-secondary_font-size-0p9rem_margin-bottom-1rem">Solo se usa para mandarte un enlace si olvidas la contraseña de EVbro. Déjalo en blanco para quitarlo.</p>
       <form id="emailForm" novalidate>
         <label class="auth-field"><span>Email</span><input type="email" id="emailNew" autocomplete="email" autocapitalize="off" spellcheck="false" maxlength="254" /></label>
-        <label class="auth-field"><span>Contraseña de EVBro</span><input type="password" id="emailPassword" autocomplete="current-password" /></label>
+        <label class="auth-field"><span>Contraseña de EVbro</span><input type="password" id="emailPassword" autocomplete="current-password" /></label>
         <div id="emailError" class="auth-error" role="alert" hidden></div>
         <div class="modal-actions">
           <button type="button" class="btn-secondary" data-on-click="EbroAuth.closeEmailModal()">Cancelar</button>
@@ -3563,7 +3563,7 @@
         <li>Los documentos, las facturas y las fotos que hayas subido.</li>
         <li>La conexión con tu cuenta de Ebro y tus canales de avisos.</li>
       </ul>
-      <p class="setting-hint">Tu coche y tu cuenta de Ebro no cambian: solo se borra lo que hay en EVBro. Si quieres conservar una copia, descarga antes el ZIP de «Tus datos».</p>
+      <p class="setting-hint">Tu coche y tu cuenta de Ebro no cambian: solo se borra lo que hay en EVbro. Si quieres conservar una copia, descarga antes el ZIP de «Tus datos».</p>
       <form id="accountDeleteForm" novalidate>
         <!-- Optional: why the account is deleted. Kept with the username, for the administrator (services/exit_survey.py) -->
         <fieldset class="ad-survey">
@@ -3579,7 +3579,7 @@
           <label class="ad-survey-opt"><input type="checkbox" name="adReason" value="just_testing"><span>Solo estaba probando</span></label>
           <label class="ad-survey-opt"><input type="checkbox" name="adReason" value="other"><span>Otro motivo</span></label>
           <label class="auth-field ad-survey-comment"><span>¿Algún comentario más?</span><textarea id="adDeleteComment" maxlength="1000" rows="3"></textarea></label>
-          <p class="setting-hint">Nos ayuda a mejorar EVBro.</p>
+          <p class="setting-hint">Nos ayuda a mejorar EVbro.</p>
         </fieldset>
         <label class="auth-field"><span id="adDeleteConfirmLabel">Escribe tu nombre de usuario para confirmar</span><input type="text" id="adDeleteConfirm" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" /></label>
         <label class="auth-field"><span>Contraseña</span><input type="password" id="adDeletePassword" autocomplete="current-password" /></label>

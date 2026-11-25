@@ -1,19 +1,19 @@
-# Instalar EVBro paso a paso (sin saber de Docker)
+# Instalar EVbro paso a paso (sin saber de Docker)
 
 *English version: [docs/en/install.md](en/install.md).*
 
-Esta guía es para quien quiere tener **EVBro, el compañero de tu coche**, en su casa y no ha montado nunca un servidor. No hace falta tocar el código ni compilar nada: EVBro se distribuye como una **imagen** lista para usar y se arranca con dos ficheros. Si algo no sale como se describe, copia el mensaje de error tal cual y pregunta en el repositorio ([github.com/jcortizronda/EVbro](https://github.com/jcortizronda/EVbro)).
+Esta guía es para quien quiere tener **EVbro, el compañero de tu coche**, en su casa y no ha montado nunca un servidor. No hace falta tocar el código ni compilar nada: EVbro se distribuye como una **imagen** lista para usar y se arranca con dos ficheros. Si algo no sale como se describe, copia el mensaje de error tal cual y pregunta en el repositorio ([github.com/jcortizronda/EVbro](https://github.com/jcortizronda/EVbro)).
 
 Tiempo estimado: 20 minutos la primera vez.
 
 ## 1. Qué hace falta
 
-- **Un ordenador que esté siempre encendido** en casa: un mini PC, una Raspberry Pi 4 o 5 (64 bits), un NAS con Docker o una máquina virtual. Con 1 GB de RAM y 2 GB de disco libres sobra. EVBro consume unos 300 MB de memoria.
+- **Un ordenador que esté siempre encendido** en casa: un mini PC, una Raspberry Pi 4 o 5 (64 bits), un NAS con Docker o una máquina virtual. Con 1 GB de RAM y 2 GB de disco libres sobra. EVbro consume unos 300 MB de memoria.
 - **Linux** en ese ordenador (Debian, Ubuntu, Raspberry Pi OS…). También funciona en Windows o Mac con *Docker Desktop*, pero esta guía supone Linux porque es lo normal en un servidor de casa.
-- **Tu cuenta de la app oficial de Ebro** (teléfono, contraseña y PIN de control remoto). EVBro habla con el coche a través de esa cuenta.
+- **Tu cuenta de la app oficial de Ebro** (teléfono, contraseña y PIN de control remoto). EVbro habla con el coche a través de esa cuenta.
 - Opcional pero recomendable: un **dominio** apuntando a tu casa y HTTPS (apartado 7). Sin HTTPS todo funciona dentro de tu red; las notificaciones en el móvil y el acceso con huella exigen HTTPS.
 
-EVBro son **dos programas** que arrancan juntos: la aplicación y su base de datos (PostgreSQL). Los dos vienen preparados en el fichero `docker-compose.yml`; no tienes que instalar la base de datos aparte ni configurarla. Los datos se guardan en dos «volúmenes» de Docker (la base de datos y los ficheros: facturas, fotos, claves) que sobreviven a reinicios y actualizaciones.
+EVbro son **dos programas** que arrancan juntos: la aplicación y su base de datos (PostgreSQL). Los dos vienen preparados en el fichero `docker-compose.yml`; no tienes que instalar la base de datos aparte ni configurarla. Los datos se guardan en dos «volúmenes» de Docker (la base de datos y los ficheros: facturas, fotos, claves) que sobreviven a reinicios y actualizaciones.
 
 ## 2. Instalar Docker
 
@@ -32,7 +32,7 @@ docker compose version
 
 Debe responder algo como `Docker Compose version v2.x`. Si dice «command not found», Docker no se instaló bien: vuelve a ejecutar el primer comando y lee lo que diga.
 
-## 3. Descargar los dos ficheros de EVBro
+## 3. Descargar los dos ficheros de EVbro
 
 ```bash
 mkdir -p ~/evbro && cd ~/evbro
@@ -63,7 +63,7 @@ Cambia **solo estas líneas**; el resto déjalo como está:
 Guarda con `Ctrl+O`, Intro, y sal con `Ctrl+X`.
 
 Un aviso:
-- `WEB_PORT=8080` es el puerto por el que se abrirá EVBro. Si el 8080 ya lo usa otra cosa en ese ordenador, cambia el número (por ejemplo `8081`).
+- `WEB_PORT=8080` es el puerto por el que se abrirá EVbro. Si el 8080 ya lo usa otra cosa en ese ordenador, cambia el número (por ejemplo `8081`).
 
 ## 5. Arrancar
 
@@ -82,7 +82,7 @@ Tienen que aparecer `evbro` y `evbro-db` con estado `running` o `healthy`. Si `e
 
 ## 6. Primer arranque: el administrador y tu usuario
 
-EVBro tiene **dos puertas**:
+EVbro tiene **dos puertas**:
 
 - **La aplicación** (puerto `WEB_PORT`, 8080 por defecto): la que usas tú y quien comparta tus coches. Es la que se publica en internet.
 - **La consola de administración** (puerto 8082, solo dentro de tu red local): desde ahí se crean las cuentas y se ajusta el servidor. Nunca se publica en internet.
@@ -94,16 +94,16 @@ Pasos:
    docker compose logs app | grep "código de configuración"
    ```
 2. Abre la consola en el navegador **desde el propio servidor** o, si es un servidor sin pantalla, quita antes en `.env` el `#` de la línea `ADMIN_BIND_ADDRESS` y pon la IP del servidor en tu red (por ejemplo `ADMIN_BIND_ADDRESS=192.168.1.50`), y haz `docker compose up -d` otra vez. Después abre `http://IP-DEL-SERVIDOR:8082`.
-3. Crea el administrador con el código, un nombre y una contraseña de al menos 10 caracteres. El administrador **no tiene coches**: solo gestiona el servidor. En el mismo formulario hay dos preguntas, que puedes cambiar más tarde: si usas el **catálogo de consumibles del proyecto** (en línea, recomendado) o solo el de tu servidor, y si quieres enviar **informes anónimos** para ayudar a mejorar EVBro.
+3. Crea el administrador con el código, un nombre y una contraseña de al menos 10 caracteres. El administrador **no tiene coches**: solo gestiona el servidor. En el mismo formulario hay dos preguntas, que puedes cambiar más tarde: si usas el **catálogo de consumibles del proyecto** (en línea, recomendado) o solo el de tu servidor, y si quieres enviar **informes anónimos** para ayudar a mejorar EVbro.
 4. En la pestaña **Gestores**, pulsa **Crear gestor**: ese será **tu usuario de verdad**, el que tiene los coches. Apunta el usuario y la contraseña.
 5. Abre la aplicación: `http://IP-DEL-SERVIDOR:8080`, entra con el gestor.
-6. Ve a **Más → Ajustes → Cuenta → Conectar** e introduce el teléfono, la contraseña y el PIN de la app oficial de Ebro. En unos segundos aparecen tus coches y EVBro empieza a recoger datos.
+6. Ve a **Más → Ajustes → Cuenta → Conectar** e introduce el teléfono, la contraseña y el PIN de la app oficial de Ebro. En unos segundos aparecen tus coches y EVbro empieza a recoger datos.
 
 Ya está funcionando. El resto de esta guía es para sacarle todo el partido.
 
 ## 7. HTTPS y acceso desde fuera de casa (recomendado)
 
-Sin HTTPS, EVBro solo es cómodo dentro de casa, y el móvil no puede recibir avisos ni usar la huella. La forma más sencilla es poner **Caddy** delante, que consigue y renueva los certificados solo. Necesitas un dominio (vale uno gratuito de DuckDNS) apuntando a la IP pública de tu casa y abrir en el router los puertos 80 y 443 hacia el servidor.
+Sin HTTPS, EVbro solo es cómodo dentro de casa, y el móvil no puede recibir avisos ni usar la huella. La forma más sencilla es poner **Caddy** delante, que consigue y renueva los certificados solo. Necesitas un dominio (vale uno gratuito de DuckDNS) apuntando a la IP pública de tu casa y abrir en el router los puertos 80 y 443 hacia el servidor.
 
 1. Instala Caddy en el mismo servidor: [caddyserver.com/docs/install](https://caddyserver.com/docs/install).
 2. Edita `/etc/caddy/Caddyfile` y deja solo esto (con tu dominio):
@@ -118,14 +118,14 @@ Sin HTTPS, EVBro solo es cómodo dentro de casa, y el móvil no puede recibir av
        }
    }
    ```
-3. En el `.env` de EVBro quita el `#` de las tres líneas del bloque «Behind an HTTPS reverse proxy» (`COOKIE_SECURE=true`, `BIND_ADDRESS=127.0.0.1` para que el puerto 8080 solo lo vea Caddy, y `FORWARDED_ALLOW_IPS=172.16.0.0/12`) y reinicia: `docker compose up -d`.
+3. En el `.env` de EVbro quita el `#` de las tres líneas del bloque «Behind an HTTPS reverse proxy» (`COOKIE_SECURE=true`, `BIND_ADDRESS=127.0.0.1` para que el puerto 8080 solo lo vea Caddy, y `FORWARDED_ALLOW_IPS=172.16.0.0/12`) y reinicia: `docker compose up -d`.
 4. Reinicia Caddy (`sudo systemctl reload caddy`) y abre `https://micoche.duckdns.org`.
 
 **No publiques nunca el puerto 8082** (la consola de administración) en el router ni en Caddy.
 
-## 8. Instalar EVBro en el móvil
+## 8. Instalar EVbro en el móvil
 
-Abre la dirección de EVBro en Chrome (Android) o Safari (iPhone) y usa **«Añadir a la pantalla de inicio»** (Chrome lo ofrece solo; en iPhone está en el botón Compartir). Se abre a pantalla completa, como una app, y funciona sin conexión con los últimos datos.
+Abre la dirección de EVbro en Chrome (Android) o Safari (iPhone) y usa **«Añadir a la pantalla de inicio»** (Chrome lo ofrece solo; en iPhone está en el botón Compartir). Se abre a pantalla completa, como una app, y funciona sin conexión con los últimos datos.
 
 Para los avisos: **Más → Ajustes → Avisos → Activar en este dispositivo** y después **Enviar prueba**. Elige qué avisos quieres (geocercas, carga, mantenimiento, presión de neumáticos, vencimientos…).
 
@@ -146,7 +146,7 @@ cp .env evbro-env-$(date +%F).txt
 
 Esos tres ficheros son todo lo que hay que guardar (en otro disco o en la nube). Para hacerlo solo cada noche, mete esas tres líneas en un script y prográmalo con `cron`.
 
-Para **exportar tus datos** desde la propia app (sin tocar el servidor): **Más → Ajustes → Cuenta → Tus datos → Descargar todo (ZIP)**. Ese ZIP se puede importar en otro servidor de EVBro.
+Para **exportar tus datos** desde la propia app (sin tocar el servidor): **Más → Ajustes → Cuenta → Tus datos → Descargar todo (ZIP)**. Ese ZIP se puede importar en otro servidor de EVbro.
 
 ## 11. Actualizar
 
@@ -163,7 +163,7 @@ La base de datos se actualiza sola al arrancar. Antes de actualizar, haz la copi
 | :--- | :--- |
 | La página no abre | `docker compose ps` (¿están los dos contenedores?) y `docker compose logs --tail 50 app` |
 | «No se pudo iniciar sesión» al conectar la cuenta de Ebro | El teléfono va **sin prefijo** y el prefijo aparte (34 para España). La contraseña es la de la app oficial. Si la app oficial pidió verificación por SMS hace poco, espera unos minutos |
-| Los datos no se actualizan | EVBro consulta la nube cada hora con el coche aparcado y cada minuto en marcha; no despierta el coche. **Ajustes → Conexiones → Canal del coche** debe decir «Escuchando al coche». Si la app oficial está abierta en el móvil, la nube solo mantiene una conexión en directo: la última que entra |
+| Los datos no se actualizan | EVbro consulta la nube cada hora con el coche aparcado y cada minuto en marcha; no despierta el coche. **Ajustes → Conexiones → Canal del coche** debe decir «Escuchando al coche». Si la app oficial está abierta en el móvil, la nube solo mantiene una conexión en directo: la última que entra |
 | No llegan los avisos al móvil | Hace falta HTTPS (apartado 7) y haberlos activado en ese dispositivo (apartado 8) |
 | Perdí la clave `ENCRYPTION_KEY` | Pon una nueva en `.env`, arranca y vuelve a conectar la cuenta de Ebro en Ajustes → Cuenta. El resto de datos no se pierde |
 | Quiero empezar de cero | `docker compose down -v` borra **todo** (base de datos y ficheros). Sin `-v` solo para los contenedores |

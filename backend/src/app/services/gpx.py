@@ -27,7 +27,7 @@ def build_gpx(name: str, positions: Iterable, description: str = "") -> str:
     desc = f"<desc>{escape(description)}</desc>" if description else ""
     return (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
-        '<gpx version="1.1" creator="EVBro" xmlns="http://www.topografix.com/GPX/1/1" '
+        '<gpx version="1.1" creator="EVbro" xmlns="http://www.topografix.com/GPX/1/1" '
         'xmlns:evbro="https://github.com/jcortizronda/EVbro">\n'
         f"<metadata><name>{escape(name)}</name>{desc}</metadata>\n"
         f"<trk><name>{escape(name)}</name><trkseg>\n" + "\n".join(points) + "\n</trkseg></trk>\n</gpx>\n"

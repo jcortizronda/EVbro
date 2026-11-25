@@ -84,7 +84,7 @@ with sync_playwright() as p:
         ok(txt("#scheduleBadge")=="En pausa" and "20:30" not in txt("#scheduleMain"),"pause → EN PAUSA and does not show the internal window")
         pg.screenshot(path=f"{OUT}/prog-pausa-{theme}.png",full_page=True)
         show(car_schedule={"enabled":True,"start":"01:00","end":"05:00","duration_min":240})
-        ok(txt("#scheduleBadge")=="Activa en el coche" and txt("#scheduleMain")=="01:00 → 05:00" and pg.is_visible("#btnScheduleClear"),"scheduled outside EVBro → ACTIVA EN EL COCHE")
+        ok(txt("#scheduleBadge")=="Activa en el coche" and txt("#scheduleMain")=="01:00 → 05:00" and pg.is_visible("#btnScheduleClear"),"scheduled outside EVbro → ACTIVA EN EL COCHE")
         ok(not errs,f"no JS errors {errs[:2]}")
         ctx.close()
     b.close()

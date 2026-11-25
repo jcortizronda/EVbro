@@ -1,4 +1,4 @@
-"""Central configuration of EVBro."""
+"""Central configuration of EVbro."""
 from __future__ import annotations
 
 import os
@@ -64,7 +64,7 @@ class Settings(BaseSettings):
     # logging in to the Ebro account again and reconfiguring the channels.
     ENCRYPTION_KEY: Optional[str] = None
 
-    # Access to EVBro (own login, cookie session)
+    # Access to EVbro (own login, cookie session)
     SESSION_DAYS: int = 30                 # session lifetime; renewed with use
     # Admin console: a second web interface on its own port, for the server administrator. 0 = disabled. The container listens on
     # ADMIN_BIND; what makes it local-only is how the port is published (deploy/docker-compose.yml): never put it behind a public proxy.
@@ -85,7 +85,7 @@ class Settings(BaseSettings):
     # Fingerprint login (passkeys/WebAuthn). Empty = the name the browser opens the site with (the proxy's Host header).
     WEBAUTHN_RP_ID: Optional[str] = None   # e.g. evbro.example.com (no scheme or port)
     WEBAUTHN_ORIGIN: Optional[str] = None  # e.g. https://evbro.example.com (several, comma-separated)
-    # The address people open EVBro at, e.g. https://evbro.example.com: the links in the e-mails are built on it, never on the
+    # The address people open EVbro at, e.g. https://evbro.example.com: the links in the e-mails are built on it, never on the
     # request's Host header. Empty = the first WEBAUTHN_ORIGIN.
     PUBLIC_URL: Optional[str] = None
 
@@ -94,7 +94,7 @@ class Settings(BaseSettings):
     SMTP_PORT: int = 587
     SMTP_USER: Optional[str] = None
     SMTP_PASSWORD: Optional[str] = None
-    SMTP_FROM: Optional[str] = None        # e.g. "EVBro <no-responder@example.com>"
+    SMTP_FROM: Optional[str] = None        # e.g. "EVbro <no-responder@example.com>"
     SMTP_SECURITY: str = "starttls"        # starttls (port 587) | ssl (port 465) | none (only a relay on the same machine)
 
     # Optional MQTT integration
@@ -118,7 +118,7 @@ class Settings(BaseSettings):
     # other out. Turn it on only if that integration is not connected to the same account.
     CAR_MQTT_ENABLED: bool = False
     # EXPERIMENT (09-11-2026): some days the cloud repeats the same position for hours while the car drives (docs/trips.md,
-    # «Posición congelada»). With this on, EVBro sends «Localizar coche (GPS)» itself when it sees it (same point for 3 min with the
+    # «Posición congelada»). With this on, EVbro sends «Localizar coche (GPS)» itself when it sees it (same point for 3 min with the
     # odometer advancing, at most one every 5 min, with the stored PIN). Off by default until it proves to bring the position back.
     AUTO_LOCATE_ENABLED: bool = True                  # seen working on 21-11-2026 (docs/trips.md, «Posición congelada»)
     CAR_MQTT_HOST: str = "tspemqx-app-eu.ebroauto.com"
@@ -126,7 +126,7 @@ class Settings(BaseSettings):
     CAR_MQTT_CERTS_SRC: str = ""   # folder with ca.pem/client.pem/client.key if the bundle is not used
 
     # Reverse geocoding (OpenStreetMap Nominatim)
-    NOMINATIM_USER_AGENT: str = "EVBro/1.0"
+    NOMINATIM_USER_AGENT: str = "EVbro/1.0"
     LEGAL_OPERATOR: str = ""               # who runs this server (name shown in /legal); empty = "el administrador de este servidor"
     LEGAL_CONTACT: str = ""                # how to reach them for data requests (e-mail); shown in /legal
     ANDROID_ASSETLINKS_JSON: str = ""      # /.well-known/assetlinks.json for the Android app (TWA); empty = not served

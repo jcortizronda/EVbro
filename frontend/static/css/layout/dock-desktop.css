@@ -1,4 +1,4 @@
-/* EVBro — Which navigation is shown: bottom dock (touch) or sidebar (mouse; see desktop.css).
+/* EVbro — Which navigation is shown: bottom dock (touch) or sidebar (mouse; see desktop.css).
    Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
 
 /* TOUCH devices (phone, tablet, or the phone in «desktop site» mode, whose width fools width-based media

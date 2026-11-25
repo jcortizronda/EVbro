@@ -1,4 +1,4 @@
-/* EVBro — Pages made of widgets: Inicio, Energía and Confort (features/home-widgets.js): the new cards, the edit mode and dragging. */
+/* EVbro — Pages made of widgets: Inicio, Energía and Confort (features/home-widgets.js): the new cards, the edit mode and dragging. */
 
 .home-widget[hidden] { display: none !important; }
 /* A widget this car cannot show: live data without an Ebro account, charging on a car that is not electric */

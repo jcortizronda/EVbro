@@ -1,6 +1,6 @@
 # Arquitectura
 
-EVBro es una plataforma **autoalojada** para monitorizar, registrar y controlar vehículos Ebro (telemática Chery), con el mismo protocolo que la app oficial. Objetivo y alcance: [README](../README.md); estado y futuro: [roadmap.md](roadmap.md).
+EVbro es una plataforma **autoalojada** para monitorizar, registrar y controlar vehículos Ebro (telemática Chery), con el mismo protocolo que la app oficial. Objetivo y alcance: [README](../README.md); estado y futuro: [roadmap.md](roadmap.md).
 
 ## Mapa del repositorio
 
@@ -69,7 +69,7 @@ Capas del backend: `core/` (protocolo Ebro) → `vehicle/` (canal MQTT del coche
    - `command_audit`: cada orden (y cada intento rechazado: PIN incorrecto, parámetros inválidos) con IP, código y resultado.
    - `ebro_accounts`: credenciales de la cuenta Ebro. **Cifradas** (`password`, `pin`, `token_data`).
    - `notification_configs` (secretos **cifrados**: token de Telegram, claves de Pushover, URL del webhook) y `notification_logs`; `cloud_usage` (lecturas y consultas a la nube de Ebro por día, para la consola: `services/cloud_usage.py`); `account_exit_surveys` (lo que contesta, si quiere, quien borra su cuenta: motivos y comentario, con su nombre de usuario); `admin_messages` (lo que el administrador envió a las cuentas desde la consola y a cuántas llegó; [security.md](security.md)); `alert_states` (avisos ya mandados de una situación que sigue: no se repiten, ver [costs.md](costs.md)); `push_subscriptions` (dispositivos de Web Push: suscripción **cifrada**, etiqueta, último envío) y `charge_plans` ([ebro-protocol.md](ebro-protocol.md), «Control de la carga»): objetivo y modo de carga por coche).
-   - `app_users` y `auth_sessions`: acceso a EVBro (ver [security.md](security.md)).
+   - `app_users` y `auth_sessions`: acceso a EVbro (ver [security.md](security.md)).
 2. **Volumen `/app/data`** (`DATA_DIR`, volumen Docker `evbro_data`, distinto del de PostgreSQL):
    - `accounts/<id>/token.json`: la sesión OAuth de cada cuenta Ebro conectada (0600), la que leen y renuevan todos sus coches (`services/ebro_sessions.py`).
    - `<vin>/token.json`: la sesión de un coche cuyo gestor no tiene cuenta conectada, como la cuenta del `.env` (0600). Antes del 09-11-2026, la copia de cada coche.
@@ -90,7 +90,7 @@ Capas del backend: `core/` (protocolo Ebro) → `vehicle/` (canal MQTT del coche
 | Drivers BD | asyncpg (app) · psycopg2-binary | ≥ 0.29 / ≥ 2.9.9 | PostgreSQL |
 | BD | PostgreSQL | 16-alpine | Datos |
 | Cifrado de campos | PyCryptodome (AES-256-GCM + HKDF) | ≥ 3.20 | Secretos en reposo |
-| Hash de contraseñas | `hashlib.scrypt` (stdlib) | — | Login de EVBro |
+| Hash de contraseñas | `hashlib.scrypt` (stdlib) | — | Login de EVbro |
 | Cifrado del protocolo Ebro | PyCryptodome (AES-128-CBC) + **SM4 propio en Python puro** (`core/ebro_auth.py`) | — | Login y PIN hacia Chery. *PyCryptodome no trae SM4.* |
 | Validación / config | Pydantic v2 · pydantic-settings | ≥ 2.6 / ≥ 2.2.1 | DTOs y variables de entorno |
 | HTTP hacia Chery | `requests` (login, BFF) y `urllib` (comandos); `aiohttp` (PVPC, notificaciones, Nominatim) | — | Clientes |

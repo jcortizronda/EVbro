@@ -60,7 +60,7 @@ docker exec evbro python -m app.seed_demo
 - **Secretos nuevos en BD:** columna `EncryptedText`/`EncryptedJSON` y la migración de arranque los cifra sola.
 - **Comandos que abren el coche** piden PIN en cada envío y los `params` pasan por lista blanca (`services/command_policy.py`).
 - **Migraciones:** a mano (`ALTER TABLE … IF NOT EXISTS` en `db/session.py:init_db`); Alembic está instalado pero sin usar.
-- **El protocolo se corrige en un sitio y se porta al otro** (EVBro ↔ integración de HA).
+- **El protocolo se corrige en un sitio y se porta al otro** (EVbro ↔ integración de HA).
 - Mensajes de usuario y comentarios en español.
 
 ## Variables de entorno
