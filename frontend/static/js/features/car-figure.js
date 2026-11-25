@@ -208,19 +208,26 @@
       rect(P.sunroof, { rx: 10 }, g);
       el('title', {}, g).textContent = PART_LABELS.sunroof;
     }
+    // a part the car has not reported: drawn closed (its picture would otherwise show the engine bay or the cabin through it),
+    // with a dashed grey outline so it is not taken for «closed». Not the hood: many cars never report it (as in the summary).
+    for (const part of ['door-fl', 'door-fr', 'door-rl', 'door-rr', 'trunk']) {
+      if (P[part]) rect(P[part], { class: 'cf-unknown', 'data-part': part, 'data-state': 'closed', rx: 14 }, svg);
+    }
     // what can be tapped (invisible), from the closed parts
     for (const [part, action] of [['trunk', ACTION.trunk], ['door-fl', 'openWindowsActionSheet()'], ['door-fr', 'openWindowsActionSheet()'],
       ['door-rl', 'openWindowsActionSheet()'], ['door-rr', 'openWindowsActionSheet()']]) {
       if (P[part] && action) rect(P[part], { class: 'cf-hit', 'data-on-click': action }, svg);
     }
-    // pressures outside the body, beside each wheel
+    // pressure and temperature outside the body, beside each wheel (two lines; one when the car sends no temperature)
     const body = L.body;
     for (const [k, w] of Object.entries(L.wheels || {})) {
       const top = k.endsWith('r');
-      const g = el('g', { class: 'cf-pill', 'data-pill': k, 'data-state': 'unknown', transform: `translate(${w[0]} ${top ? body[1] - 24 : body[3] + 24})` }, svg);
-      el('rect', { x: -34, y: -15, width: 68, height: 30, rx: 15 }, g);
-      const text = el('text', { class: 'cf-tyre', y: 7 }, g);
+      const g = el('g', { class: 'cf-pill', 'data-pill': k, 'data-state': 'unknown', transform: `translate(${w[0]} ${top ? body[1] - 36 : body[3] + 36})` }, svg);
+      el('rect', { class: 'cf-pill-box', x: -52, y: -29, width: 104, height: 58, rx: 22 }, g);
+      const text = el('text', { class: 'cf-tyre', y: -1 }, g);
       text.id = `cfPhotoTyre${k.toUpperCase()}`;
+      const temp = el('text', { class: 'cf-tyre-temp', y: 21 }, g);
+      temp.id = `cfPhotoTemp${k.toUpperCase()}`;
     }
     // lock on the hood, cable at the rear left corner (as in the plan)
     const hood = P.hood || body;
@@ -259,6 +266,8 @@
       const state = !known(value) ? 'unknown' : value ? 'open' : 'closed';
       show(`${part}.closed`, state !== 'open', state);
       show(`${part}.open`, state === 'open', state);
+      const mark = root.querySelector(`.cf-unknown[data-part="${part}"]`);
+      if (mark) mark.dataset.state = state;
     };
     ['hood', 'trunk'].forEach((p) => panel(p, doors[p]));
     for (const k of ['fl', 'fr', 'rl', 'rr']) {
@@ -282,13 +291,22 @@
     if (cable) cable.dataset.state = data.cable_connected === true ? (data.is_charging ? 'charging' : 'plugged') : 'off';
     const warn = tyreWarnings(data);
     const tp = data.tyre_pressures || {};
+    const tt = data.tyre_temps || {};
     for (const k of ['fl', 'fr', 'rl', 'rr']) {
       const bar = tp[k];
       const has = known(bar) && bar > 0;
+      const temp = Number(tt[k]);
+      const hasTemp = known(tt[k]) && Number.isFinite(temp) && temp > -40 && temp < 120;
       const pill = root.querySelector(`.cf-pill[data-pill="${k}"]`);
-      if (pill) pill.dataset.state = !has ? 'unknown' : warn[k] ? 'warn' : 'ok';
+      if (pill) {
+        pill.dataset.state = !has ? 'unknown' : warn[k] ? 'warn' : 'ok';
+        const box = pill.querySelector('.cf-pill-box');            // one line without a temperature: a shorter pill
+        if (box) { box.setAttribute('y', hasTemp ? -29 : -20); box.setAttribute('height', hasTemp ? 58 : 40); }
+      }
       const text = $(`cfPhotoTyre${k.toUpperCase()}`);
-      if (text) text.textContent = has ? historyNum(bar, 1) : '';
+      if (text) { text.textContent = has ? `${historyNum(bar, 1)} bar` : ''; text.setAttribute('y', hasTemp ? -1 : 8); }
+      const tline = $(`cfPhotoTemp${k.toUpperCase()}`);
+      if (tline) tline.textContent = has && hasTemp ? `${Math.round(temp)} °C` : '';
     }
   }
 

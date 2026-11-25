@@ -15,7 +15,7 @@
   border: 1px solid var(--border-color);
   border-radius: 18px;
 }
-:root:not([data-theme="light"]) .car-figure { --cf-roof: rgba(255, 255, 255, 0.06); }
+:root:not([data-theme="light"]) .car-figure { --cf-roof: rgba(255, 255, 255, 0.06); background: #141721; border-color: rgba(255, 255, 255, 0.08); }   /* as the action tiles */
 .car-figure svg {
   display: block;
   width: 100%;
@@ -104,7 +104,10 @@
 .cf-tint-roof { background: var(--cf-paint-roof); }
 /* open parts glow amber (the colour that means «open» everywhere in EVbro); a part without data is shown faded, never as «closed» */
 .cf-layer[data-state="open"] img { filter: drop-shadow(0 0 3px rgba(255, 159, 10, 0.95)) drop-shadow(0 0 7px rgba(255, 159, 10, 0.55)); }
-.cf-layer[data-state="unknown"] { opacity: 0.45; }
+/* without data a part is drawn closed (faded, it showed the engine bay through: «the hood looks grey», 25-11-2026) and outlined */
+.cf-unknown { fill: none; stroke: transparent; }
+.cf-unknown[data-state="unknown"] { stroke: var(--text-muted); stroke-width: 3; stroke-dasharray: 10 8; }
+.cf-hl-window[data-state="unknown"] rect, .cf-hl-roof[data-state="unknown"] rect { stroke: var(--text-muted); stroke-width: 3; stroke-dasharray: 10 8; }
 
 .car-figure .cf-overlay { position: absolute; inset: 0; width: 100%; max-width: none; height: 100%; margin: 0; overflow: visible; pointer-events: none; }
 .cf-overlay .cf-hit, .cf-overlay .cf-hl, .cf-overlay .cf-lock { pointer-events: all; cursor: pointer; }
@@ -115,5 +118,6 @@
 .cf-hl-roof[data-state="open"] rect { stroke: var(--accent-amber); stroke-width: 6; }
 .cf-hl-roof[data-state="tilt"] rect { stroke: var(--accent-amber); stroke-width: 5; stroke-dasharray: 14 9; }
 .cf-overlay .cf-pill rect { stroke-width: 2; }
-.cf-overlay .cf-tyre { font-size: 21px; }
+.cf-overlay .cf-tyre { font-size: 25px; }
+.cf-tyre-temp { font-size: 19px; font-weight: 600; fill: var(--text-muted); text-anchor: middle; font-family: inherit; }
 .car-credit { font-size: 0.75rem; margin: 0.5rem 0 0; overflow-wrap: anywhere; }
