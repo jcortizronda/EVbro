@@ -91,6 +91,8 @@
 /* ───── The car as a picture (layers rendered from a 3D model; features/car-figure.js, «photo»). Without the pictures the plan
    above stays. The paint is a colour multiplied over each layer through its paint mask, so the shading of the render stays. ───── */
 .car-figure.has-photo > svg { display: none; }
+/* until it is known whether this car is drawn as a picture, the plan is not shown either (it flashed before the picture, 25-11-2026) */
+.car-figure:not(.has-photo):not(.no-photo) > svg { visibility: hidden; }
 .car-figure:not(.has-photo) .cf-photo { display: none; }
 .cf-photo { position: relative; width: 100%; max-width: 440px; margin: 0 auto; isolation: isolate; --cf-paint: #d7d9dc; --cf-paint-roof: var(--cf-paint); }
 .cf-layer { position: absolute; inset: 0; transition: opacity 0.25s ease; }

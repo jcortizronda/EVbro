@@ -116,23 +116,68 @@
     return v && !v.is_manual ? PHOTO_MODELS[m ? `s${m[1]}00` : 's900'] : null;
   }
 
+  // The last layout drawn, kept on the device: on the next load the picture is built at once from it (the images are in the cache),
+  // instead of the plan showing for a moment until the data and the layout arrive (25-11-2026). «none»: this server has no pictures.
+  const STORE = 'evbro_car_photo';
+  const remember = (value) => { try { localStorage.setItem(STORE, JSON.stringify(value)); } catch (e) { /* private mode */ } };
+  const recalled = () => { try { return JSON.parse(localStorage.getItem(STORE) || 'null'); } catch (e) { return null; } };
+
+  function decided(withPhoto) {
+    const fig = $('carFigure');
+    if (!fig) return;
+    fig.classList.toggle('has-photo', withPhoto);
+    fig.classList.toggle('no-photo', !withPhoto);
+  }
+
   async function loadPhoto() {
     const model = photoModel();
-    if (!model || photo.state === 'loading' || (photo.state === 'ready' && photo.model === model)) return;
-    photo.state = 'loading';
+    if (!model || photo.state === 'loading') return;
+    const rebuild = !(photo.state === 'ready' && photo.model === model);
+    if (rebuild) photo.state = 'loading';
     try {
       const res = await fetch(`/static/car/${model}/layout.json`);
       if (!res.ok) throw new Error(res.status);
-      photo.layout = await res.json();
-      photo.model = model;
-      buildPhoto();
+      const layout = await res.json();
+      remember({ model, layout });
+      if (rebuild || JSON.stringify(layout) !== JSON.stringify(photo.layout)) {
+        photo.layout = layout;
+        photo.model = model;
+        buildPhoto();
+      }
       showCredit(photo.layout.credit);
       photo.state = 'ready';
       if (photo.last) renderCarFigure(photo.last);
     } catch (e) {
       photo.state = 'none';                               // no pictures on this server: the plan stays
+      remember('none');
+      decided(false);
     }
   }
+
+  function paintPhoto(paint) {
+    if (!photo.root || !paint) return;
+    photo.root.style.setProperty('--cf-paint', paint.body);
+    photo.root.style.setProperty('--cf-paint-roof', paint.roof || paint.body);
+  }
+
+  /** At start-up, before any data: the picture from the last layout kept on the device, or the plan if there were none. */
+  function startPhoto() {
+    const fig = $('carFigure');
+    if (!fig) return;
+    const last = recalled();
+    if (last === 'none') { decided(false); return; }
+    if (last && last.layout && last.model) {
+      photo.layout = last.layout;
+      photo.model = last.model;
+      buildPhoto();
+      try { paintPhoto(JSON.parse(localStorage.getItem(`${STORE}_paint`) || 'null')); } catch (e) { /* no colour kept */ }
+      photo.state = 'ready';
+      photo.checked = false;                              // the layout on the server is read again with the first data
+      decided(true);
+    }
+    setTimeout(() => { if (!fig.classList.contains('has-photo')) decided(false); }, 4000);    // never an empty box
+  }
+  document.addEventListener('DOMContentLoaded', startPhoto);
 
   function buildPhoto() {
     const L = photo.layout;
@@ -152,6 +197,7 @@
       const layer = document.createElement('div');
       layer.className = 'cf-layer';
       layer.dataset.layer = key;
+      layer.hidden = !(key === 'base' || key.endsWith('.closed'));      // closed until the car's state arrives
       const img = document.createElement('img');
       img.src = `${base}${key}.webp`;
       img.alt = '';
@@ -199,12 +245,12 @@
       if (!b) continue;
       const top = k === 'fr' || k === 'rr';                // the car's right side is the top of the picture
       const h = 9, y = top ? b[1] + 2 : b[3] - 2 - h;
-      const g = el('g', { class: 'cf-hl cf-hl-window', 'data-part': `win-${k}`, 'data-state': 'unknown', 'data-on-click': 'openWindowsActionSheet()' }, svg);
+      const g = el('g', { class: 'cf-hl cf-hl-window', 'data-part': `win-${k}`, 'data-state': 'closed', 'data-on-click': 'openWindowsActionSheet()' }, svg);
       el('rect', { x: b[0] + 6, y, width: b[2] - b[0] - 12, height: h, rx: 4.5 }, g);
       el('title', {}, g).textContent = PART_LABELS[`win-${k}`];
     }
     if (P.sunroof) {
-      const g = el('g', { class: 'cf-hl cf-hl-roof', 'data-part': 'sunroof', 'data-state': 'unknown', 'data-on-click': ACTION.sunroof }, svg);
+      const g = el('g', { class: 'cf-hl cf-hl-roof', 'data-part': 'sunroof', 'data-state': 'closed', 'data-on-click': ACTION.sunroof }, svg);
       rect(P.sunroof, { rx: 10 }, g);
       el('title', {}, g).textContent = PART_LABELS.sunroof;
     }
@@ -253,8 +299,8 @@
     const doors = data.doors || {};
     const windows = data.windows || {};
     const paint = photoPaint((typeof currentVehicle === 'function' ? currentVehicle() : null)?.color);
-    root.style.setProperty('--cf-paint', paint.body);
-    root.style.setProperty('--cf-paint-roof', paint.roof || paint.body);
+    paintPhoto(paint);
+    try { localStorage.setItem(`${STORE}_paint`, JSON.stringify(paint)); } catch (e) { /* private mode */ }
     const show = (key, on, state) => {
       const layer = photo.els[key];
       if (!layer) return;
@@ -315,9 +361,13 @@
     if (!root || !data) return;
     photo.last = data;
     const wanted = photoModel();
-    if (wanted && (photo.state === 'idle' || (photo.state === 'ready' && photo.model !== wanted))) loadPhoto();
-    root.classList.toggle('has-photo', Boolean(wanted) && photo.state === 'ready' && photo.model === wanted);
-    if (root.classList.contains('has-photo')) renderPhoto(data);
+    if (wanted && (photo.state === 'idle' || (photo.state === 'ready' && (photo.model !== wanted || photo.checked === false)))) {
+      photo.checked = true;
+      loadPhoto();
+    }
+    const withPhoto = Boolean(wanted) && photo.state === 'ready' && photo.model === wanted;
+    if (withPhoto || !wanted || photo.state === 'none') decided(withPhoto);
+    if (withPhoto) renderPhoto(data);
     const doors = data.doors || {};
     const windows = data.windows || {};
     applyCarColour(root);
