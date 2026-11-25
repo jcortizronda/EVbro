@@ -18,8 +18,12 @@
   let lastVin = null;
   let busy = false;
 
+  /** The fuel chosen on this device, if the selector still offers it (the E10 ones were taken out); 95 E5 otherwise. */
   function fuel() {
-    try { return localStorage.getItem(STORE) || 'g95e5'; } catch (e) { return 'g95e5'; }
+    let kept = null;
+    try { kept = localStorage.getItem(STORE); } catch (e) { /* the default */ }
+    const offered = [...(($('fsFuel') || {}).options || [])].map((o) => o.value);
+    return kept && offered.includes(kept) ? kept : 'g95e5';
   }
 
   function setFuel(value) {
