@@ -2538,5 +2538,9 @@
  "Escribe tu contraseña de EVbro.": "Type your EVbro password.",
  "No se pudo guardar el email.": "Could not save the email.",
  "Email guardado.": "Email saved.",
- "Email quitado.": "Email removed."
+ "Email quitado.": "Email removed.",
+ "Enlace de invitación": "Invitation link",
+ "Abre «Crear cuenta» con el código ya puesto.": "Opens «Create account» with the code already filled in.",
+ "Copiar enlace": "Copy link",
+ "Enlace copiado.": "Link copied."
 }

@@ -13,10 +13,10 @@ from typing import Optional
 
 import uvicorn
 from fastapi import APIRouter, Depends, FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from app import i18n
+from app import extensions, i18n
 from app.api.errors import install_error_handlers
 from app.api.routes_admin import router as admin_router
 from app.api.routes_admin_auth import router as admin_auth_router
@@ -51,6 +51,11 @@ def create_admin_app() -> FastAPI:
     protected.include_router(admin_router)
     protected.include_router(settings_router)
     protected.include_router(server_router)
+    extra = extensions.discover()                      # app/extensions: this installation's own additions (none in the public repo)
+    for ext in extra:
+        if ext.admin_router is not None:
+            protected.include_router(ext.admin_router)
+            _LOGGER.info("Admin console extension loaded: %s", ext.name)
     api.include_router(protected)
     app.include_router(api)
 
@@ -61,6 +66,15 @@ def create_admin_app() -> FastAPI:
     if os.path.isdir(static_dir):
         app.mount("/static", StaticFiles(directory=static_dir), name="static")       # the console reuses core/i18n.js and the icons
 
+    scripts = {f"{ext.name}.js": ext.script_path for ext in extra if ext.script_path}
+
+    @app.get("/ext/{name}", include_in_schema=False)
+    async def extension_script(name: str):
+        path = scripts.get(name)
+        if path is None:
+            return HTMLResponse("", status_code=404)
+        return FileResponse(path, media_type="text/javascript", headers={"Cache-Control": "no-cache"})
+
     @app.get("/", include_in_schema=False)
     async def index():
         """The console page in the language of the request: `<html lang>` and the web dictionary inlined, like the app (docs/i18n.md)."""
@@ -70,6 +84,9 @@ def create_admin_app() -> FastAPI:
         html = html.replace('<html lang="es">', f'<html lang="{lang}">', 1).replace(
             "</head>", f'  <script type="application/json" id="i18nData">{i18n.page_dictionary_json(lang)}</script>\n'
                        '  <script src="/static/js/core/i18n.js"></script>\n</head>', 1)
+        if scripts:                                    # after the console's own script, so they can use its helpers
+            tags = "".join(f'<script src="/ext/{name}"></script>\n' for name in scripts)
+            html = html.replace("</body>", tags + "</body>", 1)
         return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 
     return app

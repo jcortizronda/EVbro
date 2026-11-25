@@ -343,12 +343,24 @@ $('formInvite').addEventListener('submit', async (ev) => {
   try {
     const inv = await api('/api/admin/invites', 'POST', { note: $('invNote').value.trim() || null, vehicle_limit: n('invVeh'), member_limit: n('invMem'),
       storage_limit_mb: n('invSto'), days: n('invDays') });
-    $('tokenValue').textContent = inv.token;
-    $('tokenBox').hidden = false;
+    showInviteToken(inv);
     $('invNote').value = '';
     toast('Invitación creada. Copia el código ahora.');
     loadInvites();
   } catch (e) { toast(e.message, true, 7000); }
+});
+
+/** The code (and the link that opens «Crear cuenta» with it) of the invitation just created: shown once. Extensions use it too. */
+function showInviteToken(inv) {
+  $('tokenValue').textContent = inv.token;
+  $('tokenLink').textContent = inv.link || '';
+  $('tokenLinkRow').hidden = !inv.link;
+  $('tokenBox').hidden = false;
+}
+
+$('btnCopyLink').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText($('tokenLink').textContent); toast('Enlace copiado.'); }
+  catch (e) { toast('Selecciónalo y cópialo a mano.', true); }
 });
 
 $('btnCopy').addEventListener('click', async () => {

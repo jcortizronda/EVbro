@@ -28,10 +28,14 @@ class Email:
     greeting: str                     # e.g. "Hola, {name}:" with `{name}` where the bold name goes
     greeting_name: str
     paragraphs: list[str]
+    code: str | None = None           # a code to show apart (e.g. an invitation's), in a box
+    code_label: str | None = None
     button_label: str | None = None
     button_url: str | None = None
     after_button: str | None = None   # e.g. how long the link lasts
     fallback_label: str | None = None  # «if the button does not work, copy this address»
+    links: list[tuple[str, str]] | None = None   # (label, url) shown as plain links after the button, e.g. a manual
+    closing: list[str] | None = None  # paragraphs after the button and the links
     notice: str | None = None         # the security line, in a soft box
     footer: str = ""
     tagline: str = ""
@@ -49,6 +53,14 @@ def render(mail: Email, public_url: str) -> str:
     greeting = escape(mail.greeting).replace(escape("{name}"), name)
     body = [f'<p style="margin:0 0 16px;font-family:{FONT};font-size:16px;line-height:1.55;color:{INK};">{greeting}</p>']
     body += [_p(p) for p in mail.paragraphs]
+    if mail.code:
+        label = (f'<div style="font-family:{FONT};font-size:12px;letter-spacing:0.4px;text-transform:uppercase;color:{MUTED};'
+                 f'margin:0 0 6px;">{escape(mail.code_label)}</div>' if mail.code_label else "")
+        body.append(
+            '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 4px;"><tr>'
+            f'<td style="background:{PAGE};border:1px solid {LINE};border-radius:12px;padding:14px 16px;">{label}'
+            f'<div style="font-family:SFMono-Regular,Menlo,Consolas,monospace;font-size:15px;color:{INK};word-break:break-all;">'
+            f"{escape(mail.code)}</div></td></tr></table>")
     if mail.button_label and mail.button_url:
         url = escape(mail.button_url, quote=True)
         body.append(
@@ -63,6 +75,11 @@ def render(mail: Email, public_url: str) -> str:
             body.append(_p(mail.fallback_label, size=13, color=MUTED, margin="0 0 6px"))
             body.append(f'<p style="margin:0 0 24px;font-family:{FONT};font-size:13px;line-height:1.5;word-break:break-all;">'
                         f'<a href="{url}" target="_blank" style="color:{ACCENT};text-decoration:underline;">{escape(mail.button_url)}</a></p>')
+    for label, href in mail.links or []:
+        body.append(f'<p style="margin:0 0 12px;font-family:{FONT};font-size:15px;line-height:1.5;">'
+                    f'<a href="{escape(href, quote=True)}" target="_blank" style="color:{ACCENT};font-weight:600;text-decoration:none;">'
+                    f"{escape(label)} &rarr;</a></p>")
+    body += [_p(p) for p in mail.closing or []]
     if mail.notice:
         body.append(
             '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 0;"><tr>'

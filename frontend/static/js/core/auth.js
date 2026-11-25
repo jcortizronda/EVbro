@@ -228,6 +228,20 @@
     }
   }
 
+  /** An invitation link (`#invite=<code>`): «Crear cuenta» with the code already typed; the code leaves the address bar at once. */
+  function takeInviteCode() {
+    const hash = window.location.hash || '';
+    if (!hash.startsWith('#invite=')) return false;
+    const code = decodeURIComponent(hash.slice(8)).trim();
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+    if (!code) return false;
+    state.registerMode = true;
+    state.mode = 'login';
+    state.notice = null;
+    $('authInviteCode').value = code;
+    return true;
+  }
+
   /** The link of the e-mail (`#reset=<token>`): keep the token and take it out of the address bar (and of the history) at once. */
   function takeResetToken() {
     const hash = window.location.hash || '';
@@ -240,6 +254,7 @@
   // The link opened in a tab where EVbro already runs: only the fragment changes and the page does not load again
   window.addEventListener('hashchange', () => {
     if (takeResetToken()) { state.locked = true; configureForm(); showOverlay(); }
+    else if (takeInviteCode() && !state.authenticated) { state.locked = true; configureForm(); showOverlay(); }
   });
 
   // ───────────────────────── the account's e-mail ─────────────────────────
@@ -338,7 +353,7 @@
   function ready() {
     if (!state.readyPromise) {
       state.readyPromise = (async () => {
-        takeResetToken();
+        takeResetToken() || takeInviteCode();
         try {
           await fetchStatus();
         } catch (e) {

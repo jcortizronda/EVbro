@@ -104,7 +104,7 @@ async def create_invite(req: InviteCreate, admin: AppUser = Depends(auth.require
     await admin_audit.log(db, admin, "invite.create", req.note or "", request=None, commit=False)
     invite, token = await invites.create_invite(db, admin.id, req.note, req.days or settings.INVITE_DEFAULT_DAYS,
                                                 vehicle_limit=req.vehicle_limit, member_limit=req.member_limit, storage_limit_mb=req.storage_limit_mb)
-    return {**_invite_out(invite, {}), "token": token}
+    return {**_invite_out(invite, {}), "token": token, "link": invites.invite_link(token)}
 
 
 @router.post("/managers")

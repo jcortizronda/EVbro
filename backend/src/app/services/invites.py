@@ -43,6 +43,15 @@ async def create_invite(db: AsyncSession, admin_id: int, note: Optional[str], da
     return invite, token
 
 
+def invite_link(token: str) -> Optional[str]:
+    """The address that opens «Crear cuenta» with the code already typed (`/#invite=…`: the fragment never reaches a server), or
+    None when the server does not know its public address (`PUBLIC_URL` / `WEBAUTHN_ORIGIN`)."""
+    from app.services.mailer import public_url
+
+    base = public_url()
+    return f"{base}/#invite={token}" if base else None
+
+
 async def find_valid_invite(db: AsyncSession, token: str) -> Optional[Invite]:
     invite = (await db.execute(select(Invite).where(Invite.token_hash == hash_token((token or "").strip())))).scalar_one_or_none()
     return invite if invite is not None and invite_state(invite) == "active" else None

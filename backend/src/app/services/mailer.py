@@ -45,17 +45,21 @@ def enabled() -> bool:
     return bool(settings.SMTP_HOST and settings.SMTP_FROM and public_url())
 
 
-def send(to: str, subject: str, body: str, html: str | None = None) -> bool:
-    """Send an e-mail: the plain text, and the HTML as its alternative when there is one. BLOCKING. Returns False (and logs why,
-    without the address) when it could not be sent."""
+def send(to: str, subject: str, body: str, html: str | None = None, *, sender: str | None = None, reply_to: str | None = None) -> bool:
+    """Send an e-mail: the plain text, and the HTML as its alternative when there is one. `sender` replaces `SMTP_FROM` (it must be
+    a sender the SMTP service accepts) and `reply_to` says where answers go. BLOCKING. Returns False (and logs why, without the
+    address) when it could not be sent."""
     if not (settings.SMTP_HOST and settings.SMTP_FROM):
         return False
+    origin = sender or settings.SMTP_FROM
     msg = EmailMessage()
-    msg["From"] = settings.SMTP_FROM
+    msg["From"] = origin
     msg["To"] = to
+    if reply_to:
+        msg["Reply-To"] = reply_to
     msg["Subject"] = subject
     msg["Date"] = formatdate(localtime=False, usegmt=True)
-    msg["Message-ID"] = make_msgid(domain=(settings.SMTP_FROM.rsplit("@", 1)[-1].strip(" >") or None))
+    msg["Message-ID"] = make_msgid(domain=(origin.rsplit("@", 1)[-1].strip(" >") or None))
     msg["Auto-Submitted"] = "auto-generated"
     msg.set_content(body)
     if html:

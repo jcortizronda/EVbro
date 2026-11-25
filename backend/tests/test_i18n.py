@@ -152,6 +152,8 @@ def test_every_server_text_has_its_english_and_portuguese() -> None:
     detail = re.compile(r'detail=\s*((?:"(?:[^"\\]|\\.)*"\s*)+)')
     keys = set()
     for path in SRC.rglob("*.py"):
+        if "extensions" in path.relative_to(SRC).parts:
+            continue                    # app/extensions: one installation's own modules, which carry their own texts
         text = path.read_text(encoding="utf-8")
         for m in pattern.finditer(text):
             keys.add(re.sub(r"\s+", " ", (m.group(1) if m.group(1) is not None else m.group(2))).strip())
