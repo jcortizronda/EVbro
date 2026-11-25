@@ -2,7 +2,8 @@
 
 The car reports the level as a % (`oilSurplus`) that drops while driving and rises when refuelling. The LOWEST level since the last
 refuel is kept and, when a reading with the car stopped is at least `FUEL_JUMP_PCT` points above it, there is a refuel. The litres
-are an estimate (% points × tank size, configurable on the vehicle); the user adds the price later.
+are an estimate (% points × tank size, configurable on the vehicle). When the car was at a station of the Ministry's list, the
+refuel takes its name and its 95 E5 price of the day, and so its cost (services/fuel_stations.py); otherwise the user adds it.
 
 The rise may only show up once the car is moving again: the cloud is read every minute or two, and a quick stop at the pump
 can end before the next reading (05-11-2026: 5 % stopped at the station, 43 % two minutes later at 139 km/h; the refuel was
@@ -22,6 +23,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Refuel, TelemetrySnapshot, Vehicle
+from app.services import fuel_stations
 from app.services.geofence import reverse_geocode
 from app.timeutil import utcnow
 
@@ -94,6 +96,11 @@ class RefuelDetector:
         refuel = Refuel(vin=vin, timestamp=at["time"], odometer=at["odometer"], fuel_before_pct=low, fuel_after_pct=fuel,
                         liters=liters, latitude=lat, longitude=lon, address=address, detected=True,
                         full_tank=None)                 # the gauge decides (>= 95 %) until the user says otherwise
+        # the station where the car was and its price of the day (the Ministry's list): the cost comes out without typing it
+        try:
+            await fuel_stations.price_refuel(refuel)
+        except Exception as e:                                          # noqa: BLE001 — a refuel without a price is still a refuel
+            _LOGGER.warning("The refuel could not be priced from the station list: %s", e)
 
         session.add(refuel)
         await session.flush()

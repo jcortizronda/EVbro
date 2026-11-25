@@ -188,7 +188,8 @@
  "consumo estimado": "estimated consumption",
  "precio medio del litro": "average price per litre",
  "gasolina por 100 km": "petrol per 100 km",
- "autonomía con depósito lleno": "range on a full tank",
+ "días entre repostajes": "days between fuel-ups",
+ "días": "days",
  "entre repostajes": "between fuel-ups",
  "Detectado": "Detected",
  "A mano": "By hand",
@@ -397,5 +398,10 @@
  "Indica qué columna tiene la fecha y cuál los litros (o el total y el precio por litro).": "Choose which column has the date and which the litres (or the total and the price per litre).",
  "Los litros no son válidos.": "The litres are not valid.",
  "El fichero tiene más de 1.000 repostajes: pártelo en varios.": "The file has more than 1,000 fuel-ups: split it into several.",
- "No hay ningún repostaje listo para importar.": "There is no fuel-up ready to import."
+ "No hay ningún repostaje listo para importar.": "There is no fuel-up ready to import.",
+ "Combustible no válido.": "Invalid fuel.",
+ "Indica la latitud y la longitud.": "Give both the latitude and the longitude.",
+ "Los precios de las gasolineras están desactivados en este servidor.": "Petrol station prices are turned off on this server.",
+ "Todavía no se conoce la posición del coche.": "The car's position is not known yet.",
+ "No se pudo descargar la lista de gasolineras del Ministerio. Inténtalo dentro de un rato.": "The Ministry's list of petrol stations could not be downloaded. Try again in a while."
 }

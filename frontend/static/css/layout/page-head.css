@@ -15,6 +15,11 @@
 .page-banner .page-head-main { gap: 0.3rem 0.5rem; }
 .page-banner .page-head-meta { margin-top: 0; gap: 0.4rem 0.55rem; }
 .page-banner .page-head-note { color: rgba(255, 255, 255, 0.85); }
+/* the details on one row, the plate at its right end (Inicio); or as lines one below the other (Carga: the two connectors) */
+.page-banner .page-head-meta { width: 100%; }
+.page-banner .page-head-meta .plate-badge { margin-left: auto; }
+.page-banner .page-head-lines { flex-direction: column; align-items: flex-start; gap: 0.1rem; }
+.page-banner .page-head-lines .page-head-note { text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6); }
 .page-banner .status-badge {
   background: rgba(8, 10, 16, 0.72) !important; border: 1px solid rgba(255, 255, 255, 0.2);
   backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);

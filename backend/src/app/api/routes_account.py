@@ -162,8 +162,10 @@ async def login_ebro_account(req: EbroLoginRequest, session: AsyncSession = Depe
         # «could not connect» and an error in the log (09-11-2026)
         _LOGGER.warning("The Ebro cloud refused the login of user %s: %s", user.id, cloud_refusal(str(e)),
                         extra={"telemetry": False})          # a mistyped password is not a fault to report to the project
+        # 424, never 401: a 401 means «no EVbro session» (the page went back to its sign-in screen) and, in front of the
+        # internet, a few mistyped Ebro passwords looked like brute force to CrowdSec, which banned the manager's IP (25-11-2026)
         raise HTTPException(
-            status_code=401,
+            status_code=424,
             detail=_("No se pudo iniciar sesión: {p0}. Verifica tu teléfono, código de país y contraseña.", p0=cloud_refusal(str(e))),
         ) from e
     except Exception as e:
@@ -177,7 +179,7 @@ async def login_ebro_account(req: EbroLoginRequest, session: AsyncSession = Depe
     if not token_data or "access_token" not in token_data:
         err_msg = token_data.get("msg") or token_data.get("error_description") or "Credenciales incorrectas"
         raise HTTPException(
-            status_code=401,
+            status_code=424,
             detail=_("No se pudo iniciar sesión: {p0}. Verifica tu teléfono, código de país y contraseña.", p0=err_msg),
         )
 

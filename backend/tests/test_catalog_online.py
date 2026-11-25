@@ -163,7 +163,7 @@ async def test_a_self_hosted_server_mirrors_the_online_catalogue_and_forwards_pr
     key_id = (await console.get("/api/admin/catalog/keys")).json()["keys"][0]["id"]
     await console.delete(f"/api/admin/catalog/keys/{key_id}")
     r = await console.post("/api/admin/catalog/source/sync")
-    assert r.status_code == 401 and "clave" in r.json()["detail"].lower()
+    assert r.status_code == 424 and "clave" in r.json()["detail"].lower()       # not 401: that would sign the console out
     assert (await console.get("/api/admin/catalog/source")).json()["last_error"].startswith("La clave")
     back = (await console.put("/api/admin/catalog/source", json={"source": "own", "link": ""})).json()
     assert back["source"] == "own" and back["has_link"] is False and back["last_error"] is None and back["entries"] == 1

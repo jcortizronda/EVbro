@@ -45,6 +45,7 @@
   <link rel="stylesheet" href="/static/css/features/costs.css?v={{ asset_version }}">
   <link rel="stylesheet" href="/static/css/features/expenses.css?v={{ asset_version }}">
   <link rel="stylesheet" href="/static/css/features/refuels.css?v={{ asset_version }}">
+  <link rel="stylesheet" href="/static/css/features/fuel-stations.css?v={{ asset_version }}">
   <link rel="stylesheet" href="/static/css/features/charge-manual.css?v={{ asset_version }}">
   <link rel="stylesheet" href="/static/css/features/timeline.css?v={{ asset_version }}">
   <link rel="stylesheet" href="/static/css/features/stats.css?v={{ asset_version }}">
@@ -440,7 +441,7 @@
 
         <div class="home-widget" data-widget="charging" data-live>
         <!-- Cable and active charging status (dynamic banner) -->
-        <div id="chargeActiveBar" class="charge-active-bar u-display-none_flex-direction-column_gap-0p35rem_padding-0p75rem-1rem_margin-bottom-12px_border-radius-18px">
+        <div id="chargeActiveBar" class="charge-active-bar u-display-none_flex-direction-column_gap-0p35rem_padding-0p75rem-1rem_margin-bottom-12px">
           <div class="u-display-flex_justify-content-space-between_align-items-center_width-100pct">
             <div class="u-display-flex_align-items-center_gap-0p45rem">
               <span id="chargeCableIcon"><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 2v6M15 2v6"/><path d="M6 8h12v4a6 6 0 0 1-12 0z"/><path d="M12 18v4"/></svg></span>
@@ -690,9 +691,9 @@
             <h2 class="section-title" id="energyHeroTitle">Carga</h2>
             <span id="chargeHeroStateBadge" class="status-badge u-background-rgba-128-128-128-0p18_color-var-text-secondary">Desconectado</span>
           </div>
-          <div class="page-head-meta">
-            <span class="page-head-note">Mennekes Tipo 2 · CCS2 rápida</span>
-            <span class="plate-badge" id="energyHeroPlateBadge">EBRO</span>
+          <div class="page-head-meta page-head-lines">
+            <span class="page-head-note">Carga lenta: Conector Mennekes Tipo 2</span>
+            <span class="page-head-note">Carga rápida: Conector CCS2</span>
           </div>
         </div>
 
@@ -1572,6 +1573,29 @@
           <h2 class="section-title">Repostajes</h2>
           <p class="u-color-var-text-secondary_font-size-0p9rem_margin-6px-0-0">Consumo real, coste por 100 km y precio medio del litro. Los repostajes se detectan automáticamente; puedes añadir los que falten e indicar su importe.</p>
         </div>
+        <!-- Fuel stations around the car with the price of one fuel (the Ministry's list; features/fuel-stations.js) -->
+        <div class="glass fs-card" id="fsCard">
+          <div class="fs-head">
+            <div class="card-title u-margin-0">Gasolineras cercanas</div>
+            <select id="fsFuel" class="form-control fs-fuel" aria-label="Combustible" data-on-change="FuelStations.setFuel(this.value)">
+              <option value="g95e5">Gasolina 95 E5</option>
+              <option value="g95e10">Gasolina 95 E10</option>
+              <option value="g95e5p">Gasolina 95 E5 Premium</option>
+              <option value="g98e5">Gasolina 98 E5</option>
+              <option value="g98e10">Gasolina 98 E10</option>
+            </select>
+          </div>
+          <div class="fs-map-wrap">
+            <div class="fs-map" id="fsMap"></div>
+            <button type="button" class="fs-here" id="fsHere" hidden data-on-click="FuelStations.searchHere()">Buscar en esta zona</button>
+          </div>
+          <div class="fs-tools">
+            <button type="button" class="btn-secondary btn-sm" data-on-click="FuelStations.nearCar()">Junto al coche</button>
+          </div>
+          <p class="fs-status" id="fsStatus" hidden></p>
+          <ol class="fs-list" id="fsList"></ol>
+          <p class="fs-source" id="fsSource"></p>
+        </div>
         <div id="refuelsPeriod"></div>
         <div class="glass costs-hero rf-hero">
           <span class="costs-hero-label" id="rfHeroLabel">Consumo de gasolina</span>
@@ -1580,7 +1604,7 @@
           <div class="rf-kpis">
             <div><small>Gasolina por 100 km</small><strong id="rfCostPer100">--</strong></div>
             <div><small>Precio medio del litro</small><strong id="rfPriceLiter">--</strong></div>
-            <div><small>Autonomía con el depósito lleno</small><strong id="rfRange">--</strong></div>
+            <div><small>Días entre repostajes</small><strong id="rfDaysBetween">--</strong></div>
             <div><small>Km entre repostajes</small><strong id="rfKmBetween">--</strong></div>
           </div>
           <div class="rf-totals"><span>Litros: <strong id="rfTotalLiters">--</strong></span><span>Gastado: <strong id="rfTotalCost">--</strong></span><span id="rfCount"></span></div>
@@ -2959,11 +2983,11 @@
         <div class="form-group"><label for="rfDate">Fecha</label><input type="date" id="rfDate" class="form-control" /></div>
         <div class="form-group"><label for="rfHour">Hora (opcional)</label><input type="time" id="rfHour" class="form-control" /></div>
         <!-- Any two of the three give the third (features/refuels.js) -->
-        <div class="form-group full"><label for="rfLiters">Litros</label><input type="number" id="rfLiters" class="form-control mc-trio" min="0" max="300" step="0.01" inputmode="decimal" placeholder="Los del ticket" /></div>
+        <div class="form-group full"><label for="rfLiters">Litros</label><input type="number" id="rfLiters" class="form-control mc-trio" min="0" max="300" step="0.01" inputmode="decimal" /></div>
         <div class="form-group"><label for="rfPrice">Precio por litro (€)</label><input type="number" id="rfPrice" class="form-control mc-trio" min="0" max="10" step="0.001" inputmode="decimal" /></div>
         <div class="form-group"><label for="rfTotal">Total pagado (€)</label><input type="number" id="rfTotal" class="form-control mc-trio" min="0" step="0.01" inputmode="decimal" /></div>
         <div class="form-group full"><p class="vp-hint mc-tight">Con dos de los tres, el tercero se calcula solo.</p></div>
-        <div class="form-group"><label for="rfOdometer">Cuentakilómetros (km)</label><input type="number" id="rfOdometer" class="form-control" min="0" step="1" inputmode="numeric" placeholder="Del salpicadero" /></div>
+        <div class="form-group"><label for="rfOdometer">Cuentakilómetros (km)</label><input type="number" id="rfOdometer" class="form-control" min="0" step="1" inputmode="numeric" /></div>
         <div class="form-group"><label class="rf-check"><input type="checkbox" id="rfFull" checked /> Depósito lleno</label></div>
         <div class="form-group full"><label for="rfStation">Gasolinera</label><input type="text" id="rfStation" class="form-control" maxlength="150" list="rfStationList" autocomplete="off" /><datalist id="rfStationList"></datalist><p class="vp-hint" id="rfStationHint" hidden>Puesta por un repostaje anterior en el mismo sitio. Cámbiala si no es esta.</p></div>
         <div class="form-group full"><label for="rfNotes">Notas</label><textarea id="rfNotes" class="form-control" rows="2"></textarea></div>
@@ -3692,6 +3716,7 @@
   <script src="/static/js/features/vehicle-documents.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/expenses.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/refuels.js?v={{ asset_version }}"></script>
+  <script src="/static/js/features/fuel-stations.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/timeline.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/stats.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/costs.js?v={{ asset_version }}"></script>

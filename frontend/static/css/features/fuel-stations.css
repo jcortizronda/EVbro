@@ -1,0 +1,42 @@
+/* EVbro — Repostajes → «Gasolineras cercanas» (features/fuel-stations.js): map with a price pill per station and the list, cheapest first.
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
+.fs-card { padding: 1rem; margin-bottom: 12px; }
+.fs-head { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.7rem; }
+.fs-fuel { min-height: 40px; max-width: 100%; }
+.fs-map-wrap { position: relative; }
+.fs-map { height: 260px; border-radius: 14px; overflow: hidden; border: 1px solid var(--border-color); z-index: 0; }
+@media (min-width: 700px) { .fs-map { height: 340px; } }
+.fs-here {
+  position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 500;
+  min-height: 36px; padding: 0 14px; border-radius: 18px; border: 1px solid var(--border-color);
+  background: var(--surface); color: var(--text-primary); font-weight: 600; font-size: 0.85rem; cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+.fs-here[hidden] { display: none; }
+.fs-tools { display: flex; gap: 8px; margin: 0.6rem 0 0.2rem; }
+.fs-tools button { min-height: 40px; }
+.fs-status { margin: 0.5rem 0 0; color: var(--text-secondary); font-size: 0.88rem; }
+.fs-list { list-style: none; margin: 0.5rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.fs-row {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; text-align: left;
+  min-height: 52px; padding: 0.5rem 0.75rem; border-radius: 12px; border: 1px solid var(--border-color);
+  background: transparent; color: var(--text-primary); cursor: pointer; font: inherit;
+}
+.fs-row.is-cheapest { border-color: var(--accent-green); }
+.fs-row-text { display: flex; flex-direction: column; min-width: 0; }
+.fs-row-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fs-row-sub { color: var(--text-muted); font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fs-row-price { flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.fs-source { margin: 0.6rem 0 0; color: var(--text-muted); font-size: 0.75rem; }
+.fs-source:empty { display: none; }
+/* the price pill on the map: its colour is set from the script (cheapest green → dearest red) */
+.fs-pin-wrap { background: none; border: none; }
+.fs-pin {
+  display: inline-block; padding: 2px 7px; border-radius: 10px; border: 2px solid #fff; white-space: nowrap;
+  color: #fff; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  transform: translate(0, 0);
+}
+.fs-popup { display: flex; flex-direction: column; gap: 2px; font-size: 0.85rem; }
+.fs-popup-hours { color: #666; font-size: 0.78rem; }
+.fs-popup-price { font-weight: 700; margin-top: 2px; }
+.fs-popup a { margin-top: 4px; font-weight: 600; }

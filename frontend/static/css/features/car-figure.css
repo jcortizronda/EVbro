@@ -123,3 +123,16 @@
 .cf-overlay .cf-tyre { font-size: 25px; }
 .cf-tyre-temp { font-size: 19px; font-weight: 600; fill: var(--text-muted); text-anchor: middle; font-family: inherit; }
 .car-credit { font-size: 0.75rem; margin: 0.5rem 0 0; overflow-wrap: anywhere; }
+
+/* The hose beside the rear wheel while the cable is plugged in (features/car-figure.js, renderHose), ending in a charging gun;
+   under the gun, inside the picture, the power and the time the charge ends */
+.cf-hose { display: none; cursor: pointer; }
+.cf-hose[data-state="plugged"], .cf-hose[data-state="charging"] { display: inline; }
+.cf-overlay .cf-hose { pointer-events: all; }
+.cf-hose-line { fill: none; stroke: var(--accent); stroke-width: 9; stroke-linecap: round; stroke-linejoin: round; }
+.cf-hose-plug { fill: var(--accent); }
+.cf-hose[data-state="charging"] .cf-hose-line { stroke: var(--accent-green); }
+.cf-hose[data-state="charging"] .cf-hose-plug { fill: var(--accent-green); }
+.cf-hose-power { font-size: 30px; font-weight: 700; fill: var(--text-primary); text-anchor: middle; font-family: inherit; font-variant-numeric: tabular-nums; }
+.cf-hose-end { font-size: 25px; font-weight: 600; fill: var(--text-muted); text-anchor: middle; font-family: inherit; }
+.cf-hose[data-state="charging"] .cf-hose-end { fill: var(--accent-green); }

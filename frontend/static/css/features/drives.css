@@ -55,8 +55,9 @@
   font-size: 0.75rem;
 }
 
+/* theme colours (a fixed dark background left the text unreadable in the light theme, 25-11-2026) */
 .filter-input, .filter-select {
-  background: rgba(10, 14, 23, 0.7);
+  background: var(--surface-secondary);
   border: 1px solid var(--border-color);
   color: var(--text-primary);
   padding: 0.45rem 0.75rem;
@@ -110,8 +111,9 @@
 }
 
 .summary-card {
-  background: rgba(22, 31, 49, 0.7);
+  background: var(--surface);
   border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-card);
   border-radius: var(--radius-sm);
   padding: 1.25rem 1.5rem;
   display: flex;

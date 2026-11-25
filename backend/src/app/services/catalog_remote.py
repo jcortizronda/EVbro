@@ -345,7 +345,8 @@ async def sync(session: AsyncSession) -> Dict[str, Any]:
         c.last_error = None
     if c.last_error:
         await session.commit()
-        raise RemoteError(502 if status != 401 else 401, c.last_error)
+        # the other server refused our key: 424, never 401 (that one means «no session here» and the console went back to its sign-in)
+        raise RemoteError(502 if status != 401 else 424, c.last_error)
 
     await _clear_mirror(session)
     count = 0

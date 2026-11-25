@@ -1,4 +1,4 @@
-"""Fuel statistics out of the refuel log: real consumption between full tanks, cost per 100 km, price per litre, autonomy.
+"""Fuel statistics out of the refuel log: real consumption between full tanks, cost per 100 km, price per litre, days and km between refuels.
 
 How consumption is measured (the only honest way with a fuel log): between two **full-tank** refuels, the litres poured in after
 the first one, up to and including the second, are exactly what the car burned over the odometer distance between them. Refuels
@@ -41,10 +41,12 @@ def compute(refuels: Iterable, tank_liters: float, since: Optional[datetime.date
     rows = sorted(refuels, key=lambda r: r.timestamp)
     per_refuel: Dict[int, Dict[str, Any]] = {}
 
-    # 1. km since the previous refuel (any kind) and the gauge-based litres burned in between
+    # 1. km and days since the previous refuel (any kind) and the gauge-based litres burned in between
     prev = None
     for r in rows:
-        info: Dict[str, Any] = {"km_since_previous": None, "gauge_liters_burned": None}
+        info: Dict[str, Any] = {"km_since_previous": None, "days_since_previous": None, "gauge_liters_burned": None}
+        if prev is not None and r.timestamp > prev.timestamp:
+            info["days_since_previous"] = round((r.timestamp - prev.timestamp).total_seconds() / 86400.0, 1)
         if prev is not None and prev.odometer and r.odometer and r.odometer > prev.odometer:
             info["km_since_previous"] = round(r.odometer - prev.odometer, 1)
         if prev is not None and prev.fuel_after_pct is not None and r.fuel_before_pct is not None and prev.fuel_after_pct > r.fuel_before_pct:
@@ -111,7 +113,9 @@ def compute(refuels: Iterable, tank_liters: float, since: Optional[datetime.date
         "fuel_cost_per_100km": round(avg_price * consumption, 2) if avg_price is not None and consumption is not None else None,
         "avg_km_between_refuels": _mean([per_refuel[r.id]["km_since_previous"] for r in selected if per_refuel[r.id]["km_since_previous"]]),
         "avg_liters_per_refuel": _mean([r.liters for r in selected if r.liters]),
-        "full_tank_range_km": round(tank_liters * 100.0 / consumption) if consumption else None,
+        # how often the car is refuelled (the range on a full tank it replaced said little for a plug-in hybrid: the tank ÷ a
+        # consumption that counts the electric km gave thousands of km, 25-11-2026)
+        "avg_days_between_refuels": _mean([per_refuel[r.id]["days_since_previous"] for r in selected if per_refuel[r.id]["days_since_previous"] is not None]),
         "tank_liters": tank_liters,
         "last_refuel_at": last.timestamp.isoformat() if last else None,
         "months": [{"month": k, **{kk: (round(v, 1) if isinstance(v, float) else v) for kk, v in m.items()}}

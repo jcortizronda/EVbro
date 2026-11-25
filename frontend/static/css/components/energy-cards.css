@@ -201,22 +201,20 @@
 }
 
 /* Charging active bar inside main card */
+/* the same card as the other home widgets (.glass): it used to be tinted blue and stood out (25-11-2026); the accent stays on the
+   icon and the power */
 .charge-active-bar {
   margin-top: 1rem;
   width: 100%;
-  background: rgba(var(--accent-rgb), 0.08);
-  border: 1px solid rgba(var(--accent-rgb), 0.2);
-  border-radius: 18px;
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
   display: flex;
   align-items: center;
   justify-content: space-between;
   font-size: 0.88rem;
   transition: var(--transition);
-}
-
-[data-theme="dark"] .charge-active-bar {
-  background: rgba(var(--accent-rgb), 0.1);
-  border-color: rgba(var(--accent-rgb), 0.25);
 }
 
 .charge-active-bar .kw {

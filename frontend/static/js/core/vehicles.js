@@ -51,11 +51,9 @@ function updateVehicleHeaderInfo(vehicle) {
     headerSubtitle.innerText = modelName;
   }
 
-  // Update the plate in the tab headers
+  // Update the plate in the home header (only there: the charge header names the connectors)
   const plateBadge = document.getElementById('heroPlateBadge');
   if (plateBadge) plateBadge.innerText = plateText;
-  const energyPlateBadge = document.getElementById('energyHeroPlateBadge');
-  if (energyPlateBadge) energyPlateBadge.innerText = plateText;
 
   // Update the info panel in Ajustes -> Cuenta
   const setName = document.getElementById('settingsVehicleNameDisplay');

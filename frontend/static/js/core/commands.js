@@ -2,14 +2,23 @@
  * (Classic script: shares the global scope with the other files; see the load order in templates/index.html.)
  */
 
-function openTrunkActionSheet() {
-  const statusStr = "Estado actual: " + openClosedText(latestTelemetryData?.doors?.trunk, "Abierto", "Cerrado").replace(/^./, (c) => c.toUpperCase());
+/* The sheets of the doors, windows, sunroof and lock: every order in a fixed order (open, close, vent) and the one that matches what
+ * the car reports now highlighted, so the sheet reads as «this is how it is» (25-11-2026: the windows highlighted «Abrir» while
+ * they were closed). Nothing is highlighted without data or with a mix (some windows open, some closed). */
+function markCurrent(actions, current) {
+  return actions.map((a, i) => ({ ...a, type: i === current ? 'primary' : '' }));
+}
 
-  openActionSheet("Control de Maletero", statusStr, [
+const isReported = (v) => v !== null && v !== undefined;     // the car has sent this value
+
+function openTrunkActionSheet() {
+  const trunk = latestTelemetryData?.doors?.trunk;
+  const statusStr = "Estado actual: " + openClosedText(trunk, "Abierto", "Cerrado").replace(/^./, (c) => c.toUpperCase());
+
+  openActionSheet("Control de Maletero", statusStr, markCurrent([
     {
       label: "Abrir Maletero",
       desc: "Accionamiento remoto del portón eléctrico",
-      type: "primary",
       action: "executeCommandDirect('maletero_abrir', 'Abrir maletero'); closeActionSheet();"
     },
     {
@@ -17,18 +26,20 @@ function openTrunkActionSheet() {
       desc: "Cierre seguro del portón eléctrico",
       action: "executeCommandDirect('maletero_cerrar', 'Cerrar maletero'); closeActionSheet();"
     }
-  ]);
+  ], !isReported(trunk) ? -1 : trunk ? 0 : 1));
 }
 
 function openWindowsActionSheet() {
   const w = latestTelemetryData?.windows || {};
   const statusStr = "Estado actual: " + window.windowsStateText(w);
+  // each window: 0 closed, 1-2 ajar («Ventilar»), 3 or more open; all four the same → that option
+  const levels = ['fl', 'fr', 'rl', 'rr'].map((k) => (!isReported(w[k]) ? null : Number(w[k]) === 0 ? 1 : Number(w[k]) <= 2 ? 2 : 0));
+  const current = levels.every((l) => l !== null && l === levels[0]) ? levels[0] : -1;
 
-  openActionSheet("Control de Ventanillas", statusStr, [
+  openActionSheet("Control de Ventanillas", statusStr, markCurrent([
     {
       label: "Abrir Todas las Ventanillas",
       desc: "Apertura completa de las cuatro lunas",
-      type: "primary",
       action: "executeCommandDirect('ventanillas_abrir', 'Abrir ventanillas'); closeActionSheet();"
     },
     {
@@ -41,18 +52,18 @@ function openWindowsActionSheet() {
       desc: "Baja unos centímetros para renovar el aire",
       action: "executeCommandDirect('ventilar_ventanillas', 'Ventilar ventanillas'); closeActionSheet();"
     }
-  ]);
+  ], current));
 }
 
 function openSunroofActionSheet() {
   const sunroof = latestTelemetryData?.windows?.sunroof;                       // 0 closed, 2 tilted («Ventilar»), 3 open
   const statusStr = "Estado actual: " + openClosedText(sunroof, sunroof === 2 ? "Entreabierto" : "Abierto", "Cerrado").replace(/^./, (c) => c.toUpperCase());
+  const current = !isReported(sunroof) ? -1 : Number(sunroof) === 0 ? 1 : Number(sunroof) === 2 ? 2 : 0;
 
-  openActionSheet("Control de Techo Solar", statusStr, [
+  openActionSheet("Control de Techo Solar", statusStr, markCurrent([
     {
       label: "Abrir Techo Solar",
       desc: "Apertura completa del techo panorámico",
-      type: "primary",
       action: "executeCommandDirect('techo_abrir', 'Abrir techo solar'); closeActionSheet();"
     },
     {
@@ -65,20 +76,20 @@ function openSunroofActionSheet() {
       desc: "Levanta el cristal para renovar el aire",
       action: "executeCommandDirect('techo_ventilar', 'Ventilar techo solar'); closeActionSheet();"
     }
-  ]);
+  ], current));
 }
 
-// Central locking: decided by the car's REAL state; if it has not reported yet, let the user choose
+// Central locking: always a sheet with the car's REAL state and both orders, like the trunk and the windows (one tap on the tile
+// used to send the opposite order straight away, 25-11-2026: too easy to open the car by mistake). The current state is highlighted.
 function toggleLockState() {
   const locked = latestTelemetryData ? latestTelemetryData.is_locked : null;
-  if (locked === true) { executeCommandDirect('desbloquear', 'Desbloquear puertas'); return; }
-  if (locked === false) { executeCommandDirect('bloquear', 'Bloquear puertas'); return; }
-  openActionSheet("Cierre centralizado", "Estado actual: sin datos", [
-    { label: "Desbloquear", desc: "Pide el PIN", type: "primary",
+  const state = locked === true ? "Cerrado" : locked === false ? "Abierto" : "Sin datos";
+  openActionSheet("Cierre centralizado", "Estado actual: " + state, markCurrent([
+    { label: "Abrir el coche", desc: "Desbloquea las puertas",
       action: "executeCommandDirect('desbloquear', 'Desbloquear puertas'); closeActionSheet();" },
-    { label: "Bloquear", desc: "Cierra el coche",
+    { label: "Cerrar el coche", desc: "Bloquea las puertas",
       action: "executeCommandDirect('bloquear', 'Bloquear puertas'); closeActionSheet();" }
-  ]);
+  ], locked === true ? 1 : locked === false ? 0 : -1));
 }
 
 function toggleTrunk() {

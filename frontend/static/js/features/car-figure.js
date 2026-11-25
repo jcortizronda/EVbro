@@ -8,6 +8,8 @@
 
   const $ = (id) => document.getElementById(id);
   const known = (v) => v !== null && v !== undefined;
+  // the hose's horizontal line, in the picture's pixels: a little below the car, level with the rear wheel's pressure
+  const HOSE_Y = 515;
 
   const PART_LABELS = {
     hood: 'Capó', trunk: 'Maletero', sunroof: 'Techo',
@@ -282,11 +284,59 @@
     el('title', {}, lock).textContent = 'Cierre centralizado';
     el('path', { class: 'cf-lock-shackle', d: 'M6 10V7a4 4 0 0 1 8 0v3' }, lock);
     el('rect', { x: 3, y: 10, width: 14, height: 11, rx: 2.5 }, lock);
-    const cable = el('g', { class: 'cf-cable', 'data-part': 'cable', 'data-state': 'off', transform: `translate(${body[2] - 40} ${body[3] - 6}) scale(2.2)` }, svg);
+    // the charge port: on the left rear wing, just behind the wheel (moved forward from the corner, 25-11-2026)
+    const port = [body[2] - 98, body[3] + 10];
+    // with the cable plugged in, a short hose from the port down and back to a charging gun beside the rear wheel's pressure,
+    // with the power and the time the charge ends under the gun: the home page can do without the charge widget. All of it
+    // inside the picture, so it never runs into the summary under it however long that gets.
+    const hose = el('g', { class: 'cf-hose', 'data-part': 'hose', 'data-state': 'off', 'data-on-click': "switchTab('charges')" }, svg);
+    el('title', {}, hose).textContent = t('Ver la pantalla de carga');
+    // the hose runs down and along, then turns up into the tail of a charging gun (drawn in its own box, scaled down: head with
+    // the connector in front, a slanted grip and two collars where the cable goes in)
+    const end = [port[0] + 40, HOSE_Y];
+    el('path', { class: 'cf-hose-line', d: `M${port[0]} ${port[1]} V${HOSE_Y - 18} Q${port[0]} ${HOSE_Y} ${port[0] + 18} ${HOSE_Y} `
+      + `H${end[0] - 10} Q${end[0]} ${end[1]} ${end[0] + 6} ${end[1] - 6}` }, hose);
+    const GUN_SCALE = 0.25, GUN_TAIL = [43.6, 211.4], GUN_X = [40, 384];      // the gun's own box: tail point and left/right edges
+    const gunAt = [end[0] + 6 - GUN_TAIL[0] * GUN_SCALE, end[1] - 6 - GUN_TAIL[1] * GUN_SCALE];
+    const gun = el('g', { class: 'cf-hose-plug', transform: `translate(${gunAt[0]} ${gunAt[1]}) scale(${GUN_SCALE})` }, hose);
+    el('path', { d: 'M185 20 Q195 12 212 12 H308 Q322 12 322 26 V140 H268 V128 H218 L95 195 L60 160 Z' }, gun);      // head and grip
+    el('rect', { x: 332, y: 30, width: 52, height: 62, rx: 10 }, gun);                                              // connector
+    el('path', { d: 'M57.7 166.1 L88.9 197.3 L74 205 L50 181 Z M46.4 188.8 L66.2 208.6 L55.6 215 L40 199.4 Z' }, gun);   // collars
+    // under the gun, centred on it: the power and, below it, the time the charge ends (renderHose)
+    const under = gunAt[0] + (GUN_X[0] + GUN_X[1]) / 2 * GUN_SCALE;
+    el('text', { id: 'cfHosePower', class: 'cf-hose-power', x: under, y: HOSE_Y + 40 }, hose);
+    el('text', { id: 'cfHoseEnd', class: 'cf-hose-end', x: under, y: HOSE_Y + 72, 'data-x': under }, hose);
+    const cable = el('g', { class: 'cf-cable', 'data-part': 'cable', 'data-state': 'off', transform: `translate(${port[0]} ${port[1]}) scale(2.2)` }, svg);
     el('title', {}, cable).textContent = 'Cable de carga';
     el('circle', { r: 7.5 }, cable);
     el('path', { d: 'm-3 -1 h3 m-3 3 h3 m0 -5.5 v8 m0 -4 h3.5' }, cable);      // the plan's plug, in relative steps
     return svg;
+  }
+
+  /** The hose beside the car: shown with the cable plugged in, green while charging; under the gun the power and the time the
+   * charge ends («18:45», «mañana 06:10»; «Sin cargar» while plugged in but not charging). Voltage and current: the Carga page. */
+  function renderHose(root, data) {
+    const hose = root.querySelector('[data-part="hose"]');
+    if (!hose) return;
+    const plugged = data.cable_connected === true;
+    const charging = plugged && !!data.is_charging;
+    hose.dataset.state = !plugged ? 'off' : charging ? 'charging' : 'plugged';
+    if (!plugged) return;
+    const num = (v, d = 1) => (typeof historyNum === 'function' ? historyNum(v, d) : String(v));
+    const kw = Number(data.charge_power_kw);
+    $('cfHosePower').textContent = `${num(Number.isFinite(kw) ? kw : 0)} kW`;
+    const min = Number(data.remaining_charge_time_min);
+    const endLine = $('cfHoseEnd');
+    const ends = min > 0 && typeof chargeClock === 'function' ? chargeClock(min) : '';
+    // on its own line it starts with a capital («Mañana 06:10», «Jue 06:10»); in the charge widget it goes mid-sentence
+    endLine.textContent = !charging ? t('Sin cargar') : ends.charAt(0).toUpperCase() + ends.slice(1);
+    // a long one («mañana 06:10») would run past the picture's right edge: moved left just enough
+    const x = Number(endLine.dataset.x);
+    endLine.setAttribute('x', x);
+    try {
+      const half = endLine.getComputedTextLength() / 2, right = photo.layout.width - 4;
+      if (x + half > right) endLine.setAttribute('x', right - half);
+    } catch (e) { /* not laid out yet: stays centred */ }
   }
 
   /** Window and roof positions: 0 closed; windows 1-2 ajar («Ventilar»), 3/10 open; roof 2 ajar (tilted), 3 open. */
@@ -335,6 +385,7 @@
     if (lock) lock.dataset.state = data.is_locked === true ? 'locked' : data.is_locked === false ? 'unlocked' : 'unknown';
     const cable = root.querySelector('[data-part="cable"]');
     if (cable) cable.dataset.state = data.cable_connected === true ? (data.is_charging ? 'charging' : 'plugged') : 'off';
+    renderHose(root, data);
     const warn = tyreWarnings(data);
     const tp = data.tyre_pressures || {};
     const tt = data.tyre_temps || {};

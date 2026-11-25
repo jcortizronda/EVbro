@@ -377,7 +377,7 @@ def _refuels(d: Dict[str, Any], w: float) -> List[Any]:
                              (_n(cons, 1, "l/100 km") if cons is not None else "—", _("consumo real") if s.get("l_per_100km") is not None else _("consumo estimado")),
                              (_n(s.get("avg_price_per_liter"), 3, "€/l") if s.get("avg_price_per_liter") is not None else "—", _("precio medio del litro")),
                              (_eur(s.get("fuel_cost_per_100km")) if s.get("fuel_cost_per_100km") is not None else "—", _("gasolina por 100 km")),
-                             (_n(s.get("full_tank_range_km"), 0, "km") if s.get("full_tank_range_km") else "—", _("autonomía con depósito lleno")),
+                             (_n(s.get("avg_days_between_refuels"), 0, _("días")) if s.get("avg_days_between_refuels") else "—", _("días entre repostajes")),
                              (_n(s.get("avg_km_between_refuels"), 0, "km") if s.get("avg_km_between_refuels") else "—", _("entre repostajes"))], w)]
     months = {m["month"]: m["liters"] for m in s.get("months", [])}
     if months:

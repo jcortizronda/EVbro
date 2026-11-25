@@ -131,6 +131,9 @@ class Settings(BaseSettings):
     LEGAL_CONTACT: str = ""                # how to reach them for data requests (e-mail); shown in /legal
     ANDROID_ASSETLINKS_JSON: str = ""      # /.well-known/assetlinks.json for the Android app (TWA); empty = not served
     NOMINATIM_ENABLED: bool = True
+    # Fuel stations and prices from the Ministry's open service (services/fuel_stations.py): the map in Repostajes and the price
+    # of a detected refuel. Downloaded only when needed, at most once an hour. False = neither is offered.
+    FUEL_PRICES_ENABLED: bool = True
 
     # Shared consumables catalogue: the server a bare key (`ebc_…`) belongs to. A full link (`https://server#key`) always wins.
     CATALOG_DEFAULT_URL: str = "https://catalog.evbro.app"

@@ -30,7 +30,8 @@ def test_consumption_is_measured_between_full_tanks_including_partial_refuels() 
     assert s["per_refuel"][3]["l_per_100km"] == 4.5 and s["per_refuel"][3]["km_since_full"] == 1000.0
     assert s["per_refuel"][2]["l_per_100km"] is None                     # a partial refuel never closes a segment
     assert s["per_refuel"][2]["km_since_previous"] == 500.0
-    assert s["avg_km_between_refuels"] == 500.0 and s["full_tank_range_km"] == round(50 * 100 / 4.5)
+    assert s["avg_km_between_refuels"] == 500.0 and s["avg_days_between_refuels"] == 7.0 and "full_tank_range_km" not in s
+    assert s["per_refuel"][1]["days_since_previous"] is None and s["per_refuel"][2]["days_since_previous"] == 7.0
 
 
 def test_without_full_tanks_the_gauge_estimate_is_used_and_flagged() -> None:

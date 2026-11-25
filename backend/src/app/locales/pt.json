@@ -188,7 +188,8 @@
  "consumo estimado": "consumo estimado",
  "precio medio del litro": "preço médio do litro",
  "gasolina por 100 km": "gasolina por 100 km",
- "autonomía con depósito lleno": "autonomia com depósito cheio",
+ "días entre repostajes": "dias entre abastecimentos",
+ "días": "dias",
  "entre repostajes": "entre abastecimentos",
  "Detectado": "Detetado",
  "A mano": "À mão",
@@ -397,5 +398,10 @@
  "Indica qué columna tiene la fecha y cuál los litros (o el total y el precio por litro).": "Indica que coluna tem a data e qual tem os litros (ou o total e o preço por litro).",
  "Los litros no son válidos.": "Os litros não são válidos.",
  "El fichero tiene más de 1.000 repostajes: pártelo en varios.": "O ficheiro tem mais de 1000 abastecimentos: divide-o em vários.",
- "No hay ningún repostaje listo para importar.": "Não há nenhum abastecimento pronto para importar."
+ "No hay ningún repostaje listo para importar.": "Não há nenhum abastecimento pronto para importar.",
+ "Combustible no válido.": "Combustível inválido.",
+ "Indica la latitud y la longitud.": "Indica a latitude e a longitude.",
+ "Los precios de las gasolineras están desactivados en este servidor.": "Os preços dos postos estão desativados neste servidor.",
+ "Todavía no se conoce la posición del coche.": "Ainda não se conhece a posição do carro.",
+ "No se pudo descargar la lista de gasolineras del Ministerio. Inténtalo dentro de un rato.": "Não foi possível descarregar a lista de postos do Ministério. Tenta daqui a pouco."
 }

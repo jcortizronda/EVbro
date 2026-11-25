@@ -24,6 +24,7 @@ from app.api.routes_departure import router as departure_router
 from app.api.routes_documents import router as documents_router
 from app.api.routes_drives import router as drives_router
 from app.api.routes_expenses import router as expenses_router
+from app.api.routes_fuel_stations import router as fuel_stations_router
 from app.api.routes_geofences import router as geofences_router
 from app.api.routes_journeys import router as journeys_router
 from app.api.routes_maintenance import router as maintenance_router
@@ -70,6 +71,7 @@ protected.include_router(geofences_router)
 protected.include_router(maintenance_router)
 protected.include_router(maintenance_plan_router)
 protected.include_router(refuels_router)
+protected.include_router(fuel_stations_router)      # stations near the car and their prices (the Ministry's list)
 protected.include_router(timeline_router)
 protected.include_router(stats_router)
 protected.include_router(climate_schedules_router)

@@ -15,6 +15,7 @@ const rfDay = (iso) => serverDate(iso).toLocaleDateString(I18n.locale);
 
 async function loadRefuels() {
   if (!currentVin || !rfEl('tabRefuels')) return;
+  if (window.FuelStations) FuelStations.load();          // the stations around the car, at the top of the page (features/fuel-stations.js)
   try {
     const res = await fetch(`/api/vehicles/${currentVin}/refuels/summary?${refuelsPickerOf().query()}`);
     if (!res.ok) throw new Error(res.status);
@@ -50,7 +51,8 @@ function renderRefuels(d) {
       : 'Hacen falta dos repostajes con el depósito lleno y el cuentakilómetros para medir el consumo real.';
   rfEl('rfCostPer100').textContent = d.fuel_cost_per_100km === null ? '--' : rfMoney(d.fuel_cost_per_100km);
   rfEl('rfPriceLiter').textContent = d.avg_price_per_liter === null ? '--' : `${rfNum(d.avg_price_per_liter, 3)} €/l`;
-  rfEl('rfRange').textContent = d.full_tank_range_km === null ? '--' : `${rfNum(d.full_tank_range_km, 0)} km`;
+  const days = d.avg_days_between_refuels;          // average of the gaps between one refuel and the next (it replaced the full-tank range)
+  rfEl('rfDaysBetween').textContent = days === null ? '--' : t('{p0} días', {p0: rfNum(days, days < 10 ? 1 : 0)});
   rfEl('rfKmBetween').textContent = d.avg_km_between_refuels === null ? '--' : `${rfNum(d.avg_km_between_refuels, 0)} km`;
   rfEl('rfTotalLiters').textContent = `${rfNum(d.total_liters)} l`;
   rfEl('rfTotalCost').textContent = rfMoney(d.total_cost);

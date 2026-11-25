@@ -120,8 +120,10 @@ def test_the_headers_carry_a_small_image() -> None:
     assert re.search(r"\.page-banner \{[^}]*min-height: 9\d?px", CSS)
 
     for ident in ("vehicleName", "vehicleStatusBadge", "vehicleVin", "heroPlateBadge", "energyHeroTitle",
-                  "chargeHeroStateBadge", "energyHeroPlateBadge", "climateHeroTitle", "climateStatusBadge"):
+                  "chargeHeroStateBadge", "climateHeroTitle", "climateStatusBadge"):
         assert f'id="{ident}"' in text, ident
+    # the plate only in the home header; the charge header names the two connectors instead
+    assert 'id="energyHeroPlateBadge"' not in text and "Carga lenta: Conector Mennekes Tipo 2" in text and "Carga rápida: Conector CCS2" in text
 
 
 def test_vent_is_no_longer_on_the_home_page_because_it_is_in_windows() -> None:

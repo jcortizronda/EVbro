@@ -51,13 +51,14 @@ async def web(db, tmp_path, monkeypatch):
         yield client
 
 
-async def test_a_refused_password_is_a_401_with_the_clouds_reason_and_a_network_failure_a_502(web, monkeypatch) -> None:
+async def test_a_refused_password_is_a_424_with_the_clouds_reason_and_a_network_failure_a_502(web, monkeypatch) -> None:
+    """424, not 401: a 401 sends the page back to the EVbro sign-in and, behind CrowdSec, a few typos got the IP banned."""
     def refused(phone, password, area_code="34", **kw):
         raise RuntimeError(REFUSAL)
 
     monkeypatch.setattr(routes_account.ebro_login, "login_with_password", refused)
     r = await web.post("/api/account/login", json={"phone": "600000001", "area_code": "34", "password": "mala", "pin": ""})
-    assert r.status_code == 401
+    assert r.status_code == 424
     assert "contraseña es incorrecta" in r.json()["detail"] and "HTTP" not in r.json()["detail"]
 
     def unreachable(phone, password, area_code="34", **kw):
