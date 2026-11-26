@@ -18,6 +18,7 @@ from app.api.routes_parts import record_parts
 from app.db.models import MaintenanceItem, MaintenanceLog, MaintenancePlan, Vehicle
 from app.db.session import get_db
 from app.i18n import _
+from app.services import maintenance_advice
 from app.services import maintenance_official as official
 from app.services.parts import PartIn
 from app.timeutil import utcnow
@@ -56,6 +57,8 @@ class EventRequest(BaseModel):
     notes: Optional[str] = None
     parts: Optional[List[PartIn]] = None
     update_parts: bool = True                                # also update the car sheet with these parts
+    # the EVbro recommendation this intervention answers (services/maintenance_advice.py): it counts again from its day and km
+    advice_key: Optional[str] = Field(default=None, max_length=30)
 
 
 class OfficialCompleteRequest(BaseModel):
@@ -290,5 +293,7 @@ async def add_event(vin: str, req: EventRequest, session: AsyncSession = Depends
     )
     session.add(log)
     await record_parts(session, vin, log, req.parts, req.update_parts)
+    if req.advice_key in maintenance_advice.ADVICE:
+        await maintenance_advice.mark_checked(session, vehicle, req.advice_key, log.service_date, log.odometer)
     await session.commit()
     return {"status": "ok", "log_id": log.id}

@@ -188,6 +188,9 @@ async def _vin_of(session: AsyncSession, param: str, value: str) -> Optional[str
 
 VEHICLE_RESOURCE_PARAMS = ("vin", "drive_id", "charge_id", "refuel_id", "expense_id", "part_id", "item_id", "log_id", "document_id", "schedule_id", "journey_id")
 OTHER_RESOURCE_PARAMS = ("invite_id", "user_id", "member_id", "geofence_id", "device_id", "passkey_id")      # handled by their own rules
+# `advice_key` is not a resource: the name of one of EVbro's maintenance recommendations (a closed list the route checks), always
+# beside the `vin` that is authorised here
+OTHER_RESOURCE_PARAMS += ("advice_key",)
 
 
 def required_level(method: str, template: str) -> str:

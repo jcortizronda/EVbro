@@ -164,6 +164,21 @@ class AlertsMixin:
                         )
                 except Exception as ex:
                     _LOGGER.debug(f"Warning while checking maintenance alerts: {ex}")
+                # EVbro's own recommendations (brakes, old petrol, tyres, 12 V battery, wipers: services/maintenance_advice.py):
+                # one notice when one comes due, and a single notice for all when several do at once. The first look at a car is
+                # silent (SEEN_MARK): what was already due that day is listed in Mantenimiento, only what comes due later notifies
+                try:
+                    from app.services import maintenance_advice
+                    async with async_session_factory() as a_session:
+                        due = await maintenance_advice.due_alerts(a_session, vin, now, odo)
+                    first_look = f"advice:{maintenance_advice.SEEN_MARK}" not in sent
+                    names = [maintenance_advice.SEEN_MARK] + [a["alert"] for a in due]
+                    fresh = set(await self._fresh_alerts(session, vin, sent, "advice", names))
+                    new = [] if first_look else [a for a in due if a["alert"] in fresh]
+                    if new:
+                        await NotificationService.notify_maintenance_advice(vehicle.name, maintenance_advice.notice(new), len(new), vin=vin)
+                except Exception as ex:
+                    _LOGGER.debug(f"Warning while checking maintenance recommendations: {ex}")
 
         # 4b. Dated renewals (insurance, taxes…): checked every 6 h; one alert 30 days before, one in the last week and one once
         #     overdue (the band is part of its key)

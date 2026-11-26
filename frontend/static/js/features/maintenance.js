@@ -17,6 +17,7 @@ async function loadMaintenance() {
       latestModel = maintenancePlan.vehicle.model;
     }
     renderMaintenance();
+    if (window.MaintAdvice) MaintAdvice.load();          // EVbro's recommendations, in their own card
   } catch (err) {
     const grid = document.getElementById('maintenanceGrid');
     if (grid) grid.innerHTML = `<div class="u-color-var-accent-red_grid-column-1-1_text-align-center">${t('No se pudo cargar el mantenimiento ({p0}).', {p0: escapeHtml(err)})}</div>`;
@@ -414,7 +415,11 @@ async function submitItv() {
 const EVENT_IDEAS = [['Pastillas de freno', 'brake_pads'], ['Discos de freno', 'brake_discs'], ['Reparación de rueda', null], ['Neumáticos nuevos', 'tyres'],
   ['Batería de 12 V', 'battery_12v'], ['Escobillas', 'wiper_blades'], ['Amortiguadores', null], ['Alineación', null]];
 
+// the EVbro recommendation the intervention being typed answers, if it was started from one (features/maintenance-advice.js)
+window.maintEventAdviceKey = null;
+
 function showMaintEventModal() {
+  window.maintEventAdviceKey = null;
   for (const id of ['evTitle', 'evKm', 'evCost', 'evWorkshop', 'evNotes', 'evInvoice']) document.getElementById(id).value = '';
   document.getElementById('evDate').value = new Date().toISOString().split('T')[0];
   document.getElementById('evCat').value = 'General';
@@ -440,9 +445,10 @@ async function submitMaintEvent() {
       title, category: document.getElementById('evCat').value, service_date: date ? `${date}T00:00:00` : null,
       odometer: isNaN(km) ? null : km, cost: parseFloat(document.getElementById('evCost').value) || 0,
       workshop: document.getElementById('evWorkshop').value.trim() || null, notes: document.getElementById('evNotes').value.trim() || null,
-      ...collectParts('evPartsBox'),
+      ...collectParts('evPartsBox'), advice_key: window.maintEventAdviceKey || null,
     }, 'evInvoice', 'Intervención registrada');
     closeMaintEventModal();
+    if (window.MaintAdvice) MaintAdvice.load();
   } catch (e) {
     showToast(`No se pudo registrar: ${e.message || e}`, 'error', 6000);
   }

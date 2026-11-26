@@ -727,6 +727,20 @@ class MaintenancePlan(Base):
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
 
+class MaintenanceAdvice(Base):
+    """What the owner answered to one of EVbro's maintenance recommendations for a car (services/maintenance_advice.py): when it
+    was last looked at, until when it is postponed and whether it is switched off. No row = never answered."""
+    __tablename__ = "maintenance_advice"
+
+    vin = Column(String(32), ForeignKey("vehicles.vin", ondelete="CASCADE"), primary_key=True)
+    key = Column(String(30), primary_key=True)                             # brakes, fuel_age, tyre_rotation, tyre_age, battery_12v, wipers
+    checked_at = Column(DateTime, nullable=True)                           # «Revisado, está bien» or the intervention recorded for it
+    checked_odometer = Column(Float, nullable=True)
+    snooze_until = Column(DateTime, nullable=True)                         # «Recuérdamelo más adelante»
+    snooze_odometer = Column(Float, nullable=True)
+    enabled = Column(Boolean, default=True, nullable=False, server_default="true")
+
+
 class MaintenanceLog(Base):
     """History of services and interventions done."""
     __tablename__ = "maintenance_logs"

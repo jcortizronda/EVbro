@@ -1,0 +1,40 @@
+/* EVbro — Mantenimiento → «Recomendaciones de EVbro» (features/maintenance-advice.js): checks outside the brand's plan.
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
+.maint-advice { padding: 16px; margin-bottom: 12px; }
+.maint-advice[hidden] { display: none; }
+.ma-card-head { display: flex; align-items: center; gap: 8px; }
+.ma-count {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px;
+  background: var(--accent-amber, #ff9f0a); color: var(--bg); font-size: 0.78rem; font-weight: 800;
+}
+.ma-count[hidden] { display: none; }
+.ma-intro { margin: 4px 0 12px; color: var(--text-secondary); font-size: 0.84rem; line-height: 1.4; }
+.ma-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ma-item {
+  --st: var(--accent-green, #30d158); padding: 12px 14px; border: 1px solid var(--border-color); border-left: 4px solid var(--st);
+  border-radius: 14px; background: var(--surface-secondary);
+}
+.ma-item[data-status="due"] { --st: var(--accent-amber, #ff9f0a); }
+.ma-item[data-status="snoozed"] { --st: var(--accent, #0a84ff); }
+.ma-item[data-status="off"] { --st: var(--text-muted); opacity: 0.75; }
+.ma-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.ma-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ma-title strong { font-size: 0.98rem; color: var(--text-primary); overflow-wrap: anywhere; }
+.ma-standing { font-size: 0.84rem; color: var(--text-secondary); }
+.ma-item[data-status="due"] .ma-standing { color: var(--text-primary); font-weight: 600; }
+.ma-pill {
+  flex: none; padding: 3px 10px; border-radius: 999px; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--st); border: 1px solid var(--st); white-space: nowrap;
+}
+/* the page colour on the amber: dark on the bright amber of the dark theme, light on the brown one of the light theme */
+.ma-item[data-status="due"] .ma-pill { background: var(--st); color: var(--bg); }
+.ma-why { margin: 8px 0 0; font-size: 0.86rem; line-height: 1.45; color: var(--text-secondary); }
+.ma-note { margin: 6px 0 0; font-size: 0.84rem; line-height: 1.4; color: var(--text-primary); }
+.ma-every { display: block; margin-top: 6px; font-size: 0.76rem; color: var(--text-muted); }
+.ma-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
+.ma-actions .btn-primary, .ma-actions .btn-secondary { min-height: 44px; }
+.ma-link { min-height: 36px; padding: 0 4px; font-size: 0.84rem; }
+.ma-item[data-status="ok"] .ma-actions, .ma-item[data-status="off"] .ma-actions { margin-top: 4px; gap: 4px 14px; }
+@media (max-width: 560px) {
+  .ma-actions .btn-primary, .ma-actions .btn-secondary { flex: 1 1 100%; }
+}

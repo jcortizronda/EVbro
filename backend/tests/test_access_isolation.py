@@ -92,7 +92,8 @@ async def world(db):
         await s.commit()
         ids = {"vin": VIN_A, "drive_id": drive.id, "charge_id": charge.id, "refuel_id": refuel.id, "expense_id": expense.id, "part_id": part.id,
                "item_id": item.id, "log_id": log.id, "document_id": doc.id, "geofence_id": gf.id, "device_id": sub.id, "passkey_id": passkey.id,
-               "schedule_id": sched.id, "journey_id": journey.id, "member_id": 4, "user_id": 4, "invite_id": 1}
+               "schedule_id": sched.id, "journey_id": journey.id, "member_id": 4, "user_id": 4, "invite_id": 1,
+               "advice_key": "brakes"}                       # not a resource: the name of an EVbro maintenance recommendation
     return ids
 
 

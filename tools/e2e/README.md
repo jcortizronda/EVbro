@@ -11,6 +11,7 @@ python tools/e2e/nav.py                                    # navegación según 
 python tools/e2e/map.py                                    # mapa de la portada: ampliar, centrar, «Ir a», «atrás»
 python tools/e2e/maintenance.py                            # mantenimiento: plan oficial/personalizado, fecha de entrega, escalones y tareas propias
 python tools/e2e/profile_costs.py                             # ficha del coche, Gastos, Costes, repostajes y cabecera
+python tools/e2e/maintenance_advice.py                      # recomendaciones de EVbro: lo que toca primero, «más adelante», «revisado», registrar la intervención y desactivar
 python tools/e2e/parts.py                                     # consumibles y referencias: ficha, buscador y piezas de las intervenciones
 python tools/e2e/documents.py                                 # documentos del coche: factura de compra, póliza (varios con título), otros; abrir y borrar
 python tools/e2e/accounts.py                                  # cuentas asociadas: crear, compartir un coche con un nivel y ver qué se oculta

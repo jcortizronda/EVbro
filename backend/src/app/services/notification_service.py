@@ -382,6 +382,13 @@ class NotificationService:
         await cls.dispatch(vin=vin, category="renewals", title=title, message=msg, tags=["calendar"], priority=prio)
 
     @classmethod
+    async def notify_maintenance_advice(cls, vehicle_name: str, text: Union[str, Message], count: int = 1, vin: Optional[str] = None):
+        """One of EVbro's recommendations (outside the brand's plan) has come due, or several at once (one notice for all)."""
+        title = M("Recomendación de mantenimiento: {p0}", p0=vehicle_name) if count == 1 else M("{p0} recomendaciones de mantenimiento: {p1}", p0=count, p1=vehicle_name)
+        footer = M("Contesta en Mantenimiento: revisado, registrar la intervención o más adelante.")
+        await cls.dispatch(vin=vin, category="maintenance", title=title, message=Message.join("\n", [text, footer]), tags=["wrench"], priority="default")
+
+    @classmethod
     async def notify_tyre_pressure(cls, vehicle_name: str, problems: List[str], vin: Optional[str] = None):
         """Tyres whose pressure is outside the range set on the vehicle."""
         await cls.dispatch(

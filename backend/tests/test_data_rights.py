@@ -112,6 +112,25 @@ async def test_the_car_book_is_a_pdf_with_the_chosen_sections(world) -> None:
     assert (await ana.post("/api/vehicles/NOEXISTE/book", json={})).status_code == 404
 
 
+async def test_the_book_has_a_contents_page_and_bookmarks_and_is_made_without_the_car_pictures(world, monkeypatch) -> None:
+    from app.services import car_book
+
+    # a server without the pictures of the car (they are not in the public repository): the cover simply goes without the car
+    car_book._car_render.cache_clear()
+    assert car_book._car_render("no-such-model") is None
+    monkeypatch.setattr(car_book, "_car_render", lambda model: None)
+    r = await world["ana"].post(f"/api/vehicles/{VIN}/book", json={"sections": ["sheet", "maintenance", "drives"]})
+    assert r.status_code == 200 and r.content.startswith(PDF_MAGIC)
+    assert b"/Outlines" in r.content                                                          # one bookmark per section
+    assert b"EVbro" in r.content                                                              # author / creator
+
+
+def test_the_car_book_is_offered_in_the_car_page_the_more_menu_and_the_sidebar() -> None:
+    from app.paths import frontend_dir
+    html = open(f"{frontend_dir()}/templates/index.html", encoding="utf-8").read()
+    assert html.count('data-on-click="CarBook.open()"') == 3 and 'class="glass book-promo needs-edit"' in html
+
+
 # ───────────────────────── exportar e importar ─────────────────────────
 async def test_export_has_everything_without_secrets_and_import_rebuilds_it_elsewhere(world) -> None:
     ana, bea = world["ana"], world["bea"]

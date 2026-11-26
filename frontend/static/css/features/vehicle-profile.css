@@ -53,7 +53,23 @@
 #trDevice { min-width: 0; flex: 1 1 auto; }
 
 /* Car book */
-.vp-book-btn { margin-right: auto; font-weight: 700; }
+/* the car book, in plain sight above the sections: icon, what it is and the button (features/car-book.js) */
+.book-promo {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px 14px; padding: 14px 16px; margin-bottom: 12px;
+  border-left: 4px solid #bf5af2;
+}
+.book-promo-icon {
+  display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 12px;
+  color: #bf5af2; background: color-mix(in srgb, #bf5af2 16%, transparent);
+}
+.book-promo-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.book-promo-text strong { font-size: 1rem; color: var(--text-primary); }
+.book-promo-text span { font-size: 0.84rem; line-height: 1.4; color: var(--text-secondary); }
+.book-promo-btn { min-height: 44px; white-space: nowrap; }
+@media (max-width: 560px) {
+  .book-promo { grid-template-columns: auto 1fr; }
+  .book-promo-btn { grid-column: 1 / -1; width: 100%; }
+}
 .book-sections { display: grid; gap: 6px; margin: 10px 0; }
 .book-sections label { display: flex; align-items: flex-start; gap: 10px; min-height: 36px; font-size: 0.9rem; line-height: 1.35; }
 .book-sections input { width: 20px; height: 20px; flex: none; margin-top: 2px; accent-color: var(--accent-bright); }

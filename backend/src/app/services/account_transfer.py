@@ -28,6 +28,7 @@ from app.db.models import (
     Geofence,
     GeofenceEvent,
     GpsPosition,
+    MaintenanceAdvice,
     MaintenanceItem,
     MaintenanceLog,
     MaintenancePlan,
@@ -111,6 +112,7 @@ async def export_account(session: AsyncSession, user_id: int, username: str) -> 
                 "vehicle": row(v, tuple(VEHICLE_SKIP)),
                 "photo": put(uploads.PHOTOS_FOLDER, v.photo_filename, f"files/photos/{vin}.jpg"),
                 "maintenance_plan": row(plan, ("vin",)) if plan else None,
+                "maintenance_advice": [row(a, ("vin",)) for a in (await session.execute(select(MaintenanceAdvice).where(MaintenanceAdvice.vin == vin))).scalars()],
                 "maintenance_items": [{**row(i, ("vin",)), "id": i.id} for i in items],
                 "maintenance_logs": [{**row(log, ("invoice_filename",)), "invoice_file": put(uploads.INVOICES_FOLDER, log.invoice_filename, f"files/invoices/{vin}/{log.id}")} for log in logs],
                 "parts": [row(p, ("id", "vin", "catalog_id")) for p in (await session.execute(select(VehiclePart).where(VehiclePart.vin == vin))).scalars()],
@@ -206,6 +208,9 @@ async def import_account(session: AsyncSession, user_id: int, blob: bytes, vehic
             report["files"] += 1
         if entry.get("maintenance_plan"):
             session.add(MaintenancePlan(vin=vin, **_parse(MaintenancePlan, entry["maintenance_plan"], ("vin",))))
+        for a in entry.get("maintenance_advice", []):
+            if a.get("key"):
+                session.add(MaintenanceAdvice(vin=vin, **_parse(MaintenanceAdvice, a, ("vin",))))
         item_map: Dict[int, int] = {}
         for i in entry.get("maintenance_items", []):
             obj = MaintenanceItem(vin=vin, **_parse(MaintenanceItem, i, ("id", "vin")))

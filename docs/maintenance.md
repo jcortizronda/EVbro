@@ -48,6 +48,36 @@ El poller revisa cada 200 km o cada 6 h (los plazos en meses vencen sin que el c
 en modo oficial (solo coches EBRO), la próxima revisión si está `warning`/`due`; en modo personalizado (o con otra marca), cada tarea propia `warning`/`due`. El texto dice km y/o días.
 Se activan en Ajustes → Avisos → «Mantenimiento oficial».
 
+## Recomendaciones de EVbro (`services/maintenance_advice.py`, desde el 25-11-2026)
+
+Revisiones **fuera del plan de la marca** que dependen de cómo se usa un híbrido enchufable. Son consejos de EVbro: los plazos son
+**práctica general de taller, no datos de EBRO**, y así se dice en la pantalla. **[DUDA]** no se han contrastado con un taller de la marca.
+
+| Recomendación (`key`) | Cuándo toca | Cuenta desde |
+| :--- | :--- | :--- |
+| Pastillas y discos (`brakes`) | 15.000 km o 12 meses, lo que llegue antes | último «revisado», pastillas o discos nuevos en Consumibles, o la entrega |
+| Gasolina envejecida (`fuel_age`) | 4 meses sin repostar; segundo aviso a los 6 | último repostaje o último «revisado» |
+| Rotar neumáticos (`tyre_rotation`) | 10.000 km; 8.000 si más de la mitad de los km del último año son en viajes a ≥ 90 km/h de media (con al menos 1.000 km de viajes) | último «revisado», neumáticos nuevos, o la entrega |
+| Edad de los neumáticos (`tyre_age`) | a los 5 años; después cada año | el DOT del neumático más viejo (o su fecha de montaje); sin ellos, la entrega |
+| Batería de 12 V (`battery_12v`) | a los 3 años; después cada año | la fecha de montaje en Consumibles; sin ella, la entrega |
+| Escobillas (`wipers`) | 12 meses | último «revisado», escobillas nuevas, o la entrega |
+
+Con más del 70 % de los km en eléctrico, la de frenos añade una nota sobre el óxido de los discos. Sin fecha de entrega (ni de matriculación)
+solo se vigilan los km: las que cuentan solo meses no aparecen. Sin ningún repostaje registrado no hay «gasolina envejecida». Un coche con plan
+**personalizado** que ya tiene una tarea para una de ellas (su nombre contiene «rotaci», «escobilla», «12 V» o «pastilla») no recibe esa recomendación.
+
+**Respuestas** (tabla `maintenance_advice`, una fila por coche y recomendación, migración `0041`; van en la exportación de la cuenta):
+- **«Revisado, está bien»** (`POST /vehicles/{vin}/maintenance/advice/{key}/check`, opcionalmente con `date` y `odometer`): vuelve a contar **desde ese día y esos km**, no en múltiplos fijos (avisado a 10.000 y contestado a 10.400 → el siguiente a 20.400), como el plan oficial.
+- **«Registrar intervención»**: la intervención puntual de siempre (`POST …/maintenance/events`) con `advice_key`; cuenta desde su fecha y sus km.
+- **«Recuérdamelo más adelante»** (`POST …/advice/{key}/snooze`): 30 días, o 1.000 km en las que cuentan km, lo que llegue antes.
+- **Desactivar / activar** (`PUT …/advice/{key}` con `enabled`).
+
+`GET /vehicles/{vin}/maintenance/advice` las devuelve ordenadas: las que tocan, las aplazadas, las que van al día y las desactivadas. Leer pide
+nivel «ver»; contestar, «editar». **Aviso**: el poller las mira con el mantenimiento (cada 200 km o 6 h) y manda **un aviso por recomendación
+cuando vence**; si vencen varias a la vez, **uno solo con la lista**. No se repite hasta que se contesta y vuelve a vencer. **La primera
+vez que mira un coche no avisa** (marca `advice:_seen` en `alert_states`): lo que ya tocaba ese día (un coche con años el día del
+despliegue, o recién añadido) sale en la lista y solo avisa lo que venza después. Usa el interruptor de Ajustes → Avisos → «Mantenimiento». Interfaz: `features/maintenance-advice.js`.
+
 ## Migración
 
 Las tareas que ya existían pasan a `custom` (columna `origin`, valor por defecto), con sus fechas e historial. Los registros antiguos de «revisión

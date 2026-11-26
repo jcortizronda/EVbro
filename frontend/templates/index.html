@@ -40,6 +40,7 @@
   <link rel="stylesheet" href="/static/css/features/maintenance.css?v={{ asset_version }}">
   <link rel="stylesheet" href="/static/css/features/maintenance-checklist.css?v={{ asset_version }}">
   <link rel="stylesheet" href="/static/css/features/maintenance-plan.css?v={{ asset_version }}">
+  <link rel="stylesheet" href="/static/css/features/maintenance-advice.css?v={{ asset_version }}">
   <link rel="stylesheet" href="/static/css/features/vehicle-profile.css?v={{ asset_version }}">
   <link rel="stylesheet" href="/static/css/features/vehicle-documents.css?v={{ asset_version }}">
   <link rel="stylesheet" href="/static/css/features/costs.css?v={{ asset_version }}">
@@ -174,6 +175,7 @@
     <div class="side-group">
       <span class="side-group-label">Gestión</span>
       <button type="button" class="side-item" data-tab="vehicle" data-on-click="switchTab('vehicle')"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 17H3v-5l2-5h12l3 5v5h-2"></path><circle cx="7.5" cy="17" r="2"></circle><circle cx="16.5" cy="17" r="2"></circle><path d="M5 12h14"></path></svg><span>Coches</span></button>
+      <button type="button" class="side-item needs-edit" data-on-click="CarBook.open()"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path><path d="M9 7h7M9 11h5"></path></svg><span>Libro del coche</span></button>
       <button type="button" class="side-item" data-tab="geofences" data-on-click="switchTab('geofences')"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg><span>Geocercas</span></button>
       <button type="button" class="side-item" data-tab="settings" data-on-click="switchTab('settings')"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg><span>Ajustes</span></button>
     </div>
@@ -1308,19 +1310,19 @@
               </div>
             </button>
 
-            <!-- Settings -->
-            <button class="native-card-btn" data-on-click="switchTab('settings')">
+            <!-- The car book (PDF), beside the cars; only for who may edit the car -->
+            <button class="native-card-btn needs-edit" data-on-click="CarBook.open()">
               <div class="card-icon-wrap u-color-bf5af2">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path><path d="M9 7h7M9 11h5"></path></svg>
               </div>
               <div class="card-text-block">
-                <strong class="card-title">Ajustes & Cuenta</strong>
-                <span class="card-subtitle">Cuenta, compartir, avisos y tema</span>
+                <strong class="card-title">Libro del coche</strong>
+                <span class="card-subtitle">Todo tu coche en un PDF</span>
               </div>
             </button>
           </div>
 
-          <div class="action-row-top action-row-single u-margin-top-10px">
+          <div class="action-row-top u-grid-template-columns-1fr-1fr_margin-top-10px">
             <!-- Full HA sensor inspector -->
             <button class="native-card-btn" data-on-click="openAllSensorsModal()">
               <div class="card-icon-wrap u-color-30d158">
@@ -1329,6 +1331,16 @@
               <div class="card-text-block">
                 <strong class="card-title">Sensores</strong>
                 <span class="card-subtitle">Todos los datos del coche, en directo</span>
+              </div>
+            </button>
+            <!-- Settings -->
+            <button class="native-card-btn" data-on-click="switchTab('settings')">
+              <div class="card-icon-wrap u-color-bf5af2">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+              </div>
+              <div class="card-text-block">
+                <strong class="card-title">Ajustes & Cuenta</strong>
+                <span class="card-subtitle">Cuenta, compartir, avisos y tema</span>
               </div>
             </button>
           </div>
@@ -1374,6 +1386,13 @@
         <div class="maint-quick-actions">
           <button type="button" class="btn-secondary" data-on-click="showMaintEventModal()">Registrar intervención puntual</button>
           <small>Pastillas de freno, una rueda, la batería de 12 V… cosas sueltas que no se repiten cada cierto tiempo.</small>
+        </div>
+
+        <!-- EVbro's own recommendations, outside the brand's plan (features/maintenance-advice.js); hidden when none applies -->
+        <div class="glass maint-advice" id="maintAdviceCard" hidden>
+          <div class="ma-card-head"><div class="card-title u-margin-0">Recomendaciones de EVbro</div><span class="ma-count" id="maintAdviceCount" hidden></span></div>
+          <p class="ma-intro">Revisiones que no están en el plan de la marca y que dependen de cómo usas el coche. Son consejos de EVbro, con plazos orientativos: no sustituyen a las revisiones oficiales.</p>
+          <ul class="ma-list" id="maintAdviceList"></ul>
         </div>
 
         <!-- ==================== OFFICIAL PLAN ==================== -->
@@ -1764,7 +1783,13 @@
           </div>
 
           <div class="vp-form">
-            <div class="vp-fold-bar"><button type="button" class="vp-book-btn" data-on-click="CarBook.open()">Libro del coche (PDF)</button><button type="button" data-on-click="foldVehicleSections(true)">Desplegar todo</button><button type="button" data-on-click="foldVehicleSections(false)">Plegar todo</button></div>
+            <!-- The car book, in plain sight (it was a small button in the bar below; features/car-book.js) -->
+            <div class="glass book-promo needs-edit">
+              <span class="book-promo-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path><path d="M9 7h7M9 11h5"></path></svg></span>
+              <div class="book-promo-text"><strong>Libro del coche</strong><span>Todo lo que EVbro sabe de tu coche en un PDF profesional: ficha, mantenimiento, viajes, cargas y gastos. Para guardarlo, llevarlo al taller o entregarlo al venderlo.</span></div>
+              <button type="button" class="btn-primary book-promo-btn" data-on-click="CarBook.open()">Crear PDF</button>
+            </div>
+            <div class="vp-fold-bar"><button type="button" data-on-click="foldVehicleSections(true)">Desplegar todo</button><button type="button" data-on-click="foldVehicleSections(false)">Plegar todo</button></div>
             <details class="glass details-card vp-section" data-tone="blue" data-key="identity">
               <summary class="vp-section-title"><span class="vp-section-icon"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 17H3v-5l2-5h12l3 5v5h-2"/><circle cx="7.5" cy="17" r="2"/><circle cx="16.5" cy="17" r="2"/><path d="M5 12h14"/></svg></span>Identidad<span class="vp-chev" aria-hidden="true"></span></summary>
               <div class="vp-grid">
@@ -3699,6 +3724,7 @@
   <script src="/static/js/features/journeys.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/maintenance.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/maintenance-official.js?v={{ asset_version }}"></script>
+  <script src="/static/js/features/maintenance-advice.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/maintenance-invoices.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/charge-sessions.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/charge-manual.js?v={{ asset_version }}"></script>

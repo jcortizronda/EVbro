@@ -28,6 +28,7 @@ from app.api.routes_fuel_stations import router as fuel_stations_router
 from app.api.routes_geofences import router as geofences_router
 from app.api.routes_journeys import router as journeys_router
 from app.api.routes_maintenance import router as maintenance_router
+from app.api.routes_maintenance_advice import router as maintenance_advice_router
 from app.api.routes_maintenance_plan import router as maintenance_plan_router
 from app.api.routes_manual_charges import router as manual_charges_router
 from app.api.routes_members import router as members_router
@@ -70,6 +71,7 @@ protected.include_router(commands_router)
 protected.include_router(geofences_router)
 protected.include_router(maintenance_router)
 protected.include_router(maintenance_plan_router)
+protected.include_router(maintenance_advice_router)     # EVbro's recommendations outside the brand's plan
 protected.include_router(refuels_router)
 protected.include_router(fuel_stations_router)      # stations near the car and their prices (the Ministry's list)
 protected.include_router(timeline_router)
