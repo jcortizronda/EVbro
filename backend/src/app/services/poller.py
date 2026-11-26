@@ -70,6 +70,14 @@ UNSENT_RETRY_SECONDS = 3.0
 # the cable arrives on its own (and forces a read), so the frequent read is only a safety net.
 HOLD_POLL_SECONDS = 300
 HOLD_POLL_LIVE_SECONDS = 1800
+# A scheduled charge wakes the car, EVbro reads it within seconds and the cloud does not say «charging» yet (26-11-2026: a read
+# at 02:00:12 had no charge flag; the next read of a plugged car came 30 min later, and with it the notice and the start of the
+# recorded charge). What that early read does bring is the time left to charge (`remainChargeTime`), which an idle plugged car
+# does not send: in 14 days of reads of every car, 25 of 30 such reads were followed by a charge, against 4 of 52 reads with
+# power but no time left (`charge_power_kw` is an absolute value: the climate drawing from the battery looks the same). With
+# the cable in, a time left and no charge flag, the car is read again shortly, a few times at most per episode.
+CHARGE_START_RECHECK_SECONDS = 120
+CHARGE_START_RECHECKS = 3
 
 
 def read_failure_group(res: Dict) -> str:
@@ -108,6 +116,8 @@ class VehiclePoller(SessionMixin, CommandsMixin, AlertsMixin, PositionWatchMixin
     _session_paused: Dict[str, Dict] = {}
     # Alert situations not yet confirmed: (vin, key) -> since when they are seen
     _pending_since: Dict[tuple, datetime.datetime] = {}
+    # Early re-reads already asked for a charge that seems to be starting (see CHARGE_START_RECHECKS)
+    _charge_start_rechecks: Dict[str, int] = {}
     # Polls requested by car events (one at a time per vehicle)
     _poll_requests: Dict[str, "asyncio.Task"] = {}
     _poll_semaphore: Optional[asyncio.Semaphore] = None
@@ -187,12 +197,36 @@ class VehiclePoller(SessionMixin, CommandsMixin, AlertsMixin, PositionWatchMixin
             return
         self._poll_requests[vin] = asyncio.create_task(self.poll_vehicle(vin, force=force))
 
+    def _poll_later(self, vin: str, seconds: float) -> None:
+        """Asks for a read of the car in `seconds`."""
+        try:
+            asyncio.get_running_loop().call_later(seconds, lambda: self.request_poll(vin, force=True))
+        except RuntimeError:
+            pass                       # no event loop (synchronous tests)
+
+    def _watch_charge_start(self, vin: str, telemetry: Dict) -> bool:
+        """After each read: a plugged car that announces a time left to charge but that the cloud does not report as charging
+        yet is read again in two minutes instead of at the next plugged read (30 min). At most CHARGE_START_RECHECKS times in a
+        row; the count starts again once the car charges, is unplugged or stops announcing it. Returns whether a read was
+        asked for."""
+        starting = (bool(telemetry.get("cable_connected")) and not telemetry.get("is_charging")
+                    and (telemetry.get("remaining_charge_time_min") or 0) > 0)
+        if not starting:
+            self._charge_start_rechecks.pop(vin, None)
+            return False
+        asked = self._charge_start_rechecks.get(vin, 0)
+        if asked >= CHARGE_START_RECHECKS:
+            return False
+        self._charge_start_rechecks[vin] = asked + 1
+        self._poll_later(vin, CHARGE_START_RECHECK_SECONDS)
+        return True
+
     def forget_vehicle(self, vin: str) -> None:
         """Drops everything kept in memory about a deleted car (services/tenant.py): its session context and PIN, its last reading
         and the marks of the loop."""
         for store in (self._contexts, self._latest_snapshots, self._last_poll_times, self._last_geofence_by_vin, self._geofence_odometer_by_vin,
                       self._last_charging_by_vin, self._last_maint_check_km, self._last_maint_check_at, self._last_renewal_check_at,
-                      self._session_paused, self._position_watch, self._last_location_code):
+                      self._session_paused, self._position_watch, self._last_location_code, self._charge_start_rechecks):
             store.pop(vin, None)
         self._unpolled_logged.discard(vin)
         for key in [k for k in self._pending_since if k[0] == vin]:
@@ -624,6 +658,7 @@ class VehiclePoller(SessionMixin, CommandsMixin, AlertsMixin, PositionWatchMixin
         # Charge control: battery target, pauses and their renewal
         await ChargeManager.get_instance().on_snapshot(vin, telemetry)
         await self._watch_frozen_position(vin, telemetry)
+        self._watch_charge_start(vin, telemetry)
 
         # Publish to MQTT if enabled
         if publish_mqtt:
