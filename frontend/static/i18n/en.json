@@ -2643,5 +2643,7 @@
  "la entrega del coche": "the car's delivery",
  "Escribe tu contraseña de EVbro para añadir la huella de este dispositivo.": "Type your EVbro password to add this device's fingerprint.",
  "Añadir huella": "Add fingerprint",
- "Continuar": "Continue"
+ "Continuar": "Continue",
+ "No se pudo resolver el nombre del servidor.": "The server's name could not be resolved.",
+ "Este servidor de EVbro solo admite direcciones públicas, no las de una red local.": "This EVbro server only accepts public addresses, not those of a local network."
 }

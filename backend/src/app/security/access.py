@@ -267,13 +267,16 @@ async def first_manager_id(session: AsyncSession) -> Optional[int]:
 
 
 async def foreign_vins(session_or_owner, owner_id: Optional[int] = None) -> frozenset:
-    """VINs that belong to a manager other than `owner_id`. Usable as `foreign_vins(owner_id)` (opens its own session)."""
+    """VINs of the cars another manager has **connected with its Ebro account** (their session copies must never be overwritten).
+    A car without an Ebro account is not here: its VIN is only what a file or a form said, and the account that proves the car
+    takes it (`tenant.release_vin`). Usable as `foreign_vins(owner_id)` (opens its own session)."""
     if owner_id is None and not hasattr(session_or_owner, "execute"):
         owner_id = session_or_owner
         from app.db.session import async_session_factory
         async with async_session_factory() as session:
             return await foreign_vins(session, owner_id)
-    rows = (await session_or_owner.execute(select(Vehicle.vin).where(Vehicle.owner_id.is_not(None), Vehicle.owner_id != owner_id))).all()
+    rows = (await session_or_owner.execute(select(Vehicle.vin).where(Vehicle.owner_id.is_not(None), Vehicle.owner_id != owner_id,
+                                                                         Vehicle.is_manual.is_(False)))).all()
     return frozenset(v for (v,) in rows)
 
 

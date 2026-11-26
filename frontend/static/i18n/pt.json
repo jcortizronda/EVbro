@@ -2643,5 +2643,7 @@
  "la entrega del coche": "a entrega do carro",
  "Escribe tu contraseña de EVbro para añadir la huella de este dispositivo.": "Escreva a sua palavra-passe do EVbro para adicionar a impressão digital deste dispositivo.",
  "Añadir huella": "Adicionar impressão digital",
- "Continuar": "Continuar"
+ "Continuar": "Continuar",
+ "No se pudo resolver el nombre del servidor.": "Não foi possível resolver o nome do servidor.",
+ "Este servidor de EVbro solo admite direcciones públicas, no las de una red local.": "Este servidor do EVbro só aceita endereços públicos, não os de uma rede local."
 }

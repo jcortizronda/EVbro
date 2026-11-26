@@ -3,9 +3,10 @@ from __future__ import annotations
 
 import logging
 import os
+import uuid
 from typing import Dict, List
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import (
@@ -82,6 +83,34 @@ async def delete_vehicles(session: AsyncSession, vins: List[str]) -> None:
             remove_vehicle_data(vin)
         except ValueError:
             pass
+
+
+async def release_vin(session: AsyncSession, vehicle: Vehicle) -> str:
+    """Moves a car **without an Ebro account** to a generated VIN, keeping its owner and everything that hangs from it, so that the
+    VIN it carried is free again. Returns the new VIN. Does not commit.
+
+    A manual car's `vin` is an internal id, but an imported account brings its cars with the VIN written in the file, and that
+    file can be edited: a VIN typed there used to stay «taken», and the real owner's Ebro account then skipped the car. Whoever
+    proves the car with its Ebro account wins; the imported car stays with its history under a new id and keeps the old VIN as
+    its (informative) chassis number.
+
+    Order matters where foreign keys are enforced: the copy exists before its children point at it, and the old row goes last."""
+    if not vehicle.is_manual:
+        raise ValueError("only a car without an Ebro account can be moved")
+    old_vin, old_id = vehicle.vin, vehicle.id
+    new_vin = f"MAN{uuid.uuid4().hex[:14].upper()}"
+    values = {c.name: getattr(vehicle, c.name) for c in Vehicle.__table__.columns if c.name not in ("id", "vin")}
+    values["chassis_number"] = values.get("chassis_number") or old_vin[:32]
+    session.expunge(vehicle)
+    await session.execute(insert(Vehicle.__table__).values(vin=new_vin, **values))
+    for table in Base.metadata.sorted_tables:
+        if "vin" in table.c and table.name != "vehicles":
+            await session.execute(update(table).where(table.c.vin == old_vin).values(vin=new_vin))
+    await session.execute(delete(Vehicle.__table__).where(Vehicle.__table__.c.id == old_id))
+    # Something a person did (an edited import file, or a car that changed hands), not a fault of the code
+    _LOGGER.warning("Car %s of manager #%s had no Ebro account and its VIN was claimed by one: moved to %s.",
+                    old_vin[-6:], values.get("owner_id"), new_vin, extra={"telemetry": False})
+    return new_vin
 
 
 async def delete_manager_space(session: AsyncSession, manager_id: int) -> Dict[str, int]:

@@ -20,8 +20,10 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple
 import aiohttp
 from sqlalchemy import select
 
+from app.config import settings
 from app.db.models import TraccarLink, Vehicle
 from app.db.session import async_session_factory
+from app.security.netguard import private_link_problem, url_host_port
 from app.timeutil import utcnow
 
 _LOGGER = logging.getLogger(__name__)
@@ -95,9 +97,21 @@ class TraccarClient:
         return aiohttp.ClientSession(headers={"Authorization": f"Bearer {self.token}"}, connector=aiohttp.TCPConnector(ssl=self.verify_ssl),
                                      timeout=aiohttp.ClientTimeout(total=20))
 
+    async def _guard(self) -> None:
+        """On a server shared with other people (`ALLOW_PRIVATE_LINKS=false`) the Traccar server must be a public address. Checked
+        on every connection: the name may point somewhere else by now."""
+        problem = await asyncio.to_thread(private_link_problem, *url_host_port(self.base))
+        if problem:
+            raise TraccarError(problem)
+
+    @property
+    def _follow(self) -> bool:
+        return settings.ALLOW_PRIVATE_LINKS                    # a redirect could lead back inside: not followed on a shared server
+
     async def _get(self, path: str, params: Optional[Dict[str, Any]] = None) -> Any:
+        await self._guard()
         try:
-            async with self._session() as s, s.get(self.base + path, params=params) as r:
+            async with self._session() as s, s.get(self.base + path, params=params, allow_redirects=self._follow) as r:
                 if r.status == 401:
                     raise TraccarError("Traccar rechaza el token (401).")
                 if r.status >= 400:
@@ -119,8 +133,9 @@ class TraccarClient:
 
     async def subscribe(self, on_positions: Callable[[List[Fix]], Awaitable[None]], stop: asyncio.Event) -> None:
         """Open the WebSocket and deliver every batch of positions until `stop` is set or the connection drops (raises)."""
+        await self._guard()
         async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=self.verify_ssl)) as s:
-            async with s.get(self.base + "/session", params={"token": self.token}) as r:        # cookie session for the socket
+            async with s.get(self.base + "/session", params={"token": self.token}, allow_redirects=self._follow) as r:        # cookie session for the socket
                 if r.status != 200:
                     raise TraccarError(f"Traccar rechaza el token para la sesión ({r.status}).")
             try:

@@ -23,6 +23,7 @@ from sqlalchemy import select
 from app.config import settings
 from app.db.models import MqttLink
 from app.db.session import async_session_factory
+from app.security.netguard import private_link_problem
 from app.services import ha_discovery
 from app.timeutil import utcnow
 
@@ -45,6 +46,7 @@ class MqttLinkConfig:
     username: Optional[str] = None
     password: Optional[str] = None
     use_tls: bool = False
+    guarded: bool = False          # a manager's own broker: checked against `ALLOW_PRIVATE_LINKS` (the `.env` one is the operator's)
     topic_prefix: str = "evbro"
     ha_discovery: bool = True
     ha_prefix: str = "homeassistant"
@@ -58,7 +60,7 @@ class MqttLinkConfig:
     @classmethod
     def from_link(cls, link: MqttLink) -> "MqttLinkConfig":
         return cls(host=link.host, port=link.port or (8883 if link.use_tls else 1883), username=link.username or None, password=link.password or None,
-                   use_tls=bool(link.use_tls), topic_prefix=link.topic_prefix or "evbro", ha_discovery=bool(link.ha_discovery),
+                   use_tls=bool(link.use_tls), guarded=True, topic_prefix=link.topic_prefix or "evbro", ha_discovery=bool(link.ha_discovery),
                    ha_prefix=link.ha_prefix or "homeassistant", client_id=f"evbro_{link.user_id}")
 
 
@@ -101,6 +103,12 @@ class MqttLinkClient:
     async def start(self) -> None:
         if mqtt is None or not self.config.host:
             return
+        if self.config.guarded:
+            problem = await asyncio.to_thread(private_link_problem, self.config.host, self.config.port)
+            if problem:                                        # a shared server does not connect into its own network for a manager
+                self.last_error = problem
+                _LOGGER.warning("MQTT link %s not started: its broker is not a public address.", self.config.client_id, extra={"telemetry": False})
+                return
         self._loop = asyncio.get_running_loop()
         try:
             self._client = _new_client(self.config.client_id)

@@ -39,6 +39,7 @@ El nombre del proyecto es fijo (`evbro`): los volúmenes (`evbro_evbro_data` con
 | `ADMIN_BIND_ADDRESS` / `ADMIN_WEB_PORT` | `127.0.0.1` / `8082` | Consola de administración (solo red local) |
 | `DEFAULT_VEHICLE_LIMIT` / `DEFAULT_MEMBER_LIMIT` / `DEFAULT_STORAGE_MB` / `INVITE_DEFAULT_DAYS` | `2` / `5` / `50` / `14` | Límites de un gestor nuevo y caducidad de las invitaciones |
 | `ALLOW_PRIVATE_WEBHOOKS` | `false` | Webhooks hacia direcciones privadas (p. ej. Home Assistant en la LAN) |
+| `ALLOW_PRIVATE_LINKS` | `true` | Traccar y broker MQTT de los gestores en direcciones privadas. Ponlo en `false` si el servidor lo usan otras personas |
 | `CATALOG_DEFAULT_URL` | `https://catalog.evbro.app` | Catálogo del proyecto: al que se da de alta el botón «Conectar» (y la pregunta del primer administrador) y el que se usa cuando se pega solo la clave (`ebc_…`) |
 | `CATALOG_OPEN_SIGNUP` | `false` | Solo el servidor del proyecto: deja que otras instalaciones se den de alta solas en su catálogo (`POST /api/catalog/online/signup`) |
 | `TELEMETRY_URL` | `https://data.evbro.app` | Adónde van los informes anónimos **si el administrador los activa** en la consola; vacío = nunca se envían ([telemetry.md](telemetry.md)) |
@@ -90,6 +91,7 @@ Variables en `deploy/.env` cuando hay proxy:
 | `VAPID_SUBJECT` | `mailto:tu@dominio` | Contacto declarado a Google/Apple en Web Push |
 | `ADMIN_BIND_ADDRESS` / `ADMIN_WEB_PORT` | `127.0.0.1` / `8082` | Dónde se publica la **consola de administración** (otra interfaz, otro puerto). **Solo red local; nunca detrás del proxy público.** Para abrirla desde tu ordenador, la IP de la LAN del servidor |
 | `ALLOW_PRIVATE_WEBHOOKS` | `false` | Permite que los webhooks de los gestores apunten a direcciones privadas (p. ej. Home Assistant). El servidor es quien llama |
+| `ALLOW_PRIVATE_LINKS` | `true` | Permite que el Traccar y el broker MQTT que configura cada gestor estén en una dirección privada (lo normal en casa). Con `false` (un servidor que comparten varias personas) esos enlaces solo se aceptan si su nombre resuelve a direcciones públicas, no siguen redirecciones y se vuelve a comprobar en cada conexión; el broker del `.env` no se ve afectado |
 | `DEFAULT_VEHICLE_LIMIT` / `DEFAULT_MEMBER_LIMIT` | `2` / `5` | Coches y cuentas asociadas con los que empieza un gestor invitado (el administrador los cambia por cuenta) |
 | `DEFAULT_STORAGE_MB` | `50` | Espacio (MB) para documentos, facturas y fotos de los coches de un gestor sin límite propio (-1 sin límite). El administrador lo cambia por cuenta |
 

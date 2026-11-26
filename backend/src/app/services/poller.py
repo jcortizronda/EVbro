@@ -19,7 +19,7 @@ from app.core.telemetry import parse_telemetry_data
 from app.db.models import EbroAccount, TelemetrySnapshot, Vehicle
 from app.db.session import async_session_factory
 from app.security.access import first_manager_id, foreign_vins, within_vehicle_limit
-from app.services import cloud_usage, energy_recalc, vehicle_profiles
+from app.services import admin_audit, cloud_usage, energy_recalc, tenant, vehicle_profiles
 from app.services import telemetry as usage_reports
 from app.services.accounts import fetch_account_vehicles, vehicle_data_dir
 from app.services.car_events import CarEventHub
@@ -431,8 +431,14 @@ class VehiclePoller(SessionMixin, CommandsMixin, AlertsMixin, PositionWatchMixin
                 existing = (await session.execute(stmt)).scalar_one_or_none()
 
                 if existing is not None and existing.owner_id not in (None, owner_id):
-                    _LOGGER.warning("Vehicle %s already belongs to another account: left alone.", vin[-6:])
-                    continue
+                    if not existing.is_manual or owner_id is None or not await within_vehicle_limit(session, owner_id):
+                        _LOGGER.warning("Vehicle %s already belongs to another account: left alone.", vin[-6:])
+                        continue
+                    # A car without an Ebro account that only *says* it has this VIN (an imported file): this account proves the car
+                    moved_to = await tenant.release_vin(session, existing)
+                    await admin_audit.log(session, None, "car.vin_released", target=vin, detail=f"proved by the Ebro account of manager #{owner_id}; "
+                                          f"the car without account is now {moved_to}", commit=False)
+                    existing = None
                 if existing is None and (owner_id is None or not await within_vehicle_limit(session, owner_id)):
                     _LOGGER.warning("Vehicle %s not registered: the account's vehicle limit was reached.", vin[-6:])
                     continue

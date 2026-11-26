@@ -73,6 +73,10 @@ class Settings(BaseSettings):
     # Webhooks of the managers may point to private addresses (e.g. Home Assistant on the LAN)? Off by default: a webhook is made
     # by the server, so it could otherwise be used to reach the server's own network.
     ALLOW_PRIVATE_WEBHOOKS: bool = False
+    # May the managers' own servers (Traccar, MQTT broker) sit on a private address? Yes on a self-hosted EVbro: that is where they
+    # usually are. `false` on a server shared with other people: the links must then resolve to public addresses only, or any
+    # account could make the server connect to whatever is next to it.
+    ALLOW_PRIVATE_LINKS: bool = True
     INVITE_DEFAULT_DAYS: int = 14
     # Limits a new manager starts with (-1 unlimited, 0 none); the admin can change them per account.
     DEFAULT_VEHICLE_LIMIT: int = 2

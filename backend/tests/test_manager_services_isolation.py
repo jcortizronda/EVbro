@@ -259,3 +259,107 @@ async def test_the_mqtt_status_and_reconnect_routes_are_per_user(world) -> None:
     finally:
         await ana.aclose()
         await beto.aclose()
+
+
+# ───────────────────────── a VIN that only a file claims gives way to the Ebro account that proves it ─────────────────────────
+async def test_a_car_without_ebro_account_gives_its_vin_to_the_account_that_proves_it(world, ebro) -> None:
+    """An imported account brings its cars with the VIN written in the file. Typed there, somebody else's VIN used to stay taken and
+    the real owner's Ebro account skipped the car. The imported car now moves to a generated VIN with everything it had."""
+    from app.db.models import AdminAudit, Expense, MaintenanceItem
+
+    async with async_session_factory() as s:
+        s.add(Vehicle(owner_id=3, vin=NEW1, name="Importado por Beto", is_manual=True, license_plate="0000XXX"))
+        s.add(Vehicle(owner_id=3, vin=NEW2, name="Otro importado", is_manual=True))
+        await s.flush()
+        s.add(MaintenanceItem(vin=NEW1, name="Aceite"))
+        s.add(Expense(vin=NEW1, category="other", title="Lavado", amount=12.0, date=__import__("datetime").date(2026, 1, 2)))
+        await s.commit()
+    ebro["cars"] = [VIN_A, NEW1, VIN_B]            # Ana's Ebro account proves NEW1; VIN_B is Beto's *connected* car
+    ana = await client_for(2)
+    try:
+        r = await ana.post("/api/vehicles/discover")
+        assert r.status_code == 200 and NEW1 in r.json()["vehicles"]
+    finally:
+        await ana.aclose()
+    assert NEW1 not in ebro["skipped"] and VIN_B in ebro["skipped"]          # only connected cars of others are protected
+    async with async_session_factory() as s:
+        proved = (await s.execute(select(Vehicle).where(Vehicle.vin == NEW1))).scalar_one()
+        assert proved.owner_id == 2 and proved.is_manual is False and proved.name == "Nuevo 01"
+        moved = (await s.execute(select(Vehicle).where(Vehicle.owner_id == 3, Vehicle.name == "Importado por Beto"))).scalar_one()
+        assert moved.vin.startswith("MAN") and len(moved.vin) == 17 and moved.is_manual and moved.chassis_number == NEW1
+        assert moved.license_plate == "0000XXX"
+        assert (await s.execute(select(MaintenanceItem.vin).where(MaintenanceItem.name == "Aceite"))).scalar_one() == moved.vin
+        assert (await s.execute(select(Expense.vin).where(Expense.title == "Lavado"))).scalar_one() == moved.vin
+        beto_connected = (await s.execute(select(Vehicle).where(Vehicle.vin == VIN_B))).scalar_one()
+        assert beto_connected.owner_id == 3                                   # a car connected by its own Ebro account never moves
+        untouched = (await s.execute(select(Vehicle).where(Vehicle.vin == NEW2))).scalar_one()
+        assert untouched.owner_id == 3                                        # nobody proved this one
+        audit = (await s.execute(select(AdminAudit).where(AdminAudit.action == "car.vin_released"))).scalar_one()
+        assert audit.target == NEW1 and moved.vin in audit.detail
+
+
+async def test_the_login_route_also_frees_a_claimed_vin_but_not_beyond_the_vehicle_limit(world, ebro) -> None:
+    async with async_session_factory() as s:
+        s.add(Vehicle(owner_id=3, vin=NEW1, name="Importado por Beto", is_manual=True))
+        s.add(Vehicle(owner_id=3, vin=NEW2, name="Otro importado", is_manual=True))
+        await s.commit()
+    ebro["cars"] = [VIN_A, NEW1, NEW2]             # Ana: limit 2, already has 1 -> room for one only
+    ana = await client_for(2)
+    try:
+        r = await ana.post("/api/account/login", json={"phone": "600000002", "password": "x", "area_code": "34"})
+        assert r.status_code == 200, r.text
+    finally:
+        await ana.aclose()
+    async with async_session_factory() as s:
+        owners = {v.vin: (v.owner_id, v.is_manual) for v in (await s.execute(select(Vehicle))).scalars()}
+    assert owners[NEW1] == (2, False)                                         # proved and taken
+    assert owners[NEW2] == (3, True)                                          # no room in Ana's account: Beto's car stays as it was
+    assert sum(1 for vin, (owner, manual) in owners.items() if owner == 3 and manual and vin.startswith("MAN")) == 1
+
+
+# ───────────────────────── a shared server does not connect into its own network for a manager ─────────────────────────
+async def test_private_links_are_allowed_by_default_and_refused_on_a_shared_server(world, monkeypatch) -> None:
+    import socket
+
+    from app.security import netguard
+    from app.services import mqtt_hub
+    from app.services.traccar import TraccarClient, TraccarError
+
+    def resolve(ip):
+        return lambda *a, **k: [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (ip, 0))]
+
+    monkeypatch.setattr(socket, "getaddrinfo", resolve("192.168.1.10"))
+    assert settings.ALLOW_PRIVATE_LINKS is True                              # a self-hosted EVbro reaches its LAN, as always
+    assert netguard.private_link_problem("traccar.lan", 8082) is None
+    monkeypatch.setattr(settings, "ALLOW_PRIVATE_LINKS", False)
+    assert "públicas" in netguard.private_link_problem("traccar.lan", 8082)
+    assert netguard.url_host_port("http://10.0.0.5:8123/any/path?x=1#:8082/api") == ("10.0.0.5", 8123)     # what the URL really reaches
+    ana = await client_for(2)
+    try:
+        body = {"host": "10.0.0.5:8123/any/path?x=1#", "api_token": "t", "port": 8082}
+        r = await ana.post(f"/api/vehicles/{VIN_A}/traccar/test", json=body)
+        assert r.status_code == 502 and "públicas" in r.json()["detail"]
+        r = await ana.put(f"/api/vehicles/{VIN_A}/traccar", json={**body, "device_id": 1})
+        assert r.status_code == 422 and "públicas" in r.json()["detail"]
+        mqtt = {"host": "192.168.1.10", "port": 1883, "username": "u", "password": "p"}
+        r = await ana.post("/api/account/mqtt/test", json=mqtt)
+        assert r.status_code == 200 and r.json()["ok"] is False and "públicas" in r.json()["error"]
+        r = await ana.put("/api/account/mqtt", json=mqtt)
+        assert r.status_code == 422 and "públicas" in r.json()["detail"]
+    finally:
+        await ana.aclose()
+    # a link saved before the switch (or a name that now points inside) is not connected either
+    with pytest.raises(TraccarError):
+        await TraccarClient("192.168.1.10", "t").get_server()
+    started = []
+    monkeypatch.setattr(mqtt_hub, "_new_client", lambda *a, **k: started.append(a) or (_ for _ in ()).throw(AssertionError("must not connect")))
+    client = mqtt_hub.MqttLinkClient(mqtt_hub.MqttLinkConfig(host="192.168.1.10", guarded=True, client_id="evbro_2"))
+    await client.start()
+    assert started == [] and "públicas" in client.last_error
+    # a public address passes, and so does the operator's own broker from the environment (not guarded)
+    monkeypatch.setattr(socket, "getaddrinfo", resolve("93.184.216.34"))
+    assert netguard.private_link_problem("traccar.example", 443) is None
+    assert mqtt_hub.MqttLinkConfig.from_env().guarded is False
+    monkeypatch.setattr(socket, "getaddrinfo", lambda *a, **k: (_ for _ in ()).throw(OSError("no such host")))
+    assert "resolver" in netguard.private_link_problem("nope.example", 443)
+

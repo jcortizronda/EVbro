@@ -1,6 +1,7 @@
 """Traccar Server link of a car (Coches → ficha → «Posición por GPS»): configure, test, status, latest fix."""
 from __future__ import annotations
 
+import asyncio
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -10,7 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import GpsPosition, TraccarLink, Vehicle
 from app.db.session import get_db
-from app.services.traccar import TraccarClient, TraccarError, TraccarHub
+from app.security.netguard import private_link_problem, url_host_port
+from app.services.traccar import TraccarClient, TraccarError, TraccarHub, base_url
 from app.timeutil import utcnow
 
 router = APIRouter(tags=["Traccar"])
@@ -74,6 +76,9 @@ async def test_link(vin: str, req: TraccarTest, session: AsyncSession = Depends(
 async def save_link(vin: str, req: TraccarSave, session: AsyncSession = Depends(get_db)):
     if (await session.execute(select(Vehicle.vin).where(Vehicle.vin == vin))).scalar_one_or_none() is None:
         raise HTTPException(status_code=404, detail="Vehículo no encontrado.")
+    problem = await asyncio.to_thread(private_link_problem, *url_host_port(base_url(req.host, req.port, req.use_ssl)))
+    if problem:
+        raise HTTPException(status_code=422, detail=problem)
     link = await _link(session, vin)
     token = (req.api_token or "").strip()
     if link is None:

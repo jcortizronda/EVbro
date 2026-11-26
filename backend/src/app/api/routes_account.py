@@ -22,8 +22,9 @@ from app.db.session import get_db
 from app.i18n import _, get_language
 from app.security import auth, passwords
 from app.security.access import foreign_vins, is_root, space_owner_id, within_vehicle_limit
+from app.security.netguard import private_link_problem
 from app.security.throttle import LoginThrottle
-from app.services import command_policy, exit_survey, mqtt_hub, storage, tenant, vehicle_profiles
+from app.services import admin_audit, command_policy, exit_survey, mqtt_hub, storage, tenant, vehicle_profiles
 from app.services.accounts import (
     account_ctx,
     change_account_password,
@@ -240,7 +241,13 @@ async def login_ebro_account(req: EbroLoginRequest, session: AsyncSession = Depe
         v_exist = (await session.execute(v_stmt)).scalar_one_or_none()
 
         if v_exist is not None and v_exist.owner_id not in (None, account_obj.user_id):
-            continue                                              # somebody else's car: never touched from this account
+            if not v_exist.is_manual or not await within_vehicle_limit(session, account_obj.user_id):
+                continue                                          # somebody else's connected car: never touched from this account
+            # A car without an Ebro account that only *says* it has this VIN (an imported file): this account proves the car
+            moved_to = await tenant.release_vin(session, v_exist)
+            await admin_audit.log(session, None, "car.vin_released", target=vin, detail=f"proved by the Ebro account of manager #{account_obj.user_id}; "
+                                  f"the car without account is now {moved_to}", commit=False)
+            v_exist = None
         if v_exist is None and not await within_vehicle_limit(session, account_obj.user_id):
             continue                                              # the manager reached the vehicle limit
         if not v_exist:
@@ -254,6 +261,7 @@ async def login_ebro_account(req: EbroLoginRequest, session: AsyncSession = Depe
             )
             vehicle_profiles.fill_defaults(v_new)            # battery, tank and label of the model; the owner can change them
             session.add(v_new)
+            await session.flush()                            # so the next car of this same answer counts it against the vehicle limit
             discovered.append({"vin": vin, "name": nickname, "model": model, "is_new": True})
         else:
             v_exist.owner_id = v_exist.owner_id or account_obj.user_id
@@ -799,6 +807,9 @@ async def get_mqtt_link(session: AsyncSession = Depends(get_db), user: AppUser =
 @router.put("/mqtt")
 async def save_mqtt_link(req: MqttLinkIn, session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)):
     """Saves the broker (password encrypted) and reconnects: from then on this manager's cars are published there."""
+    problem = await asyncio.to_thread(private_link_problem, req.host.strip(), req.port or (8883 if req.use_tls else 1883))
+    if problem:
+        raise HTTPException(status_code=422, detail=problem)
     link = await _mqtt_link(session, user.id)
     if link is None:
         link = MqttLink(user_id=user.id, host=req.host.strip())
@@ -827,6 +838,9 @@ async def delete_mqtt_link(session: AsyncSession = Depends(get_db), user: AppUse
 @router.post("/mqtt/test")
 async def test_mqtt_link(req: MqttLinkIn, session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)):
     """Connects once to the broker given (or the stored password when none is typed) and reports the outcome."""
+    problem = await asyncio.to_thread(private_link_problem, req.host.strip(), req.port or (8883 if req.use_tls else 1883))
+    if problem:
+        return {"ok": False, "error": problem}
     password = req.password or None
     if not password:
         link = await _mqtt_link(session, user.id)

@@ -5,10 +5,8 @@ import asyncio
 import datetime
 import hashlib
 import html
-import ipaddress
 import json
 import logging
-import socket
 from typing import Any, Dict, List, Optional, Tuple, Union
 from urllib.parse import urlparse
 
@@ -21,6 +19,7 @@ from app.db.models import AppUser, DeviceAccess, NotificationConfig, Notificatio
 from app.db.session import async_session_factory
 from app.i18n import M, Message, render
 from app.security.auth import account_usable
+from app.security.netguard import host_points_inside
 from app.timeutil import utcnow
 
 _LOGGER = logging.getLogger(__name__)
@@ -32,25 +31,6 @@ CATEGORY_FLAG: Dict[str, str] = {
     "security": "notify_security_alerts", "low_battery": "notify_low_battery", "tyre_pressure": "notify_tyre_pressure",
     "renewals": "notify_renewals", "fuel_low": "notify_fuel_low", "vehicle_fault": "notify_vehicle_faults", "windows_open": "notify_windows_open",
 }
-
-
-def _inside_address(ip_text: str) -> bool:
-    """Whether an address belongs to the server's own surroundings: loopback, private and shared ranges, link-local/metadata…"""
-    ip = ipaddress.ip_address(ip_text.split("%", 1)[0])
-    mapped = getattr(ip, "ipv4_mapped", None)           # ::ffff:192.168.1.1 is 192.168.1.1
-    if mapped is not None:
-        ip = mapped
-    return (ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast or ip.is_unspecified
-            or not ip.is_global)                        # `is_global` also leaves out 100.64.0.0/10 (shared address space)
-
-
-def host_points_inside(hostname: str, port: int) -> Optional[bool]:
-    """True when `hostname` resolves to an address inside the server's network, False when all are public, None when it does not resolve."""
-    try:
-        infos = socket.getaddrinfo(hostname, port, proto=socket.IPPROTO_TCP)
-    except OSError:
-        return None
-    return any(_inside_address(info[4][0]) for info in infos)
 
 
 def webhook_url_problem(url: Optional[str]) -> Optional[str]:
