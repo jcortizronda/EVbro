@@ -536,11 +536,33 @@ def _car_render(model: str) -> Optional[bytes]:
         return None
 
 
+COVER_PHOTO_PX = 1600          # longest side of the cover photo: a phone's photo as it comes made a 4 MB book (26-11-2026)
+
+
+def _cover_photo(raw: bytes) -> bytes:
+    """The user's photo ready for the cover: the right way up (phones store the rotation apart), at most COVER_PHOTO_PX on its
+    longest side and as JPEG, on white where it was transparent."""
+    from PIL import Image as PILImage
+    from PIL import ImageOps
+
+    img = ImageOps.exif_transpose(PILImage.open(io.BytesIO(raw)))
+    img.thumbnail((COVER_PHOTO_PX, COVER_PHOTO_PX))
+    if img.mode in ("RGBA", "LA", "P"):
+        rgba = img.convert("RGBA")
+        img = PILImage.new("RGB", rgba.size, "white")
+        img.paste(rgba, mask=rgba.split()[-1])
+    else:
+        img = img.convert("RGB")
+    out = io.BytesIO()
+    img.save(out, format="JPEG", quality=85, optimize=True)
+    return out.getvalue()
+
+
 def _cover_picture(vehicle: Vehicle) -> Optional[tuple]:
     """(image reader, is the user's photo) for the cover: the car's photo if it has one, else the 3D model's top view."""
     if vehicle.photo_filename:
         try:
-            return ImageReader(io.BytesIO(uploads.load(uploads.PHOTOS_FOLDER, vehicle.photo_filename))), True
+            return ImageReader(io.BytesIO(_cover_photo(uploads.load(uploads.PHOTOS_FOLDER, vehicle.photo_filename)))), True
         except Exception:                                  # noqa: BLE001 — a missing or unreadable photo never breaks the book
             pass
     if not vehicle.is_manual:

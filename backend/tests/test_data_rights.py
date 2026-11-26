@@ -112,6 +112,37 @@ async def test_the_car_book_is_a_pdf_with_the_chosen_sections(world) -> None:
     assert (await ana.post("/api/vehicles/NOEXISTE/book", json={})).status_code == 404
 
 
+async def test_the_app_downloads_the_book_as_a_plain_file_and_the_cover_photo_is_made_small(world) -> None:
+    """The button opens a link the browser saves by itself (a PDF kept in the page's memory left a black screen on Firefox for
+    Android), and a phone's photo no longer makes a book of several MB."""
+    import io
+
+    from PIL import Image
+
+    from app.services import car_book
+
+    ana, mia = world["ana"], world["mia"]
+    r = await ana.get(f"/api/vehicles/{VIN}/book")
+    assert r.status_code == 200 and r.content.startswith(PDF_MAGIC) and r.headers["content-type"] == "application/pdf"
+    assert r.headers["content-disposition"].startswith("attachment;") and "libro-1234-ABC-" in r.headers["content-disposition"]
+    some = await ana.get(f"/api/vehicles/{VIN}/book", params={"sections": "sheet, refuels"})
+    assert some.status_code == 200 and some.content.startswith(PDF_MAGIC) and len(some.content) < len(r.content)
+    assert (await ana.get(f"/api/vehicles/{VIN}/book", params={"sections": "nope"})).status_code == 422
+    assert (await mia.get(f"/api/vehicles/{VIN}/book")).status_code == 404                    # Mia has no link to the car
+    # the request made by code still answers, shown in place (pages loaded before the change)
+    assert (await ana.post(f"/api/vehicles/{VIN}/book", json={})).headers["content-disposition"].startswith("inline;")
+
+    big = io.BytesIO()
+    Image.effect_noise((4000, 3000), 80).convert("RGB").save(big, format="JPEG", quality=95)     # a phone's photo: 12 MP, several MB
+    small = car_book._cover_photo(big.getvalue())
+    out = Image.open(io.BytesIO(small))
+    assert out.size == (1600, 1200) and out.format == "JPEG" and len(small) < len(big.getvalue()) / 4
+    see_through = io.BytesIO()
+    Image.new("RGBA", (300, 200), (0, 0, 0, 0)).save(see_through, format="PNG")
+    flat = Image.open(io.BytesIO(car_book._cover_photo(see_through.getvalue())))
+    assert flat.mode == "RGB" and flat.getpixel((10, 10))[0] > 240                             # transparent becomes white, not black
+
+
 async def test_the_book_has_a_contents_page_and_bookmarks_and_is_made_without_the_car_pictures(world, monkeypatch) -> None:
     from app.services import car_book
 

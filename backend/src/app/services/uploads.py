@@ -95,11 +95,12 @@ def clean_original_name(name: Optional[str], extension: str, fallback: str = "do
     return name[:200]
 
 
-def content_disposition(name: str) -> str:
-    """inline, with an ASCII fallback and the UTF-8 name (RFC 6266 / 5987): quotes or line breaks cannot break the header."""
+def content_disposition(name: str, attachment: bool = False) -> str:
+    """inline (or attachment: the browser saves it instead of showing it), with an ASCII fallback and the UTF-8 name (RFC 6266 / 5987):
+    quotes or line breaks cannot break the header."""
     ascii_name = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
     ascii_name = re.sub(r"[^A-Za-z0-9._ ()-]", "_", ascii_name).strip() or "documento"
-    return f"inline; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(name, safe='')}"
+    return f"{'attachment' if attachment else 'inline'}; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(name, safe='')}"
 
 
 def folder_path(folder: str) -> str:
