@@ -105,7 +105,8 @@ def _serialize_session_details(charge: ChargingSession, points: List[ChargePoint
     added_rng = max(0.0, round(end_rng - start_rng, 0))
 
     # a second figure for the energy, measured on the curve (services/charge_curve.py); the stored one stays the main figure
-    curve = charge_curve.energy(points, charge.start_time, charge.end_time, added_pct) if charge.end_time and not charge.manual else None
+    # (its own name: `curve` is the list of points the chart draws, returned below)
+    measured = charge_curve.energy(points, charge.start_time, charge.end_time, added_pct) if charge.end_time and not charge.manual else None
 
     return {
         "charge": {
@@ -129,9 +130,9 @@ def _serialize_session_details(charge: ChargingSession, points: List[ChargePoint
             "efficiency_pct": efficiency,             # None = cannot be computed
             "battery_capacity_kwh": capacity_kwh,     # used to estimate kwh_added from the battery %
             # the power readings added up; None = no curve, or too many holes in it to trust the sum
-            "kwh_curve": curve["kwh"] if curve and curve["reliable"] else None,
-            "curve_coverage": curve["coverage"] if curve else None,
-            "curve_capacity_kwh": curve["capacity_kwh"] if curve else None,     # what 100 % would hold at this charge's rate
+            "kwh_curve": measured["kwh"] if measured and measured["reliable"] else None,
+            "curve_coverage": measured["coverage"] if measured else None,
+            "curve_capacity_kwh": measured["capacity_kwh"] if measured else None,     # what 100 % would hold at this charge's rate
             "duration_seconds": dur_sec,
             "max_charge_power_kw": max_power,
             "avg_charge_power_kw": avg_power,

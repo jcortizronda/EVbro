@@ -81,8 +81,16 @@ async def test_the_detail_of_a_charge_carries_the_measured_figure_beside_the_sto
         ids = (seen.id, holes.id)
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://testserver") as c:
         c.cookies.set(auth.COOKIE_NAME, token)
-        full = (await c.get(f"/api/charges/{ids[0]}")).json()["charge"]
+        answer = (await c.get(f"/api/charges/{ids[0]}")).json()
+        # the chart's points are still there, one per reading (26-11-2026: the measured figure took their place in the answer
+        # and every charge lost its curve for an hour)
+        assert isinstance(answer["curve"], list) and len(answer["curve"]) == 61 and answer["curve"][0]["power_kw"] == 6.6
+        latest = (await c.get(f"/api/vehicles/{vin}/charges/latest")).json()
+        assert isinstance(latest["curve"], list)
+        full = answer["charge"]
         assert full["kwh_added"] == 12.0                                         # the stored figure (and the cost with it) is not touched
         assert full["kwh_curve"] == pytest.approx(13.2) and full["curve_coverage"] == 1.0 and full["curve_capacity_kwh"] == pytest.approx(33.0)
-        partial = (await c.get(f"/api/charges/{ids[1]}")).json()["charge"]
+        partial_answer = (await c.get(f"/api/charges/{ids[1]}")).json()
+        assert len(partial_answer["curve"]) == 10
+        partial = partial_answer["charge"]
         assert partial["kwh_curve"] is None and partial["curve_coverage"] == 0.15 and partial["curve_capacity_kwh"] is None
