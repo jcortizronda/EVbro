@@ -10,6 +10,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import entitlements
 from app.config import settings
 from app.db.models import AppUser
 from app.db.session import async_session_factory, get_db
@@ -95,6 +96,9 @@ async def auth_status(request: Request, db: AsyncSession = Depends(get_db)):
         "registration_open": True,                       # always with a single-use invitation token
         "password_reset": mailer.enabled(),              # «¿Olvidaste la contraseña?» only when this server can send e-mail
         "email": user.email if user else None,
+        # Areas this installation does not let the account use (app/entitlements.py); empty unless the installation has a rule
+        "disabled_features": await entitlements.disabled_for(db, user) if user else [],
+        **entitlements.describe(),
     }
 
 

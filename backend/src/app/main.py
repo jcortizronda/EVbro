@@ -7,6 +7,7 @@ import logging
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
+from urllib.parse import urlparse
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
@@ -108,7 +109,7 @@ _PAGE_CSP = (
     "script-src 'self'; "
     "style-src 'self' https://fonts.googleapis.com; "
     "font-src 'self' https://fonts.gstatic.com; "
-    "img-src 'self' data: blob: https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://*.tile.openstreetmap.fr; "
+    "img-src 'self' data: blob: {tile_origins}; "
     "connect-src 'self' {ws_origin}; "
     "worker-src 'self'; manifest-src 'self'; frame-src 'self'; "
     "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
@@ -117,9 +118,21 @@ _PAGE_CSP = (
 _API_CSP = "default-src 'none'; frame-ancestors 'self'"
 
 
+def tile_origins() -> str:
+    """The origins the map tiles come from (MAP_TILE_URL and its fallback), for `img-src`. `{s}` (Leaflet's subdomain) becomes `*`."""
+    origins = []
+    for template in (settings.MAP_TILE_URL, settings.MAP_TILE_FALLBACK_URL):
+        parsed = urlparse((template or "").strip().replace("{s}", "*"))
+        if parsed.scheme in ("http", "https") and parsed.netloc and not any(c in parsed.netloc for c in " ;,'\""):
+            origin = f"{parsed.scheme}://{parsed.netloc}"
+            if origin not in origins:
+                origins.append(origin)
+    return " ".join(origins)
+
+
 def page_csp(request: Request) -> str:
     scheme = "wss" if request.url.scheme == "https" else "ws"
-    return _PAGE_CSP.format(ws_origin=f"{scheme}://{request.headers.get('host', request.url.netloc)}")
+    return _PAGE_CSP.format(ws_origin=f"{scheme}://{request.headers.get('host', request.url.netloc)}", tile_origins=tile_origins())
 
 
 @app.middleware("http")
@@ -192,7 +205,8 @@ async def serve_dashboard(request: Request):
     return templates.TemplateResponse(
         request=request,
         name="index.html",
-        context={"lang": lang, "i18n_json": i18n.page_dictionary_json(lang)},
+        context={"lang": lang, "i18n_json": i18n.page_dictionary_json(lang), "map_tiles": settings.MAP_TILE_URL.strip(),
+                 "map_tiles_fallback": settings.MAP_TILE_FALLBACK_URL.strip(), "map_attribution": settings.MAP_ATTRIBUTION.strip()},
         headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0", "Vary": "Cookie, Accept-Language"}
     )
 

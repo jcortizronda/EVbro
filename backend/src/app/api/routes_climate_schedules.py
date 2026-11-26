@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import entitlements
 from app.db.models import ClimateSchedule, Vehicle
 from app.db.session import get_db
 from app.i18n import _
@@ -59,7 +60,7 @@ async def list_schedules(vin: str, session: AsyncSession = Depends(get_db)):
     return [climate_schedule.serialize(s) for s in rows]
 
 
-@router.post("/vehicles/{vin}/climate-schedules")
+@router.post("/vehicles/{vin}/climate-schedules", dependencies=[Depends(entitlements.require("automation"))])
 async def create_schedule(vin: str, req: ScheduleIn, session: AsyncSession = Depends(get_db)):
     if (await session.execute(select(Vehicle.vin).where(Vehicle.vin == vin))).scalar_one_or_none() is None:
         raise HTTPException(status_code=404, detail="Vehículo no encontrado.")
@@ -73,7 +74,7 @@ async def create_schedule(vin: str, req: ScheduleIn, session: AsyncSession = Dep
     return climate_schedule.serialize(s)
 
 
-@router.put("/climate-schedules/{schedule_id}")
+@router.put("/climate-schedules/{schedule_id}", dependencies=[Depends(entitlements.require("automation"))])
 async def update_schedule(schedule_id: int, req: SchedulePatch, session: AsyncSession = Depends(get_db)):
     s = await session.get(ClimateSchedule, schedule_id)
     if s is None:

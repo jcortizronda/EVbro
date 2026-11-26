@@ -81,3 +81,14 @@ body::-webkit-scrollbar {
   box-shadow: var(--shadow-card);
   transition: box-shadow 0.25s ease, border-color 0.25s ease;
 }
+
+/* Areas this installation does not offer to the account (app/entitlements.py): core/auth.js writes them in `data-off` on <html>
+   and whatever is marked `data-feature` with one of them is not shown. Without a rule on the server nothing is ever hidden. */
+html[data-off~="history_full"] [data-feature="history_full"],
+html[data-off~="stats"] [data-feature="stats"],
+html[data-off~="costs"] [data-feature="costs"],
+html[data-off~="maintenance"] [data-feature="maintenance"],
+html[data-off~="automation"] [data-feature="automation"],
+html[data-off~="integrations"] [data-feature="integrations"],
+html[data-off~="members"] [data-feature="members"],
+html[data-off~="book"] [data-feature="book"] { display: none !important; }

@@ -68,6 +68,10 @@ services:
       - DEFAULT_STORAGE_MB=${DEFAULT_STORAGE_MB:-50}
       - INVITE_DEFAULT_DAYS=${INVITE_DEFAULT_DAYS:-14}
       - ALLOW_PRIVATE_WEBHOOKS=${ALLOW_PRIVATE_WEBHOOKS:-false}
+      - MAP_TILE_URL=${MAP_TILE_URL:-https://tile.openstreetmap.org/{z}/{x}/{y}.png}        # where the map tiles come from
+      - MAP_TILE_FALLBACK_URL=${MAP_TILE_FALLBACK_URL-https://a.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png}
+      - MAP_ATTRIBUTION=${MAP_ATTRIBUTION:-}
+      - NOMINATIM_URL=${NOMINATIM_URL:-https://nominatim.openstreetmap.org}                  # addresses of trips, charges and zones
       - ALLOW_PRIVATE_LINKS=${ALLOW_PRIVATE_LINKS:-true}        # false on a server shared with other people: Traccar/MQTT of the managers only at public addresses
       # Shared consumables catalogue used when only a key is pasted in the console
       - CATALOG_DEFAULT_URL=${CATALOG_DEFAULT_URL-https://catalog.evbro.app}

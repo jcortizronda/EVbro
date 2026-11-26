@@ -15,7 +15,7 @@ body { margin: 0; font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, 
 .who { display: flex; align-items: center; gap: 10px; }
 .who-gap { width: 28px; height: 28px; border-left: 1px solid var(--line); margin-left: 8px; }          /* keeps «Cerrar sesión» away from the other buttons */
 button.logout { background: none; border-color: var(--danger); color: var(--danger); }
-main { max-width: 1180px; margin: 24px auto; padding: 0 16px; }
+main { max-width: 1480px; margin: 24px auto; padding: 0 16px; }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px; margin-bottom: 18px; }
 .card.narrow { max-width: 420px; margin: 8vh auto; }
 h1 { margin: 0 0 6px; font-size: 1.35rem; } h2 { margin: 0 0 6px; font-size: 1.1rem; }
@@ -44,6 +44,17 @@ th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--li
 th { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
 td .row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 td .row-actions button { padding: 5px 10px; font-size: 0.82rem; }
+/* Managers: the whole table in sight, with no sideways scroll on a computer screen. Long user names and headers wrap, the state
+   chips stack, and the four actions sit two by two instead of in one long row. */
+#tblManagers th, #tblManagers td { padding: 9px 6px; }
+#tblManagers th { font-size: 0.72rem; letter-spacing: 0.02em; }
+#tblManagers th { white-space: normal; line-height: 1.25; }
+#tblManagers td:first-child { white-space: normal; overflow-wrap: anywhere; min-width: 110px; max-width: 200px; }
+#tblManagers td:nth-child(8) { white-space: normal; }
+#tblManagers td:nth-child(8) .chip { display: inline-block; margin: 2px 4px 2px 0; }
+#tblManagers .row-actions { display: grid; grid-template-columns: repeat(2, minmax(0, auto)); justify-content: start; }
+#tblManagers .row-actions { gap: 4px; }
+#tblManagers .row-actions button { white-space: nowrap; padding: 4px 8px; font-size: 0.78rem; }
 .chip { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; background: var(--chip); color: var(--muted); }
 .chip.ok { color: var(--ok); } .chip.off { color: var(--danger); } .chip.warn { color: var(--warn); }
 .limit { font-variant-numeric: tabular-nums; }

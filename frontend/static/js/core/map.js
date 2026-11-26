@@ -11,22 +11,25 @@
  * @returns {L.TileLayer}
  */
 function createStandardTileLayer(options = {}) {
+  // Where the tiles come from is the server's choice (MAP_TILE_URL and its fallback; OpenStreetMap unless it says otherwise)
+  const cfg = document.body.dataset;
+  const tiles = cfg.mapTiles || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+  const fallback = cfg.mapTilesFallback || '';
   const defaultOptions = {
     maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors',
+    attribution: cfg.mapAttribution ? escapeHtml(cfg.mapAttribution)
+      : '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors',
     crossOrigin: true,
     ...options
   };
 
-  const layer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', defaultOptions);
+  const layer = L.tileLayer(tiles, defaultOptions);
 
   layer.on('tileerror', function(e) {
     const tile = e.tile;
-    if (tile && !tile._hasFallback) {
+    if (tile && !tile._hasFallback && fallback && e.coords) {
       tile._hasFallback = true;
-      if (tile.src && tile.src.includes('tile.openstreetmap.org')) {
-        tile.src = tile.src.replace('tile.openstreetmap.org', 'a.tile.openstreetmap.fr/hot');
-      }
+      tile.src = L.Util.template(fallback, { s: 'a', r: '', ...e.coords });
     }
   });
 

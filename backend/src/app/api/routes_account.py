@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import entitlements
 from app.api.routes_auth import _check_throttle, ip_throttle
 from app.config import settings
 from app.core import ebro_account, ebro_login, ebro_reset
@@ -798,13 +799,13 @@ async def _mqtt_link(session: AsyncSession, user_id: int) -> Optional[MqttLink]:
     return (await session.execute(select(MqttLink).where(MqttLink.user_id == user_id))).scalar_one_or_none()
 
 
-@router.get("/mqtt")
+@router.get("/mqtt", dependencies=[Depends(entitlements.require("integrations"))])
 async def get_mqtt_link(session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)):
     """The manager's broker and whether EVbro is connected to it (never the password)."""
     return _mqtt_out(await _mqtt_link(session, user.id), user.id)
 
 
-@router.put("/mqtt")
+@router.put("/mqtt", dependencies=[Depends(entitlements.require("integrations"))])
 async def save_mqtt_link(req: MqttLinkIn, session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)):
     """Saves the broker (password encrypted) and reconnects: from then on this manager's cars are published there."""
     problem = await asyncio.to_thread(private_link_problem, req.host.strip(), req.port or (8883 if req.use_tls else 1883))
@@ -835,7 +836,7 @@ async def delete_mqtt_link(session: AsyncSession = Depends(get_db), user: AppUse
     return {"link": None}
 
 
-@router.post("/mqtt/test")
+@router.post("/mqtt/test", dependencies=[Depends(entitlements.require("integrations"))])
 async def test_mqtt_link(req: MqttLinkIn, session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)):
     """Connects once to the broker given (or the stored password when none is typed) and reports the outcome."""
     problem = await asyncio.to_thread(private_link_problem, req.host.strip(), req.port or (8883 if req.use_tls else 1883))

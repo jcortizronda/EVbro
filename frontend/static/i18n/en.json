@@ -2646,5 +2646,6 @@
  "Continuar": "Continue",
  "No se pudo resolver el nombre del servidor.": "The server's name could not be resolved.",
  "Este servidor de EVbro solo admite direcciones públicas, no las de una red local.": "This EVbro server only accepts public addresses, not those of a local network.",
- "Preparando el libro del coche: la descarga empezará en unos segundos.": "Preparing the car book: the download will start in a few seconds."
+ "Preparando el libro del coche: la descarga empezará en unos segundos.": "Preparing the car book: the download will start in a few seconds.",
+ "Tu cuenta no incluye esta función.": "Your account does not include this feature."
 }

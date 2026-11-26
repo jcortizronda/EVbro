@@ -57,7 +57,8 @@ async def create_user(client, username=USER, password=PASSWORD):
 async def test_status_without_accounts_says_so(client) -> None:
     r = await client.get("/api/auth/status")
     assert r.json() == {"authenticated": False, "username": None, "role": None, "language": None, "vehicle_limit": None, "member_limit": None,
-                        "no_accounts": True, "registration_open": True, "password_reset": False, "email": None}
+                        "no_accounts": True, "registration_open": True, "password_reset": False, "email": None,
+                        "disabled_features": [], "history_days": 30}
 
 
 async def test_the_app_no_longer_has_setup_or_admin_routes(client) -> None:
@@ -71,7 +72,8 @@ async def test_correct_login_returns_the_full_status(client) -> None:
     await create_user(client)
     assert (await client.get("/api/auth/status")).json() == {
         "authenticated": True, "username": USER, "role": "manager", "language": "es", "vehicle_limit": 2, "member_limit": 5,
-        "no_accounts": False, "registration_open": True, "password_reset": False, "email": None}
+        "no_accounts": False, "registration_open": True, "password_reset": False, "email": None,
+        "disabled_features": [], "history_days": 30}          # no area is ever off unless the installation has a rule (app/entitlements.py)
 
 
 async def test_protected_routes_without_session_return_401(client) -> None:

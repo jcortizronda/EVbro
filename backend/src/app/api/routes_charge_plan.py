@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import entitlements
 from app.db.models import Vehicle
 from app.db.session import get_db
 from app.security.auth import client_ip
@@ -54,7 +55,7 @@ async def get_plan(vin: str, live: bool = False, session: AsyncSession = Depends
     return await ChargeManager.get_instance().state(vin, live=live)
 
 
-@router.put("/target")
+@router.put("/target", dependencies=[Depends(entitlements.require("automation"))])
 async def put_target(vin: str, req: TargetRequest, request: Request, session: AsyncSession = Depends(get_db)):
     """Battery target. 100 % removes the limit; below that, charging pauses when it is reached."""
     await _check_vehicle(vin, session)

@@ -54,6 +54,29 @@ async def test_the_page_carries_a_content_security_policy(client) -> None:
     assert script_src.strip() == "script-src 'self'" and "unpkg" not in csp       # no script from another host: Leaflet is served from static/vendor
 
 
+async def test_the_map_tiles_and_the_geocoder_are_the_servers_choice(client, monkeypatch) -> None:
+    """OpenStreetMap by default, as always. A server may bring its own tile provider and its own Nominatim (its free servers are
+    meant for light use): the page's policy follows, and the page tells the map where to ask."""
+    from app.config import settings
+
+    page = await client.get("/")
+    assert 'data-map-tiles="https://tile.openstreetmap.org/{z}/{x}/{y}.png"' in page.text
+    csp = page.headers["content-security-policy"]
+    assert "img-src 'self' data: blob: https://tile.openstreetmap.org https://a.tile.openstreetmap.fr;" in csp
+    assert settings.NOMINATIM_URL == "https://nominatim.openstreetmap.org"
+
+    monkeypatch.setattr(settings, "MAP_TILE_URL", "https://{s}.tiles.example.com/v1/{z}/{x}/{y}.png?key=abc")
+    monkeypatch.setattr(settings, "MAP_TILE_FALLBACK_URL", "")
+    monkeypatch.setattr(settings, "MAP_ATTRIBUTION", 'Mapas de "Ejemplo" <b>')
+    page = await client.get("/")
+    csp = page.headers["content-security-policy"]
+    assert "img-src 'self' data: blob: https://*.tiles.example.com;" in csp and "openstreetmap" not in csp
+    assert 'data-map-tiles="https://{s}.tiles.example.com/v1/{z}/{x}/{y}.png?key=abc"' in page.text and 'data-map-tiles-fallback=""' in page.text
+    assert 'data-map-attribution="Mapas de &#34;Ejemplo&#34; &lt;b&gt;"' in page.text          # escaped by the template; the map escapes it again
+    monkeypatch.setattr(settings, "MAP_TILE_URL", "https://bad host';script-src *;/x")      # nothing that could break out of the policy
+    assert "script-src *" not in (await client.get("/")).headers["content-security-policy"].split("img-src")[1].split(";")[0]
+
+
 async def test_api_answers_carry_a_data_only_policy(client) -> None:
     r = await client.get("/api/auth/status")
     assert r.headers["content-security-policy"] == "default-src 'none'; frame-ancestors 'self'"

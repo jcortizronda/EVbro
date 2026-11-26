@@ -74,7 +74,7 @@ async def reverse_geocode(lat: Optional[float], lon: Optional[float]) -> Optiona
     if cache_key in _GEOCODE_CACHE:
         return _GEOCODE_CACHE[cache_key]
 
-    url = "https://nominatim.openstreetmap.org/reverse"
+    url = settings.NOMINATIM_URL.rstrip("/") + "/reverse"
     params = {
         "lat": str(lat),
         "lon": str(lon),

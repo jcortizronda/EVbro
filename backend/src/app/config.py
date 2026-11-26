@@ -129,8 +129,15 @@ class Settings(BaseSettings):
     CAR_MQTT_PORT: int = 8083
     CAR_MQTT_CERTS_SRC: str = ""   # folder with ca.pem/client.pem/client.key if the bundle is not used
 
-    # Reverse geocoding (OpenStreetMap Nominatim)
+    # Reverse geocoding (OpenStreetMap Nominatim, or any server that speaks its API: your own, or a provider's)
     NOMINATIM_USER_AGENT: str = "EVbro/1.0"
+    NOMINATIM_URL: str = "https://nominatim.openstreetmap.org"
+    # Map tiles, as a Leaflet template ({z}/{x}/{y}, optionally {s}). The second one is tried when a tile of the first fails
+    # (empty = none). OpenStreetMap's own servers are meant for light use: a busy or paid server should bring its own provider.
+    # MAP_ATTRIBUTION: the credit shown on the maps when the tiles are not OpenStreetMap's (plain text).
+    MAP_TILE_URL: str = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+    MAP_TILE_FALLBACK_URL: str = "https://a.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png"
+    MAP_ATTRIBUTION: str = ""
     LEGAL_OPERATOR: str = ""               # who runs this server (name shown in /legal); empty = "el administrador de este servidor"
     LEGAL_CONTACT: str = ""                # how to reach them for data requests (e-mail); shown in /legal
     ANDROID_ASSETLINKS_JSON: str = ""      # /.well-known/assetlinks.json for the Android app (TWA); empty = not served

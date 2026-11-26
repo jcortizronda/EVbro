@@ -122,7 +122,7 @@ async def search_address_endpoint(q: str = Query(max_length=200)):
 
     from app.config import settings
 
-    url = "https://nominatim.openstreetmap.org/search"
+    url = settings.NOMINATIM_URL.rstrip("/") + "/search"
     params = {
         "q": q.strip(),
         "format": "jsonv2",

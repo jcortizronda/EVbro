@@ -219,6 +219,22 @@ def test_every_script_is_served_by_evbro_and_leaflet_is_the_published_file() -> 
     assert "unpkg" not in HTML and "unpkg" not in sw
 
 
+def test_the_page_hides_the_areas_the_server_switches_off_for_an_account() -> None:
+    """app/entitlements.py lists the areas an installation may switch off. The page learns which ones from the status, marks <html>
+    with them, and the sheet hides what is tagged `data-feature`; a 403 that names an area is explained once."""
+    from app import entitlements
+
+    auth_js = (WEB / "static" / "js" / "core" / "auth.js").read_text(encoding="utf-8")
+    assert "document.documentElement.dataset.off = off.join(' ')" in auth_js and "X-EVbro-Feature" in auth_js
+    tagged = set(re.findall(r'data-feature="([a-z_]+)"', HTML))
+    assert tagged and tagged <= set(entitlements.FEATURES), tagged - set(entitlements.FEATURES)
+    for feature in entitlements.FEATURES:
+        assert f'html[data-off~="{feature}"] [data-feature="{feature}"]' in CSS, feature
+    for area, tab in (("stats", "stats"), ("maintenance", "maintenance"), ("costs", "expenses"), ("costs", "costs")):
+        assert len(re.findall(rf"data-feature=\"{area}\" data-on-click=\"switchTab\('{tab}'\)\"", HTML)) == 2, tab      # side menu and «Más»
+    assert HTML.count('data-feature="book" data-on-click="CarBook.open()"') == 3
+
+
 def test_the_asset_version_is_computed_by_the_server() -> None:
     """`?v=` comes from the content hash (jinja `asset_version`), not from hand-written numbers."""
     assert "{{ asset_version }}" in HTML

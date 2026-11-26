@@ -7,7 +7,7 @@ walks every route and fails if any is left unprotected.
 """
 from fastapi import APIRouter, Depends
 
-from app import __version__, build_commit
+from app import __version__, build_commit, entitlements
 from app.api.routes_account import router as account_router
 from app.api.routes_account_data import router as account_data_router
 from app.api.routes_auth import router as auth_router
@@ -58,6 +58,8 @@ api_router.include_router(catalog_online_router)
 api_router.include_router(telemetry_router)
 
 # Protected: valid session + same origin on requests that modify data
+# Some areas also ask `entitlements` whether this installation lets the account use them (always yes unless the installation has
+# a rule of its own). Routes of an area that live inside another router carry the same dependency themselves.
 protected = APIRouter(dependencies=[Depends(verify_origin), Depends(require_auth), Depends(authorize)])
 protected.include_router(account_router)
 protected.include_router(notifications_router)
@@ -69,24 +71,24 @@ protected.include_router(manual_charges_router)     # charges typed by the user 
 protected.include_router(charge_plan_router)
 protected.include_router(commands_router)
 protected.include_router(geofences_router)
-protected.include_router(maintenance_router)
-protected.include_router(maintenance_plan_router)
-protected.include_router(maintenance_advice_router)     # EVbro's recommendations outside the brand's plan
+protected.include_router(maintenance_router, dependencies=[Depends(entitlements.require("maintenance"))])
+protected.include_router(maintenance_plan_router, dependencies=[Depends(entitlements.require("maintenance"))])
+protected.include_router(maintenance_advice_router, dependencies=[Depends(entitlements.require("maintenance"))])     # EVbro's recommendations outside the brand's plan
 protected.include_router(refuels_router)
 protected.include_router(fuel_stations_router)      # stations near the car and their prices (the Ministry's list)
 protected.include_router(timeline_router)
-protected.include_router(stats_router)
+protected.include_router(stats_router, dependencies=[Depends(entitlements.require("stats"))])
 protected.include_router(climate_schedules_router)
 protected.include_router(departure_router)
-protected.include_router(traccar_router)
+protected.include_router(traccar_router, dependencies=[Depends(entitlements.require("integrations"))])
 protected.include_router(catalog_router)
 protected.include_router(account_data_router)
-protected.include_router(book_router)
-protected.include_router(expenses_router)
+protected.include_router(book_router, dependencies=[Depends(entitlements.require("book"))])
+protected.include_router(expenses_router, dependencies=[Depends(entitlements.require("costs"))])
 protected.include_router(journeys_router)
-protected.include_router(members_router)
-protected.include_router(parts_router)
-protected.include_router(costs_router)
+protected.include_router(members_router, dependencies=[Depends(entitlements.require("members"))])
+protected.include_router(parts_router, dependencies=[Depends(entitlements.require("maintenance"))])
+protected.include_router(costs_router, dependencies=[Depends(entitlements.require("costs"))])
 protected.include_router(documents_router)
 protected.include_router(passkeys_router)
 protected.include_router(telemetry_client_router)

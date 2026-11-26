@@ -27,6 +27,7 @@
     }
   }
 
+  let toldArea = false;
   // 401 from the API (except the sign-in routes themselves) = no valid session.
   window.fetch = async function (input, init) {
     const res = await nativeFetch(input, init);
@@ -36,6 +37,11 @@
       showOverlay();
       // The server says there is no session (expired, closed elsewhere, password changed): the offline copy of its data goes
       try { if (window.caches) caches.delete('evbro-api-v1').catch(() => {}); } catch (e) { /* best effort */ }
+    }
+    // An area the account does not have: said once, not on every request that touches one
+    if (res.status === 403 && res.headers.get('X-EVbro-Feature') && !toldArea) {
+      toldArea = true;
+      if (typeof showToast === 'function') showToast('Tu cuenta no incluye esta función.', 'info', 6000);
     }
     return res;
   };
@@ -49,7 +55,12 @@
     state.noAccounts = !!data.no_accounts;
     state.passwordReset = !!data.password_reset;
     state.email = data.email || null;
-    window.accountInfo = { role: data.role || null, vehicleLimit: data.vehicle_limit, memberLimit: data.member_limit };
+    // Areas this installation does not offer to the account (always none unless the server has a rule of its own): the sheet
+    // `base/reset.css` hides whatever is marked `data-feature` with one of them.
+    const off = Array.isArray(data.disabled_features) ? data.disabled_features : [];
+    document.documentElement.dataset.off = off.join(' ');
+    window.accountInfo = { role: data.role || null, vehicleLimit: data.vehicle_limit, memberLimit: data.member_limit, disabledFeatures: off,
+      historyDays: data.history_days || null };
     if (typeof applyAccessLevel === 'function') applyAccessLevel();
     return data;
   }
