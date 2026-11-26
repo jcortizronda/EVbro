@@ -10,6 +10,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from app.db.session import async_session_factory
 from app.security.access import accessible_vehicles
 from app.security.auth import COOKIE_NAME, get_session_user, websocket_user
+from app.services import cloud_health
 from app.services.poller import VehiclePoller
 
 _LOGGER = logging.getLogger(__name__)
@@ -46,7 +47,8 @@ async def websocket_telemetry_stream(websocket: WebSocket):
     await _refresh_allowed()
 
     def _on_event(event_dict):
-        if event_dict.get("vin") not in allowed:          # an event without a car, or for somebody else's car, is dropped
+        # an event without a car, or for somebody else's car, is dropped; the state of the Ebro cloud is the same for everybody
+        if event_dict.get("vin") not in allowed and event_dict.get("type") != "cloud_status":
             return
         try:
             queue.put_nowait(event_dict)
@@ -67,6 +69,10 @@ async def websocket_telemetry_stream(websocket: WebSocket):
                     "data": latest,
                 }, default=str))
 
+        # the state of the Ebro cloud, on connecting: a page that opens during an outage sees it, and one that reconnects after
+        # it clears its strip
+        await websocket.send_text(json.dumps(cloud_health.event()))
+
         # task that sends queued events to the client
         async def send_worker():
             loop = asyncio.get_running_loop()
@@ -81,7 +87,8 @@ async def websocket_telemetry_stream(websocket: WebSocket):
                         await websocket.close(code=4401)
                         return
                     next_refresh = loop.time() + ALLOWED_REFRESH_S
-                if msg is not None and msg.get("vin") in allowed:   # checked again: the access may have gone while it waited in the queue
+                # checked again: the access may have gone while it waited in the queue
+                if msg is not None and (msg.get("vin") in allowed or msg.get("type") == "cloud_status"):
                     await websocket.send_text(json.dumps(msg, default=str))
 
         send_task = asyncio.create_task(send_worker())

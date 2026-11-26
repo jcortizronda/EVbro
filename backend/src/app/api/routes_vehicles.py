@@ -173,8 +173,9 @@ async def account_states(session: AsyncSession, vehicles: List[Vehicle]) -> Dict
 @router.get("/specs")
 async def model_specs():
     """Factory figures per Ebro model (battery, tank, seats, range, label): the sheet fills them in when the model is chosen and the
-    server applies them to a new car (services/vehicle_profiles.py)."""
-    return vehicle_profiles.SPECS
+    server applies them to a new car (services/vehicle_profiles.py). Each model also carries the link to its owner's manual on
+    Ebro's own site (`manual_url`, `manual_mb`)."""
+    return {model: {**spec, **vehicle_profiles.MANUALS.get(model, {})} for model, spec in vehicle_profiles.SPECS.items()}
 
 
 @router.delete("/{vin}")

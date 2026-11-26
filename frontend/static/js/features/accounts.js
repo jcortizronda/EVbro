@@ -26,7 +26,7 @@ function renderOwnCars() {
 }
 
 async function loadAccounts() {
-  if (!aEl('accMembers')) return;
+  if (!aEl('accMembers') || featureOff('members')) return;
   try {
     accMembers = await fetch('/api/members').then((r) => (r.ok ? r.json() : []));
     renderAccounts();

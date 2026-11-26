@@ -2647,5 +2647,18 @@
  "No se pudo resolver el nombre del servidor.": "Não foi possível resolver o nome do servidor.",
  "Este servidor de EVbro solo admite direcciones públicas, no las de una red local.": "Este servidor do EVbro só aceita endereços públicos, não os de uma rede local.",
  "Preparando el libro del coche: la descarga empezará en unos segundos.": "A preparar o livro do carro: a transferência começa dentro de alguns segundos.",
- "Tu cuenta no incluye esta función.": "A sua conta não inclui esta função."
+ "Tu cuenta no incluye esta función.": "A sua conta não inclui esta função.",
+ "Aquí se ven los últimos {p0} días. Lo anterior sigue guardado.": "Aqui veem-se os últimos {p0} dias. O anterior continua guardado.",
+ "Sumando la potencia medida en la curva salen {p0} kWh: es lo que entró en la batería, y una parte se pierde en calor.": "Somando a potência medida na curva dá {p0} kWh: é o que entrou na bateria, e uma parte perde-se em calor.",
+ "La nube de Ebro no responde": "A nuvem da Ebro não responde",
+ ". Los datos pueden ir con retraso y las órdenes pueden fallar.": ". Os dados podem chegar com atraso e as ordens podem falhar.",
+ "desde las {p0}": "desde as {p0}",
+ "La nube de Ebro vuelve a responder.": "A nuvem da Ebro voltou a responder.",
+ "Programación de EVbro": "Programação do EVbro",
+ "Localización automática": "Localização automática",
+ "EVbro, automático": "EVbro, automático",
+ "No enviada": "Não enviada",
+ "Manual del propietario": "Manual do proprietário",
+ "Abrir manual": "Abrir manual",
+ "El manual oficial de Ebro del {p0}, en PDF. Se abre desde la web de Ebro y pesa {p1} MB: mejor con wifi.": "O manual oficial da Ebro do {p0}, em PDF. Abre a partir do site da Ebro e pesa {p1} MB: melhor com wi-fi."
 }

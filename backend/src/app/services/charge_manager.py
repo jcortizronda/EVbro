@@ -37,6 +37,7 @@ from typing import Any, Awaitable, Callable, Optional
 
 from sqlalchemy import select
 
+from app import entitlements
 from app.config import get_timezone
 from app.core import commands
 from app.db.models import ChargePlan, Vehicle
@@ -360,6 +361,10 @@ class ChargeManager:
             if row is None:                                   # never touched: the manager does not exist for this car
                 return
             state = self._to_state(row)
+            if (state.target_pct < 100 or state.hold_reason == HOLD_TARGET) and not await entitlements.vin_allowed(vin, "automation"):
+                # This installation has switched the charge target off for the car's account: it counts as no target (a pause
+                # the target had set is released; one the user asked for stays). The stored figure is not touched.
+                state.target_pct = 100
             action = decide(state, soc=telemetry.get("battery_level"), plugged=bool(telemetry.get("cable_connected")),
                             charging_now=grid_charging(telemetry), now=self._clock())
             if action is None:

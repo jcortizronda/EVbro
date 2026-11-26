@@ -60,23 +60,25 @@ api_router.include_router(telemetry_router)
 # Protected: valid session + same origin on requests that modify data
 # Some areas also ask `entitlements` whether this installation lets the account use them (always yes unless the installation has
 # a rule of its own). Routes of an area that live inside another router carry the same dependency themselves.
+# `limit_history` is the other half: the routers that show recorded history read only the recent part for an account without
+# `history_full` (nothing is deleted; db/history_view.py).
 protected = APIRouter(dependencies=[Depends(verify_origin), Depends(require_auth), Depends(authorize)])
 protected.include_router(account_router)
 protected.include_router(notifications_router)
 protected.include_router(vehicles_router)
 protected.include_router(car_events_router)
-protected.include_router(drives_router)
-protected.include_router(charges_router)
-protected.include_router(manual_charges_router)     # charges typed by the user or imported from a file
+protected.include_router(drives_router, dependencies=[Depends(entitlements.limit_history)])
+protected.include_router(charges_router, dependencies=[Depends(entitlements.limit_history)])
+protected.include_router(manual_charges_router, dependencies=[Depends(entitlements.limit_history)])     # charges typed by the user or imported from a file
 protected.include_router(charge_plan_router)
 protected.include_router(commands_router)
-protected.include_router(geofences_router)
+protected.include_router(geofences_router, dependencies=[Depends(entitlements.limit_history)])     # the entries and exits are history
 protected.include_router(maintenance_router, dependencies=[Depends(entitlements.require("maintenance"))])
 protected.include_router(maintenance_plan_router, dependencies=[Depends(entitlements.require("maintenance"))])
 protected.include_router(maintenance_advice_router, dependencies=[Depends(entitlements.require("maintenance"))])     # EVbro's recommendations outside the brand's plan
 protected.include_router(refuels_router)
 protected.include_router(fuel_stations_router)      # stations near the car and their prices (the Ministry's list)
-protected.include_router(timeline_router)
+protected.include_router(timeline_router, dependencies=[Depends(entitlements.limit_history)])
 protected.include_router(stats_router, dependencies=[Depends(entitlements.require("stats"))])
 protected.include_router(climate_schedules_router)
 protected.include_router(departure_router)
@@ -85,7 +87,7 @@ protected.include_router(catalog_router)
 protected.include_router(account_data_router)
 protected.include_router(book_router, dependencies=[Depends(entitlements.require("book"))])
 protected.include_router(expenses_router, dependencies=[Depends(entitlements.require("costs"))])
-protected.include_router(journeys_router)
+protected.include_router(journeys_router, dependencies=[Depends(entitlements.require("history_full"))])     # sums over any span of the history
 protected.include_router(members_router, dependencies=[Depends(entitlements.require("members"))])
 protected.include_router(parts_router, dependencies=[Depends(entitlements.require("maintenance"))])
 protected.include_router(costs_router, dependencies=[Depends(entitlements.require("costs"))])

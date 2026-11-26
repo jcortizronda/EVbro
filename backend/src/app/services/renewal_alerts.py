@@ -39,7 +39,8 @@ def _alert(key: str, label: str, due: datetime.date, today: datetime.date, early
     return {"key": f"{key}:{band}", "label": label, "remaining_days": days, "is_overdue": days < 0}
 
 
-async def collect_renewals(session: AsyncSession, vin: str, now: Optional[datetime.datetime] = None) -> List[Dict[str, Any]]:
+async def collect_renewals(session: AsyncSession, vin: str, now: Optional[datetime.datetime] = None, expenses: bool = True) -> List[Dict[str, Any]]:
+    """The deadlines that are near. `expenses=False` leaves out those that come from an expense (the car sheet's insurance stays)."""
     now = now or utcnow()
     today = now.date()
     out: List[Dict[str, Any]] = []
@@ -49,6 +50,8 @@ async def collect_renewals(session: AsyncSession, vin: str, now: Optional[dateti
         if a:
             out.append(a)
 
+    if not expenses:
+        return out
     # an expense with a «próxima fecha» stays current until a later one with the same category and title appears (next year's)
     rows = (await session.execute(select(Expense).where(Expense.vin == vin, Expense.next_due_date.is_not(None)))).scalars().all()
     latest: Dict[tuple, Expense] = {}

@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from app.config import settings
+from app.db import history_view  # noqa: F401 — registers the filter that limits how far back a request reads (see the module)
 from app.db.models import Base
 
 _LOGGER = logging.getLogger(__name__)

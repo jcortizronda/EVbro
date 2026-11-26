@@ -17,7 +17,7 @@ window.Journeys = (function () {
   let previewTimer = null;
 
   async function load() {
-    if (!currentVin || !el('jnList')) return;
+    if (!currentVin || !el('jnList') || featureOff('history_full')) return;
     try {
       const res = await fetch(`/api/vehicles/${currentVin}/journeys`);
       if (!res.ok) throw new Error(res.status);

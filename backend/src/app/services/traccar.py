@@ -20,6 +20,7 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple
 import aiohttp
 from sqlalchemy import select
 
+from app import entitlements
 from app.config import settings
 from app.db.models import TraccarLink, Vehicle
 from app.db.session import async_session_factory
@@ -176,6 +177,7 @@ class TraccarHub:
         self._routes: Dict[ServerKey, Dict[int, str]] = {}         # device id → vin
         self._status: Dict[str, Dict[str, Any]] = {}                # vin → {"connected": bool, "error": str|None}
         self._running = False
+        self._linked: set = set()                                   # the cars followed since the last reload
         self._sweeper: Optional[asyncio.Task] = None
 
     @classmethod
@@ -212,9 +214,8 @@ class TraccarHub:
         self._running = running
         if not running:
             return
-        async with async_session_factory() as session:
-            rows = (await session.execute(
-                select(TraccarLink, Vehicle).join(Vehicle, Vehicle.vin == TraccarLink.vin).where(TraccarLink.enabled.is_(True)))).all()
+        rows = await self._allowed_links()
+        self._linked = {link.vin for link, _vehicle in rows}
         for link, _vehicle in rows:
             key: ServerKey = (base_url(link.host, link.port, link.use_ssl), link.api_token or "", bool(link.verify_ssl))
             self._routes.setdefault(key, {})[int(link.device_id)] = link.vin
@@ -226,6 +227,20 @@ class TraccarHub:
             _LOGGER.info("Traccar: %d server(s), %d car(s).", len(self._routes), len(rows))
         if any(link.build_trips for link, _vehicle in rows):
             self._sweeper = asyncio.create_task(self._sweep())
+
+    @staticmethod
+    async def _allowed_links() -> list:
+        """The enabled links of the cars whose account may use its own connections (`entitlements`: everybody, unless the
+        installation has a rule)."""
+        async with async_session_factory() as session:
+            rows = (await session.execute(
+                select(TraccarLink, Vehicle).join(Vehicle, Vehicle.vin == TraccarLink.vin).where(TraccarLink.enabled.is_(True)))).all()
+        return [(link, vehicle) for link, vehicle in rows if await entitlements.owner_allowed(vehicle.owner_id, "integrations")]
+
+    async def sync_allowed(self) -> None:
+        """Restarts the subscriptions only when the set of cars that may be followed has changed."""
+        if self._running and {link.vin for link, _vehicle in await self._allowed_links()} != self._linked:
+            await self.reload()
 
     async def _sweep(self) -> None:
         """Every minute: close the GPS-built drives whose tracker fell asleep after parking (gps_positions.close_silent_drives)."""

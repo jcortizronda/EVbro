@@ -66,6 +66,7 @@
 .book-promo-text strong { font-size: 1rem; color: var(--text-primary); }
 .book-promo-text span { font-size: 0.84rem; line-height: 1.4; color: var(--text-secondary); }
 .book-promo-btn { min-height: 44px; white-space: nowrap; }
+a.book-promo-btn { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }     /* the manual's link looks like the book's button */
 @media (max-width: 560px) {
   .book-promo { grid-template-columns: auto 1fr; }
   .book-promo-btn { grid-column: 1 / -1; width: 100%; }

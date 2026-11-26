@@ -263,6 +263,11 @@ async function loadLatestCharge(vin = currentVin, chargeId = null) {
       ? `Eficiencia = energía a la batería ÷ energía de la red. La de la batería es estimada: ${Math.round(c.added_battery_pct || 0)} % ganado × ${cap} kWh de batería útil.`
       : t('La energía a la batería es una estimación: {p0} % ganado × {p1} kWh de batería útil. La eficiencia solo se puede calcular si indicas los kWh de tu contador.', {p0: Math.round(c.added_battery_pct || 0), p1: cap});
 
+    // A second figure, measured: the power readings of the curve added up (services/charge_curve.py); only when the curve has no big holes
+    if (c.kwh_curve) {
+      document.getElementById('kpiEnergyNote').innerText += ' ' + t('Sumando la potencia medida en la curva salen {p0} kWh: es lo que entró en la batería, y una parte se pierde en calor.', { p0: historyNum(c.kwh_curve, 1) });
+    }
+
     const meterBtn = document.getElementById('btnChargeMeter');
     if (meterBtn) meterBtn.textContent = c.kwh_used ? t('Cambiar kWh del contador') : t('Indicar kWh del contador');
 

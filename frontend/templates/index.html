@@ -98,6 +98,8 @@
 <body data-map-tiles="{{ map_tiles }}" data-map-tiles-fallback="{{ map_tiles_fallback }}" data-map-attribution="{{ map_attribution }}">
 
   <!-- Offline: the app shows the last saved data (sw.js + core/offline.js) -->
+  <!-- The Ebro cloud has not answered any read for a while (services/cloud_health.py; core/websocket.js shows and hides it) -->
+  <div id="cloudBanner" class="offline-banner cloud-banner" role="status" hidden>La nube de Ebro no responde<span id="cloudSince"></span>. Los datos pueden ir con retraso y las órdenes pueden fallar.</div>
   <div id="offlineBanner" class="offline-banner" role="status" hidden>Sin conexión. Se muestran los últimos datos guardados<span id="offlineSince"></span>.</div>
 
   <!-- Top Navigation Header -->
@@ -569,13 +571,16 @@
         </div>
 
         <!-- Long journeys: a holiday or a getaway, with everything it cost and consumed between two dates (features/journeys.js) -->
-        <div class="glass details-card jn-card">
+        <div class="glass details-card jn-card" data-feature="history_full">
           <div class="jn-head">
             <div><div class="card-title u-margin-0">Viajes largos</div><small class="u-color-var-text-secondary_font-size-0p82rem">Vacaciones y escapadas: kilómetros, cargas, gasolina y gastos entre dos fechas.</small></div>
             <button type="button" class="btn-secondary needs-edit" data-on-click="Journeys.openForm()">Nuevo viaje</button>
           </div>
           <div class="jn-list" id="jnList"><div class="hist-empty">Cargando…</div></div>
         </div>
+
+        <!-- Only for an account that sees the recent part of its history (core/auth.js writes the text) -->
+        <p class="history-note" data-history-note></p>
 
         <!-- Top Filters Bar -->
         <div class="filters-bar">
@@ -719,7 +724,7 @@
           </div>
           <div class="energy-bar-sublabels">
             <span>Carga actual</span>
-            <span class="energy-target-text" id="energyTargetLabel">Objetivo: 100 %</span>
+            <span class="energy-target-text" id="energyTargetLabel" data-feature="automation">Objetivo: 100 %</span>
           </div>
           <!-- Battery target: the circle is dragged over the bar (50–100 % in steps of 5; 100 % = no limit) -->
           <div class="energy-slider" id="energyTargetSlider" role="slider" tabindex="0" aria-label="Batería objetivo"
@@ -727,8 +732,8 @@
             <div class="energy-progress-track">
               <div class="energy-progress-fill u-width-26pct" id="energyProgressBar"></div>
             </div>
-            <div class="energy-ticks" aria-hidden="true"></div>
-            <div class="energy-thumb" id="energyTargetThumb"></div>
+            <div class="energy-ticks" aria-hidden="true" data-feature="automation"></div>
+            <div class="energy-thumb" id="energyTargetThumb" data-feature="automation"></div>
           </div>
           <p class="energy-status" id="chargeStatusLine" data-tone="neutral">Cargando estado…</p>
           <!-- Computed by the car: time to 100 %, regardless of the target set in EVbro -->
@@ -740,7 +745,7 @@
         <div class="home-widget" data-widget="kpis">
         <!-- Charge KPIs -->
         <div class="native-kpi-row">
-          <div class="native-kpi-box">
+          <div class="native-kpi-box" data-feature="stats">
             <div class="kpi-lbl">CONSUMO EV · 30 DÍAS</div>
             <div class="kpi-val" id="energyEvConsumption">—</div>
           </div>
@@ -1032,6 +1037,7 @@
             <button class="btn-sm btn-secondary u-font-size-0p78rem" data-on-click="loadCharges()">Actualizar</button>
           </div>
           <div id="chgPeriod"></div>
+          <p class="history-note" data-history-note></p>
           <!-- Charges the car did not report: typed one by one or brought from a spreadsheet (features/charge-manual.js) -->
           <div class="mc-actions needs-edit">
             <button type="button" class="btn-primary" data-on-click="ManualCharges.open()">Añadir carga</button>
@@ -1136,7 +1142,7 @@
         </div>
         <div class="home-widget" data-widget="schedule">
         <!-- Transparency: what each button sends to the car -->
-        <div class="native-climate-panel comfort-section" id="climateSchedulePanel">
+        <div class="native-climate-panel comfort-section" id="climateSchedulePanel" data-feature="automation">
           <div class="climate-headline"><small>CLIMATIZADOR</small><h3>Climatización programada</h3></div>
           <p class="comfort-hint">El servidor enciende el climatizador a la hora y los días que elijas, aunque tengas la app cerrada.</p>
           <p class="comfort-hint csched-pin-hint" id="climateSchedulePinHint" hidden>Hace falta el PIN guardado en Ajustes → Cuenta.</p>
@@ -1538,6 +1544,7 @@
           <span class="section-tag">HISTORIAL · EVBRO</span>
           <h2 class="section-title">Cronología</h2>
           <p class="u-color-var-text-secondary_font-size-0p88rem_margin-4px-0-0">Historial completo del vehículo. La búsqueda abarca todos tus coches.</p>
+          <p class="history-note" data-history-note></p>
         </div>
 
         <div class="glass ex-card">
@@ -1784,10 +1791,17 @@
 
           <div class="vp-form">
             <!-- The car book, in plain sight (it was a small button in the bar below; features/car-book.js) -->
-            <div class="glass book-promo needs-edit">
+            <div class="glass book-promo needs-edit" data-feature="book">
               <span class="book-promo-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path><path d="M9 7h7M9 11h5"></path></svg></span>
               <div class="book-promo-text"><strong>Libro del coche</strong><span>Todo lo que EVbro sabe de tu coche en un PDF profesional: ficha, mantenimiento, viajes, cargas y gastos. Para guardarlo, llevarlo al taller o entregarlo al venderlo.</span></div>
               <button type="button" class="btn-primary book-promo-btn" data-feature="book" data-on-click="CarBook.open()">Crear PDF</button>
+            </div>
+            <!-- The owner's manual of the model: a link to the PDF on Ebro's own site (services/vehicle_profiles.py MANUALS; shown
+                 by features/vehicle-profile.js only for a model that has one) -->
+            <div class="glass book-promo" id="vpManualCard" hidden>
+              <span class="book-promo-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4h7a3 3 0 0 1 3 3v13a2.5 2.5 0 0 0-2.5-2.5H2z"/><path d="M22 4h-7a3 3 0 0 0-3 3v13a2.5 2.5 0 0 1 2.5-2.5H22z"/></svg></span>
+              <div class="book-promo-text"><strong>Manual del propietario</strong><span id="vpManualText"></span></div>
+              <a class="btn-primary book-promo-btn" id="vpManualLink" target="_blank" rel="noopener">Abrir manual</a>
             </div>
             <div class="vp-fold-bar"><button type="button" data-on-click="foldVehicleSections(true)">Desplegar todo</button><button type="button" data-on-click="foldVehicleSections(false)">Plegar todo</button></div>
             <details class="glass details-card vp-section" data-tone="blue" data-key="identity">
@@ -1930,7 +1944,7 @@
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
             <span>Cuenta</span>
           </button>
-          <button class="sub-nav-btn" id="btnSettingsSubAccounts" data-on-click="switchSettingsSubTab('accounts')">
+          <button class="sub-nav-btn" id="btnSettingsSubAccounts" data-feature="members" data-on-click="switchSettingsSubTab('accounts')">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             <span>Compartir</span>
           </button>
@@ -2047,7 +2061,7 @@
         <!-- Sub-panel: linked accounts -->
         <div id="settingsSubTabAccounts" class="sub-tab-panel">
           <div class="vp-form">
-          <details class="glass details-card vp-section set-section" data-tone="violet" data-key="members" data-open-default>
+          <details class="glass details-card vp-section set-section" data-tone="violet" data-key="members" data-open-default data-feature="members">
             <summary class="vp-section-title"><span class="vp-section-icon"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>Cuentas asociadas<span class="vp-chev" aria-hidden="true"></span></summary>
             <div class="acc-head"><div class="acc-limit" id="accMembersLimit"></div>
               <button type="button" class="btn-primary" data-on-click="openMemberModal()">Añadir cuenta</button></div>
@@ -2337,7 +2351,7 @@
             <button class="btn-secondary" id="btnCarReconnect" data-on-click="reconnectCarChannel()">Reconectar</button>
           </details>
           <!-- Home Assistant: the manager's own MQTT broker (features/account.js, MqttHa) -->
-          <details class="glass details-card vp-section set-section needs-root" id="mqttCard" data-tone="blue" data-key="mqtt">
+          <details class="glass details-card vp-section set-section needs-root" id="mqttCard" data-tone="blue" data-key="mqtt" data-feature="integrations">
             <summary class="vp-section-title"><span class="vp-section-icon"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M10 21v-6h4v6"/></svg></span>Home Assistant (MQTT)<span class="vp-chev" aria-hidden="true"></span></summary>
             <p class="setting-hint">Conecta el broker MQTT de tu Home Assistant (Mosquitto): tus coches aparecen allí solos, con las mismas entidades que la integración <code>ebro</code>, y Home Assistant puede mandarles órdenes con el PIN guardado. Quita antes esa integración o las entidades nuevas saldrán con <code>_2</code>.</p>
             <p class="vp-status" id="mqStatus" data-tone="neutral"></p>
@@ -2357,7 +2371,7 @@
             </div>
           </details>
           <!-- GPS position from a Traccar server (per car: the one chosen in the header; features/traccar.js) -->
-          <details class="glass details-card vp-section set-section needs-owner tr-card" id="vpTraccarSection" data-tone="green" data-key="traccar">
+          <details class="glass details-card vp-section set-section needs-owner tr-card" id="vpTraccarSection" data-tone="green" data-key="traccar" data-feature="integrations">
             <summary class="vp-section-title"><span class="vp-section-icon"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s7-6.2 7-11a7 7 0 0 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></span>Posición por GPS (Traccar)<span class="vp-chev" aria-hidden="true"></span></summary>
             <label class="vp-field tr-car"><span>Coche</span><select id="trCar" class="form-control" data-on-change="Traccar.pickCar(this.value)"></select></label>
             <p class="vp-hint">Si el coche lleva su propio localizador GPS que reporta a un servidor Traccar, EVbro recibe sus posiciones en directo; en un coche sin cuenta de Ebro construye los viajes con ellas.</p>

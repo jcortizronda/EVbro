@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_timezone
 from app.db.models import ChargePoint, ChargingSession, Vehicle
 from app.db.session import get_db
-from app.services import periods
+from app.services import charge_curve, periods
 from app.services.manual_charges import energy_kwh
 
 router = APIRouter(tags=["Charging"])
@@ -104,6 +104,9 @@ def _serialize_session_details(charge: ChargingSession, points: List[ChargePoint
         end_rng = round(end_pct * 0.8, 0)
     added_rng = max(0.0, round(end_rng - start_rng, 0))
 
+    # a second figure for the energy, measured on the curve (services/charge_curve.py); the stored one stays the main figure
+    curve = charge_curve.energy(points, charge.start_time, charge.end_time, added_pct) if charge.end_time and not charge.manual else None
+
     return {
         "charge": {
             "id": charge.id,
@@ -125,6 +128,10 @@ def _serialize_session_details(charge: ChargingSession, points: List[ChargePoint
             "kwh_used": kwh_use,                      # None = no meter (unknown)
             "efficiency_pct": efficiency,             # None = cannot be computed
             "battery_capacity_kwh": capacity_kwh,     # used to estimate kwh_added from the battery %
+            # the power readings added up; None = no curve, or too many holes in it to trust the sum
+            "kwh_curve": curve["kwh"] if curve and curve["reliable"] else None,
+            "curve_coverage": curve["coverage"] if curve else None,
+            "curve_capacity_kwh": curve["capacity_kwh"] if curve else None,     # what 100 % would hold at this charge's rate
             "duration_seconds": dur_sec,
             "max_charge_power_kw": max_power,
             "avg_charge_power_kw": avg_power,

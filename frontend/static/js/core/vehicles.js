@@ -204,7 +204,7 @@ async function applyVehicleCapabilities() {
   if (!manual) { document.body.dataset.gps = '1'; return; }
   // a manual car shows the map only when something (Traccar) has ever placed it
   try {
-    const res = await fetch(`/api/vehicles/${currentVin}/gps/latest`);
+    const res = featureOff('integrations') ? { ok: false } : await fetch(`/api/vehicles/${currentVin}/gps/latest`);
     const data = res.ok ? await res.json() : { position: null };
     document.body.dataset.gps = data.position ? '1' : '0';
   } catch (e) { document.body.dataset.gps = '0'; }

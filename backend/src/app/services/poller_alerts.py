@@ -12,6 +12,7 @@ from typing import Any, Dict, Iterable, List, Optional, Set
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import entitlements
 from app.db.models import AlertState, Geofence, GeofenceEvent, Vehicle
 from app.db.session import async_session_factory
 from app.i18n import M
@@ -150,35 +151,38 @@ class AlertsMixin:
             if abs(odo - last_km) >= 200 or not last_at or (now - last_at).total_seconds() >= 6 * 3600:
                 self._last_maint_check_km[vin] = odo
                 self._last_maint_check_at[vin] = now
-                try:
-                    from app.services.maintenance_alerts import collect_alerts
-                    async with async_session_factory() as m_session:
-                        pending = await collect_alerts(m_session, vin, odo, now)
-                    fresh = await self._fresh_alerts(session, vin, sent, "maintenance", [a["key"] for a in pending])
-                    for alert in pending:
-                        if alert["key"] not in fresh:
-                            continue
-                        await NotificationService.notify_maintenance_alert(
-                            vehicle.name, alert["label"], alert["remaining_km"], alert["is_overdue"],
-                            alert["items"], alert["labor_hours"], remaining_days=alert["remaining_days"], vin=vin,
-                        )
-                except Exception as ex:
-                    _LOGGER.debug(f"Warning while checking maintenance alerts: {ex}")
-                # EVbro's own recommendations (brakes, old petrol, tyres, 12 V battery, wipers: services/maintenance_advice.py):
-                # one notice when one comes due, and a single notice for all when several do at once. The first look at a car is
-                # silent (SEEN_MARK): what was already due that day is listed in Mantenimiento, only what comes due later notifies
-                try:
-                    from app.services import maintenance_advice
-                    async with async_session_factory() as a_session:
-                        due = await maintenance_advice.due_alerts(a_session, vin, now, odo)
-                    first_look = f"advice:{maintenance_advice.SEEN_MARK}" not in sent
-                    names = [maintenance_advice.SEEN_MARK] + [a["alert"] for a in due]
-                    fresh = set(await self._fresh_alerts(session, vin, sent, "advice", names))
-                    new = [] if first_look else [a for a in due if a["alert"] in fresh]
-                    if new:
-                        await NotificationService.notify_maintenance_advice(vehicle.name, maintenance_advice.notice(new), len(new), vin=vin)
-                except Exception as ex:
-                    _LOGGER.debug(f"Warning while checking maintenance recommendations: {ex}")
+                # An installation may have switched maintenance off for the car's account: then nothing is looked at, and the
+                # alerts already told are kept as they were (they pick up where they left if the area comes back)
+                if await entitlements.vin_allowed(vin, "maintenance"):
+                    try:
+                        from app.services.maintenance_alerts import collect_alerts
+                        async with async_session_factory() as m_session:
+                            pending = await collect_alerts(m_session, vin, odo, now)
+                        fresh = await self._fresh_alerts(session, vin, sent, "maintenance", [a["key"] for a in pending])
+                        for alert in pending:
+                            if alert["key"] not in fresh:
+                                continue
+                            await NotificationService.notify_maintenance_alert(
+                                vehicle.name, alert["label"], alert["remaining_km"], alert["is_overdue"],
+                                alert["items"], alert["labor_hours"], remaining_days=alert["remaining_days"], vin=vin,
+                            )
+                    except Exception as ex:
+                        _LOGGER.debug(f"Warning while checking maintenance alerts: {ex}")
+                    # EVbro's own recommendations (brakes, old petrol, tyres, 12 V battery, wipers: services/maintenance_advice.py):
+                    # one notice when one comes due, and a single notice for all when several do at once. The first look at a car is
+                    # silent (SEEN_MARK): what was already due that day is listed in Mantenimiento, only what comes due later notifies
+                    try:
+                        from app.services import maintenance_advice
+                        async with async_session_factory() as a_session:
+                            due = await maintenance_advice.due_alerts(a_session, vin, now, odo)
+                        first_look = f"advice:{maintenance_advice.SEEN_MARK}" not in sent
+                        names = [maintenance_advice.SEEN_MARK] + [a["alert"] for a in due]
+                        fresh = set(await self._fresh_alerts(session, vin, sent, "advice", names))
+                        new = [] if first_look else [a for a in due if a["alert"] in fresh]
+                        if new:
+                            await NotificationService.notify_maintenance_advice(vehicle.name, maintenance_advice.notice(new), len(new), vin=vin)
+                    except Exception as ex:
+                        _LOGGER.debug(f"Warning while checking maintenance recommendations: {ex}")
 
         # 4b. Dated renewals (insurance, taxes…): checked every 6 h; one alert 30 days before, one in the last week and one once
         #     overdue (the band is part of its key)
@@ -189,7 +193,8 @@ class AlertsMixin:
             try:
                 from app.services.renewal_alerts import collect_renewals
                 async with async_session_factory() as r_session:
-                    due = await collect_renewals(r_session, vin, now)
+                    # the ones that come from an expense belong to the costs area, which an installation may switch off
+                    due = await collect_renewals(r_session, vin, now, expenses=await entitlements.vin_allowed(vin, "costs"))
                 fresh = await self._fresh_alerts(session, vin, sent, "renewal", [a["key"] for a in due])
                 for alert in due:
                     if alert["key"] in fresh:

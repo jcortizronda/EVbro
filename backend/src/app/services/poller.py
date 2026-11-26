@@ -19,7 +19,7 @@ from app.core.telemetry import parse_telemetry_data
 from app.db.models import EbroAccount, TelemetrySnapshot, Vehicle
 from app.db.session import async_session_factory
 from app.security.access import first_manager_id, foreign_vins, within_vehicle_limit
-from app.services import admin_audit, cloud_usage, energy_recalc, tenant, vehicle_profiles
+from app.services import admin_audit, cloud_health, cloud_usage, energy_recalc, tenant, vehicle_profiles
 from app.services import telemetry as usage_reports
 from app.services.accounts import fetch_account_vehicles, vehicle_data_dir
 from app.services.car_events import CarEventHub
@@ -59,6 +59,7 @@ POLL_CONCURRENCY = 4
 POLL_COALESCE_SECONDS = 5
 # Raw keys remembered per car (`vehicles.reported_keys`); the cloud sends about a hundred
 MAX_REPORTED_KEYS = 300
+ENTITLEMENT_SYNC_S = 600         # how often the managers' own connections are checked against the installation's rule, if it has one
 
 
 # Causes of a read without data that are not faults of the code and stay out of the project's reports: the account's session
@@ -115,6 +116,7 @@ class VehiclePoller(SessionMixin, CommandsMixin, AlertsMixin, PositionWatchMixin
     _last_renewal_check_at: Dict[str, datetime.datetime] = {}
     _last_retention_run: Optional[datetime.datetime] = None
     _last_catalog_sync: Optional[datetime.datetime] = None
+    _last_entitlement_sync: Optional[datetime.datetime] = None
     # Cars whose last read found the Ebro session dead: the loop leaves them alone until there is a new session (`reads_paused`)
     _session_paused: Dict[str, Dict] = {}
     # Alert situations not yet confirmed: (vin, key) -> since when they are seen
@@ -161,6 +163,16 @@ class VehiclePoller(SessionMixin, CommandsMixin, AlertsMixin, PositionWatchMixin
                 sub(payload)
             except Exception as e:
                 _LOGGER.debug(f"Error notifying WS subscriber: {e}")
+
+    def _cloud_changed(self, change: Optional[str]) -> None:
+        """Tells every connected page when the Ebro cloud stops answering and when it answers again (services/cloud_health.py)."""
+        if change is None:
+            return
+        if change == "down":
+            _LOGGER.warning("The Ebro cloud does not answer: every read has failed for %d minutes.", cloud_health.DOWN_AFTER_S // 60)
+        else:
+            _LOGGER.info("The Ebro cloud answers again.")
+        self.broadcast_event(cloud_health.event())
 
     def get_latest(self, vin: str) -> Optional[Dict]:
         return self._latest_snapshots.get(vin)
@@ -518,6 +530,14 @@ class VehiclePoller(SessionMixin, CommandsMixin, AlertsMixin, PositionWatchMixin
             _LOGGER.error(f"Exception polling {vin}: {e}", exc_info=True)
             return None
 
+        # Whether the cloud answered at all, for the notice of an outage (services/cloud_health.py). A rejected session, a read
+        # held back by the cooldown or one that found the car busy say nothing either way about the cloud.
+        if isinstance(res, dict) and res.get("ok") is False:
+            if res.get("reason") == "exception":
+                self._cloud_changed(cloud_health.unanswered(vin, len(self._contexts)))
+        else:
+            self._cloud_changed(cloud_health.answered())
+
         failed = isinstance(res, dict) and res.get("ok") is False and res.get("reason") != "cooldown"
         if failed and _retry and res.get("reason") == "exception" and any(m in str(res.get("error") or "") for m in _UNSENT_MARKERS):
             # The question never left (no DNS, no connection: every restart of the server left one or two of these): once more
@@ -822,6 +842,7 @@ class VehiclePoller(SessionMixin, CommandsMixin, AlertsMixin, PositionWatchMixin
             await self._run_climate_schedules()
             await self._maybe_apply_retention()
             await self._maybe_sync_catalog()
+            await self._maybe_refresh_entitled_services()
             await asyncio.sleep(10)
 
     async def _poll_limited(self, vin: str) -> None:
@@ -861,6 +882,18 @@ class VehiclePoller(SessionMixin, CommandsMixin, AlertsMixin, PositionWatchMixin
                 _LOGGER.info(f"History retention: deleted {deleted}")
         except Exception as ex:
             _LOGGER.warning(f"Could not apply the history retention: {ex}")
+
+    async def _maybe_refresh_entitled_services(self) -> None:
+        """Only for an installation with a rule about what each account may use (app/entitlements.py): every few minutes the
+        managers' own connections are brought in line with it, because the rule may change with the date."""
+        from app import entitlements
+        if not entitlements.has_rule():
+            return
+        now = utcnow()
+        if self._last_entitlement_sync and (now - self._last_entitlement_sync).total_seconds() < ENTITLEMENT_SYNC_S:
+            return
+        self._last_entitlement_sync = now
+        await entitlements.refresh_services()             # never raises
 
     async def _maybe_sync_catalog(self) -> None:
         """Mirror of the online catalogue once a day (and at start-up) when the server is set to use one."""

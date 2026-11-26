@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import entitlements
 from app.db.models import AppUser, Vehicle
 from app.db.session import get_db
 from app.i18n import _
@@ -18,17 +19,26 @@ from app.services import periods, timeline
 router = APIRouter(tags=["Timeline"])
 
 
+async def _areas_off(session: AsyncSession, user: AppUser) -> set:
+    """The areas this installation has switched off for the account: what belongs to them is not listed here either."""
+    return set(await entitlements.disabled_for(session, user))
+
+
 @router.get("/vehicles/{vin}/timeline")
 async def get_timeline(vin: str, kinds: str = Query("", max_length=200), before: Optional[datetime.datetime] = None,
                        limit: int = Query(40, ge=1, le=timeline.MAX_LIMIT), period: Optional[str] = Query(None, max_length=12),
                        frm: Optional[str] = Query(None, alias="from", max_length=10), to: Optional[str] = Query(None, max_length=10),
-                       session: AsyncSession = Depends(get_db)):
+                       session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)):
     """Newest events of the car, all kinds mixed (`kinds=drive,charge,…` narrows; `before` pages backwards; `period`/`from`/`to` bound the dates)."""
     if (await session.execute(select(Vehicle.id).where(Vehicle.vin == vin))).scalar_one_or_none() is None:
         raise HTTPException(status_code=404, detail="Vehículo no encontrado.")
     wanted = [k.strip() for k in kinds.split(",") if k.strip()]
     if any(k not in timeline.KINDS for k in wanted):
         raise HTTPException(status_code=422, detail=_("Tipo no válido; admitidos: {p0}.", p0=', '.join(timeline.KINDS)))
+    off = await _areas_off(session, user)
+    wanted = [k for k in (wanted or timeline.DEFAULT_KINDS) if timeline.AREA_OF.get(k) not in off]
+    if not wanted:
+        return {"events": [], "has_more": False, "kinds": []}
     return await timeline.events(session, vin, wanted, before, limit, periods.resolve(period, frm, to))
 
 
@@ -38,5 +48,5 @@ async def global_search(q: str = Query("", max_length=120), limit: int = Query(4
     """Text search over parts, interventions, expenses, documents, refuels and drives of every car the account can see."""
     levels = await accessible_vehicles(session, user)
     names = {vin: name for vin, name in (await session.execute(select(Vehicle.vin, Vehicle.name).where(Vehicle.vin.in_(list(levels))))).all()} if levels else {}
-    hits = await timeline.search(session, names, q, limit)
+    hits = await timeline.search(session, names, q, limit, skip_areas=await _areas_off(session, user))
     return {"query": " ".join(q.split()), "hits": hits}

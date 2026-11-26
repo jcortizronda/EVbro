@@ -286,7 +286,7 @@ function chargeTargetEta(data) {
 let _evKpi = { vin: null, at: 0 };
 async function refreshEvConsumptionKpi() {
   const box = document.getElementById('energyEvConsumption');
-  if (!box || !currentVin) return;
+  if (!box || !currentVin || featureOff('stats')) return;
   const stale = _evKpi.vin !== currentVin || Date.now() - _evKpi.at > 10 * 60 * 1000;
   if (!stale) return;
   _evKpi = { vin: currentVin, at: Date.now() };

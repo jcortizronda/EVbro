@@ -61,3 +61,12 @@ async def test_at_start_up_the_poller_fills_the_sheets_and_re_estimates_the_ener
         drive = (await s.execute(select(Drive).where(Drive.vin == VIN_2026))).scalar_one()
     assert (car.battery_capacity_kwh, car.fuel_tank_liters, car.model_year) == (34.5, 70.0, 2026)
     assert drive.energy_consumed_kwh == 6.9                                 # 20 points of 34.5 kWh, as saving the sheet by hand would do
+
+
+def test_every_known_model_links_to_its_manual_on_ebros_own_site() -> None:
+    """EVbro links to the owner's manual, it never serves a copy: each known model has an https link to Ebro's manuals host."""
+    assert set(vp.MANUALS) == set(vp.SPECS)
+    for model, manual in vp.MANUALS.items():
+        assert manual["manual_url"].startswith("https://manuales.ebroauto.com/manuales/") and manual["manual_url"].endswith(".pdf"), model
+        assert " " not in manual["manual_url"] and manual["manual_mb"] > 0
+        assert "manual_url" not in vp.SPECS[model]             # the figures applied to a car's sheet stay figures

@@ -21,6 +21,13 @@ SPECS: Dict[str, Dict[str, Any]] = {
     "S800 PHEV": {"battery_capacity_kwh": 18.3, "fuel_tank_liters": 60.0, "seats": 7, "electric_range_km": 90, "env_label": "0", "fuel_type": "phev"},
     "S900 PHEV": {"battery_capacity_kwh": 34.5, "fuel_tank_liters": 70.0, "seats": 7, "electric_range_km": 140, "env_label": "0", "fuel_type": "phev"},
 }
+# The owner's manual of each model: the PDF Ebro itself publishes (linked from ebroauto.com/posventa). EVbro only links to it: the
+# document is Ebro's, and its own copy is always the current one. Sizes in MB as served on 26-11-2026 (the S700's is very large).
+MANUALS: Dict[str, Dict[str, Any]] = {
+    "S700 PHEV": {"manual_url": "https://manuales.ebroauto.com/manuales/EBRO%20s700%20PHEV.pdf", "manual_mb": 359},
+    "S800 PHEV": {"manual_url": "https://manuales.ebroauto.com/manuales/EBRO%20s800%20PHEV.pdf", "manual_mb": 54},
+    "S900 PHEV": {"manual_url": "https://manuales.ebroauto.com/manuales/EBRO%20s900%20PHEV.pdf", "manual_mb": 91},
+}
 # (model, first year, last year) -> figures that differ from `SPECS` for those years. Empty so far.
 YEARS: List[tuple] = []
 

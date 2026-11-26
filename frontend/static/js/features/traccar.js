@@ -34,7 +34,7 @@
 
   async function load() {
     renderCarPicker();
-    if (!carVin() || !el('trHost')) return;
+    if (!carVin() || !el('trHost') || featureOff('integrations')) return;
     try {
       const res = await fetch(`/api/vehicles/${carVin()}/traccar`);
       if (res.status === 403) { el('vpTraccarSection').hidden = true; return; }     // not the owner

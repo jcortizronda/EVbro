@@ -13,6 +13,7 @@ from typing import Awaitable, Callable, Dict, List, Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import entitlements
 from app.config import get_timezone
 from app.db.models import ClimateSchedule, Vehicle
 
@@ -60,6 +61,8 @@ async def run_due(session: AsyncSession, send: Callable[[str, float], Awaitable[
     for s in rows:
         if not is_due(s, now_local):
             continue
+        if not await entitlements.vin_allowed(s.vin, "automation"):
+            continue                                      # this installation has switched timetables off for the car's account
         s.last_run_on = now_local.date()                 # mark BEFORE sending: a failure is not retried every 10 s
         await session.commit()
         try:

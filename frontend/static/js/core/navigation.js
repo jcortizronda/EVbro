@@ -3,7 +3,11 @@
  */
 
 // Tab switcher: the desktop sidebar (`.side-item[data-tab]`) and the touch bottom dock (`#mobTab…`) share the same sections
+// Tabs that are a whole area an installation may not offer to the account (core/auth.js `featureOff`)
+const TAB_AREAS = { stats: 'stats', maintenance: 'maintenance', expenses: 'costs', costs: 'costs' };
+
 function switchTab(tabName) {
+  if (TAB_AREAS[tabName] && typeof featureOff === 'function' && featureOff(TAB_AREAS[tabName])) tabName = 'overview';
   window.currentTabName = tabName;
   document.querySelectorAll('.tab-btn, .mobile-nav-item, .dock-item').forEach(btn => btn.classList.remove('active'));
   document.querySelectorAll('.side-item[data-tab]').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tabName));

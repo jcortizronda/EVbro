@@ -23,6 +23,8 @@ function initWebSocket() {
         // The car confirms (or rejects) an order over MQTT: it updates the notice of the order just sent, or shows one if there is none
         if (typeof applyCommandResult === 'function') applyCommandResult(msg.message, msg.failed);
         else showToast(msg.message, msg.failed ? 'error' : 'success', 5000);
+      } else if (msg.type === 'cloud_status') {
+        showCloudStatus(msg);
       } else if (msg.type === 'notification') {
         showAppNotificationBanner(msg.title, msg.message, msg.category);
       }
@@ -38,4 +40,20 @@ function initWebSocket() {
     console.log("Reconnecting in 5s...");
     setTimeout(initWebSocket, 5000);
   };
+}
+
+
+/** The strip «La nube de Ebro no responde» (services/cloud_health.py): the server says when every read has been failing for a while
+ *  and when one gets through again. Nothing is asked for it; a page that opens during an outage is told on connecting. */
+function showCloudStatus(msg) {
+  const strip = document.getElementById('cloudBanner');
+  if (!strip) return;
+  const wasDown = !strip.hidden;
+  strip.hidden = !msg.down;
+  const since = document.getElementById('cloudSince');
+  if (since) {
+    const at = msg.down && msg.since ? new Date(msg.since) : null;
+    since.textContent = at && !isNaN(at) ? ' ' + t('desde las {p0}', { p0: at.toLocaleTimeString(I18n.locale, { hour: '2-digit', minute: '2-digit' }) }) : '';
+  }
+  if (wasDown && !msg.down && typeof showToast === 'function') showToast(t('La nube de Ebro vuelve a responder.'), 'success', 5000);
 }

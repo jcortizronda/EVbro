@@ -336,6 +336,7 @@ def test_websocket_with_session_connects_and_from_another_origin_does_not(ws_cli
     r = ws_client.post("/api/auth/login", json={"username": USER, "password": PASSWORD})
     assert r.status_code == 200
     with ws_client.websocket_connect("/api/ws") as ws:
+        assert '"cloud_status"' in ws.receive_text()        # on connecting: whether the Ebro cloud is answering (services/cloud_health.py)
         ws.send_text("ping")
         assert ws.receive_text() == "pong"
     with pytest.raises(WebSocketDisconnect) as exc:
@@ -361,6 +362,7 @@ def test_an_open_websocket_closes_when_its_session_ends(ws_client, monkeypatch) 
     monkeypatch.setattr(routes_ws, "ALLOWED_REFRESH_S", 0.2)
     assert ws_client.post("/api/auth/login", json={"username": USER, "password": PASSWORD}).status_code == 200
     with ws_client.websocket_connect("/api/ws") as ws:
+        assert '"cloud_status"' in ws.receive_text()        # on connecting: whether the Ebro cloud is answering (services/cloud_health.py)
         ws.send_text("ping")
         assert ws.receive_text() == "pong"                  # the session is alive: the channel stays open across a refresh
         assert ws_client.post("/api/auth/logout", headers={"Origin": "http://testserver"}).status_code == 200

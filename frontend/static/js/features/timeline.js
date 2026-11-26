@@ -7,10 +7,12 @@
 
 const TIMELINE_KINDS = [
   ['', 'Todo'], ['drive', 'Viajes'], ['charge', 'Cargas'], ['refuel', 'Repostajes'], ['maintenance', 'Taller'],
-  ['expense', 'Gastos'], ['document', 'Documentos'], ['geofence', 'Geocercas'],
+  ['expense', 'Gastos'], ['document', 'Documentos'], ['geofence', 'Geocercas'], ['command', 'Órdenes'],
 ];
-const TIMELINE_ICON = { drive: 'car', charge: 'bolt', refuel: 'fuel', maintenance: 'wrench', expense: 'doc', document: 'file', geofence: 'pin', part: 'list' };
-const TIMELINE_KIND_LABEL = { drive: 'Viaje', charge: 'Carga', refuel: 'Repostaje', maintenance: 'Taller', expense: 'Gasto', document: 'Documento', geofence: 'Geocerca', part: 'Pieza' };
+// Kinds that belong to an area the installation may not offer to the account: their chip goes with the area (base/reset.css)
+const TIMELINE_AREA = { maintenance: 'maintenance', expense: 'costs' };
+const TIMELINE_ICON = { drive: 'car', charge: 'bolt', refuel: 'fuel', maintenance: 'wrench', expense: 'doc', document: 'file', geofence: 'pin', part: 'list', command: 'send' };
+const TIMELINE_KIND_LABEL = { drive: 'Viaje', charge: 'Carga', refuel: 'Repostaje', maintenance: 'Taller', expense: 'Gasto', document: 'Documento', geofence: 'Geocerca', part: 'Pieza', command: 'Orden' };
 
 const timelineState = { kind: '', before: null, lastMonth: null, loading: false, searchTimer: null, query: '' };
 let timelinePicker = null;
@@ -41,7 +43,7 @@ function renderTimelineChips() {
   const box = tlEl('tlChips');
   if (!box || box.children.length) return;
   box.innerHTML = TIMELINE_KINDS.map(([k, label]) =>
-    `<button type="button" class="ex-chip${k === timelineState.kind ? ' is-active' : ''}" data-kind="${k}" data-on-click="setTimelineKind('${k}')">${label}</button>`).join('');
+    `<button type="button" class="ex-chip${k === timelineState.kind ? ' is-active' : ''}" data-kind="${k}"${TIMELINE_AREA[k] ? ` data-feature="${TIMELINE_AREA[k]}"` : ''} data-on-click="setTimelineKind('${k}')">${label}</button>`).join('');
 }
 
 function setTimelineKind(kind) {
@@ -135,6 +137,7 @@ function clearTimelineSearch() {
 
 /** Jumps to the tab that shows the item; a hit of another car switches the car first. */
 function openTimelineItem(kind, id, vin) {
+  if (kind === 'command') return;                 // an order has nothing more to show than its row
   const tab = { drive: 'drives', charge: 'charges', refuel: 'refuels', maintenance: 'maintenance', expense: 'expenses',
                 document: 'vehicle', geofence: 'geofences', part: 'vehicle' }[kind] || 'overview';
   if (vin && vin !== currentVin && typeof selectVehicle === 'function') selectVehicle(vin);

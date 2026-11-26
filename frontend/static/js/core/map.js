@@ -251,6 +251,7 @@ async function refreshGpsPosition(force = false) {
   gpsLastFetch = now;
   try {
     const vin = currentVin;
+    if (featureOff('integrations')) return;          // the positions come from the manager's own Traccar
     const res = await fetch(`/api/vehicles/${vin}/gps/latest`);
     if (!res.ok) return;
     const { position } = await res.json();

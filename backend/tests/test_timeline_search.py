@@ -118,3 +118,22 @@ async def test_search_finds_parts_workshops_and_more_only_in_visible_cars(world)
     # Bea only reaches her own car; Mia, Ana's member with «view», reaches Ana's car
     assert [h["vin"] for h in (await bea.get("/api/search", params={"q": "aceite"})).json()["hits"]] == [OTHER]
     assert {h["vin"] for h in (await mia.get("/api/search", params={"q": "aceite"})).json()["hits"]} == {VIN}
+
+
+async def test_the_orders_sent_to_the_car_are_listed_when_asked_for_with_who_sent_each(world) -> None:
+    from app.db.models import CommandAudit
+    async with async_session_factory() as s:
+        s.add_all([
+            CommandAudit(vin=VIN, timestamp=D(2026, 11, 20, 8, 0), command="cerrar_coche", success=True, actor="juan", client_ip="198.51.100.7", params={"pin": "x"}),
+            CommandAudit(vin=VIN, timestamp=D(2026, 11, 20, 9, 0), command="clima_on", success=False, code="A00084", message="El coche no respondió", client_ip="schedule"),
+            CommandAudit(vin=VIN, timestamp=D(2026, 11, 20, 10, 0), command="buscar_coche", success=True, actor="marta", car_result="El coche lo confirma"),
+            CommandAudit(vin=OTHER, timestamp=D(2026, 11, 20, 11, 0), command="cerrar_coche", success=True, actor="otro"),
+        ])
+        await s.commit()
+    c = world["ana"]
+    everything = (await c.get(f"/api/vehicles/{VIN}/timeline?limit=200")).json()
+    assert "command" not in {e["kind"] for e in everything["events"]}          # many and small: not mixed in unless asked for
+    orders = (await c.get(f"/api/vehicles/{VIN}/timeline?kinds=command")).json()["events"]
+    assert [e["subtitle"] for e in orders] == ["marta · El coche lo confirma", "Programación de EVbro · Rechazada: El coche no respondió", "juan · Aceptada"]
+    assert all(e["kind"] == "command" and e["tab"] == "timeline" for e in orders)
+    assert "198.51.100.7" not in str(orders) and "pin" not in str(orders).lower().replace("pin_", "")      # neither the address nor the parameters

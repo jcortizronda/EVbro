@@ -2647,5 +2647,18 @@
  "No se pudo resolver el nombre del servidor.": "The server's name could not be resolved.",
  "Este servidor de EVbro solo admite direcciones públicas, no las de una red local.": "This EVbro server only accepts public addresses, not those of a local network.",
  "Preparando el libro del coche: la descarga empezará en unos segundos.": "Preparing the car book: the download will start in a few seconds.",
- "Tu cuenta no incluye esta función.": "Your account does not include this feature."
+ "Tu cuenta no incluye esta función.": "Your account does not include this feature.",
+ "Aquí se ven los últimos {p0} días. Lo anterior sigue guardado.": "The last {p0} days are shown here. Everything older is still kept.",
+ "Sumando la potencia medida en la curva salen {p0} kWh: es lo que entró en la batería, y una parte se pierde en calor.": "Adding up the power measured on the curve gives {p0} kWh: that is what went into the battery, and part of it is lost as heat.",
+ "La nube de Ebro no responde": "The Ebro cloud is not answering",
+ ". Los datos pueden ir con retraso y las órdenes pueden fallar.": ". Data may be delayed and orders may fail.",
+ "desde las {p0}": "since {p0}",
+ "La nube de Ebro vuelve a responder.": "The Ebro cloud is answering again.",
+ "Programación de EVbro": "EVbro timetable",
+ "Localización automática": "Automatic location",
+ "EVbro, automático": "EVbro, automatic",
+ "No enviada": "Not sent",
+ "Manual del propietario": "Owner's manual",
+ "Abrir manual": "Open manual",
+ "El manual oficial de Ebro del {p0}, en PDF. Se abre desde la web de Ebro y pesa {p1} MB: mejor con wifi.": "Ebro's official manual for the {p0}, as a PDF. It opens from Ebro's website and is {p1} MB: better on Wi-Fi."
 }

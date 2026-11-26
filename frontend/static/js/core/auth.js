@@ -46,6 +46,11 @@
     return res;
   };
 
+  /** Has this installation switched `area` off for the account? (app/entitlements.py; never, unless the server has a rule) */
+  window.featureOff = function (area) {
+    return !!(window.accountInfo && (window.accountInfo.disabledFeatures || []).includes(area));
+  };
+
   async function fetchStatus() {
     const res = await nativeFetch('/api/auth/status', { credentials: 'same-origin' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -61,6 +66,10 @@
     document.documentElement.dataset.off = off.join(' ');
     window.accountInfo = { role: data.role || null, vehicleLimit: data.vehicle_limit, memberLimit: data.member_limit, disabledFeatures: off,
       historyDays: data.history_days || null };
+    if (off.includes('history_full') && typeof t === 'function') {
+      const note = t('Aquí se ven los últimos {p0} días. Lo anterior sigue guardado.', { p0: window.accountInfo.historyDays || 30 });
+      document.querySelectorAll('[data-history-note]').forEach((n) => { n.textContent = note; });
+    }
     if (typeof applyAccessLevel === 'function') applyAccessLevel();
     return data;
   }

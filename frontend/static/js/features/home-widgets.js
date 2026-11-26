@@ -16,6 +16,7 @@ const WidgetBoards = (function () {
   const $ = (id) => document.getElementById(id);
   const ICON = (inner) => `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${inner}</svg>`;
 
+  // `area`: belongs to an area the installation may not offer to the account (core/auth.js `featureOff`): then it is not there
   // `live`: needs the car's own data (not on a car without an Ebro account); `electric`: only plug-in hybrids and electric cars
   const CATALOG = {
     range: { label: 'Autonomía', desc: 'Batería y gasolina, con los kilómetros que quedan.', live: true },
@@ -26,19 +27,19 @@ const WidgetBoards = (function () {
     map: { label: 'Mapa', desc: 'Dónde está el coche, con «Centrar» e «Ir a».' },
     tpms: { label: 'Presión de neumáticos', desc: 'Presión y temperatura de cada rueda.', live: true },
     sensors: { label: 'Todos los datos', desc: 'Botón para ver todos los datos que manda el coche.', live: true },
-    service: { label: 'Próximo mantenimiento', desc: 'La revisión o tarea más cercana y la ITV.', tab: 'maintenance',
+    service: { label: 'Próximo mantenimiento', desc: 'La revisión o tarea más cercana y la ITV.', tab: 'maintenance', area: 'maintenance',
       icon: ICON('<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/>') },
     last_trip: { label: 'Último viaje', desc: 'De dónde a dónde, distancia, duración y consumo.', tab: 'drives',
       icon: ICON('<circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8.5 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.5"/>') },
     last_charge: { label: 'Última carga', desc: 'Dónde, cuánta energía, de qué a qué porcentaje y su coste.', tab: 'charges', electric: true,
       icon: ICON('<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>') },
-    month_cost: { label: 'Gasto del mes', desc: 'Lo gastado este mes en cargas, gasolina, mantenimiento y otros gastos.', tab: 'costs',
+    month_cost: { label: 'Gasto del mes', desc: 'Lo gastado este mes en cargas, gasolina, mantenimiento y otros gastos.', tab: 'costs', area: 'costs',
       icon: ICON('<rect x="2.5" y="6" width="19" height="13" rx="2.5"/><path d="M2.5 10.5h19M7 15h3"/>') },
     charge_plan: { label: 'Carga programada', desc: 'El objetivo de batería y el horario de carga.', tab: 'charges', live: true, electric: true,
       icon: ICON('<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/>') },
     climate: { label: 'Climatización', desc: 'Temperatura dentro y fuera, y encender o apagar el clima.', tab: 'climate', live: true,
       icon: ICON('<path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9"/>') },
-    consumption: { label: 'Consumo', desc: 'Kilómetros y consumo medio de los últimos 30 días.', tab: 'stats',
+    consumption: { label: 'Consumo', desc: 'Kilómetros y consumo medio de los últimos 30 días.', tab: 'stats', area: 'stats',
       icon: ICON('<path d="M3 20h18M6 16v-4M11 16V8M16 16v-6M21 16V4"/>') },
   };
   const ENERGY_CATALOG = {
@@ -84,6 +85,7 @@ const WidgetBoards = (function () {
   /** A widget that this car cannot show (no Ebro account, or not electric); CSS hides it. */
   function unavailable(el) {
     const b = document.body.dataset;
+    if (el.dataset.feature && featureOff(el.dataset.feature)) return true;
     return (el.dataset.live !== undefined && b.manual === '1') || (el.dataset.electric !== undefined && !['phev', 'ev'].includes(b.fuel || 'phev'));
   }
 
@@ -147,6 +149,7 @@ const WidgetBoards = (function () {
       el.dataset.widget = key;
       if (w.live) el.dataset.live = '';
       if (w.electric) el.dataset.electric = '';
+      if (w.area) el.dataset.feature = w.area;
       el.innerHTML = `<div class="glass hw-card" data-on-click="switchTab('${w.tab}')">
         <button type="button" class="hw-head" data-on-click="switchTab('${w.tab}')"><span class="hw-icon">${w.icon}</span><span class="hw-title">${escapeHtml(t(w.label))}</span><span class="hw-go" aria-hidden="true">›</span></button>
         <div class="hw-body" data-hw-body><span class="hw-muted">${escapeHtml(t('Cargando…'))}</span></div>
@@ -256,7 +259,7 @@ const WidgetBoards = (function () {
     // ───── add and reset ─────
     function openAdd() {
       addingTo = api;
-      const free = Object.keys(catalog).filter((k) => !layout.includes(k));
+      const free = Object.keys(catalog).filter((k) => !layout.includes(k) && !(catalog[k].area && featureOff(catalog[k].area)));
       $('homeAddList').innerHTML = free.length ? free.map((k) => {
         const w = catalog[k];
         const probe = document.createElement('div');

@@ -16,8 +16,10 @@ from typing import Any, Dict, Iterable, List, Optional
 from sqlalchemy import and_, desc, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.catalog import CMD_MAP
 from app.db.models import (
     ChargingSession,
+    CommandAudit,
     Drive,
     Expense,
     GeofenceEvent,
@@ -29,10 +31,18 @@ from app.db.models import (
 )
 from app.services import periods
 
-KINDS = ("drive", "charge", "refuel", "maintenance", "expense", "document", "geofence")
+KINDS = ("drive", "charge", "refuel", "maintenance", "expense", "document", "geofence", "command")
+# What the list shows when no kind is asked for: the orders sent to the car are many and small (a lock, a search…), so they are
+# listed only when asked for
+DEFAULT_KINDS = tuple(k for k in KINDS if k != "command")
+# Who sent an order that no account sent (`CommandAudit.client_ip` holds the origin then)
+ORDER_ORIGINS = {"schedule": "Programación de EVbro", "auto_locate": "Localización automática", "automático": "EVbro, automático",
+                 "mqtt": "Home Assistant (MQTT)"}
 # Which tab of the app shows each kind in full
 TABS = {"drive": "drives", "charge": "charges", "refuel": "refuels", "maintenance": "maintenance", "expense": "expenses",
-        "document": "vehicle", "geofence": "geofences", "part": "vehicle"}
+        "document": "vehicle", "geofence": "geofences", "part": "vehicle", "command": "timeline"}
+# Kinds that belong to an area an installation may switch off for an account (app/entitlements.py): they are left out for it
+AREA_OF = {"maintenance": "maintenance", "part": "maintenance", "expense": "costs"}
 MAX_LIMIT = 200
 MIN_QUERY = 2
 
@@ -98,10 +108,22 @@ def _geofence(ev: GeofenceEvent) -> Dict[str, Any]:
     return _event("geofence", ev.id, ev.timestamp, f"{verb} {ev.geofence_name}", " · ".join(b for b in bits if b))
 
 
+def _command(c: CommandAudit) -> Dict[str, Any]:
+    """An order sent to the car: its name, who sent it and how it ended. Its parameters are not shown."""
+    name = (CMD_MAP.get(c.command) or {}).get("name") or c.command
+    who = c.actor or ORDER_ORIGINS.get(c.client_ip or "")
+    result = "Aceptada" if c.success else ("No enviada" if c.code == "pin" else "Rechazada")
+    if c.car_result:
+        result = c.car_result[:80]                              # what the car itself answered afterwards, when it did
+    elif not c.success and c.message:
+        result = f"{result}: {c.message[:80]}"
+    return _event("command", c.id, c.timestamp, name, " · ".join(x for x in (who, result) if x))
+
+
 async def events(session: AsyncSession, vin: str, kinds: Iterable[str], before: Optional[datetime.datetime], limit: int,
                  bounds: periods.Bounds = (None, None)) -> Dict[str, Any]:
     """Newest `limit` entries of the chosen kinds older than `before` and inside `bounds` (every kind when `kinds` is empty)."""
-    wanted = [k for k in kinds if k in KINDS] or list(KINDS)
+    wanted = [k for k in kinds if k in KINDS] or list(DEFAULT_KINDS)
     limit = max(1, min(limit, MAX_LIMIT))
     out: List[Dict[str, Any]] = []
 
@@ -138,6 +160,11 @@ async def events(session: AsyncSession, vin: str, kinds: Iterable[str], before: 
                                       .order_by(desc(GeofenceEvent.timestamp)).limit(limit))).scalars()
         out += [_geofence(g) for g in rows]
 
+    if "command" in wanted:
+        rows = (await session.execute(select(CommandAudit).where(CommandAudit.vin == vin, older(CommandAudit.timestamp))
+                                      .order_by(desc(CommandAudit.timestamp)).limit(limit))).scalars()
+        out += [_command(c) for c in rows]
+
     out.sort(key=lambda e: e["timestamp"], reverse=True)
     page = out[:limit]
     return {"events": page, "has_more": len(out) > limit, "kinds": wanted}
@@ -149,8 +176,9 @@ def _hit(kind: str, vin: str, car: str, obj_id: int, title: str, subtitle: str, 
             "timestamp": when.isoformat() if when else None}
 
 
-async def search(session: AsyncSession, cars: Dict[str, str], query: str, limit: int = 40) -> List[Dict[str, Any]]:
-    """Text hits across the given cars ({vin: name}), newest first within each kind, `limit` in all."""
+async def search(session: AsyncSession, cars: Dict[str, str], query: str, limit: int = 40, skip_areas: Iterable[str] = ()) -> List[Dict[str, Any]]:
+    """Text hits across the given cars ({vin: name}), newest first within each kind, `limit` in all. Kinds of an area in
+    `skip_areas` are left out."""
     q = " ".join(query.split())
     if len(q) < MIN_QUERY or not cars:
         return []
@@ -197,5 +225,8 @@ async def search(session: AsyncSession, cars: Dict[str, str], query: str, limit:
         route = " → ".join(x for x in (d.start_address, d.end_address) if x)
         hits.append(_hit("drive", d.vin, cars[d.vin], d.id, route or "Viaje", f"{_n(d.distance_km)} km" if d.distance_km else "", d.start_time))
 
+    skip = set(skip_areas)
+    if skip:
+        hits = [h for h in hits if AREA_OF.get(h["kind"]) not in skip]
     hits.sort(key=lambda h: h["timestamp"] or "", reverse=True)
     return hits[:limit]

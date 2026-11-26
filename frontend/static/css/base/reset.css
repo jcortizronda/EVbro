@@ -92,3 +92,8 @@ html[data-off~="automation"] [data-feature="automation"],
 html[data-off~="integrations"] [data-feature="integrations"],
 html[data-off~="members"] [data-feature="members"],
 html[data-off~="book"] [data-feature="book"] { display: none !important; }
+/* The other way round: a line that only an account with the recent part of its history sees */
+.history-note { display: none; margin: 6px 0 10px; padding: 8px 12px; border-radius: 10px; background: var(--bg-glass-inset); color: var(--text-secondary); font-size: 0.84rem; line-height: 1.35; }
+html[data-off~="history_full"] .history-note { display: block; }
+/* The battery bar is also the charge target's slider: without that area it is only a bar */
+html[data-off~="automation"] #energyTargetSlider { pointer-events: none; }

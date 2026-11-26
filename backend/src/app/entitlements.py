@@ -9,6 +9,7 @@ recent history, the account's own data and its deletion) is always available.
 """
 from __future__ import annotations
 
+import datetime
 import logging
 from typing import Awaitable, Callable, Dict, List, Optional
 
@@ -19,6 +20,7 @@ from app.db.models import AppUser
 from app.db.session import get_db
 from app.i18n import _
 from app.security import auth
+from app.timeutil import utcnow
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -34,6 +36,7 @@ FEATURES = (
 )
 HISTORY_DAYS = 30        # how far back an account without `history_full` sees
 HEADER = "X-EVbro-Feature"
+HISTORY_FLOOR = "history_floor"      # key in `session.info`: reads of the history tables in that session start at this moment (db/history_view.py)
 
 Checker = Callable[[AsyncSession, AppUser, str], Awaitable[bool]]
 _checker: Optional[Checker] = None
@@ -43,6 +46,10 @@ def set_checker(checker: Optional[Checker]) -> None:
     """Plugs in (or removes, with None) the installation's own rule."""
     global _checker
     _checker = checker
+
+
+def has_rule() -> bool:
+    return _checker is not None
 
 
 async def allowed(session: AsyncSession, user: AppUser, feature: str) -> bool:
@@ -61,6 +68,72 @@ async def disabled_for(session: AsyncSession, user: AppUser) -> List[str]:
     if _checker is None:
         return []
     return [f for f in FEATURES if not await allowed(session, user, f)]
+
+
+async def owner_allowed(owner_id: Optional[int], feature: str) -> bool:
+    """The same question for what runs without anybody logged in (timetables, alerts, the manager's own connections): may the
+    account that owns the car use `feature`? Without a rule it does not even look the account up. A car without an owner, or
+    whose owner is gone, has nobody to switch anything off for: yes."""
+    if _checker is None or owner_id is None:
+        return True
+    from app.db.session import async_session_factory
+    try:
+        async with async_session_factory() as session:
+            user = await session.get(AppUser, owner_id)
+            return True if user is None else await allowed(session, user, feature)
+    except Exception as e:      # noqa: BLE001 — same promise as `allowed`: a failure here never switches anything off
+        _LOGGER.error("The entitlement rule could not be asked for «%s» (%s): allowed.", feature, type(e).__name__)
+        return True
+
+
+async def vin_allowed(vin: str, feature: str) -> bool:
+    """`owner_allowed` for the owner of a car."""
+    if _checker is None:
+        return True
+    from sqlalchemy import select
+
+    from app.db.models import Vehicle
+    from app.db.session import async_session_factory
+    try:
+        async with async_session_factory() as session:
+            owner_id = (await session.execute(select(Vehicle.owner_id).where(Vehicle.vin == vin))).scalar_one_or_none()
+    except Exception as e:      # noqa: BLE001
+        _LOGGER.error("The owner of a car could not be read for «%s» (%s): allowed.", feature, type(e).__name__)
+        return True
+    return await owner_allowed(owner_id, feature)
+
+
+async def refresh_services() -> None:
+    """Brings the manager's own connections (MQTT, Traccar) in line with what each account may use now. The installation calls it
+    when its rule changes for somebody, and the poller every few minutes while there is a rule (a rule may depend on the date)."""
+    if _checker is None:
+        return
+    from app.services.mqtt_hub import MqttHub
+    from app.services.traccar import TraccarHub
+    for name, sync in (("MQTT", MqttHub.get_instance().sync_allowed), ("Traccar", TraccarHub.get_instance().sync_allowed)):
+        try:
+            await sync()
+        except Exception as e:  # noqa: BLE001 — one service failing to resync must not stop the other, nor the caller
+            _LOGGER.error("%s could not be brought in line with the accounts' areas: %s", name, type(e).__name__)
+
+
+async def history_floor(session: AsyncSession, user: AppUser) -> Optional[datetime.datetime]:
+    """From when this account sees its history: `None` (all of it) or the moment `HISTORY_DAYS` ago. Nothing is ever deleted for
+    this: it is only what the account is shown."""
+    if _checker is None or await allowed(session, user, "history_full"):
+        return None
+    return utcnow() - datetime.timedelta(days=HISTORY_DAYS)
+
+
+async def limit_history(request: Request, user: AppUser = Depends(auth.require_auth), session: AsyncSession = Depends(get_db)) -> None:
+    """Dependency of the routers that show history: the reads of an account without `history_full` only find the last
+    `HISTORY_DAYS` days (db/history_view.py applies it to every query of the request). Requests that change data are left alone:
+    what they check against (a charge already written down, a drive being merged) must be the whole table."""
+    if request.method not in ("GET", "HEAD"):
+        return
+    floor = await history_floor(session, user)
+    if floor is not None:
+        session.info[HISTORY_FLOOR] = floor
 
 
 def require(feature: str, removal_always: bool = True):

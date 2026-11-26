@@ -201,6 +201,7 @@ function loadVehicleProfile() {
   set('vpTyreFrontBar', v.tyre_front_pressure_bar); set('vpTyreRearBar', v.tyre_rear_pressure_bar);
   set('vpCapacity', v.battery_capacity_kwh ?? 19.27); set('vpTank', v.fuel_tank_liters ?? 50); set('vpFuelType', v.fuel_type || 'phev');
   renderPhoto(v);
+  vpRenderManual(v);
   if (typeof loadVehicleDocuments === 'function') loadVehicleDocuments();
 }
 
@@ -320,6 +321,19 @@ async function loadModelSpecs() {
     ebroModelSpecs = res.ok ? await res.json() : {};
   } catch (e) { ebroModelSpecs = {}; }
   return ebroModelSpecs;
+}
+/** The card «Manual del propietario»: a link to the model's PDF on Ebro's own site (the server lists them with the model's figures). */
+async function vpRenderManual(v) {
+  const card = vpEl('vpManualCard');
+  if (!card) return;
+  // the model as the server names it («Ebro s900 phev» → «S900 PHEV», like services/vehicle_profiles.normalize_model)
+  const m = v && String(v.brand || '').trim().toLowerCase() === 'ebro' ? /S\s*([789]00)\s*PHEV/i.exec(v.model || '') : null;
+  const model = m ? `S${m[1]} PHEV` : null;
+  const spec = model ? (await loadModelSpecs())[model] : null;
+  card.hidden = !(spec && spec.manual_url);
+  if (card.hidden) return;
+  vpEl('vpManualLink').href = spec.manual_url;
+  vpEl('vpManualText').textContent = t('El manual oficial de Ebro del {p0}, en PDF. Se abre desde la web de Ebro y pesa {p1} MB: mejor con wifi.', { p0: model, p1: spec.manual_mb });
 }
 async function vpOnModelChange() {
   vpRenderColour();                                   // the new model's paints (the colour already chosen stays if it has it)

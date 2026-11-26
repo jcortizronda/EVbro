@@ -20,6 +20,7 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional, Set, Tuple
 
 from sqlalchemy import select
 
+from app import entitlements
 from app.config import settings
 from app.db.models import MqttLink
 from app.db.session import async_session_factory
@@ -310,6 +311,8 @@ class MqttHub:
             await self._open(link)
 
     async def _open(self, link: MqttLink) -> None:
+        if not await entitlements.owner_allowed(link.user_id, "integrations"):
+            return                      # this installation has switched the manager's own connections off for the account
         client = MqttLinkClient(MqttLinkConfig.from_link(link))
         if self._runner and self._poll:
             client.configure(self._runner, self._poll)
@@ -325,6 +328,14 @@ class MqttHub:
             link = (await session.execute(select(MqttLink).where(MqttLink.user_id == user_id, MqttLink.enabled == True))).scalar_one_or_none()  # noqa: E712
         if link:
             await self._open(link)
+
+    async def sync_allowed(self) -> None:
+        """Opens and closes clients so that only the accounts that may use their own connections have one (`entitlements`)."""
+        async with async_session_factory() as session:
+            linked = [uid for (uid,) in (await session.execute(select(MqttLink.user_id).where(MqttLink.enabled == True))).all()]  # noqa: E712
+        for user_id in linked:
+            if (user_id in self._clients) != await entitlements.owner_allowed(user_id, "integrations"):
+                await self.reload_user(user_id)
 
     async def stop(self) -> None:
         for client in list(self._clients.values()):

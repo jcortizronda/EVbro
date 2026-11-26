@@ -651,7 +651,7 @@ window.MqttHa = (function () {
   }
 
   async function load() {
-    if (!el('mqHost')) return;
+    if (!el('mqHost') || featureOff('integrations')) return;
     try {
       const res = await fetch('/api/account/mqtt');
       if (res.status === 403) { el('mqttCard').hidden = true; return; }

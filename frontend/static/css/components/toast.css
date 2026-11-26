@@ -71,6 +71,7 @@
 }
 .offline-banner[hidden] { display: none; }
 .offline-banner:not([hidden]) + .app-header { padding-top: 0; }   /* the strip already clears the status bar */
+.cloud-banner:not([hidden]) ~ .app-header { padding-top: 0; }     /* the Ebro cloud strip sits above the offline one */
 
 /* Inicio: the live channel with the car is stopped until the manager syncs (features/account.js) */
 .channel-banner {

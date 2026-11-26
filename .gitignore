@@ -30,3 +30,4 @@ dist/
 shots/
 
 # downloaded 3D models of the car (tools/car3d/README.md): never in any repository
+# Ebro's owner's manuals as PDF (505 MB; Ebro's documents: the app links to them on Ebro's own site, they are never committed)
