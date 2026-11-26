@@ -16,6 +16,7 @@ from app.api.routes_car_events import router as car_events_router
 from app.api.routes_catalog import router as catalog_router
 from app.api.routes_catalog_online import router as catalog_online_router
 from app.api.routes_charge_plan import router as charge_plan_router
+from app.api.routes_charge_stations import router as charge_stations_router
 from app.api.routes_charges import router as charges_router
 from app.api.routes_climate_schedules import router as climate_schedules_router
 from app.api.routes_commands import router as commands_router
@@ -77,6 +78,7 @@ protected.include_router(maintenance_router, dependencies=[Depends(entitlements.
 protected.include_router(maintenance_plan_router, dependencies=[Depends(entitlements.require("maintenance"))])
 protected.include_router(maintenance_advice_router, dependencies=[Depends(entitlements.require("maintenance"))])     # EVbro's recommendations outside the brand's plan
 protected.include_router(refuels_router)
+protected.include_router(charge_stations_router)    # public charging points near the car (the DGT's access point)
 protected.include_router(fuel_stations_router)      # stations near the car and their prices (the Ministry's list)
 protected.include_router(timeline_router, dependencies=[Depends(entitlements.limit_history)])
 protected.include_router(stats_router, dependencies=[Depends(entitlements.require("stats"))])

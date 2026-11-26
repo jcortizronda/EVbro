@@ -430,5 +430,9 @@
  "• {p0}": "• {p0}",
  "Esa recomendación no existe.": "That recommendation does not exist.",
  "Demasiados informes desde esta dirección. Vuelve a intentarlo más tarde.": "Too many reports from this address. Try again later.",
- "Tu cuenta no incluye esta función.": "Your account does not include this feature."
+ "Tu cuenta no incluye esta función.": "Your account does not include this feature.",
+ "Tipo de carga no válido.": "Invalid type of charging.",
+ "La lista de cargadores está desactivada en este servidor.": "The list of chargers is switched off on this server.",
+ "No se pudo descargar la lista oficial de cargadores. Inténtalo dentro de un rato.": "The official list of chargers could not be downloaded. Try again in a while.",
+ "No hay datos de fusibles de este modelo.": "There is no fuse data for this model."
 }

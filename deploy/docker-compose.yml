@@ -95,6 +95,7 @@ services:
       # Petrol stations and their prices from the Spanish Ministry's open list (Repostajes, and the price of a detected refuel).
       # Downloaded only when needed, at most once an hour. false = neither is offered and the server never contacts it.
       - FUEL_PRICES_ENABLED=${FUEL_PRICES_ENABLED:-true}
+      - CHARGE_STATIONS_ENABLED=${CHARGE_STATIONS_ENABLED:-true}
       # Optional: publish the cars to your own MQTT broker (Home Assistant discovers them). Every manager can also connect
       # their own broker from Settings → Account without touching this.
       - MQTT_ENABLED=${MQTT_ENABLED:-false}

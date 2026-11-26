@@ -145,6 +145,9 @@ class Settings(BaseSettings):
     # Fuel stations and prices from the Ministry's open service (services/fuel_stations.py): the map in Repostajes and the price
     # of a detected refuel. Downloaded only when needed, at most once an hour. False = neither is offered.
     FUEL_PRICES_ENABLED: bool = True
+    # Carga → «Cargadores cercanos»: the official list of public charging points in Spain (DGT's National Access Point, once a day
+    # and only when somebody opens the map; services/charge_stations.py). false = the card is not shown and nothing is downloaded.
+    CHARGE_STATIONS_ENABLED: bool = True
 
     # Shared consumables catalogue: the server a bare key (`ebc_…`) belongs to. A full link (`https://server#key`) always wins.
     CATALOG_DEFAULT_URL: str = "https://catalog.evbro.app"

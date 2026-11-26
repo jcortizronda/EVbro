@@ -1,0 +1,8 @@
+/* EVbro — Carga → «Cargadores cercanos» (features/charge-stations.js). The card, the map, the pills and the list share the
+   classes of «Gasolineras cercanas» (features/fuel-stations.css, loaded before); here only what differs.
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
+.cs-card { margin-top: 12px; }
+.cs-summary-icon { color: var(--accent-green); background: color-mix(in srgb, var(--accent-green) 16%, transparent); }
+/* a row holds three lines (name, where, connectors): the connectors may wrap, they are the point of the list */
+.cs-row { align-items: flex-start; }
+.cs-row-plugs { white-space: normal; color: var(--text-secondary); }

@@ -8,7 +8,7 @@ import re
 import uuid
 from typing import Dict, List, Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,7 +19,7 @@ from app.db.session import get_db
 from app.i18n import _
 from app.security import auth
 from app.security.access import accessible_vehicles, within_vehicle_limit
-from app.services import energy_recalc, storage, uploads, vehicle_profiles
+from app.services import energy_recalc, fuse_boxes, storage, uploads, vehicle_profiles
 from app.services.accounts import rename_car_in_ebro
 from app.services.car_events import CHANNEL_RUNNING, CarEventHub
 from app.services.poller import LoginFailed, VehiclePoller, connected_owner_ids, pollable
@@ -175,7 +175,20 @@ async def model_specs():
     """Factory figures per Ebro model (battery, tank, seats, range, label): the sheet fills them in when the model is chosen and the
     server applies them to a new car (services/vehicle_profiles.py). Each model also carries the link to its owner's manual on
     Ebro's own site (`manual_url`, `manual_mb`)."""
-    return {model: {**spec, **vehicle_profiles.MANUALS.get(model, {})} for model, spec in vehicle_profiles.SPECS.items()}
+    return {model: {**spec, **vehicle_profiles.MANUALS.get(model, {}), "fuses": fuse_boxes.has(model)} for model, spec in vehicle_profiles.SPECS.items()}
+
+
+@router.get("/{vin}/fuses")
+async def vehicle_fuses(vin: str, lang: str = Query("es", max_length=5), session: AsyncSession = Depends(get_db)):
+    """The fuse boxes of the car's model: each position with its rating and what it feeds (services/fuse_boxes.py). 404 for a
+    model nothing is known about. The answer says whether the table has been checked against a real car (`verified`)."""
+    vehicle = (await session.execute(select(Vehicle).where(Vehicle.vin == vin))).scalar_one_or_none()
+    if vehicle is None:
+        raise HTTPException(status_code=404, detail="Vehículo no encontrado.")
+    data = fuse_boxes.for_model(vehicle.model, lang) if vehicle_profiles.is_ebro(vehicle.brand) else None
+    if data is None:
+        raise HTTPException(status_code=404, detail=_("No hay datos de fusibles de este modelo."))
+    return data
 
 
 @router.delete("/{vin}")

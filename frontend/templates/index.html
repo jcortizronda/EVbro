@@ -47,6 +47,8 @@
   <link rel="stylesheet" href="/static/css/features/expenses.css?v={{ asset_version }}">
   <link rel="stylesheet" href="/static/css/features/refuels.css?v={{ asset_version }}">
   <link rel="stylesheet" href="/static/css/features/fuel-stations.css?v={{ asset_version }}">
+  <link rel="stylesheet" href="/static/css/features/charge-stations.css?v={{ asset_version }}">
+  <link rel="stylesheet" href="/static/css/features/fuses.css?v={{ asset_version }}">
   <link rel="stylesheet" href="/static/css/features/charge-manual.css?v={{ asset_version }}">
   <link rel="stylesheet" href="/static/css/features/timeline.css?v={{ asset_version }}">
   <link rel="stylesheet" href="/static/css/features/stats.css?v={{ asset_version }}">
@@ -914,6 +916,8 @@
                     <div class="triplet-col">
                       <span class="triplet-lbl">A la batería (estimada)</span>
                       <span class="triplet-val text-green" id="kpiEnergyAdded">0.0 kWh</span>
+                      <!-- the same energy measured on the curve, when the curve was seen whole (services/charge_curve.py) -->
+                      <span class="triplet-sub" id="kpiEnergyCurve" hidden></span>
                     </div>
                     <div class="triplet-col">
                       <span class="triplet-lbl">De la red (tu contador)</span>
@@ -1051,6 +1055,28 @@
           </div>
         </div>
         </div>
+        <!-- Public charging points around the car that it can use (the official list of the DGT's access point; features/charge-stations.js) -->
+        <!-- Folded by default (remembered on this device); nothing is asked of the server while folded -->
+        <details class="glass fs-card cs-card" id="csCard">
+          <summary class="fs-summary"><span class="fs-summary-icon cs-summary-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2v6M15 2v6"></path><path d="M6 8h12v3a6 6 0 0 1-12 0z"></path><path d="M12 17v5"></path></svg></span>Cargadores cercanos<span class="fs-chev" aria-hidden="true"></span></summary>
+          <div class="fs-head">
+            <select id="csKind" class="form-control fs-fuel" aria-label="Tipo de carga" data-on-change="ChargeStations.setKind(this.value)">
+              <option value="all">Tipo 2 y CCS2</option>
+              <option value="dc">Solo carga rápida (CCS2)</option>
+              <option value="ac">Solo carga lenta (Tipo 2)</option>
+            </select>
+          </div>
+          <div class="fs-map-wrap">
+            <div class="fs-map" id="csMap"></div>
+            <button type="button" class="fs-here" id="csHere" hidden data-on-click="ChargeStations.searchHere()">Buscar en esta zona</button>
+          </div>
+          <div class="fs-tools">
+            <button type="button" class="btn-secondary btn-sm" data-on-click="ChargeStations.nearCar()">Junto al coche</button>
+          </div>
+          <p class="fs-status" id="csStatus" hidden></p>
+          <ol class="fs-list" id="csList"></ol>
+          <p class="fs-source" id="csSource"></p>
+        </details>
         <button type="button" class="btn-secondary home-customize" id="energyCustomize" data-on-click="EnergyWidgets.startEditing()">Personalizar carga</button>
       </div>
     </section>
@@ -1802,6 +1828,12 @@
               <span class="book-promo-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4h7a3 3 0 0 1 3 3v13a2.5 2.5 0 0 0-2.5-2.5H2z"/><path d="M22 4h-7a3 3 0 0 0-3 3v13a2.5 2.5 0 0 1 2.5-2.5H22z"/></svg></span>
               <div class="book-promo-text"><strong>Manual del propietario</strong><span id="vpManualText"></span></div>
               <a class="btn-primary book-promo-btn" id="vpManualLink" target="_blank" rel="noopener">Abrir manual</a>
+            </div>
+            <!-- The fuse boxes of the model, when EVbro knows them (services/fuse_boxes.py; features/fuses.js) -->
+            <div class="glass book-promo" id="vpFusesCard" hidden>
+              <span class="book-promo-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="3" width="10" height="12" rx="2"/><path d="M10 15v6M14 15v6M10 7v4M14 7v4"/></svg></span>
+              <div class="book-promo-text"><strong>Fusibles</strong><span>Las dos cajas de fusibles del coche: toca uno para ver qué alimenta, o busca lo que ha dejado de funcionar.</span></div>
+              <button type="button" class="btn-primary book-promo-btn" data-on-click="Fuses.open()">Ver fusibles</button>
             </div>
             <div class="vp-fold-bar"><button type="button" data-on-click="foldVehicleSections(true)">Desplegar todo</button><button type="button" data-on-click="foldVehicleSections(false)">Plegar todo</button></div>
             <details class="glass details-card vp-section" data-tone="blue" data-key="identity">
@@ -2967,6 +2999,29 @@
     </div>
   </div>
 
+  <!-- Fuse boxes of the car (features/fuses.js) -->
+  <div id="fusesModal" class="modal-overlay">
+    <div class="modal-card fz-card">
+      <h3 id="fzTitle">Fusibles</h3>
+      <p class="fz-warning" id="fzWarning">Estos datos no se han comprobado en un Ebro: son del manual de taller del coche equivalente en China. Antes de cambiar un fusible, compáralo con el diagrama de la tapa de la caja, y pon siempre uno del mismo amperaje.</p>
+      <div class="vp-seg" role="tablist" aria-label="Caja de fusibles" id="fzBoxes"></div>
+      <p class="fz-where" id="fzWhere"></p>
+      <input type="search" id="fzSearch" class="form-control fz-search" placeholder="Buscar: bocina, USB, limpia, RF12…" autocomplete="off" data-on-input="Fuses.search()">
+      <p class="fz-found" id="fzFound" hidden></p>
+      <div class="fz-views" id="fzViews" hidden>
+        <button type="button" class="ex-chip" data-view="box" data-on-click="Fuses.setView('box')">En la caja</button>
+        <button type="button" class="ex-chip" data-view="number" data-on-click="Fuses.setView('number')">Por número</button>
+      </div>
+      <p class="fz-view" id="fzView"></p>
+      <div id="fzGrid"></div>
+      <div class="fz-detail is-empty" id="fzDetail" aria-live="polite"></div>
+      <p class="fz-source"><span id="fzSource"></span></p>
+      <div class="modal-actions">
+        <button class="btn-primary" type="button" data-on-click="Fuses.close()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
   <div id="expenseModal" class="modal-overlay">
     <div class="modal-card u-max-width-460px">
       <h3 id="expenseTitle">Gasto</h3>
@@ -3757,6 +3812,8 @@
   <script src="/static/js/features/expenses.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/refuels.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/fuel-stations.js?v={{ asset_version }}"></script>
+  <script src="/static/js/features/charge-stations.js?v={{ asset_version }}"></script>
+  <script src="/static/js/features/fuses.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/timeline.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/stats.js?v={{ asset_version }}"></script>
   <script src="/static/js/features/costs.js?v={{ asset_version }}"></script>

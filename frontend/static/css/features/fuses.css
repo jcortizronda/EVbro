@@ -1,0 +1,76 @@
+/* EVbro — Más → Coches → «Fusibles» (features/fuses.js): the two fuse boxes as squares to tap.
+   Standalone sheet: the load ORDER (templates/index.html) follows the original cascade; do not change it. */
+.fz-card { max-width: 940px; width: 100%; }
+.fz-warning {
+  margin: 0 0 10px; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--warning, #ffd60a);
+  background: color-mix(in srgb, var(--warning, #ffd60a) 12%, transparent); color: var(--text-primary); font-size: 0.84rem; line-height: 1.4;
+}
+.fz-warning[hidden] { display: none; }
+.fz-where { margin: 10px 0 8px; color: var(--text-secondary); font-size: 0.86rem; line-height: 1.4; }
+.fz-search { width: 100%; min-height: 44px; margin-bottom: 4px; }
+.fz-found { margin: 2px 0 0; color: var(--text-secondary); font-size: 0.8rem; }
+.fz-found[hidden] { display: none; }
+.fz-group { margin: 12px 0 6px; font-size: 0.72rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); font-weight: 700; }
+.fz-cells { display: grid; grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)); gap: 6px; }
+/* one square: its number on top, its amperes below; the colour is the usual one of a blade fuse of that rating */
+.fz-cell {
+  --fz: #8e8e93; --fz-ink: #fff;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-height: 48px; padding: 4px 2px;
+  border-radius: 9px; border: 2px solid transparent; background: var(--fz); color: var(--fz-ink); cursor: pointer; font: inherit;
+  -webkit-tap-highlight-color: transparent; transition: opacity 0.15s ease, transform 0.1s ease;
+}
+.fz-cell .fz-id { font-size: 0.66rem; font-weight: 600; opacity: 0.92; letter-spacing: 0.01em; }
+.fz-cell .fz-a { font-size: 0.95rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.fz-cell[data-a="5"] { --fz: #c69c6d; --fz-ink: #1c1c1e; }
+.fz-cell[data-a="7.5"] { --fz: #8b5a2b; }
+.fz-cell[data-a="10"] { --fz: #d93025; }
+.fz-cell[data-a="15"] { --fz: #1a73e8; }
+.fz-cell[data-a="20"] { --fz: #f2c200; --fz-ink: #1c1c1e; }
+.fz-cell[data-a="25"] { --fz: #f6f6f8; --fz-ink: #1c1c1e; border-color: #9a9aa2; }
+.fz-cell[data-a="30"] { --fz: #2e9e4f; }
+.fz-cell[data-a="40"] { --fz: #f08c00; --fz-ink: #1c1c1e; }
+.fz-cell[data-a="50"] { --fz: #c62828; }
+.fz-cell[data-a="60"] { --fz: #1565c0; }
+.fz-cell[data-a="80"] { --fz: #d7d7dc; --fz-ink: #1c1c1e; border-color: #9a9aa2; }
+.fz-cell[data-a="100"] { --fz: #6d3fd1; }
+.fz-cell[data-a="175"] { --fz: #3a3a3c; }
+/* a spare keeps its colour but is faded; an empty position and a relay are outlines */
+.fz-cell.fz-spare { opacity: 0.45; }
+.fz-cell.fz-empty, .fz-cell.fz-relay { background: transparent; color: var(--text-secondary); border: 2px dashed var(--border-color); }
+.fz-cell.fz-relay { border-style: solid; min-height: 44px; }
+.fz-cell.has-doubt { box-shadow: inset 0 0 0 2px var(--warning, #ffd60a); }
+.fz-cell.is-dim { opacity: 0.14; }
+.fz-cell.is-picked { border-color: var(--text-primary); transform: scale(1.06); opacity: 1; }
+.fz-detail {
+  position: sticky; bottom: 0; margin-top: 14px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border-color);
+  background: var(--bg-modal, var(--surface)); box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.18); font-size: 0.92rem; line-height: 1.4;
+}
+.fz-detail.is-empty { color: var(--text-secondary); box-shadow: none; }
+.fz-detail p { margin: 6px 0 0; }
+.fz-detail-head { display: flex; align-items: baseline; gap: 10px; }
+.fz-detail-head strong { font-size: 1.05rem; }
+.fz-detail-amps { font-weight: 700; color: var(--text-secondary); }
+.fz-doubt { color: var(--text-primary); font-size: 0.84rem; padding-left: 10px; border-left: 3px solid var(--warning, #ffd60a); }
+.fz-source { margin: 12px 0 0; color: var(--text-muted); font-size: 0.75rem; line-height: 1.35; }
+
+/* «En la caja»: each fuse where it sits. The drawing is wider than a phone: it scrolls sideways inside its frame */
+.fz-views { display: flex; gap: 8px; margin: 10px 0 0; }
+.fz-views[hidden] { display: none; }
+.fz-view { margin: 8px 0 6px; color: var(--text-secondary); font-size: 0.8rem; line-height: 1.35; }
+.fz-view:empty { display: none; }
+.fz-map-scroll { overflow: auto; -webkit-overflow-scrolling: touch; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-glass-inset); }
+.fz-map { position: relative; width: 100%; margin: 0 auto; }      /* its least and greatest width come from the box (fuses.js) */
+.fz-mark {
+  position: absolute; display: flex; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid var(--border-color);
+  color: var(--text-muted); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.04em; pointer-events: none;
+}
+.fz-cell.fz-at { position: absolute; min-height: 0; padding: 0; flex-direction: row; gap: 3px; border-radius: 5px; border-width: 1px; }
+.fz-cell.fz-at .fz-id { font-size: 0.6rem; }
+.fz-cell.fz-at .fz-a { font-size: 0.68rem; }
+.fz-cell.fz-at.is-big { flex-direction: column; gap: 0; }
+.fz-cell.fz-at.is-big .fz-id { font-size: 0.62rem; }
+.fz-cell.fz-at.is-big .fz-a { font-size: 0.86rem; }
+.fz-cell.fz-at.is-tall { writing-mode: vertical-rl; transform: rotate(180deg); }
+.fz-cell.fz-at.is-picked { transform: none; outline: 3px solid var(--text-primary); outline-offset: 1px; z-index: 2; }
+.fz-cell.fz-at.is-tall.is-picked { transform: rotate(180deg); }
+.fz-cell.fz-at.fz-empty { border-style: dashed; border-width: 2px; }

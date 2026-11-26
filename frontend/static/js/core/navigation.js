@@ -45,6 +45,7 @@ function switchTab(tabName) {
     if (window.ChargeControl) ChargeControl.load(false).then(() => ChargeControl.load(true));
     loadLatestCharge();
     loadCharges();
+    if (window.ChargeStations) ChargeStations.load();          // only when its card is unfolded
     setTimeout(() => {
       if (chargeMiniMapInstance) chargeMiniMapInstance.invalidateSize();
       if (typeof redrawChargeCharts === 'function') redrawChargeCharts();

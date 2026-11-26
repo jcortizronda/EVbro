@@ -20,6 +20,8 @@ os.environ["DATA_DIR"] = os.path.join(_TMP, "data")
 os.environ["ADMIN_PORT"] = "0"          # the admin console is tested through its ASGI app; no real second port in tests
 # no download of the Ministry's fuel station list from tests: the tests of services/fuel_stations.py turn it on with a fake source
 os.environ["FUEL_PRICES_ENABLED"] = "false"
+# nor of the official list of charging points: the tests of services/charge_stations.py turn it on with a fake source
+os.environ["CHARGE_STATIONS_ENABLED"] = "false"
 for _k in ("EBRO_PHONE", "EBRO_PASSWORD", "EBRO_PIN", "ENCRYPTION_KEY", "SETUP_CODE"):
     os.environ.pop(_k, None)
 

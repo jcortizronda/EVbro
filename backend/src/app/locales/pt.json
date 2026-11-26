@@ -430,5 +430,9 @@
  "• {p0}": "• {p0}",
  "Esa recomendación no existe.": "Essa recomendação não existe.",
  "Demasiados informes desde esta dirección. Vuelve a intentarlo más tarde.": "Demasiados relatórios a partir deste endereço. Tente novamente mais tarde.",
- "Tu cuenta no incluye esta función.": "A sua conta não inclui esta função."
+ "Tu cuenta no incluye esta función.": "A sua conta não inclui esta função.",
+ "Tipo de carga no válido.": "Tipo de carregamento inválido.",
+ "La lista de cargadores está desactivada en este servidor.": "A lista de carregadores está desativada neste servidor.",
+ "No se pudo descargar la lista oficial de cargadores. Inténtalo dentro de un rato.": "Não foi possível descarregar a lista oficial de carregadores. Tenta de novo daqui a pouco.",
+ "No hay datos de fusibles de este modelo.": "Não há dados de fusíveis deste modelo."
 }

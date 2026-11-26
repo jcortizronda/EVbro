@@ -330,6 +330,8 @@ async function vpRenderManual(v) {
   const m = v && String(v.brand || '').trim().toLowerCase() === 'ebro' ? /S\s*([789]00)\s*PHEV/i.exec(v.model || '') : null;
   const model = m ? `S${m[1]} PHEV` : null;
   const spec = model ? (await loadModelSpecs())[model] : null;
+  const fuses = vpEl('vpFusesCard');
+  if (fuses) fuses.hidden = !(spec && spec.fuses);                 // the model's fuse boxes, when EVbro knows them (features/fuses.js)
   card.hidden = !(spec && spec.manual_url);
   if (card.hidden) return;
   vpEl('vpManualLink').href = spec.manual_url;

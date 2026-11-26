@@ -301,6 +301,10 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* a second, smaller figure under one of the three (the energy measured on the curve) */
+.triplet-sub { font-size: 0.74rem; color: var(--text-secondary); line-height: 1.3; }
+.triplet-sub[hidden] { display: none; }
+
 /* Leaflet mini map */
 .charge-minimap-container {
   height: 155px;
