@@ -39,12 +39,12 @@ with sync_playwright() as p:
         ok(pg.get_attribute("#maintModeOfficial", "aria-selected") == "true" and pg.is_visible("#maintOfficialView") and pg.is_hidden("#maintCustomView"),
            f"{tag}: starts in Oficial mode with its view")
         ok("Revisión de 15.000 km" in txt("#maintNextTitle"), f"{tag}: next service = {txt('#maintNextTitle')}")
-        ok(pg.evaluate("document.getElementById('maintBaselineCard').classList.contains('needs-setup')"), f"{tag}: asks for the delivery date")
+        ok(pg.is_visible("#maintBaselineCard"), f"{tag}: asks for the delivery date")
         ok(pg.is_hidden("#maintMeterDateBox"), f"{tag}: without a delivery date there is no date meter")
         pg.screenshot(path=f"{OUT}/maint-official-{theme}.png", full_page=True)
 
         # delivery date: set in the car sheet (Ajustes, Coche)
-        pg.click("#maintBaselineCard >> text=Cambiar en la ficha del coche")
+        pg.click("#maintBaselineCard >> text=Ponerla en la ficha del coche")
         pg.wait_for_timeout(500)
         pg.evaluate("foldVehicleSections(true)")
         ok(pg.is_visible("#vpDeliveryDate"), f"{tag}: the button leads to the car sheet")
@@ -54,7 +54,7 @@ with sync_playwright() as p:
         pg.evaluate("switchTab('maintenance')")
         pg.wait_for_timeout(900)
         ok(pg.is_visible("#maintMeterDateBox") and "31 de marzo de 2026" in txt("#maintMeterDateSub"), f"{tag}: with the date the meter shows up and it is due on 31/03/2026 ({txt('#maintMeterDateSub')})")
-        ok(not pg.evaluate("document.getElementById('maintBaselineCard').classList.contains('needs-setup')"), f"{tag}: the date card is no longer marked as pending")
+        ok(pg.is_hidden("#maintBaselineCard"), f"{tag}: with the date set the notice goes away (the date lives in the car sheet)")
 
         # log the 15.000 step
         pg.click("#btnRegisterRevision")

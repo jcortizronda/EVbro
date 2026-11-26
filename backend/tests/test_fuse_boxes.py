@@ -12,7 +12,7 @@ from app.security import auth, passwords
 from app.services import fuse_boxes as fb
 
 VIN, OTHER, FOREIGN = "LSJA0000000000101", "LSJA0000000000102", "LSJA0000000000103"
-RATINGS = {5, 7.5, 10, 15, 20, 25, 30, 40, 50, 60, 80, 100, 175}
+RATINGS = {5, 7.5, 10, 15, 20, 25, 30, 40, 50, 60, 80, 100, 125, 175}
 
 
 class _Req:
@@ -45,12 +45,14 @@ def test_the_s900_has_its_two_boxes_and_what_makes_it_a_plug_in_hybrid() -> None
     assert by_id["RF42"] == {"id": "RF42", "amps": 40, "kind": "fuse", "text": "Ventilador del habitáculo", "doubt": None}
     assert by_id["RF05"]["kind"] == "spare" and by_id["RF03"]["kind"] == "empty" and by_id["ERLY12"]["kind"] == "relay"
     # where the source's table and drawing disagree, the position says so; a rating in doubt is not given at all
-    seen = {"RSB11", "RF07", "RF30", "RF36", "RF40", "RF43"}             # what a real S900 was found to carry instead (its owner, 11-2026)
+    seen = {"RSB11", "RF07", "RF30", "RF36", "RF43"}                     # what a real S900 was found to carry instead (its owner, 11-2026)
     assert {i for i, item in by_id.items() if item["doubt"]} == {"EF05", "EF06", "EF11", "EF12", "EF40", "RF16"} | seen
     assert all("Ebro S900 real" in by_id[i]["doubt"] and "un solo coche" in by_id[i]["doubt"] for i in seen)
     assert [by_id[i]["kind"] for i in ("RSB11", "RF30", "RF43")] == ["empty"] * 3 and all(by_id[i]["amps"] is None for i in ("RSB11", "RF30", "RF43"))
-    assert [(by_id[i]["amps"], by_id[i]["text"]) for i in ("RF07", "RF36", "RF40")] == [(10, "Función sin confirmar")] * 3
-    assert "reserva de 20 A" in by_id["RF07"]["doubt"] and "deja esta posición vacía" in by_id["RF40"]["doubt"]
+    assert [(by_id[i]["amps"], by_id[i]["text"]) for i in ("RF07", "RF36")] == [(10, "Función sin confirmar")] * 2
+    # RF40: 10 A on the real car and the rear USB module in the Brazilian Tiggo 9 manual; shown plainly, as the owner asked
+    assert by_id["RF40"] == {"id": "RF40", "amps": 10, "kind": "fuse", "text": "Módulo de carga USB trasero", "doubt": None}
+    assert "reserva de 20 A" in by_id["RF07"]["doubt"]
     assert by_id["EF12"]["amps"] is None and "10 A" in by_id["EF12"]["doubt"] and "20 A" in by_id["EF12"]["doubt"]
 
 
@@ -85,7 +87,7 @@ def test_the_engine_bay_box_places_every_fuse_and_relay_as_the_manuals_drawing_d
         for b, (x2, y2, w2, h2) in cells[n + 1:]:
             assert not (x < x2 + w2 and x2 < x + w and y < y2 + h2 and y2 < y + h), (a, b)
     at = layout["cells"]
-    assert layout["ratio"] < 1 and "ERLY01" in layout["view"] and "B+" in {m["label"] for m in layout["marks"]}
+    assert layout["ratio"] < 1 and layout["view"] == "" and "B+" in {m["label"] for m in layout["marks"]}
     # two columns of eighteen small fuses side by side (EF19-36 left of EF01-18), the big relays beyond them, the heavy fuses opposite
     assert at["EF54"][0] < at["EF19"][0] < at["EF01"][0] < at["ERLY01"][0]
     assert all(at[f"EF{n:02d}"][1] < at[f"EF{n + 1:02d}"][1] for n in list(range(1, 18)) + list(range(19, 36)))
@@ -93,11 +95,38 @@ def test_the_engine_bay_box_places_every_fuse_and_relay_as_the_manuals_drawing_d
     assert next(i for i in engine["items"] if i["id"] == "ERLY09")["text"] == "Bomba de aceite eléctrica (EOP)"
 
 
+
+def test_the_s800_has_both_boxes_drawn_from_its_brazilian_twin_and_says_where_that_manual_is_unsure() -> None:
+    data = fb.for_model("EBRO S800 PHEV")
+    assert data["model"] == "S800 PHEV" and data["verified"] is False and "Tiggo 8 Pro" in data["source"] and "tracción total" in data["source"]
+    cabin, engine = data["boxes"]
+    # a different cabin box from the S900's («IP BOX»: RF01-28 and three relays, all on the drawing)
+    assert {i["id"] for i in cabin["items"]} == {f"RF{n:02d}" for n in range(1, 29)} | {"RRLY01", "RRLY02", "RRLY03"}
+    assert set(cabin["layout"]["cells"]) == {i["id"] for i in cabin["items"]} and cabin["layout"]["ratio"] > 1
+    # the engine bay: every fuse placed; the relays the drawing does not show are listed apart
+    placed = set(engine["layout"]["cells"])
+    assert {i["id"] for i in engine["items"]} - placed == {"ERLY05", "ERLY19", "ERLY20", "ERLY21", "ERLY22"}
+    assert engine["layout"]["ratio"] < 1 and "B+" in {m["label"] for m in engine["layout"]["marks"]} and "BF01" in engine["where"]
+    for box in data["boxes"]:
+        cells = list(box["layout"]["cells"].items())
+        for n, (a, (x, y, w, h)) in enumerate(cells):
+            assert 0 <= x and 0 <= y and x + w <= 100 and y + h <= 100, a
+            for b, (x2, y2, w2, h2) in cells[n + 1:]:
+                assert not (x < x2 + w2 and x2 < x + w and y < y2 + h2 and y2 < y + h), (a, b)
+    by_id = {i["id"]: i for box in data["boxes"] for i in box["items"]}
+    assert by_id["EF50"]["amps"] == 125 and "BMS" in by_id["EF18"]["text"] and "híbrido" in by_id["EF36"]["text"]
+    # where its drawing and table disagree, no rating is given; misprinted labels and drawing-only positions say so
+    assert all(by_id[i]["amps"] is None and "Mira el fusible" in by_id[i]["doubt"] for i in ("SB02", "EF10", "RF04"))
+    assert "como EF45 por error" in by_id["EF44"]["doubt"] and "como EF52 por error" in by_id["EF53"]["doubt"]
+    assert "puede que tu coche no la lleve" in by_id["SB03"]["doubt"] and by_id["RF09"]["text"] == "Función sin confirmar"
+    assert by_id["EF49"]["kind"] == "empty" and by_id["RF17"]["kind"] == "empty" and by_id["EF11"]["kind"] == "spare"
+
+
 def test_other_languages_and_models_nothing_is_known_about() -> None:
     assert fb.for_model("S900 PHEV", "en")["boxes"][1]["name"] == "Engine bay"
     assert fb.for_model("S900 PHEV", "pt")["boxes"][0]["items"][0]["text"] == "Porta da bagageira elétrica"
     assert fb.for_model("S900 PHEV", "xx")["boxes"][0]["name"] == "Habitáculo"      # an unknown language: Spanish
-    assert fb.has("S900 PHEV") and not fb.has("S800 PHEV") and not fb.has(None)
+    assert fb.has("S900 PHEV") and fb.has("S800 PHEV") and not fb.has("S700 PHEV") and not fb.has(None)
     assert fb.for_model("S700 PHEV") is None and fb.for_model("Otro coche") is None
 
 
@@ -118,7 +147,7 @@ async def test_the_route_answers_for_the_cars_model_only(db, data_dir) -> None:
         assert (await c.get(f"/api/vehicles/{OTHER}/fuses")).status_code == 404            # another make with the same model name
         assert (await c.get(f"/api/vehicles/{FOREIGN}/fuses")).status_code == 404          # somebody else's car
         specs = (await c.get("/api/vehicles/specs")).json()
-        assert specs["S900 PHEV"]["fuses"] is True and specs["S800 PHEV"]["fuses"] is False
+        assert specs["S900 PHEV"]["fuses"] is True and specs["S800 PHEV"]["fuses"] is True and specs["S700 PHEV"]["fuses"] is False
 
 
 @pytest.mark.parametrize("ident", ["SB03", "SB10"])

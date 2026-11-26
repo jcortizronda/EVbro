@@ -149,7 +149,7 @@
       scroll.appendChild(map);
       grid.appendChild(scroll);
       // on a phone the drawing does not fit: say that it moves
-      if (scroll.scrollWidth > scroll.clientWidth + 4) $('fzView').textContent = `${layout.view} ${t('Desliza el dibujo para verla entera.')}`;
+      if (scroll.scrollWidth > scroll.clientWidth + 4) $('fzView').textContent = [layout.view, t('Desliza el dibujo para verla entera.')].filter(Boolean).join(' ');
       const relays = current.items.filter((i) => !layout.cells[i.id] && i.kind === 'relay');
       if (relays.length) group(t('Relés (no están en esta cara)'), relays);
     } else {

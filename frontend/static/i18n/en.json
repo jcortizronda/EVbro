@@ -2680,7 +2680,7 @@
  "Fusibles": "Fuses",
  "Las dos cajas de fusibles del coche: toca uno para ver qué alimenta, o busca lo que ha dejado de funcionar.": "The car's two fuse boxes: tap a fuse to see what it feeds, or search for what has stopped working.",
  "Ver fusibles": "See the fuses",
- "Estos datos no se han comprobado en un Ebro: son del manual de taller del coche equivalente en China. Antes de cambiar un fusible, compáralo con el diagrama de la tapa de la caja, y pon siempre uno del mismo amperaje.": "This data has not been checked on an Ebro: it comes from the workshop manual of the equivalent car in China. Before replacing a fuse, compare it with the diagram on the box cover, and always fit one of the same rating.",
+ "Estos datos no se han comprobado en un Ebro: son del manual del coche equivalente de otro mercado (abajo dice cuál). Antes de cambiar un fusible, compáralo con el diagrama de la tapa de la caja, y pon siempre uno del mismo amperaje.": "This data has not been checked on an Ebro: it comes from the manual of the equivalent car in another market (it says which below). Before replacing a fuse, compare it with the diagram on the box cover, and always fit one of the same rating.",
  "Caja de fusibles": "Fuse box",
  "Buscar: bocina, USB, limpia, RF12…": "Search: horn, USB, wiper, RF12…",
  "Fusibles grandes": "Large fuses",
@@ -2706,5 +2706,6 @@
  "{p0} cargas · {p1} kWh · {p2} €": "{p0} charges · {p1} kWh · {p2} €",
  "Aún no hay repostajes": "No fuel-ups yet",
  "1 repostaje": "1 fuel-up",
- "{p0} repostajes": "{p0} fuel-ups"
+ "{p0} repostajes": "{p0} fuel-ups",
+ "Ponerla en la ficha del coche": "Set it in the car sheet"
 }

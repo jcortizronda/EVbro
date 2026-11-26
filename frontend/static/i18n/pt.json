@@ -2680,7 +2680,7 @@
  "Fusibles": "Fusíveis",
  "Las dos cajas de fusibles del coche: toca uno para ver qué alimenta, o busca lo que ha dejado de funcionar.": "As duas caixas de fusíveis do carro: toca num para ver o que alimenta, ou procura o que deixou de funcionar.",
  "Ver fusibles": "Ver fusíveis",
- "Estos datos no se han comprobado en un Ebro: son del manual de taller del coche equivalente en China. Antes de cambiar un fusible, compáralo con el diagrama de la tapa de la caja, y pon siempre uno del mismo amperaje.": "Estes dados não foram verificados num Ebro: são do manual de oficina do carro equivalente na China. Antes de trocar um fusível, compara-o com o diagrama da tampa da caixa, e põe sempre um da mesma amperagem.",
+ "Estos datos no se han comprobado en un Ebro: son del manual del coche equivalente de otro mercado (abajo dice cuál). Antes de cambiar un fusible, compáralo con el diagrama de la tapa de la caja, y pon siempre uno del mismo amperaje.": "Estes dados não foram verificados num Ebro: são do manual do carro equivalente de outro mercado (em baixo diz qual). Antes de trocar um fusível, compara-o com o diagrama da tampa da caixa, e põe sempre um da mesma amperagem.",
  "Caja de fusibles": "Caixa de fusíveis",
  "Buscar: bocina, USB, limpia, RF12…": "Procurar: buzina, USB, limpa, RF12…",
  "Fusibles grandes": "Fusíveis grandes",
@@ -2706,5 +2706,6 @@
  "{p0} cargas · {p1} kWh · {p2} €": "{p0} carregamentos · {p1} kWh · {p2} €",
  "Aún no hay repostajes": "Ainda não há abastecimentos",
  "1 repostaje": "1 abastecimento",
- "{p0} repostajes": "{p0} abastecimentos"
+ "{p0} repostajes": "{p0} abastecimentos",
+ "Ponerla en la ficha del coche": "Indicar na ficha do carro"
 }

@@ -12,6 +12,7 @@
 /* Delivery date */
 .maint-baseline { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 14px; margin-bottom: 12px; }
 .maint-baseline.needs-setup { border-color: var(--accent-amber, #ff9f0a); }
+.maint-baseline[hidden] { display: none; }
 .maint-baseline-text { flex: 1 1 240px; display: flex; flex-direction: column; gap: 2px; }
 .maint-baseline-text small { color: var(--text-secondary); line-height: 1.35; }
 .maint-baseline-form { display: flex; gap: 8px; flex: 0 1 auto; }

@@ -33,8 +33,12 @@
 .ma-every { display: block; margin-top: 6px; font-size: 0.76rem; color: var(--text-muted); }
 .ma-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
 .ma-actions .btn-primary, .ma-actions .btn-secondary { min-height: 44px; }
-.ma-link { min-height: 36px; padding: 0 4px; font-size: 0.84rem; }
-.ma-item[data-status="ok"] .ma-actions, .ma-item[data-status="off"] .ma-actions { margin-top: 4px; gap: 4px 14px; }
+/* the lesser actions (checked today, switch off or on, not interested): the app's own pill, smaller; the ones that take
+   something away are quieter still. They used to be underlined links, out of place beside the other buttons. */
+.ma-actions .btn-secondary.ma-small { min-height: 40px; padding: 0 16px; font-size: 0.84rem; }
+.ma-actions .btn-secondary.ma-quiet { background: transparent; color: var(--text-secondary); }
+.ma-item[data-status="ok"] .ma-actions, .ma-item[data-status="off"] .ma-actions { margin-top: 10px; }
 @media (max-width: 560px) {
   .ma-actions .btn-primary, .ma-actions .btn-secondary { flex: 1 1 100%; }
+  .ma-actions .btn-secondary.ma-small { flex: 1 1 0; white-space: nowrap; }
 }

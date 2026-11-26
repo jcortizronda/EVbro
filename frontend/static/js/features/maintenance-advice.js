@@ -92,12 +92,12 @@
       actions.appendChild(button(t('Revisado, está bien'), 'btn-primary', `MaintAdvice.check('${a.key}')`));
       if (a.can_log) actions.appendChild(button(t('Registrar intervención'), 'btn-secondary', `MaintAdvice.log('${a.key}')`));
       if (a.status === 'due') actions.appendChild(button(t('Recuérdamelo más adelante'), 'btn-secondary', `MaintAdvice.later('${a.key}')`));
-      actions.appendChild(button(t('No me interesa'), 'link-btn ma-link', `MaintAdvice.enable('${a.key}', false)`));
+      actions.appendChild(button(t('No me interesa'), 'btn-secondary ma-small ma-quiet', `MaintAdvice.enable('${a.key}', false)`));
     } else if (a.status === 'ok') {
-      actions.appendChild(button(t('Lo he revisado hoy'), 'link-btn ma-link', `MaintAdvice.check('${a.key}')`));
-      actions.appendChild(button(t('Desactivar'), 'link-btn ma-link', `MaintAdvice.enable('${a.key}', false)`));
+      actions.appendChild(button(t('Lo he revisado hoy'), 'btn-secondary ma-small', `MaintAdvice.check('${a.key}')`));
+      actions.appendChild(button(t('Desactivar'), 'btn-secondary ma-small ma-quiet', `MaintAdvice.enable('${a.key}', false)`));
     } else {
-      actions.appendChild(button(t('Activar'), 'link-btn ma-link', `MaintAdvice.enable('${a.key}', true)`));
+      actions.appendChild(button(t('Activar'), 'btn-secondary ma-small', `MaintAdvice.enable('${a.key}', true)`));
     }
     li.appendChild(actions);
     return li;

@@ -91,14 +91,9 @@ function opsList(items, badge, empty) {
 }
 
 // ───────────────────────── Delivery date (set in the car sheet) ─────────────────────────
+/** A notice only while the car sheet has no delivery date; with one, the date is the car sheet's business and nothing shows here. */
 function renderBaseline(plan) {
-  const configured = plan.baseline.configured;
-  document.getElementById('maintBaselineTitle').textContent = configured
-    ? t('Fecha de entrega: {p0}', {p0: fmtDate(plan.baseline.date)}) : 'Falta la fecha de entrega del coche';
-  document.getElementById('maintBaselineHint').textContent = configured
-    ? 'Los plazos en meses de la pauta (12, 24, 36…) se cuentan desde ella.'
-    : 'Los plazos en meses de la pauta (12, 24, 36…) se cuentan desde ella. Sin la fecha solo se vigilan los kilómetros.';
-  document.getElementById('maintBaselineCard').classList.toggle('needs-setup', !configured);
+  document.getElementById('maintBaselineCard').hidden = !!plan.baseline.configured;
 }
 
 // ───────────────────────── Brand's full table ─────────────────────────

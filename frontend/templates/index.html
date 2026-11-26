@@ -1407,13 +1407,14 @@
 
         <!-- ==================== OFFICIAL PLAN ==================== -->
         <div id="maintOfficialView">
-          <!-- Starting point: the 12 months are counted from the car's delivery -->
-          <div class="glass maint-baseline" id="maintBaselineCard">
+          <!-- Only when the car sheet has no delivery date: the months of the plan (12, 24, 36…) are counted from it. Once it is set
+               it lives in the car sheet only, and this notice goes away (features/maintenance-official.js) -->
+          <div class="glass maint-baseline needs-setup" id="maintBaselineCard" hidden>
             <div class="maint-baseline-text">
-              <strong id="maintBaselineTitle">Fecha de entrega del coche</strong>
-              <small id="maintBaselineHint">Los plazos en meses de la pauta (12, 24, 36…) se cuentan desde ella. Sin la fecha solo se vigilan los kilómetros.</small>
+              <strong>Falta la fecha de entrega del coche</strong>
+              <small>Los plazos en meses de la pauta (12, 24, 36…) se cuentan desde ella. Sin la fecha solo se vigilan los kilómetros.</small>
             </div>
-            <button type="button" class="btn-secondary maint-baseline-btn" data-on-click="openVehicleSettings()">Cambiar en la ficha del coche</button>
+            <button type="button" class="btn-secondary maint-baseline-btn" data-on-click="openVehicleSettings()">Ponerla en la ficha del coche</button>
           </div>
 
           <!-- Next service -->
@@ -2980,7 +2981,7 @@
   <div id="fusesModal" class="modal-overlay">
     <div class="modal-card fz-card">
       <h3 id="fzTitle">Fusibles</h3>
-      <p class="fz-warning" id="fzWarning">Estos datos no se han comprobado en un Ebro: son del manual de taller del coche equivalente en China. Antes de cambiar un fusible, compáralo con el diagrama de la tapa de la caja, y pon siempre uno del mismo amperaje.</p>
+      <p class="fz-warning" id="fzWarning">Estos datos no se han comprobado en un Ebro: son del manual del coche equivalente de otro mercado (abajo dice cuál). Antes de cambiar un fusible, compáralo con el diagrama de la tapa de la caja, y pon siempre uno del mismo amperaje.</p>
       <div class="vp-seg" role="tablist" aria-label="Caja de fusibles" id="fzBoxes"></div>
       <p class="fz-where" id="fzWhere"></p>
       <input type="search" id="fzSearch" class="form-control fz-search" placeholder="Buscar: bocina, USB, limpia, RF12…" autocomplete="off" data-on-input="Fuses.search()">
