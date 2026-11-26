@@ -11,7 +11,7 @@ import pytest
 from sqlalchemy import func, select
 
 from app.admin_app import admin_app
-from app.api import routes_admin_auth, routes_auth
+from app.api import routes_admin_auth, routes_auth, routes_telemetry
 from app.config import settings
 from app.db.models import (
     AppUser,
@@ -46,6 +46,7 @@ def _clean(monkeypatch, data_dir):
     auth.reset_setup_code()
     for t in (routes_auth.ip_throttle, routes_auth.pair_throttle, routes_admin_auth.ip_throttle, routes_admin_auth.pair_throttle):
         t._fails.clear()
+    routes_telemetry.report_throttle._fails.clear()
     telemetry.set_enabled_cache(False)
     telemetry._state.errors.clear()
     telemetry._state.polls = {"ok": 0, "empty": 0, "error": 0}
@@ -230,6 +231,22 @@ async def test_the_receiver_refuses_bad_reports(world, monkeypatch) -> None:
         assert (await c.post(telemetry.REPORT_PATH, content=b"x" * (telemetry.MAX_REPORT_BYTES + 20_000))).status_code == 413
         ok = await c.post(telemetry.REPORT_PATH, json={"format": telemetry.FORMAT, "install_id": "0b7c1f5e-2a3d-4e5f-8a9b-0c1d2e3f4a5b"})
         assert ok.status_code == 200
+
+
+async def test_one_address_cannot_flood_the_receiver_and_its_address_is_not_kept(world, monkeypatch) -> None:
+    """The receiver is public: anybody could fill the database with made-up installations (security review of 26-11-2026). One
+    address gets a few reports an hour, counted in memory under a salted hash, so the reports stay anonymous."""
+    monkeypatch.setattr(settings, "TELEMETRY_RECEIVER", True)
+    monkeypatch.setattr(routes_telemetry, "report_throttle", routes_telemetry.LoginThrottle(max_failures=3, window_s=3600))
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://testserver") as c:
+        codes = [(await c.post(telemetry.REPORT_PATH, json={"format": telemetry.FORMAT, "install_id": f"0b7c1f5e-2a3d-4e5f-8a9b-0c1d2e3f4a{i:02d}"})).status_code
+                 for i in range(5)]
+        assert codes == [200, 200, 200, 429, 429]                       # a new installation id each time does not get round it
+        refused = await c.post(telemetry.REPORT_PATH, json={"format": "other"})
+        assert refused.status_code == 429 and int(refused.headers["retry-after"]) > 0
+    assert all(len(key) == 24 and "127.0.0.1" not in key for key in routes_telemetry.report_throttle._fails)
+    async with async_session_factory() as s:
+        assert (await s.execute(select(func.count()).select_from(TelemetryInstall))).scalar_one() == 3
 
 
 async def test_turning_it_off_forgets_what_was_waiting_and_an_empty_url_disables_it(world, monkeypatch) -> None:

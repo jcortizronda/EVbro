@@ -216,6 +216,33 @@ async def test_import_skips_existing_vins_respects_the_limit_and_rejects_junk(wo
     assert (await bea.post("/api/account/import", files={"file": ("x.zip", b"not a zip", "application/zip")})).status_code == 422
 
 
+async def test_the_files_of_an_import_count_against_the_accounts_space(world) -> None:
+    """Until the 26-11-2026 the files of an imported ZIP were stored without looking at the account's space."""
+    ana, bea = world["ana"], world["bea"]
+    export = (await ana.get("/api/account/export")).content
+    payload = json.loads(zipfile.ZipFile(io.BytesIO(export)).read("evbro-export.json"))
+    car = payload["vehicles"][0]
+    car["vehicle"]["vin"] = "LSJA0000000000041"
+    car["photo"] = None
+    car["documents"] = [{"kind": "other", "title": f"Doc {i}", "original_name": f"doc{i}.pdf", "content_type": "application/pdf",
+                         "file": f"files/doc{i}.pdf"} for i in range(3)]
+    for log in car.get("maintenance_logs", []):
+        log["invoice_file"] = None
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("evbro-export.json", json.dumps(payload))
+        for i in range(3):
+            z.writestr(f"files/doc{i}.pdf", b"%PDF-1.4\n" + b"0" * (700 * 1024))             # 0.7 MB each, tiny once zipped
+    async with async_session_factory() as s:
+        (await s.get(AppUser, 3)).storage_limit_mb = 2                                          # Bea has room for two of the three
+        await s.commit()
+    rep = (await bea.post("/api/account/import", files={"file": ("x.zip", buf.getvalue(), "application/zip")})).json()
+    assert rep["files"] == 2 and rep["files_skipped"] == 1 and "No queda espacio" in rep["errors"][-1]
+    assert rep["vehicles"][0]["documents"] == 2
+    usage = (await bea.get("/api/account/storage")).json()
+    assert usage["used_bytes"] <= 2 * 1024 * 1024
+
+
 async def test_an_imported_car_cannot_take_the_name_of_a_folder_of_the_data_volume(world, data_dir, monkeypatch) -> None:
     """The VIN of the file names the car's folder: «invoices» would be everybody's invoices, and deleting that car would delete them."""
     from app.services import account_transfer, accounts

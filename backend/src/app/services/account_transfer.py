@@ -19,6 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import (
+    AppUser,
     ChargePoint,
     ChargingSession,
     ClimateSchedule,
@@ -38,7 +39,7 @@ from app.db.models import (
     VehicleDocument,
     VehiclePart,
 )
-from app.services import uploads
+from app.services import storage, uploads
 from app.services.accounts import valid_vin
 from app.timeutil import utcnow
 
@@ -164,12 +165,27 @@ async def import_account(session: AsyncSession, user_id: int, blob: bytes, vehic
         raise ImportError_(422, f"Formato no reconocido: {payload.get('format')!r}.")
     names = set(zf.namelist())
 
+    # The files of the ZIP count against the account's space, like any upload: what does not fit is left out and said in the report
+    # (until the 26-11-2026 they went in without looking, so one compressible ZIP could fill the server's disk).
+    owner = await session.get(AppUser, user_id)
+    limit_mb = storage.effective_limit_mb(owner)
+    space: Optional[int] = None if limit_mb < 0 else max(0, limit_mb * storage.MB - await storage.storage_usage(session, user_id))
+
     def read(name: Optional[str]) -> Optional[bytes]:
-        if not name or name not in names or zf.getinfo(name).file_size > MAX_FILE_BYTES:
+        nonlocal space
+        if not name or name not in names:
             return None
+        size = zf.getinfo(name).file_size
+        if size > MAX_FILE_BYTES:
+            return None
+        if space is not None:
+            if size > space:
+                report["files_skipped"] += 1
+                return None
+            space -= size
         return zf.read(name)
 
-    report: Dict[str, Any] = {"vehicles": [], "skipped": [], "geofences": 0, "files": 0, "errors": []}
+    report: Dict[str, Any] = {"vehicles": [], "skipped": [], "geofences": 0, "files": 0, "files_skipped": 0, "errors": []}
     # geofences: by name within the account
     existing = {g.name.lower(): g.id for g in (await session.execute(select(Geofence).where(Geofence.owner_id == user_id))).scalars()}
     geofence_map: Dict[int, int] = {}
@@ -236,7 +252,10 @@ async def import_account(session: AsyncSession, user_id: int, blob: bytes, vehic
             if data and log.get("invoice_content_type"):
                 ext = {"application/pdf": ".pdf", "image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp"}.get(log["invoice_content_type"], ".bin")
                 obj.invoice_filename = uploads.store(uploads.INVOICES_FOLDER, data, ext)
+                obj.invoice_filesize = len(data)             # what was really stored, not what the file says: it counts against the space
                 report["files"] += 1
+            else:
+                obj.invoice_filesize = None
             session.add(obj)
             counts["maintenance"] += 1
         for p in entry.get("parts", []):
@@ -288,5 +307,7 @@ async def import_account(session: AsyncSession, user_id: int, blob: bytes, vehic
             counts["documents"] += 1
             report["files"] += 1
         report["vehicles"].append({"vin": vin, "name": v.name, **counts})
+    if report["files_skipped"]:
+        report["errors"].append(f"No queda espacio en tu cuenta: {report['files_skipped']} fichero(s) de la copia no se han guardado.")
     await session.commit()
     return report

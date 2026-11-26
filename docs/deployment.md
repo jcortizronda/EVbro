@@ -94,6 +94,7 @@ Variables en `deploy/.env` cuando hay proxy:
 | `ALLOW_PRIVATE_LINKS` | `true` | Permite que el Traccar y el broker MQTT que configura cada gestor estén en una dirección privada (lo normal en casa). Con `false` (un servidor que comparten varias personas) esos enlaces solo se aceptan si su nombre resuelve a direcciones públicas, no siguen redirecciones y se vuelve a comprobar en cada conexión; el broker del `.env` no se ve afectado |
 | `DEFAULT_VEHICLE_LIMIT` / `DEFAULT_MEMBER_LIMIT` | `2` / `5` | Coches y cuentas asociadas con los que empieza un gestor invitado (el administrador los cambia por cuenta) |
 | `DEFAULT_STORAGE_MB` | `50` | Espacio (MB) para documentos, facturas y fotos de los coches de un gestor sin límite propio (-1 sin límite). El administrador lo cambia por cuenta |
+| `APP_MEMORY_LIMIT` / `DB_MEMORY_LIMIT` | `1g` / `1g` | Memoria máxima del contenedor de la aplicación y del de la base de datos. Si se supera, Docker lo reinicia en vez de dejar sin memoria a la máquina |
 
 Con `docker-proxy` (lo habitual) el contenedor ve las conexiones como llegadas desde la red de Docker, así que `FORWARDED_ALLOW_IPS` debe cubrir esa red (p. ej. `172.16.0.0/12`). Quien llegue directamente al puerto publicado podría falsear `X-Forwarded-For` y esquivar **los dos** límites de intentos (el de IP y el de IP+usuario llevan la IP): restringe ese puerto al proxy con el firewall.
 
@@ -204,5 +205,7 @@ docker compose up -d --build
 docker compose logs --tail 30 app
 ```
 El esquema de la BD se migra solo al arrancar (Alembic, `upgrade head`; una BD anterior al 29-10-2026 se marca en la revisión base en el primer arranque; ver [development.md](development.md)). Haz `pg_dump` antes de actualizar: una migración no se deshace sola.
+
+**Lo que los contenedores no pueden hacer** (`deploy/docker-compose.yml`, desde el 26-11-2026): `no-new-privileges` (nada dentro puede volver a ser root), **sin capacidades** del núcleo salvo las que el arranque necesita unos segundos (dar el volumen al usuario `app` y pasar a serlo; en la base de datos, preparar su carpeta y pasar a `postgres`), **sistema de ficheros de solo lectura** (solo se escribe en el volumen de datos y en `/tmp`), como mucho **512 procesos** y **1 GB de memoria** cada uno (`APP_MEMORY_LIMIT` y `DB_MEMORY_LIMIT` en `.env` para cambiarlo: una importación muy grande o una base de datos de muchos años pueden pedir más). Probado sobre un volumen creado con la configuración anterior, con reinicio y en una instalación nueva, y dentro de un LXC sin privilegios. Con `docker exec` se sigue entrando como root, pero ese root ya no puede escribir en `data/`: los guiones de mantenimiento que escriban ahí deben usar `docker exec -u app`.
 
 El contenedor **no corre como root**: `entrypoint.sh` arranca como root solo para hacer del usuario `app` el dueño del volumen `data/` (una instalación anterior lo tenía de root) y baja privilegios antes de arrancar la app. No hay que hacer nada a mano al actualizar.

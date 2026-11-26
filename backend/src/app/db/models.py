@@ -671,6 +671,7 @@ class CommandAudit(Base):
     code = Column(String(20), nullable=True)
     message = Column(Text, nullable=True)
     client_ip = Column(String(50), nullable=True)
+    actor = Column(String(150), nullable=True)            # username of the account that sent it (None: a schedule, MQTT, or an old row)
     # What the CAR answered after trying to run it, when its confirmation arrived over the car channel (`success`, `code` and
     # `message` are only the cloud accepting the order). None: no confirmation seen (channel stopped, or the car never answered)
     car_result = Column(Text, nullable=True)

@@ -138,6 +138,7 @@ async def test_wrong_pin_is_rejected_locally_without_contacting_chery(db, send) 
     (row,) = await audit_rows()
     assert row.success is False and row.code == "pin_invalid"
     assert "9999" not in (row.message or "") and "9999" not in str(row.params)
+    assert row.actor == "juan"                              # who sent it, not only from where (security review of 26-11-2026)
 
 
 async def test_correct_pin_sends_with_that_pin(db, send) -> None:

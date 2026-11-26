@@ -9,6 +9,13 @@ x-logging: &logging                    # log rotation, so small servers never fi
   driver: json-file
   options: {max-size: "10m", max-file: "3"}
 
+# What both containers give up (security review of 26-11-2026): if somebody ever got to run code inside one, it could not become
+# root again, would hold none of the kernel's special permissions and could not exhaust the machine with processes.
+x-hardened: &hardened
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
+  pids_limit: 512
+
 services:
   app:
     image: ghcr.io/${EVBRO_IMAGE_OWNER:-jcortizronda}/evbro:${EVBRO_TAG:-latest}
@@ -21,6 +28,11 @@ services:
     container_name: evbro
     restart: unless-stopped
     logging: *logging
+    <<: *hardened
+    cap_add: [CHOWN, DAC_READ_SEARCH, SETUID, SETGID]   # only for the first seconds: the entrypoint hands the data volume to `app` and becomes it
+    read_only: true                    # nothing is written outside the data volume and /tmp
+    tmpfs: [/tmp]
+    mem_limit: ${APP_MEMORY_LIMIT:-1g}
     ports:
       - "${BIND_ADDRESS:-0.0.0.0}:${WEB_PORT:-8080}:8080"                  # the app (publish this one)
       - "${ADMIN_BIND_ADDRESS:-127.0.0.1}:${ADMIN_WEB_PORT:-8082}:8082"     # the admin console (local network only)
@@ -101,6 +113,11 @@ services:
     container_name: evbro-db
     restart: unless-stopped
     logging: *logging
+    <<: *hardened
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETUID, SETGID]   # what the image needs to prepare its data folder and become `postgres`
+    read_only: true
+    tmpfs: [/tmp, /var/run/postgresql]
+    mem_limit: ${DB_MEMORY_LIMIT:-1g}
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-evbro}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-evbro_password}

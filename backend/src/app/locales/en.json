@@ -428,5 +428,6 @@
  "{p0} recomendaciones de mantenimiento: {p1}": "{p0} maintenance recommendations: {p1}",
  "Contesta en Mantenimiento: revisado, registrar la intervención o más adelante.": "Answer in Maintenance: checked, record the intervention or later.",
  "• {p0}": "• {p0}",
- "Esa recomendación no existe.": "That recommendation does not exist."
+ "Esa recomendación no existe.": "That recommendation does not exist.",
+ "Demasiados informes desde esta dirección. Vuelve a intentarlo más tarde.": "Too many reports from this address. Try again later."
 }

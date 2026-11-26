@@ -43,6 +43,7 @@ class CommandAuditOut(BaseModel):
     success: bool
     code: Optional[str] = None
     message: Optional[str] = None
+    actor: Optional[str] = None                         # the account that sent it (None: a schedule, MQTT, or before 26-11-2026)
     car_result: Optional[str] = None                    # what the car answered over its channel, if its confirmation was seen
     car_result_at: Optional[datetime.datetime] = None
 
@@ -90,6 +91,7 @@ async def execute_vehicle_command(
     req: CommandRequest,
     request: Request,
     session: AsyncSession = Depends(get_db),
+    user: AppUser = Depends(auth.require_auth),
 ):
     """Sends a remote command to the vehicle (lock, climate, lights, etc.).
 
@@ -111,6 +113,7 @@ async def execute_vehicle_command(
         pin=req.pin or "",
         params=req.params,
         client_ip=auth.client_ip(request),
+        actor=user.username,
     )
 
     if not result.get("success"):

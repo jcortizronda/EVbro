@@ -76,6 +76,7 @@ class CommandsMixin:
         pin: str,
         params: Optional[Dict] = None,
         client_ip: Optional[str] = None,
+        actor: Optional[str] = None,
     ) -> Dict:
         """Runs a remote command on the vehicle.
 
@@ -91,7 +92,7 @@ class CommandsMixin:
             clean_params = command_policy.sanitize_params(command_key, params)
             effective_pin = command_policy.authorize(command_key, pin, stored_pin, vin=vin, policy=policy)
         except command_policy.CommandRejected as rej:
-            await self._audit_command(vin, command_key, params, False, rej.reason, rej.message, client_ip)
+            await self._audit_command(vin, command_key, params, False, rej.reason, rej.message, client_ip, actor)
             return {"success": False, "message": rej.message, "reason": rej.reason, "retry_after": rej.retry_after}
 
         # The typed PIN is good for THIS send only: a copy of the context (it shares the vehicle's
@@ -105,7 +106,7 @@ class CommandsMixin:
 
         success, message, code, reason = await self._send_command(vin, cmd_ctx, command_key, clean_params, client_ip or "api")
 
-        await self._audit_command(vin, command_key, clean_params, success, code or reason, message, client_ip)
+        await self._audit_command(vin, command_key, clean_params, success, code or reason, message, client_ip, actor)
         await self._remember_rejection(vin, command_key, success, code)
 
         # If the command succeeded, trigger a quick poll to refresh the state
@@ -177,11 +178,11 @@ class CommandsMixin:
         return (ctx.pin or "").strip()
 
     @staticmethod
-    async def _audit_command(vin, command_key, params, success, code, message, client_ip) -> None:
-        """Records the attempt in the audit log, rejected ones too (wrong PIN, etc.)."""
+    async def _audit_command(vin, command_key, params, success, code, message, client_ip, actor=None) -> None:
+        """Records the attempt in the audit log, rejected ones too (wrong PIN, etc.). `actor`: the account that sent it."""
         async with async_session_factory() as session:
             session.add(CommandAudit(
                 vin=vin, command=command_key, params=params, success=success,
-                code=(str(code)[:20] if code else None), message=message, client_ip=client_ip,
+                code=(str(code)[:20] if code else None), message=message, client_ip=client_ip, actor=(actor or None) and str(actor)[:150],
             ))
             await session.commit()
