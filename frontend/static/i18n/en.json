@@ -2699,5 +2699,12 @@
  "Por número": "By number",
  "De esta caja todavía no se sabe dónde va cada fusible: van por orden de número.": "Where each fuse sits in this box is not known yet: they are in number order.",
  "Relés (no están en esta cara)": "Relays (not on this face)",
- "Desliza el dibujo para verla entera.": "Swipe the drawing to see all of it."
+ "Desliza el dibujo para verla entera.": "Swipe the drawing to see all of it.",
+ "Historial de repostajes": "Fuel-up history",
+ "Aún no hay cargas": "No charges yet",
+ "1 carga · {p1} kWh · {p2} €": "1 charge · {p1} kWh · {p2} €",
+ "{p0} cargas · {p1} kWh · {p2} €": "{p0} charges · {p1} kWh · {p2} €",
+ "Aún no hay repostajes": "No fuel-ups yet",
+ "1 repostaje": "1 fuel-up",
+ "{p0} repostajes": "{p0} fuel-ups"
 }

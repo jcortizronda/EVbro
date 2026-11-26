@@ -124,7 +124,9 @@
   #tabRefuels .native-section-header, #tabRefuels .costs-period, #tabRefuels .period-picker { grid-column: 1 / -1; }
   #tabRefuels .costs-period, #tabRefuels .period-picker { max-width: 560px; margin-left: 0; }
   #tabRefuels .costs-hero, #tabRefuels .costs-chart-card { grid-column: 1; }
-  #rfListCard { grid-column: 2; grid-row: 3 / span 2; }
+  /* rows: heading, nearby stations (full width), period, then consumption and litres beside the folded list */
+  #tabRefuels #fsCard { grid-column: 1 / -1; }
+  #rfListCard { grid-column: 2; grid-row: 4 / span 2; }
 
   /* Geocercas: fixed map on the left, list on the right */
   #tabGeofences .native-app-container {

@@ -4,9 +4,10 @@ Ebro's owner's manuals do not print this: they only say where the two boxes are 
 box cover. The table here comes from the workshop wiring manual of the car the Ebro S900 PHEV is built on (Chery's T28 PHEV
 platform, sold in China as Fengyun T9; the Ebro manual carries the same platform code and the same engine, H4J15).
 
-**It has not been checked against a real Ebro**, and it is the Chinese-market car: equipment differs between markets. Every
+**It has not been checked against a real Ebro** (but for six positions of the cabin box that an owner found different on his
+S900 and reported, noted on each), and it is the Chinese-market car: equipment differs between markets. Every
 answer says so (`verified: False`), and the page tells the owner to trust the cover of the box over this table. Where that manual's
-own table and drawing disagree, the position carries a `doubt`. Only facts are kept (position, rating, function): no drawings.
+own table and drawing disagree, or a real car was seen to differ, the position carries a `doubt`. Only facts are kept (position, rating, function): no drawings.
 
 Texts are in the three languages of the interface, here and not in the page's dictionaries, because they are data, not interface.
 """
@@ -30,6 +31,29 @@ def _bcm(n: int) -> Text:
 # (position, amperes or None when the position is empty, function or None for a spare, doubt or None)
 Row = Tuple[str, Optional[float], Optional[Text], Optional[Text]]
 
+# What the owner of a real Ebro S900 PHEV found in his cabin box in November 2026, where it is not what the manual says (all of
+# them positions the manual gives as spare or empty). One car: another version may differ, and the note says so.
+UNCONFIRMED: Text = ("Función sin confirmar", "Function not confirmed", "Função por confirmar")
+_ONE_CAR: Text = (" Es un solo coche: puede cambiar según la versión.", " That is one car: it may differ between versions.", " É um só carro: pode mudar conforme a versão.")
+
+
+def _seen_without(amps: int) -> Text:
+    """The manual fits an unused fuse here; the real car has none."""
+    return (f"El manual pone aquí un fusible de {amps} A sin uso; en un Ebro S900 real (noviembre de 2026) no hay ninguno.{_ONE_CAR[0]}",
+            f"The manual fits an unused {amps} A fuse here; a real Ebro S900 (November 2026) has none.{_ONE_CAR[1]}",
+            f"O manual põe aqui um fusível de {amps} A sem uso; num Ebro S900 real (novembro de 2026) não há nenhum.{_ONE_CAR[2]}")
+
+
+def _seen_other(amps: Optional[int], real: int) -> Text:
+    """The real car carries a fuse of another rating than the manual's spare one (or a fuse where the manual has none)."""
+    es = f"da esta posición como reserva de {amps} A" if amps else "deja esta posición vacía"
+    en = f"gives this position as a {amps} A spare" if amps else "leaves this position empty"
+    pt = f"dá esta posição como reserva de {amps} A" if amps else "deixa esta posição vazia"
+    return (f"El manual {es}; en un Ebro S900 real (noviembre de 2026) lleva un fusible de {real} A, así que puede alimentar algo.{_ONE_CAR[0]}",
+            f"The manual {en}; a real Ebro S900 (November 2026) carries a {real} A fuse, so it may feed something.{_ONE_CAR[1]}",
+            f"O manual {pt}; num Ebro S900 real (novembro de 2026) tem um fusível de {real} A, por isso pode alimentar algo.{_ONE_CAR[2]}")
+
+
 _CABIN: List[Row] = [
     ("RSB01", 20, ("Portón trasero eléctrico", "Power tailgate", "Porta da bagageira elétrica"), None),
     ("RSB02", 30, ("Ajuste del asiento del conductor", "Driver seat adjustment", "Regulação do banco do condutor"), None),
@@ -39,14 +63,14 @@ _CABIN: List[Row] = [
     ("RSB08", 30, ("Control de las puertas delanteras", "Front door control", "Controlo das portas dianteiras"), None),
     ("RSB09", 30, ("Control de las puertas traseras", "Rear door control", "Controlo das portas traseiras"), None),
     ("RSB10", 30, ("Pretensor eléctrico del cinturón", "Electric seat belt pretensioner", "Pré-tensor elétrico do cinto"), None),
-    ("RSB11", 30, None, None),
+    ("RSB11", None, None, _seen_without(30)),
     ("RF01", 25, ("Ajuste del asiento del acompañante", "Front passenger seat adjustment", "Regulação do banco do passageiro"), None),
     ("RF02", 20, _bcm(3), None),
     ("RF03", None, None, None),
     ("RF04", 20, ("Asiento del acompañante (banqueta y respaldo) y calefacción del asiento derecho de la 2.ª fila",
                   "Front passenger seat (cushion and backrest) and heating of the right second-row seat",
                   "Banco do passageiro (assento e encosto) e aquecimento do banco direito da 2.ª fila"), None),
-    ("RF05", 15, None, None), ("RF06", 15, None, None), ("RF07", 20, None, None),
+    ("RF05", 15, None, None), ("RF06", 15, None, None), ("RF07", 10, UNCONFIRMED, _seen_other(20, 10)),
     ("RF08", 20, ("Suspensión automática", "Automatic suspension", "Suspensão automática"), None),
     ("RF09", 15, None, None),
     ("RF10", 25, _bcm(6), None),
@@ -73,23 +97,23 @@ _CABIN: List[Row] = [
     ("RF29", 10, ("Módulo de conexión remota (T-BOX), climatizador, panel de clima trasero, proyector HUD, cuadro de instrumentos y asiento del conductor",
                   "Telematics module (T-BOX), climate control, rear climate panel, head-up display, instrument cluster and driver seat",
                   "Módulo telemático (T-BOX), climatização, painel de clima traseiro, head-up display, painel de instrumentos e banco do condutor"), None),
-    ("RF30", 15, None, None),
+    ("RF30", None, None, _seen_without(15)),
     ("RF31", 10, ("Tomas USB traseras", "Rear USB ports", "Tomadas USB traseiras"), None),
     ("RF32", 10, ("Airbags", "Airbags", "Airbags"), None),
     ("RF33", 10, ("Tomas USB delanteras y centralita del cambio (TCU)", "Front USB ports and transmission control unit (TCU)", "Tomadas USB dianteiras e unidade de controlo da transmissão (TCU)"), None),
     ("RF34", 10, ("Pantalla y sonido, módulo de carrocería (BCM) y carga inalámbrica del móvil", "Head unit, body control module (BCM) and wireless phone charger",
                   "Unidade de áudio, módulo de carroçaria (BCM) e carregador sem fios do telemóvel"), None),
     ("RF35", 15, ("Alimentación de reserva delantera", "Front spare power supply", "Alimentação de reserva dianteira"), None),
-    ("RF36", 15, None, None),
+    ("RF36", 10, UNCONFIRMED, _seen_other(15, 10)),
     ("RF37", 20, ("Pantalla y sonido (unidad principal)", "Head unit", "Unidade de áudio principal"), None),
     ("RF38", 10, ("Pantallas del cuadro y central, T-BOX, módulos Bluetooth de las puertas, climatizador y sus trampillas, panel de clima trasero, HUD y mandos del volante",
                   "Instrument and centre displays, T-BOX, door Bluetooth modules, climate control and its flaps, rear climate panel, HUD and stalk switches",
                   "Ecrãs do painel e central, T-BOX, módulos Bluetooth das portas, climatização e as suas comportas, painel de clima traseiro, HUD e comandos do volante"), None),
     ("RF39", 10, ("Luz ambiental de las puertas, telepeaje (ETC), cámara de a bordo y sensor de lluvia y luz", "Door ambient lighting, toll tag (ETC), dash camera and rain and light sensor",
                   "Luz ambiente das portas, portagem eletrónica (ETC), câmara de bordo e sensor de chuva e luz"), None),
-    ("RF40", None, None, None), ("RF41", None, None, None),
+    ("RF40", 10, UNCONFIRMED, _seen_other(None, 10)), ("RF41", None, None, None),
     ("RF42", 40, ("Ventilador del habitáculo", "Cabin blower", "Ventilador do habitáculo"), None),
-    ("RF43", 15, None, None), ("RF44", 15, None, None), ("RF45", 15, None, None),
+    ("RF43", None, None, _seen_without(15)), ("RF44", 15, None, None), ("RF45", 15, None, None),
     ("RF46", 10, ("Calefacción de los retrovisores y señal del desempañado", "Mirror heating and demist feedback", "Aquecimento dos retrovisores e sinal de desembaciamento"), None),
     ("RF47", 15, ("Bomba del lavaparabrisas delantero y trasero", "Front and rear washer pump", "Bomba do lava-vidros dianteiro e traseiro"), None),
 ]
@@ -310,7 +334,7 @@ def has(model: Optional[str]) -> bool:
 def for_model(model: Optional[str], lang: str = "es") -> Optional[Dict[str, Any]]:
     """The fuse boxes of a model in one language, or None when nothing is known about it. Each fuse: `id`, `amps` (None = the
     rating is in doubt or the position is empty), `kind` (`fuse`, `spare`, `empty` or `relay`), `text` and, where the source
-    contradicts itself, `doubt`."""
+    contradicts itself or a real car was seen to differ, `doubt`."""
     key = normalize_model(model)
     data = BOXES.get(key or "")
     if data is None:

@@ -70,3 +70,11 @@
 .hist-tag { display: inline-block; vertical-align: middle; margin-right: 6px; padding: 0 6px; border-radius: 6px; font-size: 0.66rem; font-weight: 800; letter-spacing: 0.04em; line-height: 1.5; }
 .hist-tag.is-ac { color: var(--text-secondary); background: var(--surface); border: 1px solid var(--border-color); }
 .hist-tag.is-dc { color: #fff; background: var(--accent-amber); }
+
+/* A history inside a fold (the card and its heading are the fuel stations' .fs-card): the title with a line of totals under it */
+.hist-fold-title { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.hist-fold-title small { font-size: 0.78rem; font-weight: 500; color: var(--text-secondary); }
+.hist-fold-title small:empty { display: none; }
+.fs-summary-icon.hist-fold-icon { color: var(--accent-green); background: color-mix(in srgb, var(--accent-green) 16%, transparent); }
+.hist-fold-tools { display: flex; justify-content: flex-end; margin-bottom: 0.5rem; }
+.hist-fold > .rf-actions { margin-bottom: 0.6rem; }

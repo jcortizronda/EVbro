@@ -1013,33 +1013,11 @@
         <div class="home-widget" data-widget="charges">
         <!-- Charge history: its own widget (it used to hide in a sub-tab of the accordion) -->
         <div id="chargesSubTabHistory" class="sub-tab-panel active">
-        <!-- Overall charge summary cards -->
-        <div class="u-display-grid_grid-template-columns-repeat-auto-fit-minmax-200px-1fr_gap-1rem_margin-bottom-1p25rem">
-          <div class="glass u-padding-1rem-1p25rem_border-radius-var-radius-sm_border-1px-solid-var-border-color_background-var-bg-card">
-            <div class="u-font-size-0p75rem_color-var-text-muted_text-transform-uppercase_font-weight-700_letter-spacing-0p5px">Energía Total Añadida</div>
-            <div class="u-font-size-1p6rem_font-weight-800_color-var-primary_margin-top-0p25rem" id="chargesTotalKwh">0.0 kWh</div>
-            <div class="u-font-size-0p72rem_color-var-text-secondary_margin-top-0p2rem">Suma acumulada de recargas</div>
-          </div>
-          <div class="glass u-padding-1rem-1p25rem_border-radius-var-radius-sm_border-1px-solid-var-border-color_background-var-bg-card">
-            <div class="u-font-size-0p75rem_color-var-text-muted_text-transform-uppercase_font-weight-700_letter-spacing-0p5px">Coste Total Estimado</div>
-            <div class="u-font-size-1p6rem_font-weight-800_color-var-accent-green_margin-top-0p25rem" id="chargesTotalCost">0.00 €</div>
-            <div class="u-font-size-0p72rem_color-var-text-secondary_margin-top-0p2rem">Según geocercas y tarifas oficiales</div>
-          </div>
-          <div class="glass u-padding-1rem-1p25rem_border-radius-var-radius-sm_border-1px-solid-var-border-color_background-var-bg-card">
-            <div class="u-font-size-0p75rem_color-var-text-muted_text-transform-uppercase_font-weight-700_letter-spacing-0p5px">Sesiones Totales</div>
-            <div class="u-font-size-1p6rem_font-weight-800_color-var-text-primary_margin-top-0p25rem" id="chargesTotalCount">0</div>
-            <div class="u-font-size-0p72rem_color-var-text-secondary_margin-top-0p2rem">Registros de carga guardados</div>
-          </div>
-        </div>
-
-        <div class="glass table-card">
-          <div class="card-title u-justify-content-space-between">
-            <div class="u-display-flex_align-items-center_gap-0p5rem">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-              <span>Historial de cargas</span>
-            </div>
-            <button class="btn-sm btn-secondary u-font-size-0p78rem" data-on-click="loadCharges()">Actualizar</button>
-          </div>
+        <!-- A fold, closed by default and remembered on this device (features/history-list.js); its heading carries the totals of
+             every charge, which used to take three cards above the list -->
+        <details class="glass fs-card hist-fold" id="chargesCard" data-fold-key="evbro_fold_charges">
+          <summary class="fs-summary"><span class="fs-summary-icon hist-fold-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg></span><span class="hist-fold-title"><span>Historial de cargas</span><small id="chargesTotals"></small></span><span class="fs-chev" aria-hidden="true"></span></summary>
+          <div class="hist-fold-tools"><button type="button" class="btn-sm btn-secondary" data-on-click="loadCharges()">Actualizar</button></div>
           <div id="chgPeriod"></div>
           <p class="history-note" data-history-note></p>
           <!-- Charges the car did not report: typed one by one or brought from a spreadsheet (features/charge-manual.js) -->
@@ -1051,7 +1029,7 @@
             <p class="hist-empty">Cargando cargas...</p>
           </div>
           <button type="button" id="chargesMore" class="btn-secondary hist-more" data-on-click="loadMoreCharges()" hidden>Ver más cargas</button>
-        </div>
+        </details>
           </div>
         </div>
         </div>
@@ -1665,18 +1643,17 @@
           <div class="card-title u-margin-bottom-6px">Litros por mes</div>
           <div class="costs-bars" id="rfBars"></div>
         </div>
-        <div class="glass costs-list-card" id="rfListCard">
-          <div class="costs-list-head">
-            <div class="card-title u-margin-0">Repostajes</div>
-            <!-- Refuels typed one by one or brought from a spreadsheet (features/refuels.js) -->
-            <div class="rf-actions needs-edit">
-              <button type="button" class="btn-primary" data-on-click="openRefuelModal()">Añadir repostaje</button>
-              <button type="button" class="btn-secondary" data-on-click="RefuelImport.open()">Importar</button>
-            </div>
+        <!-- A fold like the charge history's: closed by default, remembered on this device (features/history-list.js) -->
+        <details class="glass fs-card hist-fold" id="rfListCard" data-fold-key="evbro_fold_refuels">
+          <summary class="fs-summary"><span class="fs-summary-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 22V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16"></path><path d="M3 22h12M5 10h8"></path><path d="M15 9h2a2 2 0 0 1 2 2v6a1.5 1.5 0 0 0 3 0v-7l-2.5-2.5"></path></svg></span><span class="hist-fold-title"><span>Historial de repostajes</span><small id="rfFoldCount"></small></span><span class="fs-chev" aria-hidden="true"></span></summary>
+          <!-- Refuels typed one by one or brought from a spreadsheet (features/refuels.js) -->
+          <div class="rf-actions needs-edit">
+            <button type="button" class="btn-primary" data-on-click="openRefuelModal()">Añadir repostaje</button>
+            <button type="button" class="btn-secondary" data-on-click="RefuelImport.open()">Importar</button>
           </div>
           <p class="costs-hint">Toca uno para editarlo. Marca «Depósito lleno» cuando llenes: entre dos llenados el consumo es exacto. Los litros de un repostaje detectado son estimados (% del depósito × litros del depósito): corrígelos con el ticket.</p>
           <div id="rfList"></div>
-        </div>
+        </details>
       </div>
     </section>
 

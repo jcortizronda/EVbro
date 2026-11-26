@@ -2699,5 +2699,12 @@
  "Por número": "Por número",
  "De esta caja todavía no se sabe dónde va cada fusible: van por orden de número.": "Ainda não se sabe onde fica cada fusível nesta caixa: estão por ordem de número.",
  "Relés (no están en esta cara)": "Relés (não estão nesta face)",
- "Desliza el dibujo para verla entera.": "Desliza o desenho para a ver inteira."
+ "Desliza el dibujo para verla entera.": "Desliza o desenho para a ver inteira.",
+ "Historial de repostajes": "Histórico de abastecimentos",
+ "Aún no hay cargas": "Ainda não há carregamentos",
+ "1 carga · {p1} kWh · {p2} €": "1 carregamento · {p1} kWh · {p2} €",
+ "{p0} cargas · {p1} kWh · {p2} €": "{p0} carregamentos · {p1} kWh · {p2} €",
+ "Aún no hay repostajes": "Ainda não há abastecimentos",
+ "1 repostaje": "1 abastecimento",
+ "{p0} repostajes": "{p0} abastecimentos"
 }

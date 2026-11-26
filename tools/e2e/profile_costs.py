@@ -23,6 +23,7 @@ with sync_playwright() as p:
         ctx = b.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True, locale="es-ES")
         ctx.request.post(f"{BASE}/api/auth/login", headers={"Origin": BASE}, data={"username": USER, "password": PASSWORD})
         ctx.add_init_script(f"localStorage.setItem('evbro_theme','{theme}')")
+        ctx.add_init_script("localStorage.setItem('evbro_fold_charges','1');localStorage.setItem('evbro_fold_refuels','1')")   # the histories live in folds that start closed: open here
         ctx.add_init_script("new MutationObserver(() => { const b = document.querySelector('#appDialog.open #appDialogOk'); if (b) b.click(); }).observe(document, { attributes: true, subtree: true, attributeFilter: ['class'] })")   # the app's own confirm dialog is accepted
         pg = ctx.new_page()
         errs = []

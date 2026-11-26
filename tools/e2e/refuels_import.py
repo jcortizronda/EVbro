@@ -51,6 +51,7 @@ with sync_playwright() as p:
         ctx = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True, locale="es-ES", service_workers="block")
         assert ctx.request.post(f"{BASE}/api/auth/login", headers={"Origin": BASE}, data={"username": USER, "password": PASSWORD}).ok
         ctx.add_init_script(f"localStorage.setItem('evbro_theme','{theme}')")
+        ctx.add_init_script("localStorage.setItem('evbro_fold_charges','1');localStorage.setItem('evbro_fold_refuels','1')")   # the histories live in folds that start closed: open here
         pg = ctx.new_page()
         errs = []
         pg.on("pageerror", lambda e, errs=errs: errs.append(str(e)))

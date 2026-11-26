@@ -9,7 +9,7 @@ const CHARGE_MODE_LABEL = { pvpc: 'PVPC', time_of_use: '2.0TD', manual: 'Manual'
 let chargesPicker = null;
 const chargesPickerOf = () => chargesPicker || (chargesPicker = PeriodPicker.create('chgPeriod', { storageKey: 'evbro_period_charges', presets: ['all', 'month', 'last_month', 'year', '12m'], onChange: loadCharges }));
 
-/** Reloads the charge history from the first page; the cards above add up every charge (server side), the list follows the period picker. */
+/** Reloads the charge history from the first page; the heading of its fold adds up every charge (server side), the list follows the period picker. */
 async function loadCharges() {
   if (!currentVin) return;
   const list = document.getElementById('chargesList');
@@ -23,9 +23,10 @@ async function loadCharges() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const sum = await res.json();
     if (gen !== chargesPage.gen) return;                  // a newer load (or another car) took over
-    document.getElementById('chargesTotalKwh').innerText = `${historyNum(sum.kwh_added)} kWh`;
-    document.getElementById('chargesTotalCost').innerText = `${historyNum(sum.cost, 2)} €`;
-    document.getElementById('chargesTotalCount').innerText = sum.count;
+    // the totals of every charge, in the heading of the fold (seen while it is closed too)
+    const totals = { p0: sum.count, p1: historyNum(sum.kwh_added), p2: historyNum(sum.cost, 2) };
+    document.getElementById('chargesTotals').textContent = !sum.count ? t('Aún no hay cargas')
+      : (sum.count === 1 ? t('1 carga · {p1} kWh · {p2} €', totals) : t('{p0} cargas · {p1} kWh · {p2} €', totals));
     (sum.months || []).forEach((m) => { chargesPage.months[m.month] = m; });
     if (!sum.count) { list.innerHTML = '<p class="hist-empty">No hay sesiones de recarga registradas aún.</p>'; return; }
   } catch (err) {

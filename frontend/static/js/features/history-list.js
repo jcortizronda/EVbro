@@ -86,3 +86,17 @@ function historyMore(button, hasMore) {
   button.hidden = !hasMore;
   button.disabled = false;
 }
+
+/** The histories that live in a fold (`details.hist-fold`, with the key of its choice in `data-fold-key`): closed by default,
+ *  and as the owner last left each one on this device. */
+function historyFolds() {
+  document.querySelectorAll('details.hist-fold[data-fold-key]').forEach((card) => {
+    const key = card.dataset.foldKey;
+    try { card.open = localStorage.getItem(key) === '1'; } catch (e) { /* closed */ }
+    card.addEventListener('toggle', () => {
+      try { localStorage.setItem(key, card.open ? '1' : '0'); } catch (e) { /* not remembered */ }
+    });
+  });
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', historyFolds);
+else historyFolds();

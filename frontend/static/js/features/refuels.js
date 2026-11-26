@@ -57,6 +57,8 @@ function renderRefuels(d) {
   rfEl('rfTotalLiters').textContent = `${rfNum(d.total_liters)} l`;
   rfEl('rfTotalCost').textContent = rfMoney(d.total_cost);
   rfEl('rfCount').textContent = `${d.count} ${d.count === 1 ? 'repostaje' : 'repostajes'}${d.unpriced ? ` · ${d.unpriced} sin precio` : ''}`;
+  const fold = rfEl('rfFoldCount');                       // the heading of the folded list says how many there are
+  if (fold) fold.textContent = !d.count ? t('Aún no hay repostajes') : (d.count === 1 ? t('1 repostaje') : t('{p0} repostajes', { p0: d.count }));
   renderRefuelBars(d.months);
   renderRefuelList();
 }

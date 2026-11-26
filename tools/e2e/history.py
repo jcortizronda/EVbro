@@ -63,6 +63,7 @@ with sync_playwright() as p:
         ctx=b.new_context(viewport={"width":390,"height":844},is_mobile=True,has_touch=True,locale="es-ES",bypass_csp=True,service_workers="block")
         ctx.request.post(f"{BASE}/api/auth/login",headers={"Origin":BASE},data={"username":USER,"password":PASSWORD})
         ctx.add_init_script(f"localStorage.setItem('evbro_theme','{theme}')")
+        ctx.add_init_script("localStorage.setItem('evbro_fold_charges','1');localStorage.setItem('evbro_fold_refuels','1')")   # the histories live in folds that start closed: open here
         pg=ctx.new_page(); errs=[]
         pg.on("pageerror",lambda e:errs.append(str(e)))
         pg.route("**/api/vehicles/**", handle)
@@ -94,7 +95,7 @@ with sync_playwright() as p:
         # ── Charges ──
         pg.evaluate("switchTab('charges')"); pg.evaluate("switchChargesSubTab('history')"); pg.evaluate("loadCharges()")
         pg.wait_for_selector("#chargesList .hist-row")
-        ok(pg.inner_text("#chargesTotalCount")=="40" and "380,0 kWh" in pg.inner_text("#chargesTotalKwh"),"charges: the totals come from every charge (server)")
+        ok("40 cargas · 380,0 kWh" in pg.inner_text("#chargesTotals"),"charges: the heading of the fold adds up every charge (server)")
         crows=lambda: pg.locator("#chargesList .hist-row").count()
         ok(crows()==30 and pg.is_visible("#chargesMore"),"charges: first page of 30 rows and «Ver más cargas»")
         c0=pg.locator("#chargesList .hist-row").first

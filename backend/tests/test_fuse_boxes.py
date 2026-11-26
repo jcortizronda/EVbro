@@ -45,7 +45,12 @@ def test_the_s900_has_its_two_boxes_and_what_makes_it_a_plug_in_hybrid() -> None
     assert by_id["RF42"] == {"id": "RF42", "amps": 40, "kind": "fuse", "text": "Ventilador del habitáculo", "doubt": None}
     assert by_id["RF05"]["kind"] == "spare" and by_id["RF03"]["kind"] == "empty" and by_id["ERLY12"]["kind"] == "relay"
     # where the source's table and drawing disagree, the position says so; a rating in doubt is not given at all
-    assert {i for i, item in by_id.items() if item["doubt"]} == {"EF05", "EF06", "EF11", "EF12", "EF40", "RF16"}
+    seen = {"RSB11", "RF07", "RF30", "RF36", "RF40", "RF43"}             # what a real S900 was found to carry instead (its owner, 11-2026)
+    assert {i for i, item in by_id.items() if item["doubt"]} == {"EF05", "EF06", "EF11", "EF12", "EF40", "RF16"} | seen
+    assert all("Ebro S900 real" in by_id[i]["doubt"] and "un solo coche" in by_id[i]["doubt"] for i in seen)
+    assert [by_id[i]["kind"] for i in ("RSB11", "RF30", "RF43")] == ["empty"] * 3 and all(by_id[i]["amps"] is None for i in ("RSB11", "RF30", "RF43"))
+    assert [(by_id[i]["amps"], by_id[i]["text"]) for i in ("RF07", "RF36", "RF40")] == [(10, "Función sin confirmar")] * 3
+    assert "reserva de 20 A" in by_id["RF07"]["doubt"] and "deja esta posición vacía" in by_id["RF40"]["doubt"]
     assert by_id["EF12"]["amps"] is None and "10 A" in by_id["EF12"]["doubt"] and "20 A" in by_id["EF12"]["doubt"]
 
 
