@@ -25,6 +25,7 @@ if database_url.startswith("postgresql://"):
 engine = create_async_engine(
     database_url,
     echo=settings.DEBUG,
+    hide_parameters=not settings.DEBUG,     # an SQL error must not write the row's values (a password hash, an e-mail) to the log
     future=True,
     pool_pre_ping=True,
 )

@@ -34,6 +34,25 @@ CATEGORY_FLAG: Dict[str, str] = {
 }
 
 
+def _inside_address(ip_text: str) -> bool:
+    """Whether an address belongs to the server's own surroundings: loopback, private and shared ranges, link-local/metadata…"""
+    ip = ipaddress.ip_address(ip_text.split("%", 1)[0])
+    mapped = getattr(ip, "ipv4_mapped", None)           # ::ffff:192.168.1.1 is 192.168.1.1
+    if mapped is not None:
+        ip = mapped
+    return (ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast or ip.is_unspecified
+            or not ip.is_global)                        # `is_global` also leaves out 100.64.0.0/10 (shared address space)
+
+
+def host_points_inside(hostname: str, port: int) -> Optional[bool]:
+    """True when `hostname` resolves to an address inside the server's network, False when all are public, None when it does not resolve."""
+    try:
+        infos = socket.getaddrinfo(hostname, port, proto=socket.IPPROTO_TCP)
+    except OSError:
+        return None
+    return any(_inside_address(info[4][0]) for info in infos)
+
+
 def webhook_url_problem(url: Optional[str]) -> Optional[str]:
     """Why a webhook URL must not be used, or None. The server makes the call, so by default it must not be made to reach its own network
     (loopback, private ranges, link-local/metadata); `ALLOW_PRIVATE_WEBHOOKS=true` lets a trusted instance call its LAN (Home Assistant...)."""
@@ -45,15 +64,41 @@ def webhook_url_problem(url: Optional[str]) -> Optional[str]:
         return "La URL del webhook debe empezar por http:// o https://."
     if settings.ALLOW_PRIVATE_WEBHOOKS:
         return None
-    try:
-        infos = socket.getaddrinfo(parsed.hostname, parsed.port or (443 if parsed.scheme == "https" else 80), proto=socket.IPPROTO_TCP)
-    except OSError:
+    inside = host_points_inside(parsed.hostname, parsed.port or (443 if parsed.scheme == "https" else 80))
+    if inside is None:
         return "No se pudo resolver el nombre del webhook."
-    for info in infos:
-        ip = ipaddress.ip_address(info[4][0])
-        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast or ip.is_unspecified:
-            return "El webhook no puede apuntar a una dirección interna."
+    if inside:
+        return "El webhook no puede apuntar a una dirección interna."
     return None
+
+
+def push_endpoint_problem(endpoint: Optional[str]) -> Optional[str]:
+    """Why a Web Push endpoint must not be used, or None. The browser's push service is always a public HTTPS server (Google, Mozilla,
+    Apple, Microsoft): an endpoint that points into the server's own network is somebody using the server to reach it. There is no
+    switch for this one. A name that does not resolve is let through: nothing can be reached with it."""
+    try:
+        parsed = urlparse((endpoint or "").strip())
+        hostname, port = parsed.hostname, parsed.port or 443
+    except ValueError:
+        return "Suscripción de Web Push no válida."
+    if parsed.scheme != "https" or not hostname:
+        return "Suscripción de Web Push no válida."
+    if host_points_inside(hostname, port):
+        return "Suscripción de Web Push no válida."
+    return None
+
+
+def _push_session():
+    """A `requests` session for Web Push that never follows a redirect: the push service answers 201 itself, and following a
+    `Location` would let whoever registered the endpoint send the server anywhere, its own network included."""
+    import requests
+
+    class NoRedirects(requests.Session):
+        def request(self, method, url, **kwargs):
+            kwargs["allow_redirects"] = False
+            return super().request(method, url, **kwargs)
+
+    return NoRedirects()
 
 # Categories an account can SILENCE instead of switching off: with the flag off the notice is still kept in its notice centre
 # (the bell), but nothing is sent through its channels. Messages from the administrator (services/admin_messages.py).
@@ -127,6 +172,8 @@ class NotificationService:
 
         from app.security import vapid
 
+        if push_endpoint_problem(subscription.get("endpoint")):      # checked again at send time: the name may resolve elsewhere by now
+            return False, "endpoint not allowed", False
         try:
             webpush(
                 subscription_info=subscription,
@@ -135,12 +182,16 @@ class NotificationService:
                 vapid_claims={"sub": settings.VAPID_SUBJECT},
                 ttl=24 * 3600,
                 timeout=10,
+                requests_session=_push_session(),
             )
             return True, None, False
         except WebPushException as e:
-            status = getattr(getattr(e, "response", None), "status_code", None)
+            response = getattr(e, "response", None)
+            status = getattr(response, "status_code", None)
+            # Only the status line: the body is whatever the endpoint answered, and it must not travel back to whoever registered it.
             # 404/410: the device unsubscribed or the browser revoked the subscription
-            return False, f"HTTP {status}: {e}" if status else str(e), status in (404, 410)
+            reason = (getattr(response, "reason", "") or "").strip()[:60]
+            return False, (f"HTTP {status} {reason}".strip() if status else "push failed"), status in (404, 410)
         except Exception as e:  # noqa: BLE001 - network, keys, etc.: recorded, and it does not break the dispatch
             return False, str(e), False
 

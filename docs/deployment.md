@@ -93,7 +93,7 @@ Variables en `deploy/.env` cuando hay proxy:
 | `DEFAULT_VEHICLE_LIMIT` / `DEFAULT_MEMBER_LIMIT` | `2` / `5` | Coches y cuentas asociadas con los que empieza un gestor invitado (el administrador los cambia por cuenta) |
 | `DEFAULT_STORAGE_MB` | `50` | Espacio (MB) para documentos, facturas y fotos de los coches de un gestor sin límite propio (-1 sin límite). El administrador lo cambia por cuenta |
 
-Con `docker-proxy` (lo habitual) el contenedor ve las conexiones como llegadas desde la red de Docker, así que `FORWARDED_ALLOW_IPS` debe cubrir esa red (p. ej. `172.16.0.0/12`). Quien llegue directamente al puerto publicado podría falsear `X-Forwarded-For` y esquivar el límite de intentos **por IP** (el límite por IP+usuario sigue vigente): restringe ese puerto al proxy con el firewall.
+Con `docker-proxy` (lo habitual) el contenedor ve las conexiones como llegadas desde la red de Docker, así que `FORWARDED_ALLOW_IPS` debe cubrir esa red (p. ej. `172.16.0.0/12`). Quien llegue directamente al puerto publicado podría falsear `X-Forwarded-For` y esquivar **los dos** límites de intentos (el de IP y el de IP+usuario llevan la IP): restringe ese puerto al proxy con el firewall.
 
 ### Ejemplo con Caddy
 
@@ -130,7 +130,7 @@ docker compose exec app tail -n 200 /app/data/logs/evbro.log
 
 ## Copias de seguridad
 
-**Automática:** `deploy/backup.sh` hace cada madrugada el volcado de la BD, un archivo del **volumen de datos** (documentos, facturas y fotos cifrados, tokens, clave VAPID) y una copia de `deploy/.env` (lleva la clave de cifrado) en `backups/`; borra lo de más de 14 días y limpia los restos de construcción de Docker de más de 3 días (cada despliegue deja cientos de MB). Se programa con `cron` (`0 4 * * * /opt/evbro/deploy/backup.sh >> /opt/evbro/backups/backup.log 2>&1`).
+**Automática:** `deploy/backup.sh` hace cada madrugada el volcado de la BD, un archivo del **volumen de datos** (documentos, facturas y fotos cifrados, tokens, clave VAPID) y una copia de `deploy/.env` (lleva la clave de cifrado) en `backups/`; borra lo de más de 14 días (y los volcados `pre-*.sql.gz` hechos a mano antes de un despliegue, a los 30: `KEEP_PRE_DAYS`) y limpia los restos de construcción de Docker de más de 3 días (cada despliegue deja cientos de MB). El guion **lee** de `deploy/.env` el usuario y el nombre de la base de datos, no lo ejecuta: hasta el 26-11-2026 lo cargaba como si fuera un guion de shell y una línea como `SMTP_FROM=EVbro <correo@ejemplo.com>` lo paraba sin hacer la copia. **Mira `backups/backup.log` de vez en cuando:** si la copia falla, nadie avisa. Se programa con `cron` (`0 4 * * * /opt/evbro/deploy/backup.sh >> /opt/evbro/backups/backup.log 2>&1`).
 
 **Fuera del servidor (obligatorio en cuanto haya datos de otra persona):** `backups/` vive dentro del mismo LXC; si se pierde el contenedor se pierde todo. Dos formas, la primera basta:
 1. **Copia del contenedor desde Proxmox:** Datacenter → Backup → Add: CT 112, cada día a las 05:00 (después del `backup.sh`), modo *snapshot*, almacenamiento que no sea `local` (NAS por NFS/CIFS o Proxmox Backup Server), conservar 7. Incluye `/var/lib/docker` (volúmenes) y `/opt/evbro/backups`.

@@ -98,7 +98,7 @@ function updateGeofencesOverviewMap() {
       iconAnchor: [12, 12]
     });
     L.marker(carPos, { icon: carIcon })
-      .bindPopup(`<b>${document.getElementById('vehicleName').innerText || 'Tu Coche'}</b><br>Ubicación actual`)
+      .bindPopup(`<b>${escapeHtml(document.getElementById('vehicleName').innerText || 'Tu Coche')}</b><br>Ubicación actual`)
       .addTo(geofencesOverviewLayer);
   }
 

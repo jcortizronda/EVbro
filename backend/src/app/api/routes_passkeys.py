@@ -5,6 +5,7 @@ Registering needs an app session (so an admin, who never has one, cannot registe
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from typing import Any, Dict, Optional
@@ -22,16 +23,21 @@ from webauthn.helpers.structs import (
     UserVerificationRequirement,
 )
 
+from app.api.routes_auth import _check_throttle, ip_throttle
 from app.db.models import AppUser, PasskeyCredential
 from app.db.session import get_db
 from app.i18n import _
-from app.security import auth
+from app.security import auth, passwords
 from app.security import passkeys as pk
 from app.timeutil import utcnow
 
 _LOGGER = logging.getLogger("app.api.passkeys")
 router = APIRouter(prefix="/passkeys", tags=["Passkeys"])
 MAX_PER_ACCOUNT = 20
+
+
+class RegisterOptionsRequest(BaseModel):
+    password: str = Field(max_length=passwords.MAX_LENGTH)
 
 
 class RegisterVerifyRequest(BaseModel):
@@ -65,7 +71,15 @@ async def delete_passkey(passkey_id: int, user: AppUser = Depends(auth.require_a
 
 
 @router.post("/register/options")
-async def register_options(request: Request, user: AppUser = Depends(auth.require_auth), db: AsyncSession = Depends(get_db)):
+async def register_options(req: RegisterOptionsRequest, request: Request, user: AppUser = Depends(auth.require_auth),
+                           db: AsyncSession = Depends(get_db)):
+    """Asks for the password, like changing the e-mail: a passkey is a second way in that outlives a password change, so whoever
+    borrows an open session must not be able to leave one behind."""
+    ip = auth.client_ip(request)
+    _check_throttle((ip_throttle, f"ip:{ip}"))
+    if not await asyncio.to_thread(passwords.verify_password, req.password, user.password_hash):
+        ip_throttle.record_failure(f"ip:{ip}")
+        raise HTTPException(status_code=403, detail=_("La contraseña no es correcta."))
     existing = (await db.execute(select(PasskeyCredential).where(PasskeyCredential.user_id == user.id))).scalars().all()
     if len(existing) >= MAX_PER_ACCOUNT:
         raise HTTPException(status_code=409, detail=_("Ya tienes {p0} dispositivos con huella. Quita alguno antes de añadir otro.", p0=MAX_PER_ACCOUNT))

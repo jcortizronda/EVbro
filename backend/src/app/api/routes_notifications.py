@@ -13,7 +13,7 @@ from app.db.models import AppUser, NotificationLog, PushSubscription
 from app.db.session import get_db
 from app.i18n import _
 from app.security import auth
-from app.services.notification_service import NotificationService, webhook_url_problem
+from app.services.notification_service import NotificationService, push_endpoint_problem, webhook_url_problem
 from app.timeutil import utcnow
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
@@ -97,7 +97,7 @@ async def push_public_key():
 @router.post("/push/subscribe")
 async def push_subscribe(req: PushSubscribeRequest, session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)):
     """Registers (or updates) this device as a Web Push target."""
-    if not req.endpoint.startswith("https://") or not req.keys.get("p256dh") or not req.keys.get("auth"):
+    if push_endpoint_problem(req.endpoint) or not req.keys.get("p256dh") or not req.keys.get("auth"):
         raise HTTPException(status_code=422, detail="Suscripción de Web Push no válida.")
     h = NotificationService.endpoint_hash(req.endpoint)
     sub = (await session.execute(select(PushSubscription).where(PushSubscription.endpoint_hash == h))).scalar_one_or_none()

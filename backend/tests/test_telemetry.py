@@ -291,6 +291,39 @@ def test_reads_without_data_are_grouped_by_cause(monkeypatch) -> None:
         log.removeHandler(handler)
 
 
+async def test_what_is_not_a_fault_of_the_code_stays_out_of_the_reports(world, caplog, monkeypatch) -> None:
+    """Seen in the project's console on 26-11-2026: wrong passwords, an expired Ebro session, a missing PIN, a network timeout,
+    the manager's Traccar answering badly and a position the cloud froze. None is a fault of EVbro: they stay in the local log."""
+    import logging
+
+    from app.services import charge_manager
+    from app.services.charge_manager import ChargeError, ChargeManager
+    from app.services.poller import UNREPORTED_READ_GROUPS
+
+    def reported(text: str) -> list:
+        return [getattr(r, "telemetry", True) for r in caplog.records if text in r.getMessage()]
+
+    caplog.set_level(logging.WARNING)
+    # a wrong password, in the application and in the console
+    assert (await world["ana"].post("/api/auth/login", json={"username": "ana-secreta", "password": "no-es-esta-1234"})).status_code == 401
+    assert reported("Failed login attempt") == [False]
+    assert (await world["console"].post("/api/auth/login", json={"username": "admin", "password": "no-es-esta-1234"})).status_code == 401
+    assert reported("Failed console login attempt") == [False]
+
+    # the charge manager: the account's matter is not reported, the car refusing an order is
+    assert charge_manager.ACCOUNT_REASONS == ("reauth", "pin")
+    manager = ChargeManager.get_instance()
+    for reason, text in (("reauth", "Sesión caducada"), ("pin", "Falta el PIN"), ("busy", "coche ocupado")):
+        async def refuse(vin, telemetry, reason=reason, text=text):
+            raise ChargeError(reason, text)
+        monkeypatch.setattr(manager, "_auto", refuse)
+        await manager.on_snapshot(VIN, {})
+    assert reported("Sesión caducada") == [False] and reported("Falta el PIN") == [False] and reported("coche ocupado") == [True]
+
+    # a read that never reached the cloud, like one without a session
+    assert UNREPORTED_READ_GROUPS == ("session", "network")
+
+
 def test_a_wrong_pin_is_not_reported(monkeypatch) -> None:
     """core/taskid.py logs checkPassword's raw answer; a wrong PIN (A07908/A07909) is the person's typo, any other answer is kept."""
     import logging

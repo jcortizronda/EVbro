@@ -183,6 +183,39 @@ async def test_import_skips_existing_vins_respects_the_limit_and_rejects_junk(wo
         drive = (await s.execute(select(Drive).where(Drive.vin == "LSJA0000000000021"))).scalar_one()
         assert drive.end_geofence_id is not None and drive.distance_km == 25.5
     assert (await bea.post("/api/account/import", files={"file": ("x.zip", b"not a zip", "application/zip")})).status_code == 422
+
+
+async def test_an_imported_car_cannot_take_the_name_of_a_folder_of_the_data_volume(world, data_dir, monkeypatch) -> None:
+    """The VIN of the file names the car's folder: «invoices» would be everybody's invoices, and deleting that car would delete them."""
+    from app.services import account_transfer, accounts
+
+    ana = world["ana"]
+    (data_dir / "invoices").mkdir()
+    (data_dir / "invoices" / "somebody-elses.bin").write_bytes(b"x")
+    payload = json.loads(zipfile.ZipFile(io.BytesIO((await ana.get("/api/account/export")).content)).read("evbro-export.json"))
+    payload["vehicles"][0]["documents"], payload["vehicles"][0]["photo"] = [], None
+
+    def zipped(vin) -> bytes:
+        payload["vehicles"][0]["vehicle"]["vin"] = vin
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+            z.writestr("evbro-export.json", json.dumps(payload))
+        return buf.getvalue()
+
+    for vin in ("invoices", "Accounts", "certs", "../../etc", "a b", "x" * 40):
+        rep = (await ana.post("/api/account/import", files={"file": ("x.zip", zipped(vin), "application/zip")})).json()
+        assert rep["vehicles"] == [] and rep["skipped"][0]["reason"] == "El bastidor no es válido.", vin
+    async with async_session_factory() as s:
+        assert (await s.execute(select(Vehicle).where(Vehicle.vin.in_(("invoices", "Accounts", "certs"))))).scalars().all() == []
+    # and the folder helpers refuse those names whatever the caller
+    for call in (accounts.vehicle_data_dir, accounts.remove_vehicle_data):
+        with pytest.raises(ValueError):
+            call("invoices")
+    assert (data_dir / "invoices" / "somebody-elses.bin").exists()
+    assert accounts.valid_vin(VIN) and accounts.valid_vin("MAN0123456789ABCD")
+    # a small ZIP that unpacks into a huge evbro-export.json is refused before it is read
+    monkeypatch.setattr(account_transfer, "MAX_EXPORT_JSON_BYTES", 1024)
+    assert (await ana.post("/api/account/import", files={"file": ("x.zip", zipped("LSJA0000000000031"), "application/zip")})).status_code == 413
     assert (await world["mia"].get("/api/account/export")).status_code == 403                   # members cannot export their manager's space
 
 

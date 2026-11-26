@@ -137,7 +137,7 @@ async def login(req: Credentials, request: Request, response: Response, db: Asyn
     if not ok:
         ip_throttle.record_failure(f"ip:{ip}")
         pair_throttle.record_failure(pair_key)
-        _LOGGER.warning("Failed console login attempt for '%s' from %s", username[:40], ip)
+        _LOGGER.warning("Failed console login attempt for '%s' from %s", username[:40], ip, extra={"telemetry": False})
         raise HTTPException(status_code=401, detail=GENERIC_LOGIN_ERROR)
     pair_throttle.reset(pair_key)
     token = await auth.create_session(db, user, request)

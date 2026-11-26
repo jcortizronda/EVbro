@@ -100,7 +100,7 @@ function renderCustomPlan(plan) {
             ${item.notes ? `<div class="maint-card-notes">${escapeHtml(item.notes)}</div>` : ''}
           </div>
           <div class="maint-footer">
-            <button class="btn-primary" data-on-click="openCompleteMaintModal(${item.id}, ${JSON.stringify(item.name).replace(/"/g, '&quot;')})">Hecho</button>
+            <button class="btn-primary" data-on-click="openCompleteMaintModal(${item.id}, ${escapeHtml(JSON.stringify(String(item.name ?? '')))})">Hecho</button>
             <div class="maint-actions">
               <button class="nav-btn" title="Editar" aria-label="Editar" data-on-click="showEditMaintenanceModal(${item.id})">${icon('edit', 16)}</button>
               <button class="nav-btn" title="Eliminar" aria-label="Eliminar" data-on-click="deleteMaintItem(${item.id})">${icon('trash', 16)}</button>

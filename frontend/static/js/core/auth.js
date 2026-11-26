@@ -34,6 +34,8 @@
     if (res.status === 401 && path && path.startsWith('/api/') && !path.startsWith('/api/auth/')) {
       state.locked = true;
       showOverlay();
+      // The server says there is no session (expired, closed elsewhere, password changed): the offline copy of its data goes
+      try { if (window.caches) caches.delete('evbro-api-v1').catch(() => {}); } catch (e) { /* best effort */ }
     }
     return res;
   };
@@ -304,8 +306,16 @@
   }
 
   // ───────────────────────── sign-out and password ─────────────────────────
+  /** The offline copy of the account's data (trips, positions, zones) and the car it had open: whoever uses this browser next, or
+   *  signs in with another account, must not find them. Screen preferences (theme, layout) stay. */
+  async function forgetOfflineCopy() {
+    try { ['evbro_vin', 'evbro_car_photo'].forEach((k) => localStorage.removeItem(k)); } catch (e) { /* private mode: nothing was kept */ }
+    try { if (window.caches) await caches.delete('evbro-api-v1'); } catch (e) { /* best effort */ }
+  }
+
   async function logout() {
     try { await nativeFetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }); } catch (e) { /* does not matter */ }
+    await forgetOfflineCopy();
     window.location.reload();
   }
 

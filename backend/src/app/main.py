@@ -101,14 +101,14 @@ MAX_JSON_BODY_BYTES = 1024 * 1024
 # Content Security Policy of the web app. **No inline script at all**: handlers are declared with `data-on-*` attributes
 # (`core/actions.js`) and the theme bootstrap is a file, so a text that slipped into the HTML can never run. No inline styles either:
 # the `style=` attributes became classes (`utilities.css`) and the dynamic ones go through `data-css` (CSSOM). The page cannot load code
-# from, send data to or be framed by anybody but ourselves and the few hosts listed (Leaflet, OpenStreetMap, Google Fonts). `connect-src` is completed per request with the WebSocket origin (older browsers do not
+# from, send data to or be framed by anybody but ourselves and the few hosts listed (OpenStreetMap tiles, Google Fonts). **Scripts are only our own**: Leaflet is served from `static/vendor/` (a CDN that publishes anybody's packages would turn any slip in escaping into code). `connect-src` is completed per request with the WebSocket origin (older browsers do not
 # count `ws(s):` as `'self'`).
 _PAGE_CSP = (
     "default-src 'self'; "
-    "script-src 'self' https://unpkg.com; "
-    "style-src 'self' https://fonts.googleapis.com https://unpkg.com; "
+    "script-src 'self'; "
+    "style-src 'self' https://fonts.googleapis.com; "
     "font-src 'self' https://fonts.gstatic.com; "
-    "img-src 'self' data: blob: https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://*.tile.openstreetmap.fr https://unpkg.com; "
+    "img-src 'self' data: blob: https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://*.tile.openstreetmap.fr; "
     "connect-src 'self' {ws_origin}; "
     "worker-src 'self'; manifest-src 'self'; frame-src 'self'; "
     "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"

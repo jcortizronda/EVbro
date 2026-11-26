@@ -37,6 +37,14 @@ def ebro_language(lang: Optional[str]) -> str:
 
 
 _VIN_RE = re.compile(r"[A-Za-z0-9]{5,32}")
+# The app's own folders inside DATA_DIR whose names would pass as a VIN: a car called like one of them would share its folder,
+# and deleting that car would delete everybody's invoices or sessions.
+RESERVED_DATA_NAMES = frozenset({"accounts", "certs", "invoices", "logs", "backups"})
+
+
+def valid_vin(vin: Optional[str]) -> bool:
+    """Whether `vin` can be a car of this server: alphanumeric (it names a folder and travels in URLs) and not one of the app's folders."""
+    return bool(_VIN_RE.fullmatch(vin or "")) and (vin or "").lower() not in RESERVED_DATA_NAMES
 
 
 def vehicle_data_dir(vin: str) -> str:
@@ -44,7 +52,7 @@ def vehicle_data_dir(vin: str) -> str:
 
     The VIN sometimes comes from the URL: it must be alphanumeric so it cannot escape
     DATA_DIR (`..`, slashes) when the path is built."""
-    if not _VIN_RE.fullmatch(vin or ""):
+    if not valid_vin(vin):
         raise ValueError("invalid VIN")
     path = os.path.join(get_data_dir(), vin)
     os.makedirs(path, exist_ok=True)
@@ -53,7 +61,7 @@ def vehicle_data_dir(vin: str) -> str:
 
 def remove_vehicle_data(vin: str) -> None:
     """A deleted car takes its folder with it: its old session copy and its taskId are credentials."""
-    if not _VIN_RE.fullmatch(vin or ""):
+    if not valid_vin(vin):
         raise ValueError("invalid VIN")
     shutil.rmtree(os.path.join(get_data_dir(), vin), ignore_errors=True)
 

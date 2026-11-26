@@ -109,9 +109,13 @@
   // ───────────────────────── Ajustes → Cuenta ─────────────────────────
   async function addThisDevice() {
     const btn = $('btnPasskeyAdd');
+    // The password first: a passkey is another way into the account, so an open session alone must not be enough to add one
+    const password = await promptDialog('Escribe tu contraseña de EVbro para añadir la huella de este dispositivo.',
+      { title: 'Añadir huella', type: 'password', autocomplete: 'current-password', confirmText: 'Continuar', maxLength: 128 });
+    if (!password) return;
     if (btn) btn.disabled = true;
     try {
-      const start = await postJSON('/api/passkeys/register/options');
+      const start = await postJSON('/api/passkeys/register/options', { password });
       let cred;
       try {
         cred = await navigator.credentials.create({ publicKey: creationOptions(start.options) });

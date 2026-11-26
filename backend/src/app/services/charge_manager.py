@@ -61,6 +61,11 @@ MODE_FREE, MODE_SCHEDULED, MODE_HOLD = "free", "scheduled", "hold"
 HOLD_USER, HOLD_TARGET = "user", "target"
 
 
+# Reasons of a refused order that are the account's matter (an expired Ebro session, no stored PIN): the manager is told in the
+# web; they are not faults of the code and stay out of the project's reports
+ACCOUNT_REASONS = ("reauth", "pin")
+
+
 class ChargeError(Exception):
     """The change could not be applied. `reason` is stable (the web acts on it); `status` is the HTTP status."""
 
@@ -234,7 +239,8 @@ class ChargeManager:
             if not superseded():
                 await self.verify_applied(vin)
         except ChargeError as exc:                           # the car refused the resend: its answer, not a failure of EVbro
-            _LOGGER.warning("Charge manager (%s): the resend was not accepted (%s)", vin, exc.reason)
+            _LOGGER.warning("Charge manager (%s): the resend was not accepted (%s)", vin, exc.reason,
+                            extra={"telemetry": exc.reason not in ACCOUNT_REASONS})
         except Exception:                                    # noqa: BLE001 - must never break anything
             _LOGGER.exception("Charge manager (%s): error while verifying", vin)
 
@@ -344,7 +350,7 @@ class ChargeManager:
         try:
             await self._auto(vin, telemetry)
         except ChargeError as err:
-            _LOGGER.warning("Charge manager (%s): %s", vin, err.message)
+            _LOGGER.warning("Charge manager (%s): %s", vin, err.message, extra={"telemetry": err.reason not in ACCOUNT_REASONS})
         except Exception:                                    # noqa: BLE001
             _LOGGER.exception("Charge manager (%s): unexpected error", vin)
 
@@ -401,7 +407,7 @@ class ChargeManager:
             try:
                 await self._auto(vin, {})                    # no telemetry: only `refresh_hold` can come out
             except ChargeError as err:
-                _LOGGER.warning("Charge manager (%s): %s", vin, err.message)
+                _LOGGER.warning("Charge manager (%s): %s", vin, err.message, extra={"telemetry": err.reason not in ACCOUNT_REASONS})
             except Exception:                                # noqa: BLE001
                 _LOGGER.exception("Charge manager (%s): unexpected error", vin)
 

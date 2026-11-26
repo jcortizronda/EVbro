@@ -83,6 +83,16 @@ def test_user_text_does_not_enter_the_html_unescaped() -> None:
     assert not raw, f"Text interpolated into HTML without escapeHtml(): {raw}"
 
 
+def test_text_inside_a_declarative_handler_is_escaped_whole() -> None:
+    """Security review 2026-11-26: the «Hecho» button of a maintenance task built its argument with
+    `JSON.stringify(name).replace(/"/g, '&quot;')`. That leaves `&` alone, so a task named with the literal text `&quot;` closed the
+    string once the browser decoded the attribute, and the rest of the name ran as more calls (a member with edit level, in the
+    manager's session). An argument made of text is `escapeHtml(JSON.stringify(text))`."""
+    assert """.replace(/"/g, '&quot;')""" not in APP_JS
+    assert "openCompleteMaintModal(${item.id}, ${escapeHtml(JSON.stringify(String(item.name ?? '')))})" in APP_JS
+    assert "bindPopup(`<b>${escapeHtml(document.getElementById('vehicleName').innerText" in APP_JS      # the car's name on the zones map
+
+
 def test_the_service_worker_only_precaches_files_that_exist() -> None:
     sw = (WEB / "static" / "sw.js").read_text(encoding="utf-8")
     local = re.findall(r"'(/static/[^']+)'", sw)
@@ -187,6 +197,26 @@ def test_every_script_on_disk_is_loaded_and_every_loaded_script_exists() -> None
     assert loaded == on_disk, (on_disk - loaded, loaded - on_disk)
     sw = (WEB / "static" / "sw.js").read_text(encoding="utf-8")
     assert {r for r in re.findall(r"'(/static/js/[^']+)'", sw)} == on_disk, "the SW precache does not match js/"
+
+
+def test_every_script_is_served_by_evbro_and_leaflet_is_the_published_file() -> None:
+    """Security review 2026-11-26: Leaflet came from unpkg.com, so the page's policy had to allow that whole host, where anybody can
+    publish a script. It is now a copy in `static/vendor/leaflet`, byte for byte the published 1.9.4 (the hash the page pins proves it)."""
+    import base64
+    import hashlib
+
+    assert not re.findall(r'<script[^>]+src="(?!/static/)', visible_html()), "a script from another host"
+    sw = (WEB / "static" / "sw.js").read_text(encoding="utf-8")
+    for name in ("leaflet.js", "leaflet.css"):
+        tag = re.search(rf'(?:src|href)="/static/vendor/leaflet/{name}" integrity="sha256-([^"]+)"', HTML)
+        assert tag, name
+        data = (WEB / "static" / "vendor" / "leaflet" / name).read_bytes()
+        assert base64.b64encode(hashlib.sha256(data).digest()).decode() == tag.group(1), name
+        assert f"'/static/vendor/leaflet/{name}'" in sw
+    for image in re.findall(r"url\(images/([\w.-]+)\)", (WEB / "static" / "vendor" / "leaflet" / "leaflet.css").read_text()):
+        assert (WEB / "static" / "vendor" / "leaflet" / "images" / image).exists(), image
+    assert (WEB / "static" / "vendor" / "leaflet" / "LICENSE").exists()
+    assert "unpkg" not in HTML and "unpkg" not in sw
 
 
 def test_the_asset_version_is_computed_by_the_server() -> None:

@@ -131,6 +131,58 @@ async def test_a_non_expiry_failure_is_recorded_but_does_not_delete(db, monkeypa
         assert "500" in sub.last_error
 
 
+async def test_an_endpoint_inside_the_servers_network_is_refused_when_subscribing_and_when_sending(db, monkeypatch) -> None:
+    import socket
+
+    from app.services import notification_service as ns
+
+    def resolve(ip):
+        return lambda *a, **k: [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (ip, 443))]
+
+    async with await _web() as c:
+        for ip in ("192.168.50.7", "127.0.0.1", "169.254.169.254", "100.64.0.1"):
+            monkeypatch.setattr(socket, "getaddrinfo", resolve(ip))
+            r = await c.post("/api/notifications/push/subscribe", json={**SUB, "endpoint": "https://cameras.example/x"})
+            assert r.status_code == 422, ip
+        monkeypatch.setattr(socket, "getaddrinfo", lambda *a, **k: [(socket.AF_INET6, socket.SOCK_STREAM, 6, "", ("::ffff:10.0.0.5", 443, 0, 0))])
+        assert (await c.post("/api/notifications/push/subscribe", json={**SUB, "endpoint": "https://cameras.example/x"})).status_code == 422
+        assert (await c.post("/api/notifications/push/subscribe", json={**SUB, "endpoint": "https://[::1]/x"})).status_code == 422
+    # a name that was public when it was registered and points inside later: nothing is sent
+    monkeypatch.setattr(socket, "getaddrinfo", resolve("10.0.0.5"))
+    called = []
+    monkeypatch.setattr("pywebpush.webpush", lambda **k: called.append(k))
+    ok, error, expired = ns.NotificationService._webpush_blocking({"endpoint": "https://moved.example/x", "keys": SUB["keys"]}, {"title": "t"})
+    assert (ok, expired) == (False, False) and error == "endpoint not allowed" and called == []
+
+
+def test_a_push_is_never_redirected_and_the_answer_of_the_endpoint_does_not_come_back(monkeypatch) -> None:
+    import requests
+    from pywebpush import WebPushException
+
+    from app.services import notification_service as ns
+
+    seen = {}
+
+    def fake_request(self, method, url, **kwargs):
+        seen.update(kwargs)
+        return "sent"
+
+    monkeypatch.setattr(requests.Session, "request", fake_request)
+    assert ns._push_session().post("https://push.example/x", data=b"") == "sent" and seen["allow_redirects"] is False
+
+    class Answer:
+        status_code, reason, text = 404, "Not Found", "<html>the cameras' private page</html>"
+
+    def failing(**kwargs):
+        assert kwargs["requests_session"] is not None
+        raise WebPushException("Push failed: 404 Not Found\nResponse body:" + Answer.text, response=Answer())
+
+    monkeypatch.setattr("pywebpush.webpush", failing)
+    monkeypatch.setattr(vapid, "get_vapid", lambda: None)
+    ok, error, expired = ns.NotificationService._webpush_blocking({"endpoint": "https://push.example/x", "keys": SUB["keys"]}, {"title": "t"})
+    assert (ok, error, expired) == (False, "HTTP 404 Not Found", True)
+
+
 def test_ntfy_is_gone() -> None:
     for f in [*SRC.rglob("*.py"), *FRONTEND.rglob("*.js"), FRONTEND / "templates" / "index.html"]:
         assert "ntfy" not in f.read_text(encoding="utf-8").lower(), f

@@ -75,8 +75,9 @@ class PositionWatchMixin:
             return                                                   # too early to tell
         if not watch["frozen"]:
             watch["frozen"] = True
+            # the cloud's doing, already handled below (the car is asked for its position): not a fault of the code to report
             _LOGGER.warning("Frozen position on %s: the cloud has repeated the same point for %.0f min while the car drove %.1f km",
-                            vin[-6:], minutes, km)
+                            vin[-6:], minutes, km, extra={"telemetry": False})
         if watch.get("locates", 0) >= AUTO_LOCATE_MAX:
             return
         last = watch.get("last_locate")

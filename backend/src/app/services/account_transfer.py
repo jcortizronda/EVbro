@@ -39,6 +39,7 @@ from app.db.models import (
     VehiclePart,
 )
 from app.services import uploads
+from app.services.accounts import valid_vin
 from app.timeutil import utcnow
 
 _LOGGER = logging.getLogger(__name__)
@@ -46,6 +47,7 @@ FORMAT = "evbro-account/1"
 EXPORT_FILE = "evbro-export.json"
 MAX_IMPORT_BYTES = 500 * 1024 * 1024
 MAX_FILE_BYTES = 20 * 1024 * 1024
+MAX_EXPORT_JSON_BYTES = 100 * 1024 * 1024       # evbro-export.json once unpacked: a few MB of ZIP must not become GB of memory
 VEHICLE_SKIP = {"id", "owner_id", "photo_filename", "photo_size", "state", "last_seen"}
 TRACCAR_SKIP = {"id", "vin", "api_token", "last_error"}
 
@@ -150,9 +152,14 @@ async def import_account(session: AsyncSession, user_id: int, blob: bytes, vehic
         raise ImportError_(413, "El fichero es demasiado grande.")
     try:
         zf = zipfile.ZipFile(io.BytesIO(blob))
-        payload = json.loads(zf.read(EXPORT_FILE))
+        too_big = zf.getinfo(EXPORT_FILE).file_size > MAX_EXPORT_JSON_BYTES     # zipfile never reads past the declared size
+        payload = None if too_big else json.loads(zf.read(EXPORT_FILE))
     except (zipfile.BadZipFile, KeyError, ValueError) as ex:
         raise ImportError_(422, "No es una exportación de EVbro (falta evbro-export.json).") from ex
+    if too_big:
+        raise ImportError_(413, "El fichero es demasiado grande.")
+    if not isinstance(payload, dict):
+        raise ImportError_(422, "No es una exportación de EVbro (falta evbro-export.json).")
     if payload.get("format") != FORMAT:
         raise ImportError_(422, f"Formato no reconocido: {payload.get('format')!r}.")
     names = set(zf.namelist())
@@ -187,6 +194,9 @@ async def import_account(session: AsyncSession, user_id: int, blob: bytes, vehic
         vdata = entry.get("vehicle") or {}
         vin = (vdata.get("vin") or "").strip()
         if not vin:
+            continue
+        if not valid_vin(vin):      # it comes from the file: it names a folder of the data volume and travels in URLs
+            report["skipped"].append({"vin": vin[:40], "reason": "El bastidor no es válido."})
             continue
         if vin in known_vins:
             report["skipped"].append({"vin": vin, "reason": "Ya existe un coche con ese bastidor en este servidor."})

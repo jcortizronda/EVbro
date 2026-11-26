@@ -247,9 +247,10 @@ class TraccarHub:
                 message = str(ex) or ex.__class__.__name__
                 self._set_status(devices.values(), False, message)
                 # The server closing a live feed now and then is normal and the next attempt brings it back: a warning only when
-                # reconnecting fails too
+                # reconnecting fails too. It is the manager's own server (down, another address, a token it rejects), which they
+                # see in Ajustes: it stays out of the project's reports
                 _LOGGER.log(logging.INFO if attempt == 0 else logging.WARNING, "Traccar %s: %s (retrying in %ss)", base, message,
-                            RECONNECT_DELAYS[min(attempt, len(RECONNECT_DELAYS) - 1)])
+                            RECONNECT_DELAYS[min(attempt, len(RECONNECT_DELAYS) - 1)], extra={"telemetry": False})
             if stop.is_set():
                 break
             await asyncio.sleep(RECONNECT_DELAYS[min(attempt, len(RECONNECT_DELAYS) - 1)])

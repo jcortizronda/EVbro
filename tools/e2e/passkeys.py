@@ -2,6 +2,7 @@
 
 WebAuthn does not accept an IP address as RP ID: open the demo as http://localhost:PORT, not 127.0.0.1.
 """
+import json
 import os
 import sys
 import tempfile
@@ -41,7 +42,10 @@ with sync_playwright() as p:
         # bypass_csp: `wait_for_function` evaluates a string in the page, which the app's CSP forbids (csp.py checks the policy itself)
         ctx = b.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True, locale="es-ES", bypass_csp=True)
         ctx.add_init_script(f"localStorage.setItem('evbro_theme','{theme}')")
-        ctx.add_init_script("new MutationObserver(() => { const b = document.querySelector('#appDialog.open #appDialogOk'); if (b) b.click(); }).observe(document, { attributes: true, subtree: true, attributeFilter: ['class'] })")   # the app's own confirm dialog is accepted
+        # the app's own dialogs are accepted; the one that asks for the password before adding a passkey gets it typed
+        ctx.add_init_script("new MutationObserver(() => { const d = document.querySelector('#appDialog.open'); if (!d) return; "
+                            "const i = d.querySelector('#appDialogInput'); if (i && !i.hidden && !i.value) i.value = " + json.dumps(PASSWORD) + "; "
+                            "d.querySelector('#appDialogOk').click(); }).observe(document, { attributes: true, subtree: true, attributeFilter: ['class'] })")
         pg = ctx.new_page()
         errs = []
         pg.on("pageerror", lambda e: errs.append(str(e)))

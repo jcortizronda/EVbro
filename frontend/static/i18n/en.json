@@ -2640,5 +2640,8 @@
  "la última revisión": "the last check",
  "el último repostaje": "the last fuel-up",
  "el montaje": "it was fitted",
- "la entrega del coche": "the car's delivery"
+ "la entrega del coche": "the car's delivery",
+ "Escribe tu contraseña de EVbro para añadir la huella de este dispositivo.": "Type your EVbro password to add this device's fingerprint.",
+ "Añadir huella": "Add fingerprint",
+ "Continuar": "Continue"
 }

@@ -105,7 +105,7 @@ async def signed_in(username: str) -> httpx.AsyncClient:
 
 
 async def register(client: httpx.AsyncClient, authn: SoftAuthenticator, label: str | None = "Chrome en Android") -> dict:
-    opts = (await client.post("/api/passkeys/register/options")).json()
+    opts = (await client.post("/api/passkeys/register/options", json={"password": PW})).json()
     r = await client.post("/api/passkeys/register/verify", json={"challenge_id": opts["challenge_id"], "credential": authn.create(opts["options"]), "label": label})
     assert r.status_code == 200, r.text
     return r.json()
@@ -123,11 +123,15 @@ async def login(authn: SoftAuthenticator, **kw) -> httpx.Response:
 # ───────────────────────── registration ─────────────────────────
 async def test_register_options_need_a_session_and_ask_for_user_verification(users) -> None:
     async with anon() as c:
-        assert (await c.post("/api/passkeys/register/options")).status_code == 401
+        assert (await c.post("/api/passkeys/register/options", json={"password": PW})).status_code == 401
         assert (await c.get("/api/passkeys")).status_code == 401
     ana = await signed_in("ana")
     try:
-        body = (await ana.post("/api/passkeys/register/options")).json()
+        # an open session is not enough to add another way in: the password is asked again (security review 2026-11-26)
+        assert (await ana.post("/api/passkeys/register/options")).status_code == 422
+        r = await ana.post("/api/passkeys/register/options", json={"password": "otra-cosa-distinta-1"})
+        assert r.status_code == 403 and "contraseña" in r.json()["detail"]
+        body = (await ana.post("/api/passkeys/register/options", json={"password": PW})).json()
         o = body["options"]
         assert o["rp"] == {"id": "localhost", "name": "EVbro"} and o["user"]["name"] == "ana"
         assert o["authenticatorSelection"]["userVerification"] == "required" and o["authenticatorSelection"]["residentKey"] == "preferred"
@@ -145,7 +149,7 @@ async def test_register_list_and_login_creates_a_normal_session(users) -> None:
         listed = (await ana.get("/api/passkeys")).json()
         assert [p["id"] for p in listed] == [created["id"]] and "public_key" not in listed[0] and "credential_id" not in listed[0]
         # the same device again: the options exclude it, and a forced second registration is refused
-        opts = (await ana.post("/api/passkeys/register/options")).json()
+        opts = (await ana.post("/api/passkeys/register/options", json={"password": PW})).json()
         assert [c["id"] for c in opts["options"]["excludeCredentials"]] == [authn.id]
         r = await ana.post("/api/passkeys/register/verify", json={"challenge_id": opts["challenge_id"], "credential": authn.create(opts["options"])})
         assert r.status_code == 409
@@ -173,7 +177,7 @@ async def test_register_list_and_login_creates_a_normal_session(users) -> None:
 async def test_a_registration_from_another_origin_is_refused(users) -> None:
     ana = await signed_in("ana")
     try:
-        opts = (await ana.post("/api/passkeys/register/options")).json()
+        opts = (await ana.post("/api/passkeys/register/options", json={"password": PW})).json()
         cred = SoftAuthenticator().create(opts["options"], origin="https://evil.example")
         r = await ana.post("/api/passkeys/register/verify", json={"challenge_id": opts["challenge_id"], "credential": cred})
         assert r.status_code == 400
@@ -201,7 +205,7 @@ async def test_a_challenge_is_single_use(users) -> None:
     authn = SoftAuthenticator()
     ana = await signed_in("ana")
     try:
-        opts = (await ana.post("/api/passkeys/register/options")).json()
+        opts = (await ana.post("/api/passkeys/register/options", json={"password": PW})).json()
         cred = authn.create(opts["options"])
         assert (await ana.post("/api/passkeys/register/verify", json={"challenge_id": opts["challenge_id"], "credential": cred})).status_code == 200
         again = await ana.post("/api/passkeys/register/verify", json={"challenge_id": opts["challenge_id"], "credential": cred})
@@ -235,7 +239,7 @@ async def test_an_expired_challenge_is_refused(users, monkeypatch) -> None:
     authn = SoftAuthenticator()
     ana = await signed_in("ana")
     try:
-        opts = (await ana.post("/api/passkeys/register/options")).json()
+        opts = (await ana.post("/api/passkeys/register/options", json={"password": PW})).json()
         real = pk.time.monotonic
         monkeypatch.setattr(pk.time, "monotonic", lambda: real() + pk.CHALLENGE_TTL_S + 1)
         r = await ana.post("/api/passkeys/register/verify", json={"challenge_id": opts["challenge_id"], "credential": authn.create(opts["options"])})
@@ -258,7 +262,7 @@ def test_challenges_are_bound_to_purpose_and_account() -> None:
 async def test_another_account_cannot_use_my_registration_challenge(users) -> None:
     ana, beto = await signed_in("ana"), await signed_in("beto")
     try:
-        opts = (await ana.post("/api/passkeys/register/options")).json()
+        opts = (await ana.post("/api/passkeys/register/options", json={"password": PW})).json()
         r = await beto.post("/api/passkeys/register/verify", json={"challenge_id": opts["challenge_id"], "credential": SoftAuthenticator().create(opts["options"])})
         assert r.status_code == 400
     finally:
@@ -332,7 +336,7 @@ async def test_an_admin_account_can_never_sign_in_with_a_passkey(users) -> None:
     authn = SoftAuthenticator()
     ana = await signed_in("ana")
     try:
-        opts = (await ana.post("/api/passkeys/register/options")).json()
+        opts = (await ana.post("/api/passkeys/register/options", json={"password": PW})).json()
         cred = authn.create(opts["options"])
         assert (await ana.post("/api/passkeys/register/verify", json={"challenge_id": opts["challenge_id"], "credential": cred})).status_code == 200
     finally:

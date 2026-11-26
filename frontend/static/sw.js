@@ -135,8 +135,11 @@ const STATIC_ASSETS = [
   '/static/icons/favicon.svg',
   '/static/icons/ebro-logo.png',
   'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap',
-  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
-  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
+  '/static/vendor/leaflet/leaflet.css',
+  '/static/vendor/leaflet/leaflet.js',
+  '/static/vendor/leaflet/images/marker-icon.png',
+  '/static/vendor/leaflet/images/marker-icon-2x.png',
+  '/static/vendor/leaflet/images/marker-shadow.png'
 ];
 
 self.addEventListener('install', (event) => {

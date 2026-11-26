@@ -340,3 +340,28 @@ def test_websocket_with_session_connects_and_from_another_origin_does_not(ws_cli
         with ws_client.websocket_connect("/api/ws", headers={"Origin": "https://malo.example"}):
             pass
     assert exc.value.code == 4401
+
+
+def test_an_open_websocket_closes_when_its_session_ends(ws_client, monkeypatch) -> None:
+    """Signing out (or a password change, or a deactivated account) must also stop the live channel of a tab left open:
+    it used to go on receiving the car's position until the tab was closed."""
+    import asyncio as _a
+
+    from app.api import routes_ws
+    from app.db.models import AppUser
+    from app.db.session import async_session_factory as _f
+
+    async def _mk():
+        async with _f() as s:
+            s.add(AppUser(id=1, username=USER, role="manager", password_hash=passwords.hash_password(PASSWORD), vehicle_limit=2, member_limit=5))
+            await s.commit()
+    _a.run(_mk())
+    monkeypatch.setattr(routes_ws, "ALLOWED_REFRESH_S", 0.2)
+    assert ws_client.post("/api/auth/login", json={"username": USER, "password": PASSWORD}).status_code == 200
+    with ws_client.websocket_connect("/api/ws") as ws:
+        ws.send_text("ping")
+        assert ws.receive_text() == "pong"                  # the session is alive: the channel stays open across a refresh
+        assert ws_client.post("/api/auth/logout", headers={"Origin": "http://testserver"}).status_code == 200
+        with pytest.raises(WebSocketDisconnect) as exc:
+            ws.receive_text()
+        assert exc.value.code == 4401

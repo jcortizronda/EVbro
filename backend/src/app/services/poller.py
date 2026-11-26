@@ -61,6 +61,9 @@ POLL_COALESCE_SECONDS = 5
 MAX_REPORTED_KEYS = 300
 
 
+# Causes of a read without data that are not faults of the code and stay out of the project's reports: the account's session
+# (its owner signed in elsewhere) and the network between this server and the cloud (DNS, connection, timeout)
+UNREPORTED_READ_GROUPS = ("session", "network")
 _NETWORK_MARKERS = ("NameResolutionError", "Max retries exceeded", "ConnectionError", "ConnectTimeout", "ReadTimeout", "timed out")
 # Failures in which the question never left this server (the name did not resolve, the connection was not made): asking once
 # more costs the cloud nothing. A read timeout is not one of them: the cloud may have received that one.
@@ -526,9 +529,9 @@ class VehiclePoller(SessionMixin, CommandsMixin, AlertsMixin, PositionWatchMixin
             # With the probe's error text: «exception» alone left 194 reports in the project's console impossible to diagnose
             detail = f" ({without_secrets(str(res.get('error')))[:200]})" if res.get("error") else ""
             group = read_failure_group(res)
-            # A session the cloud keeps closing is the account's (its owner signed in elsewhere, e.g. the official app): it stays
-            # in the local log but is not reported to the project as a fault of the code
-            extra = {"telemetry_group": group, "telemetry": group != "session"}
+            # A session the cloud keeps closing is the account's (its owner signed in elsewhere, e.g. the official app) and a
+            # network failure is the server's connection: both stay in the local log but are not reported as faults of the code
+            extra = {"telemetry_group": group, "telemetry": group not in UNREPORTED_READ_GROUPS}
             # Without a session every read fails the same way: the loop stops reading the car until there is a new one, and it is
             # said once (16-11-2026: 276 identical lines, and as many requests to the cloud, in five hours for one car)
             first = self._pause_reads(vin) if group == "session" else True

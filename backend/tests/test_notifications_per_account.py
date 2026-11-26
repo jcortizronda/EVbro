@@ -174,7 +174,7 @@ def test_webhook_urls_are_checked(monkeypatch) -> None:
     def resolve(ip):
         return lambda *a, **k: [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (ip, 80))]
 
-    for ip in ("127.0.0.1", "10.0.0.5", "192.168.1.10", "169.254.169.254", "172.16.0.1", "0.0.0.0"):
+    for ip in ("127.0.0.1", "10.0.0.5", "192.168.1.10", "169.254.169.254", "172.16.0.1", "0.0.0.0", "100.64.0.1", "::ffff:192.168.1.10"):
         monkeypatch.setattr(socket, "getaddrinfo", resolve(ip))
         assert "interna" in webhook_url_problem("https://hook.example/x"), ip
     monkeypatch.setattr(socket, "getaddrinfo", resolve("93.184.216.34"))

@@ -39,6 +39,23 @@ def snapshot(snapshot: SnapshotAssertion) -> SnapshotAssertion:
 
 
 # ───────────────────────── EVbro fixtures (app, DB, encryption) ─────────────────────────
+@pytest.fixture(autouse=True)
+def _test_names_resolve_without_dns(monkeypatch):
+    """Web Push endpoints and webhooks are checked against the server's own network, which resolves their host name:
+    the names the tests use get a fixed public address, with no DNS query. A test may still replace `socket.getaddrinfo`."""
+    import socket
+
+    real = socket.getaddrinfo
+    known = {"fcm.googleapis.com", "push.example"}
+
+    def resolve(host, *args, **kwargs):
+        if host in known:
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443))]
+        return real(host, *args, **kwargs)
+
+    monkeypatch.setattr(socket, "getaddrinfo", resolve)
+
+
 @pytest.fixture
 def data_dir(tmp_path, monkeypatch):
     """Isolated data folder with its own encryption key."""

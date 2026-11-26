@@ -168,7 +168,7 @@ class CarEventService:
             await self._loop.run_in_executor(None, self._connect_blocking, ctx)
         except _ServiceError as err:
             self._set(err.state, str(err))
-            _LOGGER.warning("Car MQTT channel: %s", err)
+            _LOGGER.warning("Car MQTT channel: %s", err, extra={"telemetry": False})     # network or the cloud's broker, not the code
         except Exception as err:                     # noqa: BLE001 — the service must not bring down start-up
             self._set("error", f"{type(err).__name__}: {err}")
             _LOGGER.exception("Car MQTT channel: unexpected failure")

@@ -95,4 +95,4 @@ If EVbro is useful to you, you can support its development:
 
 ## Licence
 
-[GPL-3.0](LICENSE). EVbro is not affiliated with Ebro or Chery.
+[AGPL-3.0](LICENSE). EVbro is not affiliated with Ebro or Chery.

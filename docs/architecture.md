@@ -99,7 +99,7 @@ Capas del backend: `core/` (protocolo Ebro) → `vehicle/` (canal MQTT del coche
 | Validación / config | Pydantic v2 · pydantic-settings | ≥ 2.6 / ≥ 2.2.1 | DTOs y variables de entorno |
 | HTTP hacia Chery | `requests` (login, BFF) y `urllib` (comandos); `aiohttp` (PVPC, notificaciones, Nominatim) | — | Clientes |
 | MQTT | paho-mqtt | ≥ 2.0 | Publicación opcional |
-| Mapas | Leaflet | 1.9.4 | Mapa y geocercas |
+| Mapas | Leaflet (copia en `frontend/static/vendor/leaflet`, licencia BSD-2) | 1.9.4 | Mapa y geocercas |
 | Tests | pytest · pytest-asyncio · syrupy · freezegun · httpx · aiosqlite | ver `requirements-dev.txt` | Suite (BD de tests: SQLite) |
 | Contenedores | Docker + Compose v2 | — | Despliegue |
 
