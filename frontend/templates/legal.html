@@ -12,52 +12,66 @@
   <main class="legal">
     <a class="legal-back" href="/">← Volver a EVbro</a>
     <h1>Aviso legal y privacidad</h1>
-    <p class="legal-lead">EVbro es un programa de código abierto para seguir y controlar tu coche Ebro desde tu propio servidor. Esta instalación la gestiona
-      <strong>{{ operator or "el administrador de este servidor" }}</strong>{% if host %} en <code>{{ host }}</code>{% endif %}. Este texto explica, sin letra pequeña, qué datos guarda, para qué y qué puedes pedir.</p>
+    <p class="legal-lead">EVbro es un programa de código abierto para seguir y controlar un coche Ebro. Esta instalación la gestiona
+      <strong>{{ operator or "el administrador de este servidor" }}</strong>{% if host %} en <code>{{ host }}</code>{% endif %}. Este texto explica, sin letra pequeña, qué datos guarda, para qué, quién los recibe y qué puedes pedir.</p>
+    <p class="legal-note"><strong>EVbro no es un producto de Ebro ni de Chery</strong>, ni está respaldado, autorizado o mantenido por ellas. «Ebro» y los nombres de sus modelos son marcas de sus titulares y aquí solo se usan para decir con qué coches funciona.</p>
 
     <h2>Quién responde de tus datos</h2>
-    <p>{{ operator or "La persona que administra este servidor" }} es quien decide cómo se usan los datos que guarda EVbro (en términos legales, el <em>responsable del tratamiento</em>).
+    <p>{{ operator or "La persona que administra este servidor" }} es quien decide cómo se usan los datos que guarda esta instalación (en términos legales, el <em>responsable del tratamiento</em>).
       {% if contact %}Para cualquier petición sobre tus datos escribe a <a href="mailto:{{ contact }}">{{ contact }}</a>.{% else %}Para cualquier petición sobre tus datos, habla con el administrador que te dio la invitación.{% endif %}</p>
 
     <h2>Qué se guarda</h2>
     <ul>
-      <li><strong>Tu cuenta de EVbro:</strong> usuario, contraseña (solo su resumen cifrado, nunca la contraseña), fecha de alta y de último acceso, la clave pública de la huella si la activas y, si lo pones, tu <strong>email</strong>: solo sirve para mandarte un enlace cuando olvidas la contraseña (y un aviso si se cambia). Puedes cambiarlo o quitarlo en Ajustes → Cuenta de EVBRO.</li>
-      <li><strong>Tu cuenta de Ebro:</strong> el teléfono y la contraseña con los que entras en la app oficial, y el PIN si decides guardarlo. Se guardan <strong>cifrados</strong> y el servidor los usa para consultar tu coche en tu nombre, también cuando la aplicación está cerrada.</li>
-      <li><strong>Tu coche:</strong> bastidor, matrícula, ficha, posición, batería, gasolina, odómetro, puertas y ventanillas, y el historial que se construye con ello: viajes con su ruta, cargas, repostajes, mantenimiento, gastos, documentos y fotos que subas (cifrados).</li>
-      <li><strong>Avisos:</strong> si los activas, los canales que configures (Telegram, Pushover, webhook, notificaciones del navegador), cifrados, y un historial de lo enviado.</li>
-      <li><strong>Técnico:</strong> la dirección IP y el navegador de cada inicio de sesión y de cada orden enviada al coche, para poder saber quién hizo qué.</li>
+      <li><strong>Tu cuenta de EVbro:</strong> usuario, contraseña (solo su resumen cifrado, nunca la contraseña), fecha de alta y de último acceso, la fecha en que aceptaste este texto, la clave pública de la huella si la activas, tus preferencias (idioma, tema, orden de los paneles) y, si lo pones, tu <strong>email</strong>: solo sirve para mandarte un enlace cuando olvidas la contraseña y un aviso si se cambia.</li>
+      <li><strong>Tu cuenta de Ebro:</strong> el teléfono y la contraseña con los que entras en la app oficial, la sesión que abre la nube de Ebro y el PIN si decides guardarlo. El teléfono, la contraseña y el PIN se guardan <strong>cifrados</strong>; la sesión se guarda en un fichero del servidor. Con todo ello el servidor consulta tu coche y le manda órdenes en tu nombre, también con la aplicación cerrada. Darle a un tercero la contraseña de tu cuenta de Ebro es una decisión tuya: piensa a quién se la das.</li>
+      <li><strong>Tu coche:</strong> bastidor, matrícula, ficha, las lecturas que da el coche (posición, velocidad, batería, gasolina, odómetro, puertas, ventanillas…) y el historial que se construye con ellas: viajes con su ruta, horas y velocidades, cargas, repostajes, mantenimiento, gastos, lugares, y los documentos y fotos que subas (cifrados).</li>
+      <li><strong>Avisos:</strong> si los activas, los canales que configures (Telegram, Pushover, webhook, notificaciones del navegador o del móvil), cifrados, y un historial de lo enviado.</li>
+      <li><strong>Técnico:</strong> la dirección IP y el navegador de cada sesión y de cada orden enviada al coche (quién la mandó), y los registros del servidor, que guardan los accesos fallidos con su IP y los fallos técnicos.</li>
     </ul>
+    <p><strong>Si otras personas conducen tu coche</strong> o le das acceso a otra cuenta, EVbro también registra sus viajes (rutas, horas, velocidades). Es tu responsabilidad decírselo antes.</p>
 
     <h2>Para qué</h2>
-    <p>Solo para darte el servicio: enseñarte el estado del coche, construir tus históricos, avisarte de lo que pidas y ejecutar las órdenes que mandes. No hay publicidad, no se venden datos y no se mandan a nadie más que a los servicios que tú conectes (la nube de Ebro para hablar con tu coche, OpenStreetMap para los mapas y direcciones, y tus canales de aviso).</p>
-    <p>Si el administrador de este servidor lo activa, una vez al día se envía al proyecto EVbro un informe anónimo con cifras del servidor (versión, número de cuentas por tramos, funciones en uso) y fallos técnicos, sin ningún dato tuyo: ni nombres, ni matrículas, ni posiciones, ni viajes.</p>
+    <p>Solo para darte el servicio: enseñarte el estado del coche, construir tus históricos, avisarte de lo que pidas y ejecutar las órdenes que mandes. No hay publicidad, no se venden datos y no hay analítica ni seguimiento.</p>
+
+    <h2>Quién más recibe algo</h2>
+    <ul>
+      <li><strong>La nube de Ebro</strong> (del fabricante): tu teléfono, contraseña y PIN para entrar, el bastidor y las órdenes que mandes. Es lo que permite hablar con el coche.</li>
+      <li><strong>Los servidores de mapas de OpenStreetMap</strong> (y, si fallan, los de OpenStreetMap France): tu navegador les pide las imágenes del mapa, así que ven tu dirección IP y la zona que miras.</li>
+      <li><strong>El buscador de direcciones de OpenStreetMap</strong> (Nominatim): el servidor le envía las coordenadas del inicio y el final de viajes, cargas y repostajes para poner la dirección.</li>
+      <li><strong>El proveedor de correo</strong> de este servidor: tu email y los enlaces de restablecimiento o invitación, cuando hay que mandarlos.</li>
+      <li><strong>Los servicios de notificaciones</strong> de tu navegador o móvil (Google, Mozilla o Apple) entregan los avisos; su contenido va cifrado y no lo pueden leer. <strong>Telegram y Pushover</strong>, si los configuras, reciben el texto del aviso (nombre del coche, lugares, batería) y tienen sus servidores fuera de la Unión Europea.</li>
+      <li><strong>Tu propio Home Assistant o Traccar</strong>, si los conectas, reciben el estado y la posición del coche.</li>
+      <li>Para los precios de la luz, de las gasolineras y de los puntos de recarga se descargan datos públicos (Red Eléctrica, Ministerio, DGT) <strong>sin enviar nada tuyo</strong>.</li>
+    </ul>
+    <p>Si el administrador de este servidor lo activa, una vez al día se envía al proyecto EVbro un informe anónimo con cifras del servidor (versión, número de cuentas por tramos, funciones en uso) y fallos técnicos (también los de la página en tu navegador), sin ningún dato tuyo: ni nombres, ni matrículas, ni posiciones, ni viajes.</p>
 
     <h2>Quién lo ve</h2>
     <ul>
       <li><strong>Tú</strong>, y las cuentas asociadas a las que des acceso a un coche, con el nivel que elijas (ver, anotar, controlar).</li>
-      <li><strong>El administrador del servidor</strong> ve cuántos coches y cuentas tienes y si tu cuenta de Ebro está conectada; <strong>no</strong> ve tus coches, su posición ni tus históricos desde la consola. Quien tenga acceso completo al servidor y a su clave maestra podría, técnicamente, leer la base de datos, incluidas las credenciales de Ebro: por eso solo debes usar un servidor de alguien en quien confíes.</li>
+      <li><strong>El administrador del servidor</strong> ve cuántos coches y cuentas tienes y si tu cuenta de Ebro está conectada; <strong>no</strong> ve tus coches, su posición ni tus históricos desde la consola. Sí puede poner una contraseña nueva a tu cuenta (por ejemplo, si la olvidas) y, con ella, entrar en ella. Quien tenga acceso completo al servidor y a su clave maestra podría, técnicamente, leer la base de datos, incluidas las credenciales de Ebro: usa solo un servidor de alguien en quien confíes.</li>
     </ul>
 
     <h2>Cuánto tiempo</h2>
-    <p>Mientras tengas cuenta. El administrador puede fijar plazos de borrado para viajes, cargas y lecturas en bruto (Ajustes → Sistema de la consola). Al borrar una cuenta se borra todo lo suyo: coches, históricos, ficheros y accesos.</p>
+    <p>Mientras tengas cuenta, salvo las <strong>lecturas en bruto del coche</strong>, que se borran al cabo de un año, y lo que el administrador decida borrar antes (viajes, cargas, lecturas: Ajustes de la consola). Los registros del servidor rotan solos y las copias de seguridad se conservan unas semanas.</p>
 
     <h2>Lo que puedes pedir y hacer tú</h2>
     <ul>
-      <li><strong>Descargar todo</strong> en Ajustes → Cuenta → «Tus datos» (un ZIP con tus coches, históricos y ficheros).</li>
+      <li><strong>Descargar</strong> en Ajustes → Cuenta → «Tus datos» un ZIP con tus coches, sus históricos, gastos, mantenimiento y ficheros. Lo que no está en ese ZIP (por ejemplo las lecturas en bruto o el registro de órdenes) puedes pedirlo {% if contact %}en <a href="mailto:{{ contact }}">{{ contact }}</a>{% else %}al administrador{% endif %}.</li>
       <li><strong>Corregir</strong> cualquier dato desde la propia aplicación.</li>
-      <li><strong>Borrar</strong>: desconecta tu cuenta de Ebro cuando quieras (se borran sus credenciales) o borra tu cuenta entera, con todo lo suyo, en Ajustes → Cuenta → «Borrar la cuenta». Si al borrarla contestas la encuesta opcional (por qué te vas), esa respuesta se conserva con tu nombre de usuario y la lee el administrador; si no la contestas, no queda nada. Las copias de seguridad que haga el administrador la conservan hasta que caducan.</li>
+      <li><strong>Desconectar tu cuenta de Ebro</strong> cuando quieras: se borran su contraseña, su PIN y su sesión.</li>
+      <li><strong>Borrar tu cuenta</strong> entera, con todo lo suyo, en Ajustes → Cuenta → «Borrar la cuenta». Quedan, hasta que caducan, las copias de seguridad y los registros del servidor; y, si contestas la encuesta opcional de por qué te vas, esa respuesta con tu nombre de usuario, que lee el administrador.</li>
       <li>Si crees que tus datos se tratan mal, puedes reclamar ante la Agencia Española de Protección de Datos (aepd.es).</li>
     </ul>
 
     <h2>Cosas que debes saber</h2>
     <ul>
-      <li>EVbro usa la misma conexión que la app oficial, <strong>sin acuerdo con Ebro ni con Chery</strong>. Ebro admite una sola sesión por cuenta: al usar EVbro puede que la app oficial te pida entrar de nuevo, y al revés. Ebro podría cambiar su servicio y dejar EVbro sin funcionar.</li>
-      <li>Las órdenes que abren el coche piden el PIN cada vez. Aun así, eres responsable de lo que ordenes y de a quién des acceso.</li>
-      <li>Los consumos, kWh y litros son estimaciones a partir de lo que informa el coche.</li>
-      <li>Esta web solo usa la cookie de sesión imprescindible para saber que eres tú; no hay cookies de seguimiento.</li>
+      <li>EVbro usa la misma conexión que la app oficial, <strong>sin acuerdo con Ebro ni con Chery</strong>. Ebro admite una sola sesión por cuenta: al usar EVbro puede que la app oficial te pida entrar de nuevo, y al revés. Ebro podría cambiar o cortar su servicio y dejar EVbro sin funcionar.</li>
+      <li>Por defecto, las órdenes que abren el coche piden el PIN cada vez; puedes cambiarlo en Ajustes. Eres responsable de lo que ordenes y de a quién des acceso.</li>
+      <li>Los consumos, kWh, litros y costes son estimaciones a partir de lo que informa el coche.</li>
+      <li>Esta web usa una cookie para saber que eres tú y otra para recordar tu idioma, y guarda en tu navegador tus preferencias y una copia de los últimos datos para poder abrirla sin conexión (se borra al cerrar la sesión). No hay cookies de seguimiento.</li>
     </ul>
 
-    <p class="legal-foot">EVbro es software libre (licencia AGPL-3.0). Código y documentación: github.com/jcortizronda/EVbro.</p>
+    <p class="legal-foot">EVbro es software libre (licencia AGPL-3.0). Código fuente{% if commit %} de la versión que funciona aquí ({{ commit }}){% endif %}: <a href="https://github.com/jcortizronda/EVbro">github.com/jcortizronda/EVbro</a>.</p>
   </main>
 </body>
 </html>

@@ -11,3 +11,4 @@ body { margin: 0; background: var(--bg); color: var(--text-primary); font-family
 .legal code { font-size: 0.9em; padding: 1px 6px; border-radius: 6px; background: var(--surface-secondary); border: 1px solid var(--border-color); }
 .legal a { color: var(--accent-bright, #0071e3); }
 .legal-foot { margin-top: 32px; font-size: 0.85rem; color: var(--text-muted); }
+.legal-note { border-left: 3px solid var(--accent-bright, #0064c8); padding: 0.6rem 0.9rem; background: var(--surface-secondary, #f2f2f4); border-radius: 8px; }

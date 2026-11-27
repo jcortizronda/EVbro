@@ -344,5 +344,10 @@ async def android_assetlinks():
 @app.get("/legal", response_class=HTMLResponse)
 async def legal_page(request: Request):
     """Legal notice and privacy: what this server stores, what for, who sees it and how to request or delete your data. Public."""
+    from app import build_commit
+
+    commit = build_commit()
+    # The commit running here: the AGPL asks a server that runs a modified copy to offer its source (legal audit, 27-11-2026)
     return templates.TemplateResponse(request, "legal.html", {"operator": settings.LEGAL_OPERATOR.strip(), "contact": settings.LEGAL_CONTACT.strip(),
-                                                              "host": request.headers.get("x-forwarded-host", request.headers.get("host", ""))})
+                                                              "host": request.headers.get("x-forwarded-host", request.headers.get("host", "")),
+                                                              "commit": commit[:7] if commit else None})

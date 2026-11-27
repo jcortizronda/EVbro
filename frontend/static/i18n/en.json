@@ -2753,5 +2753,7 @@
  "Añadir a mano": "Add by hand",
  "Sin coche todavía": "No car yet",
  "Añade un coche para ver esto.": "Add a car to see this.",
- "Este coche no tiene cuenta de Ebro: no hay datos en directo ni órdenes. Su historial, su ficha, gastos, mantenimiento y piezas funcionan igual; con un servidor Traccar (Ajustes → Conexiones) se ve además su posición.": "This car has no Ebro account: there is no live data and no commands. Its history, sheet, expenses, maintenance and parts work the same; with a Traccar server (Settings → Connections) you also see its position."
+ "Este coche no tiene cuenta de Ebro: no hay datos en directo ni órdenes. Su historial, su ficha, gastos, mantenimiento y piezas funcionan igual; con un servidor Traccar (Ajustes → Conexiones) se ve además su posición.": "This car has no Ebro account: there is no live data and no commands. Its history, sheet, expenses, maintenance and parts work the same; with a Traccar server (Settings → Connections) you also see its position.",
+ "Introduce el teléfono y la contraseña con los que entras en la app oficial de Ebro. Se guardan cifrados y solo se usan para hablar con el coche. EVbro no es de Ebro ni de Chery: entra en su nube en tu nombre, sin acuerdo con ellas.": "Enter the phone and password you use in the official Ebro app. They are stored encrypted and only used to talk to the car. EVbro is not made by Ebro or Chery: it signs in to their cloud on your behalf, with no agreement with them.",
+ "EVbro no es un producto de Ebro ni de Chery.": "EVbro is not a product of Ebro or Chery."
 }
