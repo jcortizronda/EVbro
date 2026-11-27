@@ -134,3 +134,4 @@
 .app-dialog-actions button[hidden] { display: none; }
 .btn-danger { background: var(--danger, #dc2626); color: #fff; border: 0; border-radius: var(--radius-pill); padding: 0.65rem 1.1rem; font: inherit; font-weight: 600; cursor: pointer; }
 .btn-danger:hover { filter: brightness(1.08); }
+[data-theme="dark"] .btn-danger { background: #d93025; }          /* white on the dark theme's red was 3.4:1 */

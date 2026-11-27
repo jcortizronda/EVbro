@@ -76,7 +76,7 @@ def send(ctx, cmd_key, emit=lambda m: None, params=None):
         emit("acceso fallido (¿token caducado?)")
         raise CommandError(
             "Sesión caducada — vuelve a iniciar sesión con tu cuenta Ebro",
-            reason="reauth")
+            reason="reauth", kind="session")
 
     # explicit path (e.g. alarm at /act/theftAlarm/setSwitch) or the classic
     # /asc/vehicleControl/<endpoint> for the standard vehicle commands.
@@ -96,7 +96,7 @@ def send(ctx, cmd_key, emit=lambda m: None, params=None):
                 "Generación de taskId desactivada (EBRO_MINT_TASKID=0) y no hay ningún "
                 "taskId disponible: los comandos no pueden ejecutarse. Reactiva la generación "
                 "automática para usar los botones.",
-                reason="config")
+                reason="config", kind="disabled")
 
         ts = int(time.time() * 1000)
         body = dict(c["body"])
@@ -121,7 +121,7 @@ def send(ctx, cmd_key, emit=lambda m: None, params=None):
             # The exception's text (hosts, URLs, library internals) is for the log; the person gets its kind only.
             emit(f"error de red: {e}")
             _LOGGER.warning("Network error sending %s for %s: %s", c["name"], ctx.vin[-6:], e)
-            raise CommandError(f"Error de red al enviar el comando ({type(e).__name__}).") from e
+            raise CommandError(f"Error de red al enviar el comando ({type(e).__name__}).", kind="network") from e
 
         code = None
         with contextlib.suppress(Exception):   # non-JSON body: stays without a code
@@ -145,7 +145,7 @@ def send(ctx, cmd_key, emit=lambda m: None, params=None):
     if not code or (not 200 <= int(status or 0) < 300 and not outcome.failed):
         _LOGGER.warning("Command %s for %s not confirmed by the cloud: HTTP %s, code %s, body %r",
                         c["name"], ctx.vin[-6:], status, code, raw[:120])
-        raise CommandError(UNCONFIRMED_MESSAGE, code=code or None)
+        raise CommandError(UNCONFIRMED_MESSAGE, code=code or None, kind="unconfirmed")
     # Real result from the `code` (the backend always answers HTTP 200). A known failure =
     # command NOT executed → CommandError, so the interface gets the real failure instead
     # of showing a false success. Unknown codes stay non-blocking out of caution: we do not

@@ -74,6 +74,7 @@ const STATIC_ASSETS = [
   '/static/js/core/state.js',
   '/static/js/core/icons.js',
   '/static/js/core/feedback.js',
+  '/static/js/core/modals.js',
   '/static/js/core/offline.js',
   '/static/js/core/actions.js',
   '/static/js/core/theme-boot.js',

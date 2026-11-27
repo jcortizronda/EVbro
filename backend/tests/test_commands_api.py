@@ -250,7 +250,9 @@ async def test_core_error_returns_status_and_reason(db, send, reason, status) ->
     async with client:
         r = await send_command(client, "bloquear")
     assert r.status_code == status and r.json()["reason"] == reason and r.json()["success"] is False
-    assert "fallo de prueba" in r.json()["detail"]
+    # The technical text stays in the log: the person reads plain words, and the code travels apart (texts audit, 27-11-2026)
+    assert "fallo de prueba" not in r.json()["detail"] and r.json()["detail"] == "Ebro no permite «Bloquear puertas» en este coche."
+    assert r.json()["code"] == "A00084"
     (row,) = await audit_rows()
     assert row.success is False and row.code == "A00084"
 
@@ -467,3 +469,17 @@ async def test_replacing_the_stored_pin_needs_the_current_one_but_deleting_it_do
         assert (await client.post("/api/account/pin", json={"pin": "567800"})).status_code == 200     # nothing stored: nothing to check
     async with async_session_factory() as s:
         assert (await s.execute(select(EbroAccount.pin))).scalar_one() == "567800"
+
+
+
+@pytest.mark.parametrize("kind, expected", [
+    ("network", "No se pudo enviar la orden: EVbro no consigue conectar con Ebro."),
+    ("pin_wrong", "Ebro no acepta ese PIN."),
+    ("unconfirmed", "Ebro no ha confirmado la orden"),
+])
+async def test_refusals_without_a_code_are_told_by_their_kind(db, send, kind, expected) -> None:
+    send.error = CommandError("texto técnico [checkPassword code=1 'A07908']", code="1", reason="pin" if kind == "pin_wrong" else None, kind=kind)
+    client = await prepare(db)
+    async with client:
+        r = await send_command(client, "bloquear")
+    assert expected in r.json()["detail"] and "checkPassword" not in r.json()["detail"]

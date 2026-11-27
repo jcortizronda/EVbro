@@ -50,7 +50,8 @@ with sync_playwright() as p:
     meta = b.new_context().new_page()
     meta.goto(BASE)
     content = meta.get_attribute('meta[name="viewport"]', "content")
-    ok("user-scalable=no" in content and "maximum-scale=1" in content, f"viewport without zoom: {content}")
+    # Pinch zoom allowed since 27-11-2026 (WCAG 1.4.4); `touch-action: manipulation` on <html> keeps the app feel
+    ok("user-scalable=no" not in content and "maximum-scale" not in content, f"viewport lets people zoom: {content}")
     b.close()
 print("FAILURES:", fails if fails else "none")
 sys.exit(1 if fails else 0)

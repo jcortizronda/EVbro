@@ -32,7 +32,7 @@
     const file = input.files && input.files[0];
     input.value = '';
     if (!file) return;
-    if (!await confirmDialog(t('¿Importar «{p0}» en esta cuenta? Los coches que ya existan se saltan; el resto se añade como coches sin cuenta de Ebro.', {p0: file.name}))) return;
+    if (!await confirmDialog(t('¿Importar «{p0}» en esta cuenta? Los coches que ya existan se saltan; el resto se añade como coches sin cuenta de Ebro.', {p0: file.name}), { confirmText: 'Importar' })) return;
     const box = el('adImportReport');
     box.hidden = false;
     box.textContent = 'Importando… puede tardar un poco si lleva muchos ficheros.';

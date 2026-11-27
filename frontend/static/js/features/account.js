@@ -219,7 +219,8 @@ async function submitEbroLogin() {
 }
 
 async function logoutEbroAccount() {
-  if (!await confirmDialog("¿Desconectar la cuenta de Ebro? Dejarás de ver el estado del coche y de poder mandarle órdenes hasta que vuelvas a conectarla. Lo guardado (viajes, cargas, gastos…) no se borra.")) return;
+  if (!await confirmDialog('¿Desconectar la cuenta de Ebro? No verás el coche ni podrás mandarle órdenes hasta conectarla otra vez. Se borran la contraseña y el PIN guardados; lo demás no se borra.',
+    { confirmText: 'Desconectar', danger: true })) return;
 
   try {
     const res = await fetch('/api/account/logout', { method: 'POST' });
@@ -714,7 +715,7 @@ window.MqttHa = (function () {
   }
 
   async function remove() {
-    if (!await confirmDialog('¿Quitar la conexión con tu broker? Home Assistant dejará de recibir el coche.', { title: 'Quitar MQTT', confirmText: 'Quitar', danger: true })) return;
+    if (!await confirmDialog('¿Quitar la conexión con Home Assistant? Dejará de recibir el coche.', { confirmText: 'Quitar', danger: true })) return;
     try { await call('DELETE'); link = null; render(); showToast('Conexión MQTT quitada', 'success'); }
     catch (e) { showToast(t('No se pudo quitar: {p0}', {p0: e.message || e}), 'error'); }
   }

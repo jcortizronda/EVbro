@@ -97,3 +97,16 @@ html[data-off~="book"] [data-feature="book"] { display: none !important; }
 html[data-off~="history_full"] .history-note { display: block; }
 /* The battery bar is also the charge target's slider: without that area it is only a bar */
 html[data-off~="automation"] #energyTargetSlider { pointer-events: none; }
+
+/* Keyboard focus, visible in both themes on every control (accessibility audit, 27-11-2026: the ring was about 1:1 on the primary
+   buttons and missing on the sliders). Only for keyboard focus: a tap does not draw it. */
+:root { --focus-ring: #0064c8; }
+[data-theme="dark"] { --focus-ring: #8cc8ff; }
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.btn-primary:focus-visible, .btn-danger:focus-visible { outline-offset: 3px; box-shadow: 0 0 0 5px var(--bg, #fff); }
+
+/* Pinch zoom is allowed (WCAG 1.4.4); this keeps the app feel the zoom ban was for: no double-tap zoom and no 300 ms delay */
+html { touch-action: manipulation; }

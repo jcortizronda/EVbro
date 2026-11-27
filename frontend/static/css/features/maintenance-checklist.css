@@ -180,7 +180,7 @@
 }
 
 .badge-r {
-  background: #ff3d00;
+  background: #d32f00;                    /* white on it reaches 5:1 (accessibility audit, 27-11-2026) */
   color: #fff;
   font-weight: 900;
   font-size: 0.75rem;

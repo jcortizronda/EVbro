@@ -49,7 +49,7 @@ from app.vehicle.constants import DEFAULT_AWAKE_WINDOW
 from app.vehicle.mqtt_client import EbroMqttClient, MqttConfig, MqttConnectError
 from app.vehicle.poll_policy import BurstTracker
 from app.vehicle.state import VehicleState
-from app.vehicle.telemetry import format_command_result, parse_car_message
+from app.vehicle.telemetry import command_outcome, format_command_result, parse_car_message
 
 _LOGGER = logging.getLogger("app.services.car_events")
 
@@ -321,10 +321,11 @@ class CarEventService:
             task = asyncio.ensure_future(save_car_result(self.vin, message.data.get("seq"), self.last_command_result))
             _RESULT_TASKS.add(task)
             task.add_done_callback(_RESULT_TASKS.discard)
-            applied = "✅" in self.last_command_result
+            outcome = command_outcome(message.data)          # data, not the sentence: a reworded text must not change the result
+            applied = outcome == "applied"
             self._poller.broadcast_event({
                 "type": "command_result", "vin": self.vin, "message": self.last_command_result,
-                "applied": applied, "failed": "❌" in self.last_command_result,
+                "applied": applied, "failed": outcome == "failed",
             })
             if applied:
                 # The read made right after sending can come before the cloud has the change: on 23-11-2026 a departure plan

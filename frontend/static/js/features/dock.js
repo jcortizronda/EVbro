@@ -148,6 +148,7 @@ const Dock = (function () {
     if (btn && !btn.disabled) btn.focus();
   }
   async function reset() {
+    if (!await confirmDialog('¿Restablecer la barra inferior? Vuelven los iconos y el orden del principio.', { confirmText: 'Restablecer' })) return;
     chosen = DEFAULT.slice();
     writeCached();
     render();

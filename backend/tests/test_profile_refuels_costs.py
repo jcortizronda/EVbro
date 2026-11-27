@@ -285,7 +285,7 @@ async def test_costs_add_up_purchase_charges_refuels_and_maintenance(web) -> Non
     assert d["pending"] == {"charges": 1, "refuels": 1}                                       # what has no price yet, in sight
     # The km the odometer moved since the first cost (5 Sept 2026), interpolated between the delivery (5 000 km) and today (15 000):
     # no longer the 10 000 km since the purchase, which divided a few weeks of costs by almost two years of driving
-    assert 0 < d["km"] < 10000 and d["per_100km"] == round(383.0 / d["km"] * 100, 2)
+    assert 0 < d["km"] < 10000 and abs(d["per_100km"] - 383.0 / d["km"] * 100) < 0.05             # `km` comes rounded
     assert d["energy"] == {"kwh": 18.0, "liters": 70.0}
     months = {m["month"]: m for m in d["monthly"]}
     assert months["2026-09"]["charges"] == 3.0 and months["2026-09"]["maintenance"] == 120.0 and months["2026-10"]["maintenance"] == 200.0

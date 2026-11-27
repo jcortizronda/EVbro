@@ -362,8 +362,8 @@
 .text-cyan { color: #06b6d4 !important; }
 .text-orange { color: #f97316 !important; }
 
-[data-theme="light"] .text-green { color: #059669 !important; }
-[data-theme="light"] .text-yellow { color: #d97706 !important; }
+[data-theme="light"] .text-green { color: #047857 !important; }   /* 4.7:1 on the light cards (accessibility audit, 27-11-2026) */
+[data-theme="light"] .text-yellow { color: #9a5b00 !important; }
 [data-theme="light"] .text-cyan { color: #0891b2 !important; }
 [data-theme="light"] .text-orange { color: #ea580c !important; }
 

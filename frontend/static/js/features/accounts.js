@@ -169,7 +169,7 @@ async function saveManualVehicle() {
 async function deleteCurrentVehicle() {
   const v = currentVehicle();
   if (!v) return;
-  const typed = await promptDialog(t('Se borrará «{p0}» y TODO lo anotado de él (viajes, cargas, gastos, mantenimiento, piezas). No se puede deshacer.\n\nEscribe el nombre del coche para confirmar.', {p0: v.name}), { title: 'Borrar el coche', placeholder: v.name || '', confirmText: 'Borrar', maxLength: 100 });
+  const typed = await promptDialog(t('Se borrará «{p0}» y TODO lo anotado de él (viajes, cargas, gastos, mantenimiento, piezas). No se puede deshacer.\n\nEscribe el nombre del coche para confirmar.', {p0: v.name}), { title: 'Borrar el coche', placeholder: v.name || '', confirmText: 'Borrar', danger: true, maxLength: 100 });
   if (typed === null) return;
   if (typed.trim() !== (v.name || '').trim()) { showToast('El nombre no coincide: no se ha borrado nada.', 'warning', 5000); return; }
   try {

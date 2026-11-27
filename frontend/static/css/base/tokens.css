@@ -10,6 +10,7 @@
 :root { --safe-top: env(safe-area-inset-top, 0px); }
 
 :root,
+/* Muted text, links and danger colours reach WCAG AA contrast (4.5:1) on every surface: accessibility audit of 27-11-2026 */
 [data-theme="light"] {
   --bg: #f5f5f7;
   --surface: #ffffff;
@@ -17,20 +18,20 @@
   --surface-card: #ffffff;
   --surface-card-hover: #fafafc;
   --ink: #0b0c0e;
-  --muted: #6e6e73;
-  --muted-light: #86868b;
+  --muted: #636368;
+  --muted-light: #68686d;
   --line: rgba(0, 0, 0, 0.08);
   --line-subtle: rgba(0, 0, 0, 0.04);
   --graphite: #17181b;
   
   --accent: #234f70;          /* EVbro Sapphire Blue */
   --accent-rgb: 35, 79, 112;  /* the accent as r, g, b: rgba(var(--accent-rgb), .2) for tints */
-  --accent-bright: #0071e3;   /* Apple iOS Accent Blue */
+  --accent-bright: #0064c8;   /* Apple iOS Accent Blue */
   --accent-soft: #e9eef2;
   --accent-glow: rgba(35, 79, 112, 0.22);
   --success: #2d6a4f;         /* EVbro Evergreen Success */
   --warning: #8a6428;         /* EVbro Amber Warning */
-  --danger: #dc2626;
+  --danger: #cf2020;
 
   /* Backward compatibility aliases */
   --bg-dark: var(--bg);
@@ -53,12 +54,12 @@
   --accent-green: #2d6a4f;
   --accent-green-glow: rgba(45, 106, 79, 0.2);
   --accent-amber: #8a6428;
-  --accent-red: #dc2626;
+  --accent-red: #cf2020;
   --accent-purple: #5e5ce6;
   
   --text-primary: var(--ink);
   --text-secondary: var(--muted);
-  --text-muted: #86868b;
+  --text-muted: #68686d;
   
   --radius-xl: 44px;
   --radius-lg: 32px;
@@ -82,7 +83,7 @@
   --surface-card: #161618;
   --surface-card-hover: #1f1f23;
   --ink: #f5f5f7;
-  --muted: #8e8e93;
+  --muted: #a1a1a6;
   --muted-light: #a1a1a6;
   --line: rgba(255, 255, 255, 0.08);
   --line-subtle: rgba(255, 255, 255, 0.04);
@@ -123,7 +124,7 @@
   
   --text-primary: var(--ink);
   --text-secondary: var(--muted);
-  --text-muted: #6e6e73;
+  --text-muted: #98989d;
   
   --radius-xl: 44px;
   --radius-lg: 32px;

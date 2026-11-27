@@ -287,7 +287,7 @@
   }
   function start() { act('Iniciar carga', 'POST', 'start'); }
   async function stop() {
-    if (!await confirmDialog('¿Parar la carga?\n\nEl coche no cargará hasta que pulses «Iniciar carga» o programes una carga.')) return;
+    if (!await confirmDialog('¿Parar la carga? No cargará hasta que pulses «Iniciar carga» o la programes.', { confirmText: 'Parar' })) return;
     act('Parar carga', 'POST', 'stop');
   }
   function clearSchedule() { act('Quitar la programación', 'DELETE', 'schedule'); }

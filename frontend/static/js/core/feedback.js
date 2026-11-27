@@ -3,6 +3,13 @@
  */
 
 // Helper for floating toast notifications (Dynamic Island / iOS style)
+// Long enough to be read (accessibility audit, 27-11-2026: 115 calls used 3.5 s, 37 of them errors): at least 5 s, errors 8 s,
+// and longer texts a little more. A tap still dismisses any of them at once.
+function readableDuration(text, type, duration) {
+  const floor = type === 'error' ? 8000 : type === 'warning' ? 6500 : 5000;
+  return Math.max(duration || 0, floor, Math.min(12000, 2500 + (text || '').length * 60));
+}
+
 function showToast(message, type = 'info', duration = 3500) {
   let container = document.getElementById('appToastContainer');
   if (!container) {
@@ -11,6 +18,9 @@ function showToast(message, type = 'info', duration = 3500) {
     container.className = 'app-toast-container';
     document.body.appendChild(container);
   }
+  // Read out by screen readers: errors at once, the rest when the reader is free
+  container.setAttribute('role', 'status');
+  container.setAttribute('aria-live', 'polite');
 
   const icons = {
     'success': icon('check', 20),
@@ -22,6 +32,7 @@ function showToast(message, type = 'info', duration = 3500) {
 
   // The same text twice in a row is one notice: the existing toast is kept (its timer restarts below) instead of a second one
   const text = stripEmoji(message);
+  if (type !== 'loading') duration = readableDuration(text, type, duration);
   const twin = [...container.querySelectorAll('.app-toast')].find((t) => t.dataset.text === text && t.dataset.live === '1');
   if (twin && type !== 'loading') {
     twin.className = `app-toast toast-${type}`;
@@ -35,6 +46,7 @@ function showToast(message, type = 'info', duration = 3500) {
 
   const toast = document.createElement('div');
   toast.className = `app-toast toast-${type}`;
+  if (type === 'error') toast.setAttribute('role', 'alert');
   toast.dataset.text = text;
   toast.dataset.live = '1';
   toast.innerHTML = `
@@ -139,8 +151,8 @@ function confirmDialog(message, { title = '', confirmText = 'Aceptar', cancelTex
 }
 
 /** A short piece of text (or null when cancelled). `type` can be 'password'. */
-function promptDialog(message, { title = '', confirmText = 'Aceptar', cancelText = 'Cancelar', type = 'text', inputmode = 'text', placeholder = '', value = '', maxLength = 200, autocomplete = 'off' } = {}) {
-  return openAppDialog({ title, message, confirmText, cancelText, input: { type, inputmode, placeholder, value, maxLength, autocomplete } });
+function promptDialog(message, { title = '', confirmText = 'Aceptar', cancelText = 'Cancelar', type = 'text', inputmode = 'text', placeholder = '', value = '', maxLength = 200, autocomplete = 'off', danger = false } = {}) {
+  return openAppDialog({ title, message, confirmText, cancelText, danger, input: { type, inputmode, placeholder, value, maxLength, autocomplete } });
 }
 
 /** Something to read and close; prefer a toast for short transient notices. */

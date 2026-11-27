@@ -138,6 +138,19 @@ def content_fingerprint(data: dict) -> str:
     ).hexdigest()
 
 
+def command_outcome(data: dict) -> str:
+    """What a confirmation push says, as data: "failed", "running", "applied" or "unknown". The same reading as
+    `format_command_result`; a host decides on this, never on that sentence (EVbro looked for «✅» in it until 27-11-2026)."""
+    from .constants import CMD_RESULT_APPLIED, CMD_RESULT_ASYNC_RUNNING
+
+    if data.get("reason"):
+        return "failed"
+    result = str(data.get("result", "")).strip()
+    if result == CMD_RESULT_ASYNC_RUNNING:
+        return "running"
+    return "applied" if result in CMD_RESULT_APPLIED else "unknown"
+
+
 def format_command_result(data: dict) -> str:
     """Turn the REAL result of a command confirmation push into a sentence for the
     user.

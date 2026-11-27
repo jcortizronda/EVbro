@@ -34,6 +34,7 @@ function applyTelemetry(data) {
 
   // 2. Status (badge)
   const badge = document.getElementById('vehicleStatusBadge');
+  if (badge) badge.hidden = false;                        // hidden until there is a reading: no state is made up
   const state = (data.state || 'parked').toLowerCase();
   // A car whose manager has no Ebro account connected (or whose session the cloud no longer accepts) gets no new readings: say so
   // instead of showing a stale «Dormido» (api/routes_vehicles.py, `account_state`)

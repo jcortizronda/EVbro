@@ -125,7 +125,7 @@
   }
 
   async function remove() {
-    if (!await confirmDialog('¿Quitar la conexión con Traccar? Se dejan de recibir posiciones; los viajes ya guardados se conservan.')) return;
+    if (!await confirmDialog('¿Quitar la conexión con Traccar? Dejan de llegar posiciones. Los viajes guardados se conservan.', { confirmText: 'Quitar', danger: true })) return;
     const res = await fetch(`/api/vehicles/${carVin()}/traccar`, { method: 'DELETE' });
     if (res.ok) { link = null; devices = []; render(); if (typeof applyVehicleCapabilities === 'function') applyVehicleCapabilities(); showToast('Conexión con Traccar quitada', 'success'); }
   }

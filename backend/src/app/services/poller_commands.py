@@ -14,17 +14,18 @@ from sqlalchemy import select
 
 from app.config import settings
 from app.core import commands
+from app.core.catalog import CMD_MAP
 from app.core.context import CoreCtx
 from app.core.errors import CommandError
 from app.db.models import AppUser, CommandAudit, EbroAccount, Vehicle
 from app.db.session import async_session_factory
+from app.i18n import _
 from app.security.access import first_manager_id
-from app.services import command_policy
+from app.services import command_messages, command_policy
 from app.services.cloud_pool import CLOUD_EXECUTOR
 
 _LOGGER = logging.getLogger("app.services.poller")
 
-UNEXPECTED_COMMAND_ERROR = "No se pudo enviar la orden al coche por un error inesperado del servidor (mira el log)."
 # The cloud's answer when a car has no permission for a command («No vehicle control command permission»): remembered per car
 NO_COMMAND_PERMISSION = "A00084"
 
@@ -64,11 +65,14 @@ class CommandsMixin:
                     if e.code or await self._recover_session(vin):
                         _LOGGER.info("'%s' for %s: the session was refused, signing in again and sending it once more", command_key, vin[-6:])
                         continue
-                return False, str(e), e.code, e.reason
+                # The technical text (codes, protocol steps) is for the log; the person gets plain words in their language
+                _LOGGER.info("'%s' for %s refused: %s", command_key, vin[-6:], e)
+                name = (CMD_MAP.get(command_key) or {}).get("name")
+                return False, command_messages.user_message(e, _(name) if name else None), e.code, e.reason
             except Exception:
                 # The text of an unexpected exception (library internals, hosts) is for the log, not for the client.
                 _LOGGER.exception("Unexpected failure sending '%s' (%s) to %s", command_key, origin, vin[-6:])
-                return False, UNEXPECTED_COMMAND_ERROR, None, None
+                return False, command_messages.unexpected(), None, None
 
     async def execute_command(
         self,

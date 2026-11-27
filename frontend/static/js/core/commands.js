@@ -187,9 +187,9 @@ function handleCommandFailure(data, commandKey, commandName, extraParams) {
     const v = (typeof currentVehicle === 'function') ? currentVehicle() : null;
     if (v) v.rejected_commands = Array.from(new Set([...(v.rejected_commands || []), commandKey]));
     if (typeof renderComfort === 'function') renderComfort();
-    showToast(t('La nube de Ebro no permite «{p0}» en este coche.', {p0: commandName}), 'error', 7000);
+    showToast(detail, 'error', 7000);                  // the server's plain text, in the user's language (services/command_messages.py)
   } else {
-    showToast(`${escapeHtml(detail)}`, 'error', 6000);
+    showToast(detail, 'error', 6000);                  // showToast escapes it: escaping it here too showed &quot; and the like
   }
 }
 

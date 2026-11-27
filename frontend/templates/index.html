@@ -2,7 +2,7 @@
 <html lang="{{ lang or 'es' }}">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>EVbro</title>
   
   <!-- PWA & Mobile Capabilities -->
@@ -204,7 +204,7 @@
           <span class="section-tag">VEHÍCULO · EVBRO</span>
           <div class="page-head-main">
             <h2 class="section-title" id="vehicleName">Ebro</h2>
-            <span id="vehicleStatusBadge" class="status-badge parked">Estacionado</span>
+            <span id="vehicleStatusBadge" class="status-badge parked" hidden>Estacionado</span>
           </div>
           <div class="page-head-meta">
             <span id="vehicleVin" class="vehicle-vin-badge">VIN: Cargando...</span>
@@ -213,7 +213,17 @@
         </div>
 
         <!-- Car without an Ebro account: no live data; what remains is the history, the sheet and, with Traccar, the map -->
-        <div class="glass details-card manual-note" id="manualNote">Este coche no tiene cuenta de Ebro: no hay datos en directo ni órdenes. Su historial, su ficha, gastos, mantenimiento y piezas funcionan igual; con un servidor Traccar (Ajustes → Sistema) se ve además su posición.</div>
+        <div class="glass details-card manual-note" id="manualNote">Este coche no tiene cuenta de Ebro: no hay datos en directo ni órdenes. Su historial, su ficha, gastos, mantenimiento y piezas funcionan igual; con un servidor Traccar (Ajustes → Conexiones) se ve además su posición.</div>
+
+        <!-- A manager without any car yet (a new account): what to do, instead of a made-up car (core/vehicles.js, showNoCarYet) -->
+        <div class="glass details-card no-car-card" id="noCarCard" hidden>
+          <strong>Aún no tienes ningún coche.</strong>
+          Conecta tu cuenta de Ebro para traer tus coches con sus datos en directo, o añade uno a mano para llevar su historial y sus gastos.
+          <div class="vp-actions">
+            <button type="button" class="btn-primary" data-on-click="switchTab('settings'); switchSettingsSubTab('account')">Conectar cuenta de Ebro</button>
+            <button type="button" class="btn-secondary" data-on-click="switchTab('vehicle')">Añadir a mano</button>
+          </div>
+        </div>
 
         <!-- Home widgets: the owner can hide, reorder (drag or arrows) and add them; features/home-widgets.js -->
         <div class="home-edit-bar" id="homeEditBar" hidden>
@@ -242,7 +252,7 @@
             <div class="range-bar-row">
               <span class="range-icon"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="18" height="10" rx="2"/><path d="M22 11v2"/></svg></span>
               <div class="range-track">
-                <div class="range-fill cyan u-width-50pct" id="batteryTrackFill"></div>
+                <div class="range-fill cyan u-width-0pct" id="batteryTrackFill"></div>
               </div>
             </div>
           </div>
@@ -260,7 +270,7 @@
             <div class="range-bar-row">
               <span class="range-icon u-color-ff9f0a"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18"/><path d="M3 22h12"/><path d="M15 10h2a2 2 0 0 1 2 2v4a2 2 0 0 0 4 0V8l-3-3"/><path d="M6 8h6"/></svg></span>
               <div class="range-track">
-                <div class="range-fill amber u-width-50pct" id="fuelTrackFill"></div>
+                <div class="range-fill amber u-width-0pct" id="fuelTrackFill"></div>
               </div>
             </div>
           </div>
@@ -713,10 +723,10 @@
         </div>
         <div id="energyWidgets" class="home-widgets">
         <div class="home-widget" data-widget="energy">
-        <!-- Big charge display (26 % current charge / 80 % target) -->
+        <!-- Big charge display (current charge / target). Empty until a reading: never an invented value (QA audit, 27-11-2026) -->
         <div class="native-energy-panel">
           <div class="energy-charge-row">
-            <span class="energy-big-pct" id="energyBatteryPct">26</span>
+            <span class="energy-big-pct" id="energyBatteryPct">--</span>
             <span class="energy-pct-sign">%</span>
           </div>
           <div class="energy-bar-sublabels">
@@ -727,7 +737,7 @@
           <div class="energy-slider" id="energyTargetSlider" role="slider" tabindex="0" aria-label="Batería objetivo"
                aria-valuemin="50" aria-valuemax="100" aria-valuenow="100" aria-valuetext="100 %">
             <div class="energy-progress-track">
-              <div class="energy-progress-fill u-width-26pct" id="energyProgressBar"></div>
+              <div class="energy-progress-fill u-width-0pct" id="energyProgressBar"></div>
             </div>
             <div class="energy-ticks" aria-hidden="true" data-feature="automation"></div>
             <div class="energy-thumb" id="energyTargetThumb" data-feature="automation"></div>
@@ -2483,7 +2493,7 @@
             <input type="password" id="accPassword" class="form-control" placeholder="Tu contraseña de la app Ebro" autocomplete="new-password" autocapitalize="none" autocorrect="off" spellcheck="false" />
             <button type="button" class="btn-secondary acc-password-show" id="accPasswordShow" aria-pressed="false" data-on-click="toggleEbroPassword()">Mostrar</button>
           </div>
-          <small class="u-color-var-text-muted_font-size-0p75rem_margin-top-0p2rem">Es la de la app oficial de Ebro, no el PIN del coche ni la contraseña de EVbro. Si en la app oficial entras con un código por SMS, puede que no tengas contraseña: créala antes allí. Tras cinco intentos fallidos, Ebro bloquea la cuenta 5 minutos.</small>
+          <small class="u-color-var-text-muted_font-size-0p75rem_margin-top-0p2rem">No es el PIN del coche ni la contraseña de EVbro. Con cinco fallos, Ebro bloquea la cuenta 5 minutos.</small>
         </div>
 
         <div class="form-group u-margin-bottom-1p25rem">
@@ -2586,7 +2596,7 @@
       </div>
       <div class="form-group u-margin-bottom-0p85rem">
         <label for="ebroPinNew">PIN nuevo</label>
-        <input type="password" id="ebroPinNew" class="form-control" maxlength="6" inputmode="numeric" autocomplete="off" placeholder="••••••" />
+        <input type="password" id="ebroPinNew" class="form-control" maxlength="6" inputmode="numeric" autocomplete="off" placeholder="••••••" data-on-enter="submitEbroPin()" />
         <small class="u-color-var-text-muted_font-size-0p75rem_margin-top-0p2rem">6 dígitos. Tras dos PIN actuales incorrectos hay que esperar 10 minutos, para que Ebro no bloquee la cuenta.</small>
       </div>
       <div class="form-group u-margin-bottom-0p85rem">
@@ -2660,7 +2670,7 @@
     <div class="modal-card">
       <h3 class="u-margin-bottom-0p5rem_font-size-1p3rem" id="pinModalTitle">Confirmar Comando</h3>
       <p class="u-color-var-text-secondary_font-size-0p9rem">Introduce el PIN de seguridad de tu cuenta Ebro para autorizar la acción:</p>
-      <input type="password" id="pinInput" class="pin-input" maxlength="6" inputmode="numeric" autocomplete="off" placeholder="••••••" autofocus />
+      <input type="password" id="pinInput" class="pin-input" maxlength="6" inputmode="numeric" autocomplete="off" placeholder="••••••" autofocus aria-label="PIN" data-on-enter="executePendingCommand()" />
       <div id="pinModalError" class="auth-error" role="alert" hidden></div>
       <div class="u-margin-0p75rem-0-1p25rem-0_text-align-left" id="pinRememberRow">
         <label class="u-display-flex_align-items-center_gap-0p5rem_font-size-0p85rem_color-var-text-secondary_cursor-pointer">
@@ -3581,7 +3591,7 @@
   </div>
 
   <!-- Floating Dynamic Island Toast Container -->
-  <div id="appToastContainer" class="app-toast-container"></div>
+  <div id="appToastContainer" class="app-toast-container" role="status" aria-live="polite"></div>
 
   <!-- Bottom bar on touch screens: Inicio and Más fixed, the sections in between chosen by the account (features/dock.js) -->
   <nav class="native-bottom-dock">
@@ -3753,6 +3763,7 @@
   <script src="/static/js/core/state.js?v={{ asset_version }}"></script>
   <script src="/static/js/core/icons.js?v={{ asset_version }}"></script>
   <script src="/static/js/core/feedback.js?v={{ asset_version }}"></script>
+  <script src="/static/js/core/modals.js?v={{ asset_version }}"></script>
   <script src="/static/js/core/offline.js?v={{ asset_version }}"></script>
   <script src="/static/js/core/actions.js?v={{ asset_version }}"></script>
   <script src="/static/js/core/pwa.js?v={{ asset_version }}"></script>

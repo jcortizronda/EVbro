@@ -126,8 +126,9 @@ async def execute_vehicle_command(
             headers=headers,
             content={
                 "success": False,
-                "detail": result.get("message") or "Error al ejecutar el comando en el vehículo.",
+                "detail": result.get("message") or _("Error al ejecutar el comando en el vehículo."),
                 "reason": reason,
+                "code": result.get("code"),           # the cloud's code (A00084…): the page names what it means (texts audit, 27-11-2026)
             },
         )
 

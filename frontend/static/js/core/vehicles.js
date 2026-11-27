@@ -78,6 +78,25 @@ function updateVehicleHeaderInfo(vehicle) {
   }
 }
 
+/** A manager without any car yet (a new account): say what to do instead of a made-up car and screens «Cargando…» for ever
+ *  (QA audit, 27-11-2026). The card is on Inicio; the lists that wait for a car say so. */
+function showNoCarYet() {
+  const card = document.getElementById('noCarCard');
+  if (card) card.hidden = false;
+  const name = document.getElementById('vehicleName');
+  if (name) name.innerText = t('Sin coche todavía');
+  const badge = document.getElementById('vehicleStatusBadge');
+  if (badge) badge.hidden = true;
+  document.querySelectorAll('main .hist-empty, main [data-empty-when-no-car]').forEach((el) => {
+    if (/^Cargando/.test((el.textContent || '').trim())) el.textContent = t('Añade un coche para ver esto.');
+  });
+}
+
+function hideNoCarYet() {
+  const card = document.getElementById('noCarCard');
+  if (card) card.hidden = true;
+}
+
 async function loadVehicles() {
   try {
     const res = await fetch('/api/vehicles');
@@ -89,8 +108,10 @@ async function loadVehicles() {
       sel.innerHTML = '<option value="">Sin vehículos registrados</option>';
       allVehiclesList = [];
       updateVehicleHeaderInfo(null);
+      showNoCarYet();
       return;
     }
+    hideNoCarYet();
 
     allVehiclesList = vehicles;
 

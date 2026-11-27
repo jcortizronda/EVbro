@@ -23,11 +23,13 @@ def test_the_interface_does_not_mention_home_assistant() -> None:
         assert forbidden not in text, forbidden
 
 
-def test_the_viewport_does_not_allow_zoom() -> None:
+def test_the_viewport_lets_people_zoom_and_keeps_the_app_feel() -> None:
     meta = re.search(r'<meta name="viewport" content="([^"]+)"', HTML).group(1)
-    # Owner's decision (2026-10-28): the interface is «app»-like, without browser zoom.
-    assert "user-scalable=no" in meta and "maximum-scale=1" in meta and "minimum-scale=1" in meta
+    # 2026-10-28 the zoom was banned for an «app» feel; 2026-11-27 (accessibility audit, WCAG 1.4.4) pinch zoom is allowed again
+    # and `touch-action: manipulation` keeps what the ban was for: no double-tap zoom, no tap delay.
+    assert "user-scalable=no" not in meta and "maximum-scale" not in meta and "minimum-scale" not in meta
     assert "width=device-width" in meta and "viewport-fit=cover" in meta
+    assert "touch-action: manipulation" in (WEB / "static" / "css" / "base" / "reset.css").read_text(encoding="utf-8")
 
 
 def test_local_scripts_exist_and_auth_loads_before_app() -> None:

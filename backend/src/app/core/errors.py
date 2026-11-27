@@ -30,8 +30,12 @@ class CommandError(Exception):
                    just a notice. Does not ask to change the PIN and does not count towards the lockout.
       - None     = another rejection by the car (busy, not allowed, asleep): just a notice."""
 
-    def __init__(self, message: str, code: str | None = None, reason: str | None = None) -> None:
+    def __init__(self, message: str, code: str | None = None, reason: str | None = None, kind: str | None = None) -> None:
         super().__init__(message)
         self.code = code
         self.reason = reason
+        # What failed when there is no cloud code to say it, as a stable value a host can map to its own text (the message is
+        # for the log): network, unconfirmed, session, disabled, pin_missing, pin_rejected, pin_locked, pin_wrong, not_pin,
+        # no_answer, pin_unreachable, pin_unverifiable. Added 27-11-2026 (EVbro: services/command_messages.py).
+        self.kind = kind
         self.retryable = code in RETRYABLE_CODES

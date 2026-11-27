@@ -223,3 +223,12 @@
   color: var(--muted);
   margin-top: 4px;
 }
+
+/* Over the header photo the state badge needs its own solid background: tinted and translucent, it measured 2.1–3.7:1 against the
+   picture in the light theme (widgets and accessibility audits, 27-11-2026). Same colours as everywhere, on an opaque base. */
+.page-banner .status-badge,
+#chargeHeroStateBadge {
+  background-color: var(--bg-modal, var(--surface));
+  background-image: linear-gradient(var(--badge-tint, transparent), var(--badge-tint, transparent));
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.18);
+}

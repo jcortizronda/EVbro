@@ -107,6 +107,8 @@ with sync_playwright() as p:
 
         pg.evaluate("Dock.open()")
         pg.click("#dockModal >> text=Restablecer")
+        pg.wait_for_selector("#appDialog.open", timeout=3000)           # it asks first (27-11-2026)
+        pg.click("#appDialogOk")
         pg.wait_for_timeout(500)
         ok(bar(pg) == ["mobTabOverview", "mobTabCharges", "mobTabClimate", "mobTabMore"], "«Restablecer» brings the usual bar back")
         ok(pg.locator("#tabMore .native-card-btn.in-dock").count() == 2, "and Más gets every section back except Carga and Confort")

@@ -114,17 +114,13 @@ function openFileViewer(url, filename, contentType, subtitle) {
     }
   }
 
-  document.getElementById('invoiceViewerModal').classList.add('open');
-  history.pushState({ ebroViewer: true }, '');
+  document.getElementById('invoiceViewerModal').classList.add('open');     // «back» and Escape close it (core/modals.js)
 }
 
-function closeInvoiceViewerModal(fromHistory = false) {
+function closeInvoiceViewerModal() {
   const modal = document.getElementById('invoiceViewerModal');
   if (!modal.classList.contains('open')) return;
   const contentBox = document.getElementById('invoiceViewerContent');
   if (contentBox) contentBox.innerHTML = '';
   modal.classList.remove('open');
-  if (!fromHistory && history.state && history.state.ebroViewer) history.back();   // drop the entry the viewer added
 }
-
-window.addEventListener('popstate', () => closeInvoiceViewerModal(true));

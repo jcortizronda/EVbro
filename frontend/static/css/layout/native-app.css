@@ -750,3 +750,9 @@ body[data-manual="1"] #tabMore [data-on-click="openAllSensorsModal()"], body[dat
 body[data-manual="1"]:not([data-gps="1"]) #liveMapCard { display: none !important; }
 /* Más: the longest description sets the height of every card, so it is kept to three lines */
 #tabMore .native-card-btn .card-subtitle { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
+
+/* A manager without any car yet (core/vehicles.js, showNoCarYet) */
+.no-car-card { margin-bottom: 12px; font-size: 0.92rem; line-height: 1.5; color: var(--text-secondary); }
+.no-car-card[hidden] { display: none; }
+.no-car-card strong { display: block; color: var(--text-primary); font-size: 1rem; margin-bottom: 4px; }
+.no-car-card .vp-actions { margin-top: 12px; }

@@ -115,7 +115,7 @@ def _mint_taskid_impl(ctx, tuid):
     if not (ctx.pin or "").strip():
         raise CommandError(
             "PIN de comandos no configurado — configúralo en los ajustes de la cuenta Ebro",
-            reason="pin")
+            reason="pin", kind="pin_missing")
 
     # `attempt()` takes the lock, applies the guard and holds it for the whole network call.
     # It is the only way to mint: the race condition can no longer be expressed.
@@ -138,12 +138,12 @@ def mint_with_pin(ctx, tuid, pin, scene=SCENE_COMMANDS):
     except PinRejectedError:
         raise CommandError(
             "Ebro ya rechazó este PIN de comandos y no se vuelve a probar — guarda el PIN correcto en los ajustes de la cuenta Ebro",
-            reason="pin") from None
+            reason="pin", kind="pin_rejected") from None
     except PinLockedError as locked:
         raise CommandError(
             f"PIN de comandos bloqueado temporalmente ({locked.attempts} intentos erróneos) — "
             "vuelve a configurar el PIN en los ajustes de la cuenta Ebro y reinténtalo",
-            reason="pin") from None
+            reason="pin", kind="pin_locked") from None
 
 
 def _checkpassword(ctx, tuid, attempt, pin=None, scene=SCENE_COMMANDS):
@@ -205,8 +205,9 @@ def _checkpassword(ctx, tuid, attempt, pin=None, scene=SCENE_COMMANDS):
     outcome = routing.classify(especifico, routing.CONTEXT_CHECKPASSWORD)
     if outcome.counts_for_lockout:
         attempt.record_failure()
+    kind = {routing.REASON_PIN: "pin_wrong", routing.REASON_CONFIG: "not_pin", routing.REASON_REAUTH: "session"}.get(outcome.reason, "no_answer")
     raise CommandError(_checkpassword_message(outcome, detail),
-                       code=str(code) if code else None, reason=outcome.reason)
+                       code=str(code) if code else None, reason=outcome.reason, kind=kind)
 
 
 def encode_pin(pin: str) -> str:
@@ -296,13 +297,14 @@ def get_taskid(ctx, tuid, emit=lambda m: None, force_mint=False):
             emit(f"checkPassword sin respuesta: {e}")
             _LOGGER.warning("checkPassword unreachable for %s: %s", ctx.vin[-6:], e)
             raise CommandError(
-                f"No se pudo comprobar el PIN con la nube de Ebro ({type(e).__name__}): reinténtalo en unos minutos.") from e
+                f"No se pudo comprobar el PIN con la nube de Ebro ({type(e).__name__}): reinténtalo en unos minutos.",
+                kind="pin_unreachable") from e
         except Exception as e:
             emit(f"checkPassword falló: {e}")
             _LOGGER.warning("checkPassword failed for %s: %s", ctx.vin[-6:], e)
             raise CommandError(
                 "PIN de comandos no verificable — vuelve a configurarlo en los ajustes "
-                f"de la cuenta Ebro ({type(e).__name__})", reason="pin") from e
+                f"de la cuenta Ebro ({type(e).__name__})", reason="pin", kind="pin_unverifiable") from e
         if tid:
             remember_taskid(ctx, tuid, tid)
             return tid, "checkPassword"
