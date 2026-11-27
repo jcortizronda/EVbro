@@ -16,8 +16,8 @@ VIN = "LSJA0000000000071"
 T0 = datetime.datetime(2026, 11, 4, 5, 41)
 
 
-def reading(lat, lon, odo, state="driving"):
-    return {"latitude": lat, "longitude": lon, "odometer_km": odo, "state": state}
+def reading(lat, lon, odo, state="driving", speed=None):
+    return {"latitude": lat, "longitude": lon, "odometer_km": odo, "state": state, "speed_kmh": speed}
 
 
 @pytest.fixture
@@ -175,4 +175,32 @@ async def test_a_car_that_stops_close_to_its_last_point_is_left_alone(watcher) -
     await poller._watch_frozen_position(VIN, reading(37.0, -6.0, 500), now=T0)
     await poller._watch_frozen_position(VIN, reading(37.0, -6.0, 501), now=T0 + minute)        # one tick: maybe a few metres
     await poller._watch_frozen_position(VIN, reading(37.0, -6.0, 501, "parked"), now=T0 + 2 * minute)
+    assert sent == []
+
+
+async def test_a_car_that_drives_on_after_its_last_fix_asks_where_it_stopped_even_with_one_odometer_tick(watcher, caplog) -> None:
+    """27-11-2026: the last fix came on the motorway at 59 km/h; the car drove five more minutes, the odometer ticked once (under
+    the 2 km of the rule above) and it parked: the trip ended «on the motorway»."""
+    poller, sent = watcher
+    at = lambda m, s=0: T0 + datetime.timedelta(minutes=m, seconds=s)                 # noqa: E731
+    with caplog.at_level("INFO", logger="app.services.poller"):
+        for when, odo, state, speed in ((at(1, 7), 11385, "driving", 59), (at(1, 43), 11385, "driving", 30), (at(2, 50), 11386, "driving", 21),
+                                        (at(3, 54), 11386, "driving", 26), (at(4, 4), 11386, "driving", 9), (at(4, 56), 11386, "driving", 2)):
+            await poller._watch_frozen_position(VIN, reading(36.2, -5.4, odo, state, speed), now=when)
+        assert sent == []                                                              # still driving: the freeze rule decides
+        await poller._watch_frozen_position(VIN, reading(36.2, -5.4, 11386, "parked", 0), now=at(6, 7))
+        assert sent == [(VIN, "localizar_coche_gps", "auto_locate")]
+        for when in (at(8, 46), at(11, 13), at(57, 44)):
+            await poller._watch_frozen_position(VIN, reading(36.2, -5.4, 11386, "parked", 0), now=when)
+    assert len(sent) == 1                                                              # once
+    assert any("stopped about 1." in r.message for r in caplog.records)
+
+
+async def test_a_car_whose_point_moves_on_every_reading_is_not_asked_when_it_stops(watcher) -> None:
+    poller, sent = watcher
+    at = lambda s: T0 + datetime.timedelta(seconds=s)                                  # noqa: E731
+    await poller._watch_frozen_position(VIN, reading(36.2000, -5.4000, 500, "driving", 60), now=at(0))
+    await poller._watch_frozen_position(VIN, reading(36.2030, -5.4030, 500, "driving", 30), now=at(30))    # a new point: starts over
+    await poller._watch_frozen_position(VIN, reading(36.2030, -5.4030, 501, "driving", 10), now=at(50))    # 110 m on it, one tick
+    await poller._watch_frozen_position(VIN, reading(36.2030, -5.4030, 501, "parked", 0), now=at(80))
     assert sent == []

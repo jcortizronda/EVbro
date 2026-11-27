@@ -247,6 +247,18 @@ async def test_a_charge_looks_back_even_if_the_last_read_said_the_cable_was_out(
     assert charge.start_battery_pct == 78
 
 
+async def test_a_charge_does_not_claim_a_rise_the_car_made_without_the_cable(car) -> None:
+    """26-11-2026: 40 min at «charging» with the cable out (the engine charging the battery, parked), then plugged in."""
+    await plugged_reading(D(2026, 11, 26, 9, 40), 64)
+    async with async_session_factory() as s:
+        s.add(TelemetrySnapshot(vin=VIN, timestamp=D(2026, 11, 26, 10, 6), battery_level=69, electric_range_km=35.0, odometer_km=1000.0,
+                                is_charging=True, cable_connected=False))
+        await s.commit()
+    await first_charge_reading(D(2026, 11, 26, 11, 16), 86)
+    (charge,) = await sessions()
+    assert charge.start_battery_pct == 86
+
+
 @pytest.mark.parametrize("before, odometer", [(40.5, 1000.0), (20.0, 1012.0)])
 async def test_a_charge_only_looks_back_if_the_car_stayed_put_and_the_battery_rose(car, before, odometer) -> None:
     await plugged_reading(D(2026, 11, 5, 20, 34), before, odometer=odometer)

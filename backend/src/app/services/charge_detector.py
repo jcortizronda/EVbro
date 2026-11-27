@@ -111,6 +111,15 @@ class ChargeDetector:
         last_end = (await session.execute(select(func.max(ChargingSession.end_time)).where(ChargingSession.vin == vin))).scalar()
         if last_end is not None and last_end > previous.timestamp:
             return None                                           # that rise already belongs to the previous session
+        between = (await session.execute(
+            select(func.count()).select_from(TelemetrySnapshot).where(
+                TelemetrySnapshot.vin == vin, TelemetrySnapshot.timestamp > previous.timestamp,
+                TelemetrySnapshot.timestamp < now - datetime.timedelta(seconds=5), TelemetrySnapshot.is_charging.is_(True))
+        )).scalar()
+        if between:
+            # Reads in the gap already said «charging» without the cable (26-11-2026: 40 min at `chargeState = 1` and cable out,
+            # the battery from 64 to 80 %, a PHEV charging from its engine while parked): that rise did not come from the plug
+            return None
         opened = scheduled_start_between(await session.get(ChargePlan, vin), previous.timestamp, now)
         return opened or now, previous.battery_level, previous.electric_range_km
 

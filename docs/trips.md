@@ -122,7 +122,11 @@ automático. Ese mismo día salió el hueco que quedaba: el último punto llegó
 casa y el mapa lo seguía poniendo a 2 km (el episodio no llegó a los 3 min de congelación). Por eso, **al pararse**, un coche que ha recorrido
 2 km o más con el motor encendido sobre su último punto pide **un** localizar para saber dónde se ha quedado. Lo pide mientras sigue
 despierto, no si ya se mandó un localizar sobre ese mismo punto, y nunca si el cuentakilómetros subió con el coche apagado. El viaje se cierra
-unos minutos después de pararse y toma ese punto nuevo como final.
+unos minutos después de pararse y toma ese punto nuevo como final. El cuentakilómetros va en kilómetros enteros y se queda corto para ese
+último tramo: el 27-11-2026 el último punto llegó en plena autovía, el coche siguió cinco minutos, aparcó con el cuentakilómetros una sola
+unidad más allá («1 km», menos de los 2 de la regla) y el viaje acabó «en la autovía». Desde ese día lo recorrido sobre el último punto se
+estima también con la **velocidad entre lecturas** (`STOP_LOCATE_KM`, 0,5 km): si al pararse supera eso, se pide el mismo localizar único. Un
+coche cuyo punto cambia en cada lectura no llega a esa distancia antes de parar. **Sin probar aún con un coche real.**
 
 ## Ruta: reproducir, exportar y lugares frecuentes (2026-10-30)
 

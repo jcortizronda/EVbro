@@ -25,6 +25,12 @@ _LOGGER = logging.getLogger("app.services.poller")
 # (21-11-2026: the cloud only moved the point after each locate, and the map showed the car 2 km from home after parking there).
 FROZEN_POSITION_MIN = 3
 FROZEN_POSITION_KM = 2.0
+# The odometer is too coarse for that last stretch (27-11-2026: the last fix came on the motorway, the car drove on for five
+# minutes and parked with the odometer one tick further: «1 km», under the 2 km above, so nothing was asked and the trip ended
+# «on the motorway»). What the car drove on its last point is also estimated from its speed between readings; this much is
+# enough to ask where it stopped. A car whose point moves on every reading adds a few hundred metres at most before it stops.
+STOP_LOCATE_KM = 0.5
+SPEED_GAP_MAX_S = 120          # a longer gap between two readings says nothing about the speed in between
 AUTO_LOCATE_GAP_MIN = 5
 AUTO_LOCATE_MAX = 2
 CAR_ON_STATES = ("driving", "ready")
@@ -43,6 +49,7 @@ class PositionWatchMixin:
         if lat is None or lon is None or odo is None:
             return
         now = now or utcnow()
+        speed = float(telemetry.get("speed_kmh") or 0.0)
         point = (round(float(lat), 4), round(float(lon), 4))
         watch = self._position_watch.get(vin)
         if watch is None or watch["point"] != point:
@@ -52,12 +59,23 @@ class PositionWatchMixin:
                              (now - watch["moving_since"]).total_seconds() / 60, odo - watch["odo"], since_locate)
             self._position_watch[vin] = {"point": point, "since": now, "odo": odo, "moving_since": None, "frozen": False,
                                          "last_locate": (watch or {}).get("last_locate"), "locate_at": None, "no_pin": False,
-                                         "locates": 0}
+                                         "locates": 0, "drove_km": 0.0, "seen_at": now, "speed": speed}
             return
+        # Distance driven on this point, from the speed of this reading and the one before
+        gap = (now - watch.get("seen_at", now)).total_seconds()
+        if 0 < gap <= SPEED_GAP_MAX_S:
+            watch["drove_km"] = watch.get("drove_km", 0.0) + (watch.get("speed", 0.0) + speed) / 2 * gap / 3600
+        watch["seen_at"], watch["speed"] = now, speed
         km = odo - watch["odo"]
+        car_on = telemetry.get("state") in CAR_ON_STATES
+        if not car_on and watch.get("locate_at") is None and watch.get("drove_km", 0.0) >= STOP_LOCATE_KM \
+                and not (watch.get("moving_since") is not None and km >= FROZEN_POSITION_KM):
+            # It has just stopped some way past its last point, though the odometer did not tick twice (see STOP_LOCATE_KM)
+            drove, watch["drove_km"] = watch["drove_km"], 0.0        # asked once, whatever the answer
+            await self._auto_locate(vin, watch, now, f"stopped about {drove:.1f} km after its last point")
         if km <= 0:
             return                                                   # parked: the point may stay for days
-        if telemetry.get("state") not in CAR_ON_STATES:
+        if not car_on:
             if watch.get("moving_since") is not None and km >= FROZEN_POSITION_KM and watch.get("locate_at") is None:
                 # It drove on this point with the car on and has just stopped: the point is from mid-route and would stay on
                 # the map until the next trip (21-11-2026: home on the screen 2 km away, the last fix one minute after a locate
@@ -66,7 +84,7 @@ class PositionWatchMixin:
             # The odometer advanced with the car off: a drive nobody saw between two readings, or the first reading of the
             # morning. Nothing to compare the position with, so the count starts again from here; and a car that is off gets
             # no more fixes for a frozen position (each one would wake it up).
-            watch["odo"], watch["moving_since"] = odo, None
+            watch["odo"], watch["moving_since"], watch["drove_km"] = odo, None, 0.0
             return
         if watch.get("moving_since") is None:
             watch["moving_since"] = now                              # the clock starts when the car moves, not when the point was first seen

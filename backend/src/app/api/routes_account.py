@@ -276,6 +276,10 @@ async def login_ebro_account(req: EbroLoginRequest, session: AsyncSession = Depe
             v_exist.name = nickname
             v_exist.model = model
             v_exist.car_token = car_tok
+            # The manager's own car brought in without an account (an imported file, or typed by hand) is now proved by this
+            # account: it becomes a connected car, as in `VehiclePoller.discover_vehicles` (the fix of 27-11-2026 only reached
+            # that copy; this is the path «Conectar cuenta» takes).
+            v_exist.is_manual = False
             discovered.append({"vin": vin, "name": nickname, "model": model, "is_new": False})
 
         v_ctx = poller._get_or_create_ctx(vin)
