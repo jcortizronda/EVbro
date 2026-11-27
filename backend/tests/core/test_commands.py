@@ -82,6 +82,12 @@ def test_mensajes_de_checkpassword(snapshot: SnapshotAssertion) -> None:
     } == snapshot
 
 
+def test_a_checkpassword_without_a_code_does_not_blame_the_pin() -> None:
+    outcome = routing.classify(None, routing.CONTEXT_CHECKPASSWORD)
+    text = taskid._checkpassword_message(outcome, "code=None")
+    assert outcome.counts_for_lockout is False and "PIN de comandos rechazado" not in text and "no parece cosa del PIN" in text
+
+
 # ───────────────────────── get_taskid ─────────────────────────
 
 
@@ -96,16 +102,25 @@ def test_get_taskid_from_file(ctx: CoreCtx) -> None:
 def test_get_taskid_from_cache(ctx: CoreCtx, freezer) -> None:
     """Re-minting it costs the whole checkPassword round trip, which is the slow part of the command."""
     freezer.move_to(FROZEN)
-    ctx.state.taskid = "task-en-cache"
-    ctx.state.taskid_ts = __import__("time").time()
+    taskid.remember_taskid(ctx, "tu", "task-en-cache")
 
     assert taskid.get_taskid(ctx, "tu") == ("task-en-cache", "cache")
 
 
+def test_a_cached_taskid_is_only_reused_for_the_same_account_and_pin(ctx: CoreCtx, freezer) -> None:
+    freezer.move_to(FROZEN)
+    taskid.remember_taskid(ctx, "tu", "task-de-1234")
+    with patch.object(taskid, "_mint_taskid", return_value="task-otra-cuenta"):
+        assert taskid.get_taskid(ctx, "otra-cuenta") == ("task-otra-cuenta", "checkPassword")
+    taskid.remember_taskid(ctx, "tu", "task-de-1234")
+    ctx.pin = "999999"
+    with patch.object(taskid, "_mint_taskid", return_value="task-de-999999"):
+        assert taskid.get_taskid(ctx, "tu") == ("task-de-999999", "checkPassword")
+
+
 def test_get_taskid_expired_cache_remints(ctx: CoreCtx, freezer) -> None:
     freezer.move_to(FROZEN)
-    ctx.state.taskid = "task-viejo"
-    ctx.state.taskid_ts = __import__("time").time()
+    taskid.remember_taskid(ctx, "tu", "task-viejo")
     freezer.tick(ctx.taskid_ttl + 1)
 
     with patch.object(taskid, "_mint_taskid", return_value="task-nuevo"):
@@ -143,6 +158,14 @@ def test_get_taskid_propagates_command_error_with_its_reason(ctx: CoreCtx) -> No
         taskid.get_taskid(ctx, "tu")
 
     assert capt.value.reason == "pin"
+
+
+def test_a_network_failure_while_checking_the_pin_does_not_blame_the_pin(ctx: CoreCtx) -> None:
+    with patch.object(taskid, "_mint_taskid", side_effect=ConnectionError("legend.example")), \
+            pytest.raises(commands.CommandError) as err:
+        taskid.get_taskid(ctx, "tu", force_mint=True)
+    assert err.value.reason is None and "legend.example" not in str(err.value)
+    assert ctx.lockout.failed_attempts == 0
 
 
 def test_get_taskid_unexpected_error_is_wrapped_as_pin(ctx: CoreCtx) -> None:
@@ -185,6 +208,27 @@ def test_lockout_turns_the_lock_into_command_error(ctx: CoreCtx) -> None:
 # ───────────────────────── send() ─────────────────────────
 
 
+def test_a_pin_the_cloud_rejected_is_not_sent_again(ctx: CoreCtx) -> None:
+    """The automatic actions used to try a rejected stored PIN again every time the lockout window ran out."""
+    calls = []
+
+    def _rejecting(ctx_, tuid, attempt, pin=None, scene=0):
+        calls.append(pin)
+        attempt.record_failure()
+        raise commands.CommandError("PIN incorrecto", code="1", reason="pin")
+
+    with patch.object(taskid, "_checkpassword", side_effect=_rejecting):
+        with pytest.raises(commands.CommandError):
+            taskid.get_taskid(ctx, "tu", force_mint=True)
+        with pytest.raises(commands.CommandError) as again:
+            taskid.get_taskid(ctx, "tu", force_mint=True)
+    assert calls == ["1234"]                                     # the second time the cloud was not asked
+    assert again.value.reason == "pin" and "ya rechazó" in str(again.value)
+    ctx.reset_pin_lockout()                                      # the PIN is configured again: it may be tried
+    with patch.object(taskid, "_checkpassword", return_value="T-new"):
+        assert taskid.get_taskid(ctx, "tu", force_mint=True)[0] == "T-new"
+
+
 def test_send_unknown_command(ctx: CoreCtx) -> None:
     with pytest.raises(commands.CommandError, match="Comando desconocido"):
         commands.send(ctx, "no-existe-este-comando")
@@ -204,8 +248,7 @@ def test_send_without_token_asks_for_reauth(ctx: CoreCtx) -> None:
 def test_send_ok_y_envelope_firmado(ctx: CoreCtx, snapshot: SnapshotAssertion) -> None:
     """With the clock frozen, `seq` and the signature are reproducible → the whole envelope fits in
     a snapshot. It is the best safety net against an accidental format change."""
-    ctx.state.taskid = "task-en-cache"
-    ctx.state.taskid_ts = __import__("time").time()
+    taskid.remember_taskid(ctx, "tu", "task-en-cache")
 
     with (
         patch.object(commands.wake, "_bff_login", return_value=("UT", "tu")),
@@ -229,8 +272,7 @@ def test_send_ok_y_envelope_firmado(ctx: CoreCtx, snapshot: SnapshotAssertion) -
 def test_send_applies_params_before_system_fields(ctx: CoreCtx) -> None:
     """`params` override the catalogue body, but clientType/seq/taskId/vin are always set
     by `send()`: a `params` cannot forge them."""
-    ctx.state.taskid = "T"
-    ctx.state.taskid_ts = __import__("time").time()
+    taskid.remember_taskid(ctx, "tu", "T")
 
     with (
         patch.object(commands.wake, "_bff_login", return_value=("UT", "tu")),
@@ -247,8 +289,7 @@ def test_send_applies_params_before_system_fields(ctx: CoreCtx) -> None:
 def test_send_failure_code_raises_command_error(ctx: CoreCtx) -> None:
     """A known failure = command NOT executed → optimistic entities roll back their state instead
     of showing a false success."""
-    ctx.state.taskid = "T"
-    ctx.state.taskid_ts = __import__("time").time()
+    taskid.remember_taskid(ctx, "tu", "T")
 
     with (
         patch.object(commands.wake, "_bff_login", return_value=("UT", "tu")),
@@ -264,8 +305,7 @@ def test_send_failure_code_raises_command_error(ctx: CoreCtx) -> None:
 @pytest.mark.freeze_time(FROZEN)
 def test_send_unknown_code_does_not_block(ctx: CoreCtx) -> None:
     """Deliberate caution: we do not invent a failure the backend has not declared."""
-    ctx.state.taskid = "T"
-    ctx.state.taskid_ts = __import__("time").time()
+    taskid.remember_taskid(ctx, "tu", "T")
 
     with (
         patch.object(commands.wake, "_bff_login", return_value=("UT", "tu")),
@@ -277,10 +317,41 @@ def test_send_unknown_code_does_not_block(ctx: CoreCtx) -> None:
 
 
 @pytest.mark.freeze_time(FROZEN)
+@pytest.mark.parametrize("status, body", [
+    (200, b"<html>Bad gateway</html>"),        # a gateway page instead of the cloud's JSON
+    (200, b'{"msg": "ok"}'),                  # JSON without a code
+    (502, b"<html>502</html>"),               # an HTTP error from a gateway
+    (503, b'{"code": "A99999"}'),             # a code nobody knows, on an error status
+])
+def test_send_without_a_cloud_answer_is_not_reported_as_done(ctx: CoreCtx, status, body) -> None:
+    """A lock or an unlock the cloud never confirmed must not be shown or audited as done."""
+    import urllib.error
+
+    taskid.remember_taskid(ctx, "tu", "T")
+    if status == 200:
+        resp = _urlopen({})
+        resp.__enter__.return_value.read.return_value = body
+        answer = {"return_value": resp}
+    else:
+        err = urllib.error.HTTPError("url", status, "Error", {}, None)
+        err.read = lambda: body
+        answer = {"side_effect": err}
+
+    with (
+        patch.object(commands.wake, "_bff_login", return_value=("UT", "tu")),
+        patch("urllib.request.urlopen", **answer),
+        pytest.raises(commands.CommandError) as capt,
+    ):
+        commands.send(ctx, "desbloquear")
+
+    assert str(capt.value) == commands.UNCONFIRMED_MESSAGE
+    assert capt.value.retryable is False and capt.value.reason is None
+
+
+@pytest.mark.freeze_time(FROZEN)
 def test_send_remints_the_taskid_and_retries_once(ctx: CoreCtx) -> None:
     """Without this retry the user would see an error for a merely expired taskId."""
-    ctx.state.taskid = "task-caducado"
-    ctx.state.taskid_ts = __import__("time").time()
+    taskid.remember_taskid(ctx, "tu", "task-caducado")
     respuestas = [_urlopen({"code": "A00089"}), _urlopen({"code": "000000"})]
 
     with (
@@ -300,8 +371,7 @@ def test_send_remints_the_taskid_and_retries_once(ctx: CoreCtx) -> None:
 @pytest.mark.freeze_time(FROZEN)
 def test_send_does_not_retry_forever(ctx: CoreCtx) -> None:
     """Two rejections in a row → gives up with CommandError, not a loop."""
-    ctx.state.taskid = "T"
-    ctx.state.taskid_ts = __import__("time").time()
+    taskid.remember_taskid(ctx, "tu", "T")
 
     with (
         patch.object(commands.wake, "_bff_login", return_value=("UT", "tu")),
@@ -319,8 +389,7 @@ def test_send_reads_the_body_of_an_http_error(ctx: CoreCtx) -> None:
     """The backend sends the real `code` in 4xx responses too."""
     import urllib.error
 
-    ctx.state.taskid = "T"
-    ctx.state.taskid_ts = __import__("time").time()
+    taskid.remember_taskid(ctx, "tu", "T")
     err = urllib.error.HTTPError("url", 400, "Bad Request", {}, None)
     err.read = lambda: json.dumps({"code": "A00084"}).encode()
 
@@ -336,8 +405,7 @@ def test_send_reads_the_body_of_an_http_error(ctx: CoreCtx) -> None:
 
 @pytest.mark.freeze_time(FROZEN)
 def test_send_network_error(ctx: CoreCtx) -> None:
-    ctx.state.taskid = "T"
-    ctx.state.taskid_ts = __import__("time").time()
+    taskid.remember_taskid(ctx, "tu", "T")
 
     with (
         patch.object(commands.wake, "_bff_login", return_value=("UT", "tu")),

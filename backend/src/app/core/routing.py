@@ -158,6 +158,9 @@ _OVERRIDE_CHECKPASSWORD: dict[str, Classification] = {
 # Never-seen code. The asymmetry is intentional — see the module docstring.
 _DEFAULT_CHECKPASSWORD = _entry(reason=REASON_PIN, counts_for_lockout=True)
 _DEFAULT_COMMAND = _entry(outcome="unknown")
+# No code at all (an error page, an empty body, a gateway): the backend said nothing about the PIN. It never counts
+# towards the lockout: blaming the PIN for a cloud outage would bring the real account lock closer and mark a good PIN.
+_NO_ANSWER = _entry(outcome="unknown")
 
 
 def classify(code, context: str) -> Classification:
@@ -166,6 +169,8 @@ def classify(code, context: str) -> Classification:
     `code` may be `None` or a non-string (unreadable response): it is normalised.
     """
     key = str(code) if code is not None else ""
+    if not key:
+        return _NO_ANSWER
 
     if context == CONTEXT_CHECKPASSWORD:
         entry_ = _OVERRIDE_CHECKPASSWORD.get(key) or _TABLE.get(key)

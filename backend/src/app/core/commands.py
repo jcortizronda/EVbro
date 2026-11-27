@@ -55,6 +55,9 @@ SUCCESS_CODES = routing.SUCCESS_CODES
 FAILURE_CODES = routing.FAILURE_CODES
 RETRYABLE_CODES = routing.RETRYABLE_CODES
 
+UNCONFIRMED_MESSAGE = ("La nube de Ebro no ha confirmado la orden. Mira el estado del coche antes de repetirla: "
+                       "puede que se haya hecho o que no.")
+
 
 def send(ctx, cmd_key, emit=lambda m: None, params=None):
     """Send a command. emit(str) receives the steps (to log the steps).
@@ -115,8 +118,10 @@ def send(ctx, cmd_key, emit=lambda m: None, params=None):
             raw = e.read().decode("utf-8", "replace")
             status = e.code
         except Exception as e:
+            # The exception's text (hosts, URLs, library internals) is for the log; the person gets its kind only.
             emit(f"error de red: {e}")
-            raise CommandError(f"Error de red al enviar el comando: {e}") from e
+            _LOGGER.warning("Network error sending %s for %s: %s", c["name"], ctx.vin[-6:], e)
+            raise CommandError(f"Error de red al enviar el comando ({type(e).__name__}).") from e
 
         code = None
         with contextlib.suppress(Exception):   # non-JSON body: stays without a code
@@ -134,6 +139,13 @@ def send(ctx, cmd_key, emit=lambda m: None, params=None):
     meaning = CODE_MEANING.get(code, raw[:120])
     out = f"{c['name']}: HTTP {status} {code or ''} — {meaning}"
     emit(out)
+    # Without a `code` (an HTML error page, a body that is not JSON, a 4xx/5xx from a gateway) the cloud has not said it took
+    # the order: reporting it as done showed and audited a lock or an unlock that may never have happened. It may also have
+    # gone through (a gateway timeout after delivering it), so the person is told to look at the car, not that it failed.
+    if not code or (not 200 <= int(status or 0) < 300 and not outcome.failed):
+        _LOGGER.warning("Command %s for %s not confirmed by the cloud: HTTP %s, code %s, body %r",
+                        c["name"], ctx.vin[-6:], status, code, raw[:120])
+        raise CommandError(UNCONFIRMED_MESSAGE, code=code or None)
     # Real result from the `code` (the backend always answers HTTP 200). A known failure =
     # command NOT executed → CommandError, so the interface gets the real failure instead
     # of showing a false success. Unknown codes stay non-blocking out of caution: we do not

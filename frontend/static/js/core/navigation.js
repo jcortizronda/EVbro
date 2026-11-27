@@ -82,10 +82,11 @@ function switchTab(tabName) {
     if (typeof renderOwnCars === 'function') renderOwnCars();
     if (typeof loadVehicleProfile === 'function') loadVehicleProfile();
   } else if (tabName === 'settings') {
-    checkAccountStatus();
+    const sub = window.currentSettingsSubTab || 'account';
+    if (sub !== 'account') checkAccountStatus();         // «Cuenta» checks it itself: asking here too doubled both status reads
     loadNotificationConfig();
     updateThemeSettingsUI();
-    switchSettingsSubTab(window.currentSettingsSubTab || 'account');   // (re)load the panel on show: MQTT, Traccar, passkeys…
+    switchSettingsSubTab(sub);                             // (re)load the panel on show: MQTT, Traccar, passkeys…
   }
 }
 

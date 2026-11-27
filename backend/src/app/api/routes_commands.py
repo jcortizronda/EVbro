@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import datetime
 import logging
+import time
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -20,6 +21,7 @@ from app.i18n import _
 from app.security import auth
 from app.security.access import space_owner_id
 from app.services import cloud_usage, command_policy
+from app.services.cloud_pool import CLOUD_EXECUTOR
 from app.services.command_policy import requires_pin
 from app.services.poller import VehiclePoller
 
@@ -132,6 +134,11 @@ async def execute_vehicle_command(
     return result
 
 
+# How long one reading of the alarm serves every page that asks (the alarm is not in the telemetry: each reading is a question to
+# the cloud). An alarm order sent through EVbro drops it; one made from the car itself shows within this time.
+ALARM_CACHE_S = 120
+
+
 @router.get("/vehicles/{vin}/alarm")
 async def get_alarm_state(vin: str, session: AsyncSession = Depends(get_db)):
     """Real state of the anti-theft alarm (read only: runs nothing and needs no PIN).
@@ -140,17 +147,22 @@ async def get_alarm_state(vin: str, session: AsyncSession = Depends(get_db)):
     if (await session.execute(select(Vehicle.vin).where(Vehicle.vin == vin))).first() is None:
         raise HTTPException(status_code=404, detail="Vehículo no encontrado.")
     poller = VehiclePoller.get_instance()
+    cached = poller._alarm_cache.get(vin)
+    if cached is not None and time.monotonic() - cached[0] < ALARM_CACHE_S:
+        return {"enabled": bool(cached[1])}
     ctx = poller._get_or_create_ctx(vin)
     loop = asyncio.get_running_loop()
     try:
         cloud_usage.count(cloud_usage.QUERY)
         async with poller.cloud_lock(vin):                   # one conversation with the cloud per account at a time
-            value = await loop.run_in_executor(None, commands.query_theft_switch, ctx)
+            value = await loop.run_in_executor(CLOUD_EXECUTOR, commands.query_theft_switch, ctx)
     except OSError as exc:
         # No Ebro session stored for this car (its account was never connected) or no network: «unknown», not a server error.
         # The page asks every few minutes while Inicio is on screen, so this used to fill the log with tracebacks (seen with the demo car, 09-11-2026).
         _LOGGER.info("Alarm of %s not read: %s", vin[-6:], type(exc).__name__)
         value = None
+    if value is not None:
+        poller._alarm_cache[vin] = (time.monotonic(), value)
     return {"enabled": None if value is None else bool(value)}
 
 

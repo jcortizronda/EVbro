@@ -172,3 +172,14 @@ async def test_a_good_sync_restarts_the_car_channel_stopped_by_another_app(web, 
     assert (await web.post("/api/vehicles/discover")).status_code == 200
     await asyncio.sleep(0)
     assert restarted == [1]
+
+
+async def test_connecting_another_ebro_account_switches_the_previous_one_off(web, connected, monkeypatch) -> None:
+    """One account per manager: with two active, the session and the PIN of the last one went to every car."""
+    monkeypatch.setattr(routes_account.ebro_login, "login_with_password", lambda *a, **kw: {"access_token": "otra", "refresh_token": "r2"})
+    monkeypatch.setattr(routes_account, "fetch_account_vehicles", lambda *a, **kw: [])
+    r = await web.post("/api/account/login", json={"phone": "600000002", "area_code": "34", "password": "otra-clave", "pin": ""})
+    assert r.status_code == 200, r.text
+    async with async_session_factory() as s:
+        rows = {a.phone: a.is_active for a in (await s.execute(select(EbroAccount))).scalars()}
+    assert rows == {"600000001": False, "600000002": True}

@@ -206,6 +206,7 @@ with sync_playwright() as p:
         # tyre pressure alert
         pg.evaluate("switchTab('settings'); switchSettingsSubTab('notifs')")
         pg.wait_for_timeout(700)
+        pg.evaluate("document.querySelector('[data-key=\"notif-events\"]').open = true")   # Ajustes sections start folded
         ok(pg.locator("#notifEvtTyres").count() == 1 and pg.locator("#notifTyreTol").count() == 1 and pg.locator("#notifEvtRenewals").count() == 1, f"{tag}: pressure (with its margin) and due dates are in Avisos")
         pg.fill("#notifTyreTol", "15")
         pg.click("text=Guardar Ajustes de Notificaciones")

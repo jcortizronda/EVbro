@@ -37,6 +37,12 @@ APP_VERSION = "1.0.11"
 _ERROR_SNIPPET_LEN = 150
 
 
+class LoginUnavailable(ConnectionError):
+    """The login server did not give an answer about the credentials: a 5xx, a 429 or a page that is not JSON (a gateway's
+    error page). It is a network failure, never a refused password: taking it for one marked the account's session as lost
+    until the manager connected it again, and burned a refresh_token that was still good."""
+
+
 def aes_encrypt_password(plaintext: str) -> str:
     """Replicate EncryptUtils.aesEncrypt: AES-CBC/PKCS7(key=IV=_PWD_KEY) → base64."""
     c = AES.new(_PWD_KEY, AES.MODE_CBC, _PWD_KEY)
@@ -85,17 +91,20 @@ def _oauth_post(params: dict, *, body: dict | None = None, area_code: str, host:
     try:
         j = r.json()
     except Exception:
-        return False, f"HTTP {r.status_code}: {r.text[:_ERROR_SNIPPET_LEN]}"
-    tok = _extract(j)
+        j = None
+    tok = _extract(j) if isinstance(j, dict) else None
     if tok:
         return True, tok
+    if not isinstance(j, dict) or r.status_code >= 500 or r.status_code == 429:
+        raise LoginUnavailable(f"HTTP {r.status_code}: {r.text[:_ERROR_SNIPPET_LEN]}")
     return False, f"HTTP {r.status_code}: {j.get('msg') or j.get(error_key) or j}"
 
 
 def password_login(mobile: str, password: str, area_code: str = "34",
                    host: str = LOGIN_HOST) -> tuple[bool, dict | str]:
     """Phone+password login. `mobile` = the number only; `area_code` e.g. "34" (Spain).
-    Returns (True, {access_token, refresh_token,...}) or (False, message)."""
+    Returns (True, {access_token, refresh_token,...}) or (False, message); raises `LoginUnavailable` (or a network error)
+    when the server did not answer about the credentials."""
     return _oauth_post(
         {"username": f"{area_code}_{mobile}", "grant_type": "password", "scope": "server"},
         body={"password": aes_encrypt_password(password)},

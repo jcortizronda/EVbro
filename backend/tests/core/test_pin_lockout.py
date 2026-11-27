@@ -9,7 +9,7 @@ from __future__ import annotations
 from freezegun.api import FrozenDateTimeFactory
 import pytest
 
-from app.core.pin_lockout import PinLockedError, PinLockout
+from app.core.pin_lockout import PinLockedError, PinLockout, PinRejectedError
 
 
 def _falla(lockout: PinLockout) -> None:
@@ -118,14 +118,49 @@ def test_window_restarts_with_the_next_failure(
     freezer.tick(601)  # the window expires → retrying is allowed
     assert lockout.is_locked() is False
 
-    _falla(lockout)  # fails again: locks again, with the clock restarted
+    _falla(lockout)  # fails again: locks again, with the clock restarted and a window twice as long
     assert lockout.is_locked() is True
 
     freezer.tick(599)
     assert lockout.is_locked() is True  # 1200 s since the first, only 599 since the last
 
     freezer.tick(2)
+    assert lockout.is_locked() is True  # 601 s: the second lock lasts 1200 s
+
+    freezer.tick(600)
     assert lockout.is_locked() is False
+
+
+def test_each_failure_past_the_threshold_doubles_the_window_up_to_a_day(freezer: FrozenDateTimeFactory) -> None:
+    """A fixed 10-minute window let anything that kept asking (the automatic actions) try a wrong PIN every 10 minutes forever."""
+    lockout = PinLockout(max_failures=2, window_s=600)
+    windows = []
+    for _ in range(12):
+        _falla(lockout)
+        windows.append(lockout.current_window_s())
+        freezer.tick(lockout.current_window_s() + 1)
+    assert windows[:6] == [600, 600, 1200, 2400, 4800, 9600]
+    assert windows[-1] == 86400
+    lockout.reset()
+    assert lockout.current_window_s() == 600
+
+
+def test_a_rejected_pin_is_not_tried_again_until_the_pin_is_configured_again() -> None:
+    lockout = PinLockout(max_failures=5, window_s=600)
+    with lockout.attempt("111111") as attempt:
+        attempt.record_failure()
+    assert lockout.was_rejected("111111") and not lockout.is_locked()
+    with pytest.raises(PinRejectedError), lockout.attempt("111111"):
+        pytest.fail("the backend must not be contacted")
+    # another PIN may still be tried; when it is accepted, it is not the rejected one that clears
+    with lockout.attempt("222222") as attempt:
+        attempt.success()
+    assert lockout.was_rejected("111111") and not lockout.was_rejected("222222")
+    # configuring the PIN again is the remedy
+    lockout.reset()
+    with lockout.attempt("111111") as attempt:
+        attempt.success()
+    assert not lockout.was_rejected("111111")
 
 
 def test_reset_unlocks_immediately() -> None:

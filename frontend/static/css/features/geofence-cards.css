@@ -47,9 +47,11 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;            /* gives way to the badge: «PONTO DE CARREGAMENTO» pushed the card 2 px out at 360 px */
 }
 
 .geofence-card-name {
+  overflow-wrap: break-word;   /* only a word longer than the line is cut */
   font-size: 1.05rem;
   font-weight: 750;
   color: var(--text-primary);
@@ -72,10 +74,12 @@
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 4px 10px;
+  letter-spacing: 0.02em;
+  padding: 4px 9px;
   border-radius: var(--radius-pill);
   flex-shrink: 0;
+  max-width: 46%;          /* a long label (Portuguese) goes to two lines instead of out of the card */
+  text-align: center;
 }
 
 .geofence-card-badge.charging {

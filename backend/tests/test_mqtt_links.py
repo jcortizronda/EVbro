@@ -146,6 +146,14 @@ async def test_each_car_is_published_only_on_its_owners_broker_and_commands_stay
     await asyncio.sleep(0.05)
     assert runs == [(VIN_A, "bloquear", "mqtt")]
     assert hub.status(2)["cars"] == [VIN_A] and hub.status(3)["connected"] is True
+    # a retained order is replayed by the broker on every reconnection: it never reaches the car; a live one does
+    topic = f"evbro/cars/{VIN_A}/cmd/cierre_centralizado"
+    hub._clients[2]._on_message(None, None, type("M", (), {"topic": topic, "payload": b"UNLOCK", "retain": True})())
+    await asyncio.sleep(0.05)
+    assert runs == [(VIN_A, "bloquear", "mqtt")]
+    hub._clients[2]._on_message(None, None, type("M", (), {"topic": topic, "payload": b"UNLOCK", "retain": False})())
+    await asyncio.sleep(0.05)
+    assert runs == [(VIN_A, "bloquear", "mqtt"), (VIN_A, "desbloquear", "mqtt")]
 
 
 def test_config_from_env_and_link_defaults() -> None:

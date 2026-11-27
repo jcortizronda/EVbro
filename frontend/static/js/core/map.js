@@ -92,7 +92,7 @@ function setMapExpanded(expanded, fromHistory = false) {
   if (close) close.hidden = !expanded;
   setMapInteractive(expanded);
   // The phone's «back» closes the expanded map instead of leaving the page
-  if (expanded) history.pushState({ ebroMap: true }, '');
+  if (expanded) { ensureLiveMapTiles(); history.pushState({ ebroMap: true }, ''); }
   else if (!fromHistory && history.state && history.state.ebroMap) history.back();
   setTimeout(() => {
     if (!liveMap) return;
@@ -100,6 +100,12 @@ function setMapExpanded(expanded, fromHistory = false) {
     if (vehicleLatLng && !mapUserMoved) liveMap.setView(vehicleLatLng, liveMap.getZoom(), { animate: false });
     updateMapButtons();
   }, 60);
+}
+
+let liveMapTiles = null;
+function ensureLiveMapTiles() {
+  if (!liveMap || liveMapTiles) return;
+  liveMapTiles = createStandardTileLayer().addTo(liveMap);
 }
 
 // Leaflet map initialisation
@@ -115,7 +121,9 @@ function initMap() {
   L.control.zoom({ position: 'topright' }).addTo(liveMap);
   L.control.attribution({ prefix: false, position: 'bottomleft' }).addTo(liveMap);
 
-  createStandardTileLayer().addTo(liveMap);
+  // The tiles wait for the car's position: added at once, the map downloaded Madrid (~330 KB) on every first visit before
+  // moving to the car. A car without a position gets the default view after a few seconds.
+  setTimeout(ensureLiveMapTiles, 4000);
 
   setMapInteractive(false);
   liveMap.on('click', () => { if (!mapExpanded) setMapExpanded(true); });
@@ -165,6 +173,7 @@ function placeVehicleMarker(latLng) {
 
   // Follow the car while the user has not moved the map (it used to re-centre on every reading)
   if (firstFix || !mapUserMoved) liveMap.setView(latLng, firstFix ? MAP_DEFAULT_ZOOM : liveMap.getZoom());
+  ensureLiveMapTiles();
   updateMapButtons();
 }
 

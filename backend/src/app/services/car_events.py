@@ -42,6 +42,7 @@ from app.config import get_data_dir, settings
 from app.core.wake import _bff_login
 from app.db.models import CommandAudit
 from app.db.session import async_session_factory
+from app.services.cloud_pool import CLOUD_EXECUTOR
 from app.timeutil import utcnow
 from app.vehicle import certificates
 from app.vehicle.constants import DEFAULT_AWAKE_WINDOW
@@ -165,7 +166,7 @@ class CarEventService:
         self.vin, ctx = target
         self._set("connecting")
         try:
-            await self._loop.run_in_executor(None, self._connect_blocking, ctx)
+            await self._loop.run_in_executor(CLOUD_EXECUTOR, self._connect_blocking, ctx)
         except _ServiceError as err:
             self._set(err.state, str(err))
             _LOGGER.warning("Car MQTT channel: %s", err, extra={"telemetry": False})     # network or the cloud's broker, not the code

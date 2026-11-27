@@ -1,5 +1,8 @@
-// EVbro Service Worker - v2.5.0
-const CACHE_NAME = 'evbro-cache-v1';
+// EVbro Service Worker - v2.6.0
+// The server writes the version of the scripts and sheets here (main.py, `ASSET_VERSION`): the same `?v=` the page uses. A deploy
+// changes it, so the browser installs this worker again, precaches the new files and drops the caches of older versions.
+const VERSION = '__ASSET_VERSION__';
+const CACHE_NAME = 'evbro-static-' + VERSION;
 // Last good copy of the API reads that paint the app, served with `X-EVbro-Offline` when there is no network (core/offline.js)
 const API_CACHE = 'evbro-api-v1';
 const OFFLINE_API = [/^\/api\/auth\/status$/, /^\/api\/account\/status$/, /^\/api\/vehicles(\/|$)/, /^\/api\/geofences(\/|$)/, /^\/api\/commands\/catalog$/, /^\/api\/version$/];
@@ -138,7 +141,6 @@ const STATIC_ASSETS = [
   '/static/icons/shortcut-trips.png',
   '/static/icons/favicon.svg',
   '/static/icons/ebro-logo.png',
-  'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap',
   '/static/vendor/leaflet/leaflet.css',
   '/static/vendor/leaflet/leaflet.js',
   '/static/vendor/leaflet/images/marker-icon.png',
@@ -146,12 +148,17 @@ const STATIC_ASSETS = [
   '/static/vendor/leaflet/images/marker-shadow.png'
 ];
 
+// Scripts and sheets go with `?v=`, exactly as the page asks for them: precached without it, they were 1 MB nobody ever used.
+function versioned(path) {
+  return /^\/static\/.*\.(css|js)$/.test(path) ? path + '?v=' + VERSION : path;
+}
+
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       console.log('[SW] Pre-caching static assets');
-      return cache.addAll(STATIC_ASSETS).catch((err) => {
+      return cache.addAll(STATIC_ASSETS.map(versioned)).catch((err) => {
         console.warn('[SW] Pre-cache warning:', err);
       });
     })
@@ -188,7 +195,13 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Network-First strategy: always fetch fresh from network, update cache, and fallback to cache if offline
+  // Our scripts and sheets of this version never change under that name: from the cache, and from the network only once.
+  if (url.origin === self.location.origin && url.pathname.startsWith('/static/') && url.searchParams.get('v') === VERSION) {
+    event.respondWith(cacheFirst(event.request));
+    return;
+  }
+
+  // The rest (the page, pictures, map tiles): network first, so a change shows at once; the cache only without network
   event.respondWith(
     fetch(event.request)
       .then((networkResponse) => {
@@ -204,6 +217,15 @@ self.addEventListener('fetch', (event) => {
       .catch(() => caches.match(event.request, event.request.mode === 'navigate' ? { ignoreSearch: true } : undefined))
   );
 });
+
+async function cacheFirst(request) {
+  const cache = await caches.open(CACHE_NAME);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+  const fresh = await fetch(request);
+  if (fresh && fresh.status === 200 && fresh.type === 'basic') cache.put(request, fresh.clone()).catch(() => {});
+  return fresh;
+}
 
 async function apiNetworkFirst(request) {
   try {

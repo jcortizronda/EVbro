@@ -25,6 +25,7 @@ from app.services.accounts import fetch_account_vehicles, vehicle_data_dir
 from app.services.car_events import CarEventHub
 from app.services.charge_detector import ChargeDetector, lacks_charge_data
 from app.services.charge_manager import ChargeManager
+from app.services.cloud_pool import CLOUD_EXECUTOR
 from app.services.ebro_sessions import account_session_path, seed_account_session
 from app.services.mqtt_hub import MqttHub
 from app.services.mqtt_publisher import MqttPublisher
@@ -104,6 +105,9 @@ class VehiclePoller(SessionMixin, CommandsMixin, AlertsMixin, PositionWatchMixin
 
     # Latest in-memory snapshot per VIN for instant answers
     _latest_snapshots: Dict[str, Dict] = {}
+    # The alarm as last read from the cloud, per car: (monotonic time, 0/1). Every open page asks for it every few minutes; one
+    # answer serves them all for `ALARM_CACHE_S`, and an alarm order drops it (`poller_commands`).
+    _alarm_cache: Dict[str, tuple] = {}
     # Timestamp of the last poll made
     _last_poll_times: Dict[str, datetime.datetime] = {}
 
@@ -195,11 +199,15 @@ class VehiclePoller(SessionMixin, CommandsMixin, AlertsMixin, PositionWatchMixin
         one worthless: two at once and one of them gets `A00000` «token caducado». Seen on 21/22-11-2026: the read that follows
         an order came back empty while the charge manager asked for the plan (seven times in two days), and an order sent
         seconds after another was refused. Held only around the talk with the cloud, never around what is done with the answer."""
+        return self.session_cloud_lock(getattr(self._get_or_create_ctx(vin), "token_path", None) or vin)
+
+    def session_cloud_lock(self, session_path: str) -> asyncio.Lock:
+        """`cloud_lock` by the account's session file, for the conversations that belong to the account and not to one car
+        (changing its password, the SMS resets, listing its cars)."""
         locks = self._cloud_locks.setdefault(asyncio.get_running_loop(), {})
-        key = getattr(self._get_or_create_ctx(vin), "token_path", None) or vin
-        if key not in locks:
-            locks[key] = asyncio.Lock()
-        return locks[key]
+        if session_path not in locks:
+            locks[session_path] = asyncio.Lock()
+        return locks[session_path]
 
     def hold_poll_seconds(self, vin: str) -> int:
         """How often a car paused at its charge target is read: seldom when its live channel would tell of the cable anyway."""
@@ -259,7 +267,8 @@ class VehiclePoller(SessionMixin, CommandsMixin, AlertsMixin, PositionWatchMixin
                 bff=settings.EBRO_BFF_HOST,
                 channel_id=settings.EBRO_CHANNEL_ID,
                 token_path=os.path.join(data_dir, "token.json"),
-                taskid_file=os.path.join(data_dir, "taskid.txt"),
+                # EVbro never takes a taskId from a file: one copied there would skip Chery's check of a typed PIN
+                taskid_file=os.devnull,
             )
             self._contexts[vin] = ctx
         return self._contexts[vin]
@@ -381,13 +390,14 @@ class VehiclePoller(SessionMixin, CommandsMixin, AlertsMixin, PositionWatchMixin
             await loop.run_in_executor(None, seed_account_session, account.id, copies, account.token_data, account.last_login)
             if os.path.exists(session_path) and not self.session_lost(account.id, account.last_login):
                 try:
-                    v_list = await loop.run_in_executor(None, fetch_account_vehicles, None, skip, session_path)
+                    async with self.session_cloud_lock(session_path):
+                        v_list = await loop.run_in_executor(CLOUD_EXECUTOR, fetch_account_vehicles, None, skip, session_path)
                 except Exception as e:                        # noqa: BLE001 — a dead session: the password decides below
                     _LOGGER.info("The stored Ebro session of user %s could not list the cars (%s): logging in again", acc_user_id, type(e).__name__)
                     v_list = None
         if v_list is None:
             try:
-                token_data = await loop.run_in_executor(None, _do_login)
+                token_data = await loop.run_in_executor(CLOUD_EXECUTOR, _do_login)
             except RuntimeError as e:
                 # The cloud answered and said no: a manager's wrong or changed password, not a failure of EVbro
                 who = f"of user {acc_user_id}" if acc_user_id is not None else "of the environment"
@@ -412,7 +422,8 @@ class VehiclePoller(SessionMixin, CommandsMixin, AlertsMixin, PositionWatchMixin
                 return []
 
             try:
-                v_list = await loop.run_in_executor(None, fetch_account_vehicles, token_data, skip, session_path)
+                async with self.session_cloud_lock(session_path):
+                    v_list = await loop.run_in_executor(CLOUD_EXECUTOR, fetch_account_vehicles, token_data, skip, session_path)
             except Exception as e:                            # noqa: BLE001
                 _LOGGER.error(f"Error fetching the vehicle list: {e}")
                 v_list = []
@@ -474,6 +485,9 @@ class VehiclePoller(SessionMixin, CommandsMixin, AlertsMixin, PositionWatchMixin
                     existing.name = nickname
                     existing.model = model
                     existing.car_token = car_tok
+                    # The manager's own car brought in without an account (an imported file, or typed by hand) is now proved by
+                    # this account: it becomes a connected car. It used to stay «sin cuenta de Ebro» and was never read (26-11-2026).
+                    existing.is_manual = False
                     await session.commit()
                     discovered.append(existing)
 
@@ -523,7 +537,7 @@ class VehiclePoller(SessionMixin, CommandsMixin, AlertsMixin, PositionWatchMixin
 
         try:
             async with self.cloud_lock(vin):
-                res, raw_data = await loop.run_in_executor(None, _probe)
+                res, raw_data = await loop.run_in_executor(CLOUD_EXECUTOR, _probe)
         except Exception as e:
             usage_reports.count_poll("error")
             cloud_usage.count(cloud_usage.READ_FAILED)
@@ -822,6 +836,9 @@ class VehiclePoller(SessionMixin, CommandsMixin, AlertsMixin, PositionWatchMixin
                         _LOGGER.info(
                             f"Adaptive poll for {vin}: state '{current_state}', interval {interval}s"
                         )
+                        due.append(vin)
+                    elif current_state != "charging" and ChargeManager.get_instance().schedule_read_due(vin, last_poll, now):
+                        _LOGGER.info("Poll for %s: its charge schedule has just opened", vin[-6:])
                         due.append(vin)
 
                 # Due cars are polled together (at most POLL_CONCURRENCY): a slow one does not delay the rest.

@@ -4,6 +4,9 @@
 
 let chargesPage = { offset: 0, months: {}, lastMonth: null, gen: 0 };
 
+// The charts write with the page's own font (reset.css): the app no longer loads Outfit from Google Fonts.
+const CHART_FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+
 const CHARGE_MODE_LABEL = { pvpc: 'PVPC', time_of_use: '2.0TD', manual: 'Manual', free: 'Gratis' };
 
 let chargesPicker = null;
@@ -386,7 +389,7 @@ function renderChargeTemporalChart(points, meta) {
   if (!points || points.length === 0) {
     ctx.clearRect(0, 0, width, height);
     ctx.fillStyle = textColor;
-    ctx.font = '500 13px Outfit, sans-serif';
+    ctx.font = '500 13px ' + CHART_FONT;
     ctx.textAlign = 'center';
     ctx.fillText('Sin datos de telemetría registrados para esta recarga', width / 2, height / 2);
     return;
@@ -434,7 +437,7 @@ function renderChargeTemporalChart(points, meta) {
     ctx.lineWidth = 1;
     ctx.strokeStyle = gridColor;
     ctx.fillStyle = textColor;
-    ctx.font = '11px Outfit, sans-serif';
+    ctx.font = '11px ' + CHART_FONT;
     ctx.textAlign = 'right';
 
     for (let pct = 0; pct <= 100; pct += 25) {
@@ -662,7 +665,7 @@ function renderChargingCurveChart(points) {
   if (!points || points.length === 0) {
     ctx.clearRect(0, 0, width, height);
     ctx.fillStyle = textColor;
-    ctx.font = '500 13px Outfit, sans-serif';
+    ctx.font = '500 13px ' + CHART_FONT;
     ctx.textAlign = 'center';
     ctx.fillText('Sin datos de curva de potencia para esta sesión', width / 2, height / 2);
     return;
@@ -690,7 +693,7 @@ function renderChargingCurveChart(points) {
     ctx.lineWidth = 1;
     ctx.strokeStyle = gridColor;
     ctx.fillStyle = textColor;
-    ctx.font = '11px Outfit, sans-serif';
+    ctx.font = '11px ' + CHART_FONT;
     ctx.textAlign = 'right';
 
     for (let i = 0; i <= 4; i++) {

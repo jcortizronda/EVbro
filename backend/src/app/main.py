@@ -10,9 +10,10 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.middleware.gzip import DEFAULT_EXCLUDED_CONTENT_TYPES, GZipMiddleware
 
 from app import __version__, i18n
 from app.admin_app import AdminConsole
@@ -36,6 +37,9 @@ logging.basicConfig(
     format=LOG_FORMAT,
 )
 _LOGGER = logging.getLogger("app")
+# urllib3 writes every request line at DEBUG, query string included: the Ebro login sends the account's phone and the refresh token
+# there (core/ebro_login.py). DEBUG is for EVbro's own messages, never for those.
+logging.getLogger("urllib3").setLevel(logging.INFO)
 
 
 @asynccontextmanager
@@ -102,13 +106,14 @@ MAX_JSON_BODY_BYTES = 1024 * 1024
 # Content Security Policy of the web app. **No inline script at all**: handlers are declared with `data-on-*` attributes
 # (`core/actions.js`) and the theme bootstrap is a file, so a text that slipped into the HTML can never run. No inline styles either:
 # the `style=` attributes became classes (`utilities.css`) and the dynamic ones go through `data-css` (CSSOM). The page cannot load code
-# from, send data to or be framed by anybody but ourselves and the few hosts listed (OpenStreetMap tiles, Google Fonts). **Scripts are only our own**: Leaflet is served from `static/vendor/` (a CDN that publishes anybody's packages would turn any slip in escaping into code). `connect-src` is completed per request with the WebSocket origin (older browsers do not
+# from, send data to or be framed by anybody but ourselves and the map tiles' hosts (Google Fonts went on 27-11-2026: the app uses
+# the system's font). **Scripts are only our own**: Leaflet is served from `static/vendor/` (a CDN that publishes anybody's packages would turn any slip in escaping into code). `connect-src` is completed per request with the WebSocket origin (older browsers do not
 # count `ws(s):` as `'self'`).
 _PAGE_CSP = (
     "default-src 'self'; "
     "script-src 'self'; "
-    "style-src 'self' https://fonts.googleapis.com; "
-    "font-src 'self' https://fonts.gstatic.com; "
+    "style-src 'self'; "
+    "font-src 'self'; "
     "img-src 'self' data: blob: {tile_origins}; "
     "connect-src 'self' {ws_origin}; "
     "worker-src 'self'; manifest-src 'self'; frame-src 'self'; "
@@ -159,6 +164,11 @@ async def security_headers(request: Request, call_next):
     response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
     if request.url.path.startswith("/api/") and "no-store" not in response.headers.get("Cache-Control", ""):
         response.headers["Cache-Control"] = "no-store"        # uploaded files already say `private, no-store`
+    elif request.url.path.startswith("/static/") and request.query_params.get("v") == ASSET_VERSION and response.status_code == 200:
+        # The scripts and sheets the page names with `?v=` change name when their content changes: they can be kept for good.
+        # Without this the browser asked again for each of them (about 190) on every opening. Only the current version: an old
+        # page asking for an old `v` gets today's file, which must not be kept under that name.
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
     elif request.url.path.startswith("/static/images/"):
         # The style sheets name these pictures without the `?v=` the scripts and sheets carry, and with no header a browser
         # keeps a picture for days on its own guess (a tenth of its age): a replaced banner kept showing the old one. `no-cache`
@@ -167,6 +177,26 @@ async def security_headers(request: Request, call_next):
     if request.url.scheme == "https":
         response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
     return response
+
+# Compression of what is text (the page, scripts, sheets, JSON): production sent everything as it is (1.8 MB on a first visit,
+# 0.8 MB compressed). Pictures, fonts and PDF are compressed already. The sign-in routes are left alone: their answers may carry a
+# token or an invitation link, and a compressed answer that also echoes what the client sent can leak it through its size (BREACH).
+class _Compression:
+    _SKIP = ("/api/auth", "/api/passkeys", "/api/members")      # sign-in, passkeys, invitation links
+
+    def __init__(self, app_) -> None:
+        self.app = app_
+        self.gzip = GZipMiddleware(app_, minimum_size=1024, compresslevel=6,
+                                   exclude_content_types=(*DEFAULT_EXCLUDED_CONTENT_TYPES, "application/pdf"))
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] == "http" and not scope.get("path", "").startswith(self._SKIP):
+            await self.gzip(scope, receive, send)
+        else:
+            await self.app(scope, receive, send)
+
+
+app.add_middleware(_Compression)
 
 # Static routes and HTML templates
 FRONTEND_DIR = frontend_dir()
@@ -185,13 +215,15 @@ def _asset_version() -> str:
     digest = hashlib.sha1()
     root = Path(FRONTEND_DIR)
     for path in sorted([*root.joinpath("static", "js").rglob("*.js"), *root.joinpath("static", "css").rglob("*.css"),
-                        root / "templates" / "index.html"]):
+                        *root.joinpath("static", "vendor").rglob("*.js"), *root.joinpath("static", "vendor").rglob("*.css"),
+                        root / "static" / "sw.js", root / "templates" / "index.html"]):
         digest.update(path.relative_to(root).as_posix().encode())
         digest.update(path.read_bytes())
     return digest.hexdigest()[:10]
 
 
-templates.env.globals["asset_version"] = _asset_version()
+ASSET_VERSION = _asset_version()
+templates.env.globals["asset_version"] = ASSET_VERSION
 
 # Mount the REST API and WebSockets
 app.include_router(api_router)
@@ -202,13 +234,20 @@ async def serve_dashboard(request: Request):
     """Serves the main web dashboard without persistent caching so changes show up immediately.
     The page goes out in the language of the request (cookie of the account or the browser's) with its web dictionary inlined."""
     lang = i18n.get_language()
-    return templates.TemplateResponse(
+    page = templates.TemplateResponse(
         request=request,
         name="index.html",
         context={"lang": lang, "i18n_json": i18n.page_dictionary_json(lang), "map_tiles": settings.MAP_TILE_URL.strip(),
                  "map_tiles_fallback": settings.MAP_TILE_FALLBACK_URL.strip(), "map_attribution": settings.MAP_ATTRIBUTION.strip()},
-        headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0", "Vary": "Cookie, Accept-Language"}
     )
+    # `no-cache` + ETag instead of `no-store`: the browser still asks every time (a deploy shows at once), but an unchanged page
+    # is a 304 of a few bytes instead of the whole page (283 KB, its dictionary inside). It holds nothing of the user.
+    etag = '"' + hashlib.sha1(page.body).hexdigest()[:20] + '"'
+    headers = {"Cache-Control": "no-cache", "ETag": etag, "Vary": "Cookie, Accept-Language"}
+    if etag in [t.strip() for t in request.headers.get("if-none-match", "").split(",")]:
+        return Response(status_code=304, headers=headers)
+    page.headers.update(headers)
+    return page
 
 
 @app.get("/manifest.json")
@@ -221,12 +260,18 @@ async def get_manifest():
 @app.get("/sw.js")
 async def get_service_worker():
     """Serves the Service Worker for offline support and PWA install."""
-    sw_path = os.path.join(STATIC_DIR, "sw.js")
-    return FileResponse(
-        sw_path,
+    # It carries the version of the files (`ASSET_VERSION`): it precaches exactly what the page asks for, keeps one cache per
+    # version, and a deploy changes its bytes, which is what makes the browser install the new one and drop the old cache.
+    return Response(
+        _service_worker_source(),
         media_type="application/javascript",
         headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"}
     )
+
+
+def _service_worker_source() -> str:
+    with open(os.path.join(STATIC_DIR, "sw.js"), encoding="utf-8") as fh:
+        return fh.read().replace("__ASSET_VERSION__", ASSET_VERSION)
 
 
 @app.get("/favicon.ico")

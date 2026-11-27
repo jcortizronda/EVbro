@@ -298,6 +298,26 @@ async def test_a_car_without_ebro_account_gives_its_vin_to_the_account_that_prov
         assert audit.target == NEW1 and moved.vin in audit.detail
 
 
+
+async def test_the_managers_own_car_without_account_becomes_connected_when_its_ebro_account_lists_it(world, ebro) -> None:
+    """An account imported from a file brings its own car as «sin cuenta de Ebro». Connecting the Ebro account that has it used
+    to refresh its name and leave it unconnected for good (never read). Now it becomes a connected car, keeping what it had."""
+    from app.db.models import Expense
+
+    async with async_session_factory() as s:
+        s.add(Vehicle(owner_id=2, vin=NEW1, name="Mi coche importado", is_manual=True, license_plate="0000YYY"))
+        await s.flush()
+        s.add(Expense(vin=NEW1, category="other", title="Lavado", amount=9.0, date=__import__("datetime").date(2026, 1, 3)))
+        await s.commit()
+        acc = (await s.execute(select(EbroAccount).where(EbroAccount.user_id == 2))).scalar_one()
+    ebro["cars"] = [VIN_A, NEW1]
+    await VehiclePoller.get_instance().discover_vehicles(account=acc)
+    async with async_session_factory() as s:
+        car = (await s.execute(select(Vehicle).where(Vehicle.vin == NEW1))).scalar_one()
+        assert (car.owner_id, car.is_manual, car.name, car.license_plate) == (2, False, "Nuevo 01", "0000YYY")
+        assert (await s.execute(select(Expense.vin).where(Expense.title == "Lavado"))).scalar_one() == NEW1   # its history stays with it
+        assert (await s.execute(select(Vehicle).where(Vehicle.owner_id == 2))).scalars().all().__len__() == 2  # no second copy
+
 async def test_the_login_route_also_frees_a_claimed_vin_but_not_beyond_the_vehicle_limit(world, ebro) -> None:
     async with async_session_factory() as s:
         s.add(Vehicle(owner_id=3, vin=NEW1, name="Importado por Beto", is_manual=True))

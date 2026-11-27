@@ -133,7 +133,7 @@ with sync_playwright() as p:
         pg.wait_for_timeout(900)
         ok(pg.is_hidden("#maintModeSwitch") and pg.is_hidden("#maintOfficialView") and pg.is_visible("#maintCustomView"),
            f"{tag}: with another brand there is no switch and no official view")
-        ok(pg.is_visible("#maintItvCard") and "propias tareas" in txt("#maintIntro"), f"{tag}: the ITV stays and the text speaks of the custom plan")
+        ok(pg.is_visible("#maintItvCard") and "personalizado" in txt("#maintIntro"), f"{tag}: the ITV stays and the text speaks of the custom plan")
         st = pg.evaluate(f"""fetch('/api/vehicles/{vin}/maintenance/plan', {{method: 'PUT', headers: {{'Content-Type': 'application/json'}},
           body: JSON.stringify({{mode: 'official'}})}}).then(r => r.status)""")
         ok(st == 409, f"{tag}: the server does not allow switching to official with another brand ({st})")

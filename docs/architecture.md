@@ -30,7 +30,7 @@ Capas del backend: `core/` (protocolo Ebro) → `vehicle/` (canal MQTT del coche
               ┌───────────────┴────────────────────────┴───────────────┐
               │                  core/ (protocolo)                     │
               │  login AES · firma BFF · firma TSP · SM4 · taskId      │
-              │  PinLockout (anti-bloqueo del PIN, por vehículo)       │
+              │  PinLockout (anti-bloqueo del PIN, por cuenta)         │
               └───────────────────────▲────────────────────────────────┘
                                       │
               ┌───────────────────────┴────────────────────────────────┐
@@ -78,7 +78,7 @@ Capas del backend: `core/` (protocolo Ebro) → `vehicle/` (canal MQTT del coche
 2. **Volumen `/app/data`** (`DATA_DIR`, volumen Docker `evbro_data`, distinto del de PostgreSQL):
    - `accounts/<id>/token.json`: la sesión OAuth de cada cuenta Ebro conectada (0600), la que leen y renuevan todos sus coches (`services/ebro_sessions.py`).
    - `<vin>/token.json`: la sesión de un coche cuyo gestor no tiene cuenta conectada, como la cuenta del `.env` (0600). Antes del 09-11-2026, la copia de cada coche.
-   - `<vin>/taskid.txt`: **solo lectura** y opcional (un taskId externo que el core usaría con prioridad). **Nada lo escribe.** El `taskId` en uso se cachea **en memoria** durante 600 s (`CoreCtx.taskid_ttl`).
+   - `taskid.txt`: **EVbro no lo usa** desde el 27-11-2026 (el core aún sabe leer un `taskId` externo de ese fichero; el poller le da `/dev/null`): uno copiado ahí se saltaría la comprobación del PIN. El `taskId` en uso se cachea **en memoria** durante 600 s (`CoreCtx.taskid_ttl`), solo para la cuenta y el PIN con que se generó.
    - `invoices/`: facturas subidas (PDF/imagen).
    - `vehicle_documents/`: documentos del coche (factura de compra, póliza, permiso de circulación…), con nombre aleatorio; ver [costs.md](costs.md), «Documentos del coche».
    - `certs/`: certificados mutual-TLS del MQTT del coche (0600; se generan desde `vehicle/certs/store.json`).

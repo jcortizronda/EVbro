@@ -20,6 +20,7 @@ from app.db.models import AppUser, CommandAudit, EbroAccount, Vehicle
 from app.db.session import async_session_factory
 from app.security.access import first_manager_id
 from app.services import command_policy
+from app.services.cloud_pool import CLOUD_EXECUTOR
 
 _LOGGER = logging.getLogger("app.services.poller")
 
@@ -50,7 +51,7 @@ class CommandsMixin:
         while True:
             try:
                 async with self.cloud_lock(vin):
-                    message = await loop.run_in_executor(None, lambda: commands.send(cmd_ctx, command_key, emit=lambda m: None, params=params))
+                    message = await loop.run_in_executor(CLOUD_EXECUTOR, lambda: commands.send(cmd_ctx, command_key, emit=lambda m: None, params=params))
                 return True, message, None, None
             except CommandError as e:
                 if e.retryable and busy_left > 0:
@@ -111,6 +112,8 @@ class CommandsMixin:
 
         # If the command succeeded, trigger a quick poll to refresh the state
         if success:
+            if command_key.startswith("alarma"):
+                self._alarm_cache.pop(vin, None)            # the next read asks the car again
             asyncio.create_task(self.poll_vehicle(vin, force=True))
 
         return {"success": success, "message": message, "reason": reason, "code": code, "retry_after": 0}
@@ -129,6 +132,8 @@ class CommandsMixin:
         await self._audit_command(vin, command_key, params, success, code or reason, message, origin)
         await self._remember_rejection(vin, command_key, success, code)
         if success:
+            if command_key.startswith("alarma"):
+                self._alarm_cache.pop(vin, None)            # the next read asks the car again
             asyncio.create_task(self.poll_vehicle(vin, force=True))
         return {"success": success, "message": message, "reason": reason, "code": code}
 

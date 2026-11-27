@@ -47,6 +47,9 @@ class _VehicleState:
     # command), but it is bound to the PIN and the VIN → it cannot be shared between vehicles.
     taskid: str | None = None
     taskid_ts: float = 0.0
+    # Who the cached taskId was minted for (fingerprint of the account's tUserId and the PIN): it is only reused for the
+    # same pair. Before, a taskId minted with one PIN or account could go out with an order meant for another.
+    taskid_owner: str = ""
     # cooldown of the SMS wake (real rate limit on the Chery side) and of the realtime probe
     last_sms_ts: float = 0.0
     last_probe_ts: float = 0.0
@@ -172,6 +175,7 @@ class CoreCtx:
         """Drop the cached taskId (the car rejected it or the PIN changed)."""
         self.state.taskid = None
         self.state.taskid_ts = 0.0
+        self.state.taskid_owner = ""
 
     def reset_pin_lockout(self) -> None:
         """Reset the lockout and the taskId: used when the user reconfigures the PIN."""

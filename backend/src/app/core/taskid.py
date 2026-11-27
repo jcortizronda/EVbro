@@ -26,7 +26,7 @@ import time
 from . import ebro_auth as A, routing, wake
 from .errors import CommandError
 from .http import bff_post
-from .pin_lockout import PinLockedError
+from .pin_lockout import PinLockedError, PinRejectedError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -133,8 +133,12 @@ def mint_with_pin(ctx, tuid, pin, scene=SCENE_COMMANDS):
     """Mint a taskId with a given PIN (the stored one, or one the user just typed: changing the PIN in the
     cloud proves the current PIN this way) for a given `scene`. Same wrong-PIN lockout as every command."""
     try:
-        with ctx.lockout.attempt() as attempt:
+        with ctx.lockout.attempt(pin) as attempt:
             return _checkpassword(ctx, tuid, attempt, pin, scene)
+    except PinRejectedError:
+        raise CommandError(
+            "Ebro ya rechazó este PIN de comandos y no se vuelve a probar — guarda el PIN correcto en los ajustes de la cuenta Ebro",
+            reason="pin") from None
     except PinLockedError as locked:
         raise CommandError(
             f"PIN de comandos bloqueado temporalmente ({locked.attempts} intentos erróneos) — "
@@ -222,6 +226,10 @@ def _checkpassword_message(outcome, detail: str) -> str:
         return (f"Comando rechazado por el servidor [checkPassword {detail}] — no es el PIN: "
                 "la cuenta no tiene permiso sobre este coche o la petición fue "
                 "rechazada. Reinténtalo más tarde; si persiste se necesitan los logs.")
+    if outcome.reason is None:
+        # No code, or a rejection of the car (busy…): the cloud said nothing about the PIN, so it is not blamed.
+        return (f"La nube de Ebro no dio permiso para la orden [checkPassword {detail}] — no parece cosa del PIN: "
+                "reinténtalo en unos minutos.")
     return (f"PIN de comandos rechazado por el servidor [checkPassword {detail}] — vuelve a "
             "configurarlo en los ajustes de la cuenta Ebro")
 
@@ -239,6 +247,18 @@ def _checkpassword_message(outcome, detail: str) -> str:
 # Codes with which the car says "this taskId is no good" → re-minted and retried once.
 # Derived from the single table, no longer a parallel list.
 TASKID_INVALID = routing.TASKID_INVALID
+
+
+def _owner(ctx, tuid) -> str:
+    """Fingerprint of the pair a taskId is minted for (the account's tUserId and the PIN). Never the PIN itself."""
+    return hashlib.sha256(f"{tuid}\0{ctx.pin or ''}".encode()).hexdigest()
+
+
+def remember_taskid(ctx, tuid, tid) -> None:
+    """Keep a minted taskId in the cache, bound to the account and the PIN it was minted with."""
+    ctx.state.taskid = tid
+    ctx.state.taskid_ts = time.time()
+    ctx.state.taskid_owner = _owner(ctx, tuid)
 
 
 def invalidate_taskid(ctx):
@@ -259,7 +279,8 @@ def get_taskid(ctx, tuid, emit=lambda m: None, force_mint=False):
                     return v, "file"
         except OSError:
             pass
-        if ctx.state.taskid and (time.time() - ctx.state.taskid_ts) < ctx.taskid_ttl:
+        if (ctx.state.taskid and (time.time() - ctx.state.taskid_ts) < ctx.taskid_ttl
+                and ctx.state.taskid_owner == _owner(ctx, tuid)):
             return ctx.state.taskid, "cache"
     if ctx.mint_taskid:
         emit("generando taskId (checkPassword)…")
@@ -270,13 +291,19 @@ def get_taskid(ctx, tuid, emit=lambda m: None, force_mint=False):
             # bubble up with its `reason` for remedy routing.
             emit(str(e))
             raise
+        except OSError as e:
+            # The network (or a gateway) failed: nothing was said about the PIN, so the person is not sent to change it
+            emit(f"checkPassword sin respuesta: {e}")
+            _LOGGER.warning("checkPassword unreachable for %s: %s", ctx.vin[-6:], e)
+            raise CommandError(
+                f"No se pudo comprobar el PIN con la nube de Ebro ({type(e).__name__}): reinténtalo en unos minutos.") from e
         except Exception as e:
             emit(f"checkPassword falló: {e}")
+            _LOGGER.warning("checkPassword failed for %s: %s", ctx.vin[-6:], e)
             raise CommandError(
                 "PIN de comandos no verificable — vuelve a configurarlo en los ajustes "
-                f"de la cuenta Ebro ({e})", reason="pin") from e
+                f"de la cuenta Ebro ({type(e).__name__})", reason="pin") from e
         if tid:
-            ctx.state.taskid = tid
-            ctx.state.taskid_ts = time.time()
+            remember_taskid(ctx, tuid, tid)
             return tid, "checkPassword"
     return None, "none"

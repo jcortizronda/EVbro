@@ -11,12 +11,12 @@ frontend/
     ├── css/{base,layout,components,features}/*.css   hojas por área, en el ORDEN de la cascada original
     ├── js/core/*.js                base: estado, navegación, telemetría, órdenes al coche, WebSocket, arranque
     ├── js/features/*.js            una función por fichero: viajes, mantenimiento, energía, geocercas, ajustes…
-    ├── sw.js · manifest.json       PWA (Service Worker network-first + Web Push)
+    ├── sw.js · manifest.json       PWA (Service Worker: caché por versión para js/css, network-first el resto; Web Push)
     └── icons/ · images/
 ```
 
 - **Scripts clásicos que comparten el ámbito global** (los `data-on-*` del HTML llaman a funciones globales). **El orden de `<script>`/`<link>` en `index.html` importa**: `core/auth.js` primero, `core/bootstrap.js` después de las funciones y `core/ui.js` + `features/comfort|charge-control|home|push.js` al final. Un test (`test_web_assets.py`) exige que todo fichero de `js/` y `css/` esté enlazado, precacheado en `sw.js` y no repetido.
-- **Versionado de assets:** `?v={{ asset_version }}` lo calcula el servidor (hash del contenido de js/css/html). No hay que subir números ni `CACHE_NAME` por cada cambio; **sí** hay que añadir el fichero nuevo a `index.html` y a `STATIC_ASSETS` de `sw.js`.
+- **Versionado de assets:** `?v={{ asset_version }}` lo calcula el servidor (hash del contenido de js/css, `vendor/`, `sw.js` y la plantilla). No hay que subir números ni `CACHE_NAME` por cada cambio (el servidor escribe la versión en `sw.js`, `__ASSET_VERSION__`); **sí** hay que añadir el fichero nuevo a `index.html` y a `STATIC_ASSETS` de `sw.js` (sin `?v=`: el service worker se lo añade). Un fichero nuevo de `vendor/` también lleva `?v=` en `index.html`.
 - **Añadir una función nueva:** crea `js/features/<nombre>.js` (o amplía uno existente), enlázalo en `index.html` antes de `core/bootstrap.js`, añádelo al precaché y, si lleva estilos, crea su hoja en `css/features/`.
 
 ## Páginas por widgets (Inicio, Carga y Confort)

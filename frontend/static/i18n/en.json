@@ -1604,6 +1604,7 @@
  "Cuenta desconectada.": "Account disconnected.",
  "El coche no aceptó la orden.": "The car did not accept the command.",
  "automático (verificación)": "automatic (check)",
+ "automático (cambio de hora)": "automatic (clock change)",
  "automático": "automatic",
  "OK ·": "OK ·",
  "Fallo ·": "Failed ·",
@@ -2707,5 +2708,6 @@
  "Aún no hay repostajes": "No fuel-ups yet",
  "1 repostaje": "1 fuel-up",
  "{p0} repostajes": "{p0} fuel-ups",
- "Ponerla en la ficha del coche": "Set it in the car sheet"
+ "Ponerla en la ficha del coche": "Set it in the car sheet",
+ "La nube de Ebro no ha confirmado la orden. Mira el estado del coche antes de repetirla: puede que se haya hecho o que no.": "The Ebro cloud has not confirmed the order. Check the car's status before repeating it: it may or may not have been carried out."
 }

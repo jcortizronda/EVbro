@@ -72,6 +72,19 @@ async def test_alarm_state(db, monkeypatch, returned, expected) -> None:
     assert r.status_code == 200 and r.json() == {"enabled": expected}
 
 
+async def test_one_alarm_reading_serves_every_page_for_a_while_and_an_alarm_order_drops_it(db, monkeypatch) -> None:
+    asked = []
+    monkeypatch.setattr(commands, "query_theft_switch", lambda ctx: asked.append(1) or 1)
+    VehiclePoller._contexts = {}
+    async with await _client(db) as c:
+        for _ in range(3):
+            assert (await c.get(f"/api/vehicles/{VIN}/alarm")).json() == {"enabled": True}
+        assert len(asked) == 1
+        VehiclePoller._alarm_cache.pop(VIN, None)            # what a successful alarm order does (poller_commands)
+        await c.get(f"/api/vehicles/{VIN}/alarm")
+    assert len(asked) == 2
+
+
 async def test_alarm_of_an_unknown_vehicle_gives_404_and_requires_a_session(db) -> None:
     async with await _client(db) as c:
         assert (await c.get("/api/vehicles/LSJA9999999999999/alarm")).status_code == 404

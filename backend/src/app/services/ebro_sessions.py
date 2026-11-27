@@ -8,7 +8,7 @@ vehículos» had to log in with the password again, and two cars read in paralle
 Now every car of a connected account reads and renews one file, `data/accounts/<id>/token.json`. The core already serialises a
 renewal with a lock and re-reads the file inside it (`core/wake.py`, `_refresh_token_detail`): whoever waited finds the token renewed
 and does not renew it again. That lock belonged to each car's context, so the contexts that share a file now share that lock too
-(`attach`). The core is not modified. A car whose manager has no account connected (the server's own `.env` account) keeps its own
+(`attach`), and the wrong-PIN lockout as well (since 27-11-2026: the PIN and Chery's lock belong to the account). The core is not modified. A car whose manager has no account connected (the server's own `.env` account) keeps its own
 file, as before.
 
 The copy in `ebro_accounts.token_data` is still written at every password login; it only seeds the file the first time.
@@ -24,10 +24,12 @@ import threading
 from typing import Dict, Iterable, Optional
 
 from app.config import get_data_dir
+from app.core.pin_lockout import PinLockout
 
 _LOGGER = logging.getLogger("app.services.ebro_sessions")
 
 _locks: Dict[str, threading.Lock] = {}
+_pin_lockouts: Dict[str, PinLockout] = {}
 _locks_guard = threading.Lock()
 
 
@@ -54,12 +56,23 @@ def session_lock(path: str) -> threading.Lock:
         return lock
 
 
+def session_pin_lockout(path: str) -> PinLockout:
+    """The wrong-PIN lockout of the account kept in `path`: one per account, shared by all its cars. The PIN belongs to the
+    account, and so does Chery's lock: with one counter per car, each car of the account spent its own tries."""
+    with _locks_guard:
+        lockout = _pin_lockouts.get(path)
+        if lockout is None:
+            lockout = _pin_lockouts[path] = PinLockout()
+        return lockout
+
+
 def attach(ctx, path: str) -> bool:
     """Points a car's context at the session file `path`, with the renewal lock all the contexts of that file share. Returns
     whether the file changed."""
     changed = ctx.token_path != path
     ctx.token_path = path
     ctx.state.token_lock = session_lock(path)
+    ctx.state.lockout = session_pin_lockout(path)
     return changed
 
 

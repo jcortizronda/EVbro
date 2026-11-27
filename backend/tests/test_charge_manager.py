@@ -440,3 +440,66 @@ async def test_a_pause_at_the_target_that_the_car_refuses_is_told_once_until_one
     manager.fake_clock.advance(hours=2)
     await manager.on_snapshot(VIN, reading(85))                               # accepted: the next failure will be told again
     assert (await manager.state(VIN))["status"] == "hold_target" and VIN not in manager._hold_failed_told
+
+
+async def test_a_car_without_an_ebro_session_reads_as_no_schedule_not_as_a_server_error(manager, monkeypatch) -> None:
+    """26-11-2026: Carga asked for the car's schedule of a car whose Ebro account was never connected (no session stored) and
+    the page got a 500. Like the alarm, it is «not read»: the plan still comes back, without the car's schedule."""
+    from app.core import commands
+
+    def no_session(ctx):
+        raise FileNotFoundError("token.json")
+
+    monkeypatch.setattr(commands, "query_charge_schedule", no_session)
+    manager._reader = manager._read_car_schedule
+    out = await manager.state(VIN, live=True)
+    assert out["car_schedule"] is None and out["car_pending"] is False and "target_pct" in out
+    assert await manager._car_matches(VIN) is True                                # nothing to conclude, nothing resent
+
+
+
+async def test_the_schedule_is_sent_again_when_the_clock_changes_and_only_once(manager) -> None:
+    """The car keeps the start in UTC: a 03:00 sent in summer would start at 02:00 after the change to winter time."""
+    manager.fake_clock.now = datetime.datetime(2026, 10, 24, 12, 0, tzinfo=UTC)      # summer time (UTC+2)
+    await manager.set_schedule(VIN, 3 * 60, 4 * 60)
+    assert manager.fake_car.plans[-1]["startTime"] == 60                               # 03:00 CEST = 01:00 UTC
+    manager._last_tick = 0.0
+    await manager.tick()
+    assert len(manager.fake_car.sent) == 1                                              # same offset: nothing to send
+
+    manager.fake_clock.now = datetime.datetime(2026, 10, 25, 12, 0, tzinfo=UTC)      # winter time (UTC+1)
+    manager._last_tick = 0.0
+    await manager.tick()
+    assert len(manager.fake_car.sent) == 2 and manager.fake_car.plans[-1]["startTime"] == 120   # 03:00 CET = 02:00 UTC
+    assert manager.fake_car.sent[-1][2] == "automático (cambio de hora)"
+    manager._last_tick = 0.0
+    await manager.tick()
+    assert len(manager.fake_car.sent) == 2                                              # once per change
+
+
+async def test_a_refused_resend_after_the_clock_change_is_not_retried_every_tick(manager) -> None:
+    manager.fake_clock.now = datetime.datetime(2026, 3, 28, 12, 0, tzinfo=UTC)       # winter
+    await manager.set_schedule(VIN, 3 * 60, 4 * 60)
+    manager.fake_car.response = {"success": False, "message": "PIN", "reason": "pin"}
+    manager.fake_clock.now = datetime.datetime(2026, 3, 29, 12, 0, tzinfo=UTC)       # summer
+    for _ in range(3):
+        manager._last_tick = 0.0
+        await manager.tick()
+    assert len(manager.fake_car.sent) == 2
+
+
+async def test_the_car_is_read_one_and_three_minutes_after_its_schedule_opens(manager) -> None:
+    """27-11-2026: the read the car's wake-up brought came at 02:00:05, before the car said it was charging; the next, 30 min later."""
+    manager.fake_clock.now = datetime.datetime(2026, 11, 26, 20, 0, tzinfo=UTC)
+    await manager.set_schedule(VIN, 2 * 60, 6 * 60)                                    # 02:00 local = 01:00 UTC in winter
+    at = lambda h, m, s=0: datetime.datetime(2026, 11, 27, h, m, s)                    # noqa: E731 — naive UTC, as the poller
+    woke = at(1, 0, 5)                                                                  # the read of the car's own wake-up
+    assert not manager.schedule_read_due(VIN, woke, at(0, 59, 50))                     # before it opens
+    assert not manager.schedule_read_due(VIN, woke, at(1, 0, 30))
+    assert manager.schedule_read_due(VIN, woke, at(1, 1, 0))                           # +60 s
+    assert not manager.schedule_read_due(VIN, at(1, 1, 1), at(1, 2, 0))                # done; the next at +180 s
+    assert manager.schedule_read_due(VIN, at(1, 1, 1), at(1, 3, 5))
+    assert not manager.schedule_read_due(VIN, at(1, 3, 6), at(1, 6, 0))
+    assert not manager.schedule_read_due(VIN, woke, at(1, 15, 0))                      # too late: the usual reads take over
+    await manager.clear_schedule(VIN)
+    assert not manager.schedule_read_due(VIN, woke, at(1, 1, 0))                       # no schedule, nothing extra

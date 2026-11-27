@@ -127,15 +127,31 @@ def test_password_login_wrong_credentials() -> None:
     assert "usuario o contraseña incorrectos" in detalle
 
 
-def test_password_login_non_json_response() -> None:
-    """A down gateway returns HTML: the parser exception must not propagate."""
-    resp = _respuesta(None, status=502, text="<html>Bad Gateway</html>")
+@pytest.mark.parametrize("status, payload, text", [
+    (502, None, "<html>Bad Gateway</html>"),        # a down gateway returns HTML
+    (200, None, "<html>maintenance</html>"),        # an error page with a 200
+    (500, {"msg": "Internal Server Error"}, ""),    # the server failed, it did not judge the password
+    (429, {"msg": "Too many requests"}, ""),
+])
+def test_a_login_server_failure_is_a_network_error_not_a_refused_password(status, payload, text) -> None:
+    """Taking it for a refusal marked the account's session as lost (and burned a good refresh_token)."""
+    resp = _respuesta(payload, status=status, text=text)
+
+    with patch.object(ebro_login.requests, "post", return_value=resp), pytest.raises(ebro_login.LoginUnavailable) as err:
+        ebro_login.password_login("600000000", "x")
+    assert isinstance(err.value, OSError) and str(err.value).startswith(f"HTTP {status}:")
+
+    with patch.object(ebro_login.requests, "post", return_value=resp), pytest.raises(ebro_login.LoginUnavailable):
+        ebro_login.refresh_token("RT1")
+
+
+def test_a_refused_password_is_still_a_refusal() -> None:
+    resp = _respuesta({"msg": "El nombre de usuario no existe o la contraseña es incorrecta"}, status=401)
 
     with patch.object(ebro_login.requests, "post", return_value=resp):
         ok, detalle = ebro_login.password_login("600000000", "x")
 
-    assert ok is False
-    assert detalle.startswith("HTTP 502:")
+    assert ok is False and detalle.startswith("HTTP 401:")
 
 
 def test_refresh_token_ok() -> None:

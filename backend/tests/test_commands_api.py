@@ -179,6 +179,14 @@ async def test_a_non_opening_command_does_not_ask_for_the_pin_and_uses_the_store
     assert {c["pin"] for c in send.calls} == {STORED_PIN}
 
 
+async def test_a_pin_typed_for_a_free_command_is_not_sent_unchecked(db, send) -> None:
+    """With a stored PIN, a typed one nobody asked for would reach Chery without the local check and spend the account's tries."""
+    client = await prepare(db)
+    async with client:
+        assert (await send_command(client, "bloquear", pin="0000")).status_code == 200
+    assert [c["pin"] for c in send.calls] == [STORED_PIN]
+
+
 # ───────────────────────── the typed PIN is not stored ─────────────────────────
 async def test_the_typed_pin_is_only_valid_for_that_send(db, send) -> None:
     client = await prepare(db, pin=None)                      # no stored PIN

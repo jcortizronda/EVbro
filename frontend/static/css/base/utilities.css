@@ -143,7 +143,7 @@
 .u-font-family-monospace_font-size-0p72rem_color-var-primary_overflow-wrap-anywhere:not(#u1):not(#u2):not(#u3) { font-family: monospace; font-size: 0.72rem; color: var(--primary); overflow-wrap: anywhere; }
 .u-font-family-monospace_font-size-0p72rem_color-var-primary_white-space-nowrap:not(#u1):not(#u2):not(#u3) { font-family: monospace; font-size: 0.72rem; color: var(--primary); white-space: nowrap; }
 .u-font-family-monospace_font-size-0p82rem_color-var-text-secondary:not(#u1):not(#u2):not(#u3) { font-family: monospace; font-size: 0.82rem; color: var(--text-secondary); }
-.u-font-family-outfit-sans-serif_min-width-170px:not(#u1):not(#u2):not(#u3) { font-family: Outfit, sans-serif; min-width: 170px; }
+.u-font-family-outfit-sans-serif_min-width-170px:not(#u1):not(#u2):not(#u3) { font-family: inherit; min-width: 170px; }
 .u-font-size-0p72rem_color-30d158_font-weight-600_display-block_margin-bottom-0p2rem:not(#u1):not(#u2):not(#u3) { font-size: 0.72rem; color: #30d158; font-weight: 600; display: block; margin-bottom: 0.2rem; }
 .u-font-size-0p72rem_color-ff453a_font-weight-600_display-block_margin-bottom-0p2rem:not(#u1):not(#u2):not(#u3) { font-size: 0.72rem; color: #ff453a; font-weight: 600; display: block; margin-bottom: 0.2rem; }
 .u-font-size-0p72rem_color-ffd60a_font-weight-600_display-block_margin-bottom-0p2rem:not(#u1):not(#u2):not(#u3) { font-size: 0.72rem; color: #ffd60a; font-weight: 600; display: block; margin-bottom: 0.2rem; }

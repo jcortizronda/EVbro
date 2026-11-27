@@ -44,6 +44,7 @@ from app.db.models import ChargePlan, Vehicle
 from app.db.session import async_session_factory
 from app.services import cloud_usage
 from app.services.charge_detector import grid_charging
+from app.services.cloud_pool import CLOUD_EXECUTOR
 from app.services.notification_service import NotificationService
 from app.vehicle import charging
 from app.vehicle.constants import DEFAULT_CHARGE_DURATION_MIN, DEFAULT_CHARGE_START_MIN, MINUTES_PER_DAY
@@ -52,6 +53,11 @@ _LOGGER = logging.getLogger("app.services.charge_manager")
 
 HYSTERESIS = 5            # points below the target before charging is allowed again
 MIN_AUTO_GAP_MIN = 10     # minimum gap between the manager's automatic actions
+# Reads at these seconds after the user's schedule opens: the read the car's own wake-up brings comes too early (27-11-2026:
+# 02:00:05, the car not yet charging and even reporting the cable out), and the next idle read came 30 min later. Two reads of the
+# cloud per scheduled charge (they do not wake the car); the owner's idea, 27-11-2026.
+SCHEDULE_OPEN_READS_S = (60, 180)
+SCHEDULE_OPEN_READS_WINDOW_S = 600
 TICK_EVERY_S = 300        # how often to check that the pause window is still «closed»
 TARGET_CHOICES = tuple(range(50, 101, 5))     # in steps of 5; the target is NOT sent to the car: EVbro watches it
 VERIFY_DELAY_S = 20        # wait before checking that the car applied the command
@@ -141,6 +147,7 @@ class ChargeManager:
         self._clock = clock
         self._locks: dict[str, asyncio.Lock] = {}
         self._holds: dict[str, Optional[str]] = {}   # why EVbro is holding each car's charge (None = it is not)
+        self._openings: dict[str, Optional[int]] = {}   # local minute the user's schedule opens, while it is the active plan
         self._last_auto: dict[str, datetime.datetime] = {}   # last AUTOMATIC action attempted (successful or not)
         self._hold_failed_told: set[str] = set()     # cars whose manager already heard that the pause at the target failed
         self._last_tick = 0.0
@@ -162,6 +169,24 @@ class ChargeManager:
 
     def _remember_hold(self, row: ChargePlan) -> None:
         self._holds[row.vin] = (row.hold_reason or HOLD_USER) if row.mode == MODE_HOLD else None
+        self._openings[row.vin] = row.sched_start_min if row.mode == MODE_SCHEDULED and row.sched_enabled else None
+
+    def schedule_read_due(self, vin: str, last_poll: Optional[datetime.datetime], now: datetime.datetime) -> bool:
+        """Is one of the reads after the opening of the car's schedule due? `last_poll` and `now` are naive UTC."""
+        start = self._openings.get(vin)
+        if start is None:
+            return False
+        tz = get_timezone()
+        local_now = now.replace(tzinfo=datetime.timezone.utc).astimezone(tz)
+        midnight = datetime.datetime.combine(local_now.date(), datetime.time(), tzinfo=tz)
+        opened = midnight + datetime.timedelta(minutes=start)
+        if opened > local_now:
+            opened -= datetime.timedelta(days=1)
+        opened_utc = opened.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+        if now >= opened_utc + datetime.timedelta(seconds=SCHEDULE_OPEN_READS_WINDOW_S):
+            return False
+        return any(opened_utc + datetime.timedelta(seconds=s) <= now and (last_poll is None or last_poll < opened_utc + datetime.timedelta(seconds=s))
+                   for s in SCHEDULE_OPEN_READS_S)
 
     def wants_fast_poll(self, vin: str) -> bool:
         """Paused at the target we must learn early that the car is plugged in (the parked poll runs every hour)."""
@@ -408,6 +433,8 @@ class ChargeManager:
         self._last_tick = time.monotonic()
         async with async_session_factory() as s:
             vins = [r.vin for r in (await s.execute(select(ChargePlan).where(ChargePlan.mode == MODE_HOLD))).scalars()]
+            shifted = [r.vin for r in (await s.execute(select(ChargePlan).where(ChargePlan.mode == MODE_SCHEDULED))).scalars()
+                       if self._clock_changed_since_sent(r)]
         for vin in vins:
             try:
                 await self._auto(vin, {})                    # no telemetry: only `refresh_hold` can come out
@@ -415,6 +442,31 @@ class ChargeManager:
                 _LOGGER.warning("Charge manager (%s): %s", vin, err.message, extra={"telemetry": err.reason not in ACCOUNT_REASONS})
             except Exception:                                # noqa: BLE001
                 _LOGGER.exception("Charge manager (%s): unexpected error", vin)
+        for vin in shifted:
+            try:
+                await self._resend_after_clock_change(vin)
+            except ChargeError as err:
+                _LOGGER.warning("Charge manager (%s): %s", vin, err.message, extra={"telemetry": err.reason not in ACCOUNT_REASONS})
+            except Exception:                                # noqa: BLE001
+                _LOGGER.exception("Charge manager (%s): unexpected error", vin)
+
+    def _clock_changed_since_sent(self, row: ChargePlan) -> bool:
+        """True when the local time has moved (summer ↔ winter) since the user's schedule was sent. The car keeps the start in
+        UTC, so a 03:00 sent in summer starts at 02:00 in winter; the schedule EVbro keeps is in local time and is sent again."""
+        if row.mode != MODE_SCHEDULED or row.last_action != "schedule" or row.last_action_at is None or row.sched_start_min is None:
+            return False
+        tz = get_timezone()
+        sent = row.last_action_at.replace(tzinfo=datetime.timezone.utc).astimezone(tz).utcoffset()
+        return sent != self._clock().astimezone(tz).utcoffset()
+
+    async def _resend_after_clock_change(self, vin: str) -> None:
+        """Sends the schedule again with the new offset: once per change (a failed send also stamps `last_action_at`)."""
+        async with self._lock(vin), async_session_factory() as s:
+            row = await s.get(ChargePlan, vin)
+            if row is None or not self._clock_changed_since_sent(row):
+                return
+            _LOGGER.info("Charge manager (%s): the clock changed (summer/winter time), sending the schedule again", vin)
+            await self._apply(s, row, "schedule", "automático (cambio de hora)")
 
     # ───────────────────────── query ─────────────────────────
     async def state(self, vin: str, live: bool = False) -> dict[str, Any]:
@@ -459,8 +511,14 @@ class ChargeManager:
         ctx = poller._get_or_create_ctx(vin)
         loop = asyncio.get_running_loop()
         cloud_usage.count(cloud_usage.QUERY)
-        async with poller.cloud_lock(vin):                   # one conversation with the cloud per account at a time
-            payload = await loop.run_in_executor(None, commands.query_charge_schedule, ctx)
+        try:
+            async with poller.cloud_lock(vin):               # one conversation with the cloud per account at a time
+                payload = await loop.run_in_executor(CLOUD_EXECUTOR, commands.query_charge_schedule, ctx)
+        except OSError as exc:
+            # No Ebro session stored for this car (its account was never connected) or no network: «not read», as every caller
+            # already takes None. It used to reach the page as a 500 on Carga (the demo car, 26-11-2026), like the alarm before it.
+            _LOGGER.info("Charge schedule of %s not read: %s", vin[-6:], type(exc).__name__)
+            return None
         sched = charging.parse_schedule(payload, get_timezone(), self._clock())
         if sched is None:
             return None

@@ -1604,6 +1604,7 @@
  "Cuenta desconectada.": "Conta desligada.",
  "El coche no aceptó la orden.": "O carro não aceitou o comando.",
  "automático (verificación)": "automático (verificação)",
+ "automático (cambio de hora)": "automático (mudança de hora)",
  "automático": "automático",
  "OK ·": "OK ·",
  "Fallo ·": "Falha ·",
@@ -2707,5 +2708,6 @@
  "Aún no hay repostajes": "Ainda não há abastecimentos",
  "1 repostaje": "1 abastecimento",
  "{p0} repostajes": "{p0} abastecimentos",
- "Ponerla en la ficha del coche": "Indicar na ficha do carro"
+ "Ponerla en la ficha del coche": "Indicar na ficha do carro",
+ "La nube de Ebro no ha confirmado la orden. Mira el estado del coche antes de repetirla: puede que se haya hecho o que no.": "A nuvem da Ebro não confirmou a ordem. Veja o estado do carro antes de a repetir: pode ter sido feita ou não."
 }

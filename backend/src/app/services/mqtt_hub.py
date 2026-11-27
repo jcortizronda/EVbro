@@ -154,6 +154,11 @@ class MqttLinkClient:
                 if payload.strip() == "online":
                     self.reannounce()
                 return
+            if getattr(msg, "retain", False):
+                # A retained command is an old order the broker replays on every (re)connection:
+                # a stored UNLOCK would open the car each time. Orders are only taken live.
+                _LOGGER.warning(f"Retained MQTT command ignored ({msg.topic})")
+                return
             self._on_command(msg.topic, payload)
         except Exception as ex:                                # noqa: BLE001 — the MQTT thread must survive
             _LOGGER.warning(f"MQTT command not processed ({msg.topic}): {ex}")

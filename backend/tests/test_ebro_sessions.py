@@ -75,6 +75,18 @@ def test_contexts_of_one_file_share_its_renewal_lock(data_dir) -> None:
     assert not attach(a, account_session_path(7))               # already there: nothing changes
 
 
+def test_the_cars_of_one_account_share_the_wrong_pin_lockout(data_dir) -> None:
+    """The PIN and Chery's lock belong to the account: with one counter per car, each car spent its own tries."""
+    a, b, c = CoreCtx(vin=CAR_A), CoreCtx(vin=CAR_B), CoreCtx(vin=CAR_C)
+    attach(a, account_session_path(17)), attach(b, account_session_path(17)), attach(c, account_session_path(18))
+    assert a.lockout is b.lockout and a.lockout is not c.lockout
+    with a.lockout.attempt("123456") as attempt:
+        attempt.record_failure()
+    assert b.lockout.was_rejected("123456") and not c.lockout.was_rejected("123456")
+    b.reset_pin_lockout()                                        # the PIN configured again from either car clears it for both
+    assert not a.lockout.was_rejected("123456")
+
+
 @pytest.mark.parametrize("shared", [True, False])
 def test_two_cars_renewing_at_once_renew_the_shared_session_only_once(tmp_path, monkeypatch, shared) -> None:
     """Both cars saw the same expired token. With the shared lock the second one re-reads the file inside it and finds it renewed;

@@ -22,6 +22,7 @@ from app.security.access import accessible_vehicles, within_vehicle_limit
 from app.services import energy_recalc, fuse_boxes, storage, uploads, vehicle_profiles
 from app.services.accounts import rename_car_in_ebro
 from app.services.car_events import CHANNEL_RUNNING, CarEventHub
+from app.services.cloud_pool import CLOUD_EXECUTOR
 from app.services.poller import LoginFailed, VehiclePoller, connected_owner_ids, pollable
 
 _LOGGER = logging.getLogger("app.api.vehicles")
@@ -277,7 +278,8 @@ async def rename_in_ebro(vin: str, payload: EbroNameIn, session: AsyncSession = 
     ctx = VehiclePoller.get_instance()._get_or_create_ctx(vehicle.vin)
     loop = asyncio.get_running_loop()
     try:
-        outcome = await loop.run_in_executor(None, rename_car_in_ebro, ctx, name)
+        async with VehiclePoller.get_instance().cloud_lock(vehicle.vin):     # one conversation with the cloud per account at a time
+            outcome = await loop.run_in_executor(CLOUD_EXECUTOR, rename_car_in_ebro, ctx, name)
     except RuntimeError as e:
         if str(e) != "no_usertoken":
             raise

@@ -119,7 +119,9 @@ def authorize(command_key: str, supplied_pin: str, stored_pin: str, vin: str = "
     key = pin_throttle_key(vin)
 
     if not requires_pin(command_key, policy):
-        return supplied or stored
+        # The stored PIN wins: a typed one nobody asked for would go to Chery unchecked, spending tries of the account's lock and
+        # marking the PIN as rejected for the automatic actions. Without a stored PIN, Chery checks the typed one.
+        return stored or supplied
 
     if not supplied:
         raise CommandRejected("pin_required", PIN_REQUIRED_MSG)

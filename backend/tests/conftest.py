@@ -107,3 +107,13 @@ async def db():
     shutil.copyfile(_TEMPLATE_FILE, _DB_FILE)
     yield engine
     await engine.dispose()
+
+
+@pytest.fixture(autouse=True)
+def _no_alarm_reading_from_another_test():
+    """The alarm reading is kept a couple of minutes per car (`ALARM_CACHE_S`): one test's car must not answer for the next one."""
+    from app.services.poller import VehiclePoller
+
+    VehiclePoller._alarm_cache.clear()
+    yield
+    VehiclePoller._alarm_cache.clear()

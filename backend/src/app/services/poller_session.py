@@ -19,6 +19,7 @@ from app.db.models import AppUser, EbroAccount, Vehicle
 from app.db.session import async_session_factory
 from app.services.accounts import ebro_language, vehicle_data_dir
 from app.services.car_events import CarEventHub
+from app.services.cloud_pool import CLOUD_EXECUTOR
 from app.services.ebro_sessions import account_session_path, attach, seed_account_session, store_session
 from app.services.notification_service import NotificationService
 from app.timeutil import utcnow
@@ -160,7 +161,7 @@ class SessionMixin:
 
         loop = asyncio.get_running_loop()
         try:
-            token_data = await loop.run_in_executor(None, lambda: ebro_login.login_with_password(phone, password, area))
+            token_data = await loop.run_in_executor(CLOUD_EXECUTOR, lambda: ebro_login.login_with_password(phone, password, area))
         except RuntimeError as exc:
             # The cloud answered and said no (wrong password, blocked account…): stop until the account is reconnected
             _LOGGER.warning("The Ebro cloud rejected the stored password of the account of user %s: %s", owner_id, without_secrets(str(exc)),

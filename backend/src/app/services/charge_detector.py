@@ -62,12 +62,17 @@ DEFAULT_CAPACITY_KWH = 19.27
 RESUME_MAX_AGE = datetime.timedelta(hours=3)
 # A pause with the cable plugged in shorter than this joins both halves into one session
 PAUSE_MERGE_MAX = datetime.timedelta(minutes=15)
-# A first reading this many points above the last one means the charge began while no read got through
-MISSED_START_MIN_POINTS = 2.0
+# A first reading this many points above the last one means the charge began while no read got through (one is enough: parked and
+# not charging, the battery does not go up; 27-11-2026, the owner: «que tome la batería menor»)
+MISSED_START_MIN_POINTS = 1.0
+# The read that falls when the schedule opens often comes a few seconds after the opening and still sees the car idle (it takes a
+# moment to start): an opening this long before that read still counts, and the charge then starts at that read.
+SCHEDULE_OPEN_GRACE = datetime.timedelta(minutes=10)
 
 
 def scheduled_start_between(plan: Optional[ChargePlan], after: datetime.datetime, before: datetime.datetime) -> Optional[datetime.datetime]:
-    """Last time the user's charge schedule opened between two naive UTC instants, if it is active and did."""
+    """When the charge began, if the user's charge schedule opened between two naive UTC instants (or up to
+    `SCHEDULE_OPEN_GRACE` before the first, which then is the answer: the car was still starting at that read)."""
     if plan is None or plan.mode != "scheduled" or not plan.sched_enabled or plan.sched_start_min is None:
         return None
     tz = get_timezone()
@@ -75,8 +80,8 @@ def scheduled_start_between(plan: Optional[ChargePlan], after: datetime.datetime
     for days_back in (0, 1):
         midnight = datetime.datetime.combine(local_day - datetime.timedelta(days=days_back), datetime.time(), tzinfo=tz)
         opened = (midnight + datetime.timedelta(minutes=plan.sched_start_min)).astimezone(datetime.timezone.utc).replace(tzinfo=None)
-        if after < opened <= before:
-            return opened
+        if after - SCHEDULE_OPEN_GRACE < opened <= before:
+            return max(opened, after)
     return None
 
 
@@ -87,9 +92,12 @@ class ChargeDetector:
 
     @classmethod
     async def _missed_start(cls, session: AsyncSession, vin: str, telemetry: Dict, now: datetime.datetime) -> Optional[Tuple[datetime.datetime, float, Optional[float]]]:
-        """Reads can fail for hours (05-11-2026: a charge begun at 20 % was first seen at 41 %). If the car was already plugged in at
-        its last reading, has not moved and the battery rose, the charge began in that gap: the time, battery and range it really
-        started with. The time is the schedule's when it opened in the gap; otherwise only the detection time is known."""
+        """Reads can fail for hours (05-11-2026: a charge begun at 20 % was first seen at 41 %), and with the car idle they come every
+        30 minutes. If the car has not moved since its last reading without charging and the battery rose, the charge began in that
+        gap: the time, battery and range it really started with. The time is the schedule's when it opened in the gap; otherwise
+        only the detection time is known. The cable at that reading does not matter: it may have been plugged in afterwards (the
+        battery it had then is the one it had when plugged in), and a car waking up as its schedule opens can report it unplugged
+        (27-11-2026, 02:00:05: «cable 0», charging at 02:30 from 78 % and recorded from 83 %)."""
         battery, odometer = telemetry.get("battery_level"), telemetry.get("odometer_km")
         if battery is None or odometer is None:
             return None
@@ -98,8 +106,7 @@ class ChargeDetector:
                                             TelemetrySnapshot.is_charging.is_(False))
             .order_by(TelemetrySnapshot.timestamp.desc()).limit(1)
         )).scalar_one_or_none()
-        if previous is None or not previous.cable_connected or previous.odometer_km != odometer \
-                or battery - previous.battery_level < MISSED_START_MIN_POINTS:
+        if previous is None or previous.odometer_km != odometer or battery - previous.battery_level < MISSED_START_MIN_POINTS:
             return None
         last_end = (await session.execute(select(func.max(ChargingSession.end_time)).where(ChargingSession.vin == vin))).scalar()
         if last_end is not None and last_end > previous.timestamp:

@@ -50,8 +50,10 @@ def test_the_s900_has_its_two_boxes_and_what_makes_it_a_plug_in_hybrid() -> None
     assert all("Ebro S900 real" in by_id[i]["doubt"] and "un solo coche" in by_id[i]["doubt"] for i in seen)
     assert [by_id[i]["kind"] for i in ("RSB11", "RF30", "RF43")] == ["empty"] * 3 and all(by_id[i]["amps"] is None for i in ("RSB11", "RF30", "RF43"))
     assert [(by_id[i]["amps"], by_id[i]["text"]) for i in ("RF07", "RF36")] == [(10, "Función sin confirmar")] * 2
-    # RF40: 10 A on the real car and the rear USB module in the Brazilian Tiggo 9 manual; shown plainly, as the owner asked
-    assert by_id["RF40"] == {"id": "RF40", "amps": 10, "kind": "fuse", "text": "Módulo de carga USB trasero", "doubt": None}
+    # RF40: 10 A on the real car and rear USB charging in the Brazilian Tiggo 9 manual, while the Chinese one gives rear USB to RF31:
+    # both are shown, each saying which manual it comes from (the owner's choice, 27-11-2026)
+    assert by_id["RF40"] == {"id": "RF40", "amps": 10, "kind": "fuse", "text": "Carga USB trasera (según el manual brasileño del Tiggo 9)", "doubt": None}
+    assert by_id["RF31"]["text"] == "Tomas USB traseras (según el manual chino)"
     assert "reserva de 20 A" in by_id["RF07"]["doubt"]
     assert by_id["EF12"]["amps"] is None and "10 A" in by_id["EF12"]["doubt"] and "20 A" in by_id["EF12"]["doubt"]
 

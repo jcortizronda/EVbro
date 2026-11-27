@@ -208,7 +208,7 @@ def test_every_script_is_served_by_evbro_and_leaflet_is_the_published_file() -> 
     assert not re.findall(r'<script[^>]+src="(?!/static/)', visible_html()), "a script from another host"
     sw = (WEB / "static" / "sw.js").read_text(encoding="utf-8")
     for name in ("leaflet.js", "leaflet.css"):
-        tag = re.search(rf'(?:src|href)="/static/vendor/leaflet/{name}" integrity="sha256-([^"]+)"', HTML)
+        tag = re.search(r'(?:src|href)="/static/vendor/leaflet/' + re.escape(name) + r'\?v=\{\{ asset_version \}\}" integrity="sha256-([^"]+)"', HTML)
         assert tag, name
         data = (WEB / "static" / "vendor" / "leaflet" / name).read_bytes()
         assert base64.b64encode(hashlib.sha256(data).digest()).decode() == tag.group(1), name

@@ -146,7 +146,10 @@ def change_account_password(session_path: str, phone: str, area_code: str, curre
     answer = ebro_account.change_password(ctx, current, new)
     if not ebro_account.accepted(answer):
         return {"changed": False, "reason": ebro_account.refusal(answer), "token_data": None}
-    ok, token_data = ebro_login.password_login(phone, new, area_code, host=settings.EBRO_BFF_HOST)
+    try:
+        ok, token_data = ebro_login.password_login(phone, new, area_code, host=settings.EBRO_BFF_HOST)
+    except OSError as exc:                 # network or LoginUnavailable: the password IS changed, only the new session is missing
+        ok, token_data = False, type(exc).__name__
     if not ok or not isinstance(token_data, dict):
         _LOGGER.warning("The Ebro cloud took the new password but refused a login with it: %s", str(token_data)[:120],
                         extra={"telemetry": False})
@@ -172,7 +175,7 @@ def change_account_pin(ctx, current_pin: str, new_pin: str) -> dict:
     _LOGGER.info("Ebro PIN change of %s answered code=%s", ctx.vin[-6:], code)
     if not ebro_account.pin_change_looks_accepted(answer):
         return {"changed": False, "unconfirmed": False, "reason": ebro_account.refusal(answer), "code": code}
-    ctx.invalidate_taskid()                                # minted with the old PIN
+    ctx.reset_pin_lockout()                                # new credentials: the old PIN's tries and taskId no longer apply
     try:
         taskid.mint_with_pin(ctx, tuid, new_pin)
     except CommandError as err:
@@ -249,7 +252,7 @@ def reset_pin_with_code(ctx, phone: str, area_code: str, code: str, new_pin: str
         return {"changed": False, "unconfirmed": False, "reason": ebro_reset.refusal(check)}
     if not ebro_reset.succeeded(answer):
         return {"changed": False, "unconfirmed": False, "reason": ebro_reset.refusal(answer)}
-    ctx.invalidate_taskid()
+    ctx.reset_pin_lockout()                                # a new PIN: the lockout the forgotten one caused no longer applies
     try:
         taskid.mint_with_pin(ctx, tuid, new_pin)
     except CommandError as err:
@@ -266,7 +269,10 @@ def reset_password_with_code(ctx, session_path: str, phone: str, area_code: str,
     _LOGGER.info("Ebro password reset answered code=%s", answer.get("code"))
     if not ebro_reset.succeeded(answer):
         return {"changed": False, "reason": ebro_reset.refusal(answer), "token_data": None}
-    ok, token_data = ebro_login.password_login(phone, new_password, area_code, host=settings.EBRO_BFF_HOST)
+    try:
+        ok, token_data = ebro_login.password_login(phone, new_password, area_code, host=settings.EBRO_BFF_HOST)
+    except OSError as exc:                 # network or LoginUnavailable: the password IS changed, only the new session is missing
+        ok, token_data = False, type(exc).__name__
     if not ok or not isinstance(token_data, dict):
         return {"changed": True, "reason": None, "token_data": None}
     store_session(session_path, token_data)

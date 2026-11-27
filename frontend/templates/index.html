@@ -16,14 +16,9 @@
   <link rel="alternate icon" type="image/png" href="/static/icons/favicon.png">
   <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
   
-  <!-- Google Fonts Outfit -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  
-  <!-- Leaflet 1.9.4, the published files unchanged (static/vendor/leaflet): no script comes from another host -->
-  <link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=">
-  <script src="/static/vendor/leaflet/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="></script>
+  <!-- Leaflet 1.9.4, the published files unchanged (static/vendor/leaflet): no script comes from another host. Its script goes
+       with the others at the end of the body: in the head it held the first paint back. -->
+  <link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css?v={{ asset_version }}" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=">
   
   <!-- Custom Styles -->
   <!-- Sheets by area, in cascade order (do not reorder). The server computes ?v=. -->
@@ -3752,6 +3747,7 @@
   <!-- Custom App JS -->
   <!-- Classic scripts (shared global scope): the order matters. core/ = app foundation; features/ = one feature per file.
        The server computes ?v= (content hash): it only changes when the frontend changes. -->
+  <script src="/static/vendor/leaflet/leaflet.js?v={{ asset_version }}" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="></script>
   <script src="/static/js/core/auth.js?v={{ asset_version }}"></script>
   <script src="/static/js/core/state.js?v={{ asset_version }}"></script>
   <script src="/static/js/core/icons.js?v={{ asset_version }}"></script>

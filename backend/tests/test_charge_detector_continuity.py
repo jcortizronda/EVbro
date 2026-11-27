@@ -225,6 +225,28 @@ async def test_a_charge_seen_late_without_a_schedule_keeps_the_detection_time(ca
     assert charge.start_time == D(2026, 11, 6, 1, 31) and charge.start_battery_pct == 20
 
 
+async def test_a_charge_seen_after_the_read_at_the_schedules_opening_starts_at_that_read(car) -> None:
+    """24 and 26-11-2026: the schedule opened at 02:00:00, the read at 02:00:09 still saw the car idle, the next one (02:30) charging."""
+    async with async_session_factory() as s:
+        s.add(ChargePlan(vin=VIN, target_pct=100, mode="scheduled", sched_enabled=True, sched_start_min=120, sched_duration_min=360))
+        await s.commit()
+    await plugged_reading(D(2026, 11, 24, 1, 0, 9), 56)
+    await first_charge_reading(D(2026, 11, 24, 1, 30, 16), 59)
+    (charge,) = await sessions()
+    assert charge.start_time == D(2026, 11, 24, 1, 0, 9) and charge.start_battery_pct == 56
+
+
+async def test_a_charge_looks_back_even_if_the_last_read_said_the_cable_was_out(car) -> None:
+    """27-11-2026: the car waking up as its schedule opened reported the cable out; charging half an hour later from 78 %, not 83 %."""
+    async with async_session_factory() as s:
+        s.add(TelemetrySnapshot(vin=VIN, timestamp=D(2026, 11, 27, 1, 0, 5), battery_level=78, electric_range_km=30.0, odometer_km=1000.0,
+                                is_charging=False, cable_connected=False))
+        await s.commit()
+    await first_charge_reading(D(2026, 11, 27, 1, 30, 7), 83)
+    (charge,) = await sessions()
+    assert charge.start_battery_pct == 78
+
+
 @pytest.mark.parametrize("before, odometer", [(40.5, 1000.0), (20.0, 1012.0)])
 async def test_a_charge_only_looks_back_if_the_car_stayed_put_and_the_battery_rose(car, before, odometer) -> None:
     await plugged_reading(D(2026, 11, 5, 20, 34), before, odometer=odometer)

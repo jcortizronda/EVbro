@@ -50,7 +50,7 @@ async def test_the_page_carries_a_content_security_policy(client) -> None:
     assert "unsafe-inline" not in script_src and "unsafe-eval" not in script_src     # no inline script, ever
     style_src = next(part for part in csp.split(";") if part.strip().startswith("style-src"))
     assert "unsafe-inline" not in style_src                                            # no style="…" either (tools/inline_styles.py)
-    assert "https://tile.openstreetmap.org" in csp and "https://fonts.gstatic.com" in csp
+    assert "https://tile.openstreetmap.org" in csp and "fonts.g" not in csp        # no Google Fonts: the system's font, no third party
     assert script_src.strip() == "script-src 'self'" and "unpkg" not in csp       # no script from another host: Leaflet is served from static/vendor
 
 

@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import entitlements
@@ -38,6 +38,7 @@ from app.services.accounts import (
     reset_send_sms,
 )
 from app.services.car_events import CarEventHub
+from app.services.cloud_pool import CLOUD_EXECUTOR
 from app.services.command_policy import pin_throttle, pin_throttle_key
 from app.services.ebro_sessions import account_session_path
 from app.services.mqtt_hub import MqttHub, MqttLinkConfig
@@ -157,7 +158,7 @@ async def login_ebro_account(req: EbroLoginRequest, session: AsyncSession = Depe
 
     loop = asyncio.get_running_loop()
     try:
-        token_data = await loop.run_in_executor(None, _do_auth)
+        token_data = await loop.run_in_executor(CLOUD_EXECUTOR, _do_auth)
     except RuntimeError as e:
         # The cloud answered and said no (`login_with_password` raises with its text, e.g. «HTTP 401: El nombre de usuario no
         # existe o la contraseña es incorrecta»): a typo of the manager, not a failure of EVbro — it used to come out as a 502
@@ -171,7 +172,8 @@ async def login_ebro_account(req: EbroLoginRequest, session: AsyncSession = Depe
             detail=_("No se pudo iniciar sesión: {p0}. Verifica tu teléfono, código de país y contraseña.", p0=cloud_refusal(str(e))),
         ) from e
     except Exception as e:
-        _LOGGER.error(f"Network or cryptography error on Ebro login: {e}")
+        # Only the type: a `requests` error carries the URL, and the login puts the account's phone in its query string
+        _LOGGER.error("Network or cryptography error on Ebro login: %s", type(e).__name__)
         # The exception text can name internal hosts or library internals: it stays in the log.
         raise HTTPException(
             status_code=502,
@@ -213,13 +215,18 @@ async def login_ebro_account(req: EbroLoginRequest, session: AsyncSession = Depe
             user_id=user.id,
         )
         session.add(account_obj)
+    await session.flush()
+    # One Ebro account per manager: the session and the PIN of a manager's cars come from one account, so the previous one is
+    # switched off instead of staying active next to it (with two, the last one's session and PIN went to every car).
+    await session.execute(update(EbroAccount).where(EbroAccount.user_id == account_obj.user_id, EbroAccount.id != account_obj.id,
+                                                    EbroAccount.is_active == True).values(is_active=False))  # noqa: E712
 
     await session.commit()
     await session.refresh(account_obj)
 
     # 2. discover vehicles with the session just obtained, kept in the account's file that all its cars share (ebro_sessions.py)
     try:
-        cars_list = await loop.run_in_executor(None, fetch_account_vehicles, token_data, await foreign_vins(session, user.id),
+        cars_list = await loop.run_in_executor(CLOUD_EXECUTOR, fetch_account_vehicles, token_data, await foreign_vins(session, user.id),
                                                account_session_path(account_obj.id))
     except Exception as e:
         _LOGGER.error(f"Error listing vehicles after login: {e}")
@@ -386,8 +393,9 @@ async def change_ebro_password(req: EbroPasswordChange, session: AsyncSession = 
 
     loop = asyncio.get_running_loop()
     try:
-        outcome = await loop.run_in_executor(None, change_account_password, account_session_path(account.id), account.phone,
-                                             account.area_code or "34", req.current_password, req.new_password)
+        async with VehiclePoller.get_instance().session_cloud_lock(account_session_path(account.id)):
+            outcome = await loop.run_in_executor(CLOUD_EXECUTOR, change_account_password, account_session_path(account.id), account.phone,
+                                                 account.area_code or "34", req.current_password, req.new_password)
     except RuntimeError as e:
         if str(e) != "no_usertoken":
             raise
@@ -457,7 +465,8 @@ async def change_ebro_pin(req: EbroPinChange, request: Request, session: AsyncSe
     ip = auth.client_ip(request)
     loop = asyncio.get_running_loop()
     try:
-        outcome = await loop.run_in_executor(None, change_account_pin, ctx, current, new)
+        async with poller.cloud_lock(car.vin):
+            outcome = await loop.run_in_executor(CLOUD_EXECUTOR, change_account_pin, ctx, current, new)
     except RuntimeError as e:
         if str(e) != "no_usertoken":
             raise
@@ -561,7 +570,8 @@ async def reset_captcha_route(req: ResetCaptchaIn, session: AsyncSession = Depen
     _check_sms_allowed(f"sms:{account.id}")
     ctx = _reset_ctx(account, user)
     try:
-        puzzle = await asyncio.get_running_loop().run_in_executor(None, reset_captcha, ctx)
+        async with VehiclePoller.get_instance().session_cloud_lock(ctx.token_path):
+            puzzle = await asyncio.get_running_loop().run_in_executor(CLOUD_EXECUTOR, reset_captcha, ctx)
     except RuntimeError as e:
         raise _no_session(e) from e
     except Exception as e:
@@ -587,9 +597,10 @@ async def reset_sms_route(req: ResetSmsIn, session: AsyncSession = Depends(get_d
     _check_sms_allowed(key)
     ctx = _reset_ctx(account, user)
     try:
-        outcome = await asyncio.get_running_loop().run_in_executor(
-            None, reset_send_sms, ctx, account.phone, account.area_code or "34", RESET_PURPOSES[pending["purpose"]],
-            pending["token"], pending["secret_key"], req.x)
+        async with VehiclePoller.get_instance().session_cloud_lock(ctx.token_path):
+            outcome = await asyncio.get_running_loop().run_in_executor(
+                CLOUD_EXECUTOR, reset_send_sms, ctx, account.phone, account.area_code or "34", RESET_PURPOSES[pending["purpose"]],
+                pending["token"], pending["secret_key"], req.x)
     except RuntimeError as e:
         raise _no_session(e) from e
     except Exception as e:
@@ -625,8 +636,9 @@ async def reset_pin_route(req: ResetPinIn, request: Request, session: AsyncSessi
     poller = VehiclePoller.get_instance()
     ctx = poller._get_or_create_ctx(car.vin)
     try:
-        outcome = await asyncio.get_running_loop().run_in_executor(None, reset_pin_with_code, ctx, account.phone,
-                                                                   account.area_code or "34", code, new)
+        async with poller.cloud_lock(car.vin):
+            outcome = await asyncio.get_running_loop().run_in_executor(CLOUD_EXECUTOR, reset_pin_with_code, ctx, account.phone,
+                                                                       account.area_code or "34", code, new)
     except RuntimeError as e:
         raise _no_session(e) from e
     except Exception as e:
@@ -660,9 +672,10 @@ async def reset_password_route(req: ResetPasswordIn, session: AsyncSession = Dep
     _check_throttle((ebro_code_throttle, key))
     path = account_session_path(account.id)
     try:
-        outcome = await asyncio.get_running_loop().run_in_executor(None, reset_password_with_code, _reset_ctx(account, user), path,
-                                                                   account.phone, account.area_code or "34", req.code.strip(),
-                                                                   req.new_password)
+        async with VehiclePoller.get_instance().session_cloud_lock(path):
+            outcome = await asyncio.get_running_loop().run_in_executor(CLOUD_EXECUTOR, reset_password_with_code, _reset_ctx(account, user), path,
+                                                                       account.phone, account.area_code or "34", req.code.strip(),
+                                                                       req.new_password)
     except RuntimeError as e:
         raise _no_session(e) from e
     except Exception as e:

@@ -19,6 +19,7 @@ two cars configured, one car's errors would block the other's commands).
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import threading
 import time
 
@@ -32,6 +33,22 @@ class PinLockedError(Exception):
     def __init__(self, attempts: int, message: str | None = None) -> None:
         self.attempts = attempts
         super().__init__(message or f"PIN bloqueado tras {attempts} intentos erróneos")
+
+
+class PinRejectedError(Exception):
+    """The PIN about to be tried is one the backend already rejected: it is NOT sent again.
+
+    A rejected PIN does not become right on its own. Without this, the automatic actions that use the stored PIN
+    (charge control, scheduled climate, Home Assistant orders) tried it again every time the lockout window ran out,
+    and every try brings the Chery account lock closer. It clears when the PIN is configured again (`reset`) or when
+    a different PIN is accepted."""
+
+    def __init__(self, message: str | None = None) -> None:
+        super().__init__(message or "Ebro ya rechazó este PIN")
+
+
+def _fingerprint(pin: str | None) -> str:
+    return hashlib.sha256((pin or "").encode()).hexdigest()
 
 
 class _Intento:
@@ -70,13 +87,18 @@ class PinLockout:
             # no declaration = the attempt does not count (network, permissions, session)
     """
 
-    def __init__(self, max_failures: int = 2, window_s: int = 600) -> None:
+    def __init__(self, max_failures: int = 2, window_s: int = 600, max_window_s: int = 86400) -> None:
         self.max_failures = max_failures
         self.window_s = window_s
+        # Each failure past the threshold doubles the window (10 min, 20, 40… up to a day). With a fixed window, a wrong
+        # PIN was tried again every 10 minutes for as long as anything kept asking.
+        self.max_window_s = max_window_s
         # RLock: `attempt()` can call `reset()` without deadlocking itself.
         self._lock = threading.RLock()
         self._n = 0
         self._ts = 0.0
+        # Fingerprints (sha256) of the PINs the backend rejected: never the PIN itself.
+        self._rejected: set[str] = set()
 
     # ───────────────────────── query ─────────────────────────
     @property
@@ -93,8 +115,19 @@ class PinLockout:
         """Call with the lock already held."""
         if self._n < self.max_failures:
             return False
-        # the window slides: once `window_s` has passed since the last error it resets
-        return (time.time() - self._ts) < self.window_s
+        # the window slides from the last error, and grows with every error past the threshold
+        return (time.time() - self._ts) < self.current_window_s()
+
+    def current_window_s(self) -> int:
+        """How long the lock lasts after the last error, with the current count."""
+        with self._lock:
+            extra = max(0, self._n - self.max_failures)
+            return min(self.window_s * (2 ** min(extra, 16)), self.max_window_s)
+
+    def was_rejected(self, pin: str | None) -> bool:
+        """True if the backend already rejected exactly this PIN (and nobody has configured the PIN again since)."""
+        with self._lock:
+            return _fingerprint(pin) in self._rejected
 
     # ───────────────────────── mutation ─────────────────────────
     def reset(self) -> None:
@@ -108,15 +141,19 @@ class PinLockout:
         with self._lock:
             self._n = 0
             self._ts = 0.0
+            self._rejected.clear()
 
     @contextlib.contextmanager
-    def attempt(self):
-        """Serialise an attempt and apply the guard. Raises `PinLockedError` if locked.
+    def attempt(self, pin: str | None = None):
+        """Serialise an attempt and apply the guard. Raises `PinLockedError` if locked, and `PinRejectedError` if `pin` is
+        one the backend already rejected (in both cases the backend is NOT contacted).
 
         The lock stays held for the whole `with` block — network call
         included. It is intentional and non-negotiable: releasing it before the response would reopen
         exactly the race condition this class exists to close."""
         with self._lock:
+            if pin is not None and _fingerprint(pin) in self._rejected:
+                raise PinRejectedError()
             if self._is_locked():
                 raise PinLockedError(self._n)
             attempt = _Intento()
@@ -130,6 +167,9 @@ class PinLockout:
                 if attempt._resultado == "ok":
                     self._n = 0
                     self._ts = 0.0
+                    self._rejected.discard(_fingerprint(pin))
                 elif attempt._resultado == "ko":
                     self._n += 1
                     self._ts = time.time()
+                    if pin is not None:
+                        self._rejected.add(_fingerprint(pin))
