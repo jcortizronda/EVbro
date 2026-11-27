@@ -49,10 +49,12 @@ docker tag "$IMAGE" "evbro-local:$COMMIT"
 docker compose up -d app
 
 for _ in $(seq 1 60); do
-    if curl -fsS -o /dev/null "$READY_URL"; then
+    if curl -fs -o /dev/null "$READY_URL"; then
         log "deployed $BEFORE -> $COMMIT (dump: $(basename "$DUMP"))"
-        docker images --format '{{.Tag}} {{.CreatedAt}}' evbro-local | sort -k2 -r | tail -n +"$((KEEP_IMAGES + 1))" \
-            | while read -r tag _; do docker rmi "evbro-local:$tag" >/dev/null 2>&1 || true; done
+        # Oldest first by the date of their commit (an image's own creation date says nothing: the build can reuse its layers)
+        for tag in $(docker images --format '{{.Tag}}' evbro-local); do
+            echo "$(git -C "$ROOT" log -1 --format=%ct "$tag" 2>/dev/null || echo 0) $tag"
+        done | sort -n | head -n -"$KEEP_IMAGES" | while read -r _ tag; do docker rmi "evbro-local:$tag" >/dev/null 2>&1 || true; done
         exit 0
     fi
     sleep 3

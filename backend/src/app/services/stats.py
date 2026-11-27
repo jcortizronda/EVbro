@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_timezone
 from app.db.models import ChargePoint, ChargingSession, Drive, Expense, MaintenanceItem, MaintenanceLog, Refuel, Vehicle
-from app.services import battery_capacity, periods
+from app.services import battery_capacity, odometer, periods
 from app.services.manual_charges import energy_kwh
 
 MIN_DRIVE_KM = 2.0     # below this, one battery point and the odometer's whole-km rounding give meaningless figures (measured 2026-11-01: 1–2 km drives averaged 52 kWh/100 km, 2–3 km ones 17.5)
@@ -195,12 +195,19 @@ async def compute(session: AsyncSession, vin: str, period: str = "12m", frm: Opt
 
     km = sum(m["km"] or 0 for m in monthly)
     cost_total = sum(m["cost_total"] or 0 for m in monthly)
+    # The cost per km of the whole period divides by the km the odometer moved while those costs were spent, the same as Costes
+    # (services/odometer.py): the km of the trips EVbro saw left out the costs imported from before them (239.9 €/100 km on the demo)
+    vehicle = (await session.execute(select(Vehicle).where(Vehicle.vin == vin))).scalar_one_or_none()
+    dated = [d.start_time for d in drives] + [c.start_time for c in charges] + [r.timestamp for r in refuels] + [e.date for e in expenses] \
+        + [log.service_date for log in logs]
+    cost_km = (await odometer.km_between(session, vehicle, min(dated) if bounds[0] is None else bounds[0], bounds[1])
+               if vehicle is not None and dated else None) or km            # no odometer readings: the trips' km, as before
     eff_km = sum(months[k]["eff_km"] for k in months)
     eff_kwh = sum(months[k]["eff_kwh"] for k in months)
     ev_total = sum(months[k]["ev_km"] for k in months)
     ev_known = sum(months[k]["ev_known_km"] for k in months)
     totals = {"km": _r(km), "kwh_charged": _r(sum(m["kwh_charged"] or 0 for m in monthly)), "liters": _r(sum(m["liters"] or 0 for m in monthly)),
-              "cost_total": _r(cost_total, 2), "cost_per_km": _r(cost_total / km, 3) if km >= 20 else None, "drives": len(drives), "charges": len(charges),
+              "cost_total": _r(cost_total, 2), "cost_per_km": _r(cost_total / cost_km, 3) if cost_km and cost_km >= 20 else None, "drives": len(drives), "charges": len(charges),
               # electric consumption of the whole period: fully electric drives of ≥ MIN_DRIVE_KM with measured energy (the Energía tab shows the 30-day value)
               "kwh_per_100km": _r(eff_kwh / eff_km * 100) if eff_km >= MIN_DRIVE_KM else None,
               "ev_km": _r(ev_total), "ev_pct": _r(min(100.0, ev_total / ev_known * 100), 0) if ev_known > 0 else None}

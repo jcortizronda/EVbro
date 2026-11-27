@@ -58,6 +58,8 @@ RELOCATE_MAX_AGE = datetime.timedelta(hours=6)
 # previous one. Less than this is the odometer ticking (it counts whole km), and faster than this between the two readings is
 # the reading that closed the last trip running behind, not a trip.
 UNSEEN_MIN_KM = 2
+# How long a trip that should close waits for a read with the realtime data (see the close in `process_snapshot`)
+PARTIAL_READ_WAIT_MIN = 30
 UNSEEN_MAX_SPEED_KMH = 110.0
 CAR_ON_STATES = ("driving", "ready")
 
@@ -284,6 +286,12 @@ class TripDetector:
             # A cable already reported while the car was moving is stale: the trip then ends by the minutes stopped
             force_end = cable and vin not in _STALE_CABLE
 
+            # A read that came without the realtime data (no odometer, no battery: the cloud answered only the position) does not
+            # close the trip: closing on it lost the km and the kWh for good (calculations audit, 27-11-2026). The next full read
+            # closes it; if none comes within PARTIAL_READ_WAIT_MIN more minutes, it closes anyway with what is known.
+            partial = odometer is None and battery is None
+            if partial and not force_end and stopped_duration < IDLE_MINUTES_TO_END_TRIP + PARTIAL_READ_WAIT_MIN:
+                return None
             if stopped_duration >= IDLE_MINUTES_TO_END_TRIP or force_end:
                 # Close the trip
                 hv_off = _HV_OFF_AT.get(vin)
@@ -449,8 +457,12 @@ def _car_clock(raw: Optional[Dict]) -> Optional[datetime.datetime]:
 def _remember_idle(vin, now, lat, lon, odometer, battery, telemetry, is_moving) -> None:
     """Stores the last idle reading (the starting point if the next trip is detected late)."""
     if not is_moving:
-        _LAST_IDLE[vin] = {"time": now, "lat": lat, "lon": lon, "odometer": odometer, "battery": battery,
-                           "fuel": telemetry.get("fuel_level"), "ev_odometer": telemetry.get("ev_odometer_km")}
+        # A read without the realtime data keeps what the previous one knew: an empty odometer here hid the next unseen trip
+        prev = _LAST_IDLE.get(vin) or {}
+        keep = lambda key, value: value if value is not None else prev.get(key)              # noqa: E731
+        _LAST_IDLE[vin] = {"time": now, "lat": keep("lat", lat), "lon": keep("lon", lon), "odometer": keep("odometer", odometer),
+                           "battery": keep("battery", battery), "fuel": keep("fuel", telemetry.get("fuel_level")),
+                           "ev_odometer": keep("ev_odometer", telemetry.get("ev_odometer_km"))}
 
 
 def _raw_ev_odometer(raw: Optional[Dict]) -> Optional[float]:

@@ -415,3 +415,17 @@ async def test_what_is_not_an_unseen_trip(car) -> None:
     await process(car, reading(0, 22890, DESTINATION), closed + 200 * minutes)
     await process(car, reading(0, 22890, DESTINATION), closed + 206 * minutes)
     assert [d.unseen for d in await drives()] == [False, False]
+
+
+async def test_a_read_without_the_realtime_data_does_not_close_the_trip_and_lose_its_km(car) -> None:
+    """06-11-2026: four reads in a night with only the position. One of them closing a trip gave 0 km and 0 kWh for good."""
+    await process(car, reading(40, 9400, HOME, soc=80.0), T0)
+    await process(car, reading(60, 9420, (40.1, -3.1), soc=74.0), T0 + datetime.timedelta(minutes=19))
+    await process(car, reading(0, 9420, DESTINATION, soc=74.0), T0 + datetime.timedelta(minutes=20))           # parks
+    partial = {"speed_kmh": 0.0, "latitude": DESTINATION[0], "longitude": DESTINATION[1], "state": "parked"}       # position only
+    await process(car, partial, T0 + datetime.timedelta(minutes=27))
+    (d,) = await drives()
+    assert d.end_time is None                                                                                      # not closed on it
+    await process(car, reading(0, 9420, DESTINATION, soc=74.0), T0 + datetime.timedelta(minutes=35))               # the next full read
+    (d,) = await drives()
+    assert d.end_time is not None and d.distance_km == 20.0 and d.end_battery_pct == 74.0

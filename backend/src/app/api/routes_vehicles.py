@@ -232,7 +232,7 @@ async def update_vehicle(vin: str, payload: VehicleUpdate, session: AsyncSession
     """Updates the vehicle profile (identity, purchase, paperwork, tyres, energy and fuel). A new battery capacity
     re-estimates the energy of every past drive and charge (services/energy_recalc.py)."""
     vehicle = await _get_vehicle(session, vin)
-    previous_capacity = vehicle.battery_capacity_kwh
+    previous_capacity, previous_tank = vehicle.battery_capacity_kwh, vehicle.fuel_tank_liters
     sent = payload.model_fields_set
     if "chassis_number" in sent and payload.chassis_number and not vehicle.is_manual:
         raise HTTPException(status_code=409, detail="El número de bastidor de un coche conectado se lee de la cuenta Ebro.")
@@ -256,6 +256,8 @@ async def update_vehicle(vin: str, payload: VehicleUpdate, session: AsyncSession
 
     if vehicle.battery_capacity_kwh != previous_capacity:
         await energy_recalc.recalculate_for_capacity(session, vehicle)
+    if vehicle.fuel_tank_liters != previous_tank:
+        await energy_recalc.recalculate_for_tank(session, vehicle)
     await session.commit()
     await session.refresh(vehicle)
     vehicle.access_level = "owner"           # only the owner reaches this route

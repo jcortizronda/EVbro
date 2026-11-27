@@ -16,7 +16,7 @@ from typing import Dict
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import ChargingSession, Drive, Vehicle
+from app.db.models import ChargingSession, Drive, Refuel, Vehicle
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -40,3 +40,28 @@ async def recalculate_for_capacity(session: AsyncSession, vehicle: Vehicle) -> D
     await session.flush()
     _LOGGER.info("Energy re-estimated with %.2f kWh capacity for %s: %d drives and %d charges", capacity, vehicle.vin, len(drives), len(charges))
     return {"drives": len(drives), "charges": len(charges)}
+
+
+async def recalculate_for_tank(session: AsyncSession, vehicle: Vehicle) -> Dict[str, int]:
+    """The fuel counterpart: the litres of the drives and of the detected refuels are tank points × the sheet's tank, worked out once,
+    when each closed. A sheet without a tank used 50 L until the model filled in the real one (60/70 L), so those litres stayed a
+    fifth or a third short (calculations audit, 27-11-2026). Litres typed by the user are not touched; a refuel cost worked out from
+    its price per litre follows the litres, a total typed by hand does not."""
+    from app.services.trip_detector import fuel_litres
+
+    tank = vehicle.fuel_tank_liters
+    if not tank:
+        return {"drives": 0, "refuels": 0}
+    drives = (await session.execute(select(Drive).where(Drive.vin == vehicle.vin, Drive.start_fuel.isnot(None), Drive.end_fuel.isnot(None)))).scalars().all()
+    for d in drives:
+        d.fuel_used_l = fuel_litres(d.start_fuel + (d.fuel_refuelled_pct or 0.0), d.end_fuel, tank)
+    refuels = (await session.execute(select(Refuel).where(Refuel.vin == vehicle.vin, Refuel.detected.is_(True), Refuel.liters_entered.is_(False),
+                                                          Refuel.fuel_before_pct.isnot(None), Refuel.fuel_after_pct.isnot(None)))).scalars().all()
+    for r in refuels:
+        old = r.liters
+        r.liters = round(max(0.0, r.fuel_after_pct - r.fuel_before_pct) / 100.0 * tank, 2)
+        if r.price_per_liter is not None and r.total_cost is not None and old is not None and abs(r.total_cost - r.price_per_liter * old) < 0.02:
+            r.total_cost = round(r.price_per_liter * r.liters, 2)          # it came from the price: it follows the litres
+    await session.flush()
+    _LOGGER.info("Fuel re-estimated with a %.0f L tank for %s: %d drives and %d refuels", tank, vehicle.vin, len(drives), len(refuels))
+    return {"drives": len(drives), "refuels": len(refuels)}

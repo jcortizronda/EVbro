@@ -195,6 +195,23 @@ async def _data_migrations() -> None:
 
     await _migrate_accounts_and_owners()
 
+    # Once: the litres of drives and detected refuels worked out with a 50 L tank before the model filled in the real one
+    # (energy_recalc.recalculate_for_tank, calculations audit of 27-11-2026)
+    try:
+        from sqlalchemy import select as _select
+
+        from app.db.models import Vehicle as _Vehicle
+        from app.services.energy_recalc import recalculate_for_tank
+        async with async_session_factory() as session:
+            done = (await session.execute(text("SELECT 1 FROM app_settings WHERE key = 'migration.fuel_litres_by_tank'"))).first()
+            if not done:
+                for vehicle in (await session.execute(_select(_Vehicle).where(_Vehicle.fuel_tank_liters.isnot(None)))).scalars().all():
+                    await recalculate_for_tank(session, vehicle)
+                await session.execute(text("INSERT INTO app_settings (key, value) VALUES ('migration.fuel_litres_by_tank', '1')"))
+                await session.commit()
+    except Exception:
+        _LOGGER.exception("Could not re-estimate the fuel litres with each car's tank; will retry on the next start.")
+
     # Once: uploaded files that were stored in plaintext are encrypted with the server key (and old photos get their size).
     from app.db.files_migration import encrypt_legacy_files
     try:

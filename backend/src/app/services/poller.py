@@ -292,6 +292,8 @@ class VehiclePoller(SessionMixin, CommandsMixin, AlertsMixin, PositionWatchMixin
                 if changed:
                     if "battery_capacity_kwh" in changed:
                         await energy_recalc.recalculate_for_capacity(session, v)
+                    if "fuel_tank_liters" in changed:
+                        await energy_recalc.recalculate_for_tank(session, v)
                     _LOGGER.info("Sheet of %s filled in from its model %s: %s", v.vin[-6:], v.model, ", ".join(changed))
             if vehicles:
                 await session.commit()

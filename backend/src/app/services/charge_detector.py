@@ -304,6 +304,10 @@ class ChargeDetector:
             # 3. Detect the end of the charge (cable unplugged or charge finished)
             charge_ended = not cable_connected or (not is_charging and (state_known or power_kw < 0.2))
             if charge_ended:
+                if battery is None:
+                    # No battery in the closing read: the last point of the curve, not an empty end (0 kWh and no cost)
+                    _, battery, last_range = await cls._last_reading(session, charge)
+                    electric_range = electric_range if electric_range is not None else last_range
                 await cls._close(session, vehicle, charge, now, battery, electric_range)
                 if cable_connected:
                     _PAUSED[vin] = (charge.id, now)

@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.routes_expenses import CATEGORIES as EXPENSE_CATEGORIES
 from app.db.models import ChargingSession, Drive, Expense, MaintenanceItem, MaintenanceLog, Refuel, Vehicle
 from app.db.session import get_db
-from app.services import periods
+from app.services import odometer, periods
 from app.services.manual_charges import energy_kwh  # the charger's kWh when known: an estimate of the energy paid for
 
 router = APIRouter(tags=["Costs"])
@@ -53,11 +53,12 @@ async def get_costs(vin: str, period: str = Query("all"), frm: Optional[str] = Q
     purchase = vehicle.purchase_price if (vehicle.purchase_price and (start is None or (purchase_date and purchase_date >= start))) else 0.0
     running = round(sum_charges + sum_refuels + sum_maint + sum_expenses, 2)
 
-    # cost per 100 km: over the km driven since the purchase (period "all") or those of the drives recorded in the period
-    km = None
-    if everything and vehicle.odometer is not None:
-        km = max(0.0, vehicle.odometer - (vehicle.purchase_odometer or 0.0))
-    else:
+    # cost per 100 km: over the km the odometer moved while these costs were spent (services/odometer.py). «All» starts at the first
+    # dated cost: it used to divide a month of costs by the km since the purchase, several times too low.
+    dated = [c.start_time for c in charges] + [r.timestamp for r in refuels] + [m.service_date for m, _ in maint] + [e.date for e in expenses]
+    span_start = (min(dated) if dated else None) if everything else bounds[0]
+    km = await odometer.km_between(session, vehicle, span_start, bounds[1]) if (dated or not everything) else None
+    if not km:                                               # no odometer readings for that span: the trips recorded in it
         km = sum(d.distance_km or 0.0 for d in (await session.execute(select(Drive).where(Drive.vin == vin))).scalars() if inside(d.start_time)) or None
 
     monthly: Dict[str, Dict[str, float]] = defaultdict(lambda: {"charges": 0.0, "refuels": 0.0, "maintenance": 0.0, "expenses": 0.0})

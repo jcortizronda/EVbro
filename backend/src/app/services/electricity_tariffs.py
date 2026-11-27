@@ -11,8 +11,24 @@ from app.timeutil import utcnow
 
 _LOGGER = logging.getLogger(__name__)
 
-# In-memory cache of PVPC hourly prices: {"YYYY-MM-DD_zone": {hour: price_eur_kwh}}
-_PVPC_CACHE: Dict[str, Dict[int, float]] = {}
+# PVPC from Red Eléctrica's open data (apidatos.ree.es): asked BY DATE AND ZONE, every hour with its instant. The previous source
+# (api.preciodelaluz.org) only gave today's table, so a charge started before midnight took the next day's prices; it mapped
+# Canarias to Ceuta y Melilla; and on 27-11-2026 its name no longer resolved, so every PVPC charge was being priced at the
+# fallback without saying so (calculations audit, 27-11-2026). Checked that day: «PVPC» series, hourly, €/MWh, ISO time with offset.
+PVPC_URL = "https://apidatos.ree.es/es/datos/mercados/precios-mercados-tiempo-real"
+_PVPC_GEO = {"peninsula": "peninsular", "canarias": "canarias", "baleares": "baleares", "ceuta": "ceuta", "melilla": "melilla"}
+# {(local date, geo): {UTC hour start (naive): €/kWh}}, bounded; and when a day last failed, so a dead API is not asked every hour
+_PVPC_CACHE: Dict[Tuple[str, str], Dict[datetime.datetime, float]] = {}
+_PVPC_FAILED: Dict[Tuple[str, str], datetime.datetime] = {}
+PVPC_CACHE_DAYS = 62
+PVPC_RETRY_AFTER = datetime.timedelta(minutes=10)
+
+
+def pvpc_geo(zone: Optional[str]) -> str:
+    """The zone as the API names it; anything unknown is the mainland (a free-text zone must not open a new query per value)."""
+    import unicodedata
+    key = unicodedata.normalize("NFKD", (zone or "")).encode("ascii", "ignore").decode().strip().lower()
+    return next((geo for name, geo in _PVPC_GEO.items() if key.startswith(name[:5])), "peninsular")
 
 
 # National holidays that make the whole day off-peak under 2.0TD (CNMC Circular 3/2020): the national ones of fixed date that cannot be
@@ -69,63 +85,57 @@ def get_time_of_use_price(geofence: Any, dt: datetime.datetime) -> Tuple[float, 
     return float(price), f"Tarifa 2.0TD - {label}"
 
 
-async def get_pvpc_hourly_price(
-    dt: datetime.datetime,
-    zone: str = "Peninsula",
-    margin: float = 0.0,
-    fallback: float = 0.15,
-) -> Tuple[float, str]:
-    """
-    The regulated-market (PVPC) price per kWh for one specific hour.
-    Queries the system operator's public API and caches the 24 hours of the day.
-    """
-    dt = to_local(dt, zone)                                  # the API gives the hours of the local day
-    date_key = dt.strftime("%Y-%m-%d")
-    cache_key = f"{date_key}_{zone}"
-
-    if cache_key in _PVPC_CACHE and dt.hour in _PVPC_CACHE[cache_key]:
-        base_price = _PVPC_CACHE[cache_key][dt.hour]
-        total_price = round(base_price + margin, 4)
-        return total_price, f"PVPC REE ({total_price:.4f} €/kWh)"
-
-    # Zone PCB: mainland, CYM: Ceuta and Melilla, BALEARES, CANARIAS
-    zone_code = "PCB"
-    if "canaria" in zone.lower():
-        zone_code = "CYM"
-    elif "balea" in zone.lower():
-        zone_code = "BAL"
-
-    url = f"https://api.preciodelaluz.org/v1/prices/all?zone={zone_code}"
-
+async def _pvpc_day(local_date: datetime.date, geo: str) -> Optional[Dict[datetime.datetime, float]]:
+    """The PVPC of one local day in one zone, {UTC hour: €/kWh}, or None when the API did not give it."""
+    key = (local_date.isoformat(), geo)
+    if key in _PVPC_CACHE:
+        return _PVPC_CACHE[key]
+    failed = _PVPC_FAILED.get(key)
+    if failed is not None and utcnow() - failed < PVPC_RETRY_AFTER:
+        return None
+    params = {"start_date": f"{local_date.isoformat()}T00:00", "end_date": f"{local_date.isoformat()}T23:59", "time_trunc": "hour",
+              "geo_limit": geo}
     try:
         async with aiohttp.ClientSession() as client:
-            async with client.get(url, timeout=4) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    day_dict = {}
-                    for hour_str, item in data.items():
-                        # hour_str is usually "00-01", "01-02", etc.
-                        try:
-                            h = int(hour_str.split("-")[0])
-                            # the price comes in €/MWh or €/kWh depending on the API
-                            raw_p = item.get("price", 0.0)
-                            # above 2.0 it is €/MWh (e.g. 85.50 €/MWh -> 0.0855 €/kWh)
-                            p_kwh = (raw_p / 1000.0) if raw_p > 2.0 else raw_p
-                            day_dict[h] = p_kwh
-                        except Exception:
-                            pass
+            async with client.get(PVPC_URL, params=params, headers={"Accept": "application/json"},
+                                  timeout=aiohttp.ClientTimeout(total=8)) as resp:
+                data = await resp.json() if resp.status == 200 else None
+        series = next((i for i in (data or {}).get("included", []) if (i.get("attributes") or {}).get("title") == "PVPC"), None)
+        day: Dict[datetime.datetime, float] = {}
+        for v in (series or {}).get("attributes", {}).get("values", []):
+            at = datetime.datetime.fromisoformat(v["datetime"]).astimezone(datetime.timezone.utc).replace(tzinfo=None)
+            day[at.replace(minute=0, second=0, microsecond=0)] = float(v["value"]) / 1000.0      # €/MWh → €/kWh
+    except Exception as e:                                   # noqa: BLE001 — network or a changed answer: the fallback is used and said
+        _LOGGER.warning("PVPC prices of %s (%s) not available: %s", local_date, geo, type(e).__name__)
+        day = {}
+    if not day:
+        _PVPC_FAILED[key] = utcnow()
+        return None
+    _PVPC_FAILED.pop(key, None)
+    _PVPC_CACHE[key] = day
+    while len(_PVPC_CACHE) > PVPC_CACHE_DAYS * len(_PVPC_GEO):
+        _PVPC_CACHE.pop(next(iter(_PVPC_CACHE)))
+    return day
 
-                    if day_dict:
-                        _PVPC_CACHE[cache_key] = day_dict
-                        if dt.hour in day_dict:
-                            p = round(day_dict[dt.hour] + margin, 4)
-                            return p, f"PVPC REE Oficial ({p:.4f} €/kWh)"
-    except Exception as e:
-        _LOGGER.debug(f"Real-time PVPC lookup failed for {date_key}: {e}")
 
-    # the API did not answer (no outside connection or an error): use the safe fallback
+async def pvpc_price(dt: datetime.datetime, zone: str = "Peninsula", margin: float = 0.0,
+                     fallback: float = 0.15) -> Tuple[float, str, bool]:
+    """The PVPC per kWh of the hour `dt` (naive UTC) falls in, plus the margin: (price, label, estimated). `estimated` is True when
+    the day's prices were not available and `fallback` was used instead."""
+    utc_hour = (dt.astimezone(datetime.timezone.utc).replace(tzinfo=None) if dt.tzinfo else dt).replace(minute=0, second=0, microsecond=0)
+    day = await _pvpc_day(to_local(dt, zone).date(), pvpc_geo(zone))
+    if day and utc_hour in day:
+        p = round(day[utc_hour] + margin, 4)
+        return p, f"PVPC REE ({p:.4f} €/kWh)", False
     fb = round(fallback + margin, 4)
-    return fb, f"PVPC Estimado / Respaldo ({fb:.4f} €/kWh)"
+    return fb, f"PVPC estimado, sin precios de ese día ({fb:.4f} €/kWh)", True
+
+
+async def get_pvpc_hourly_price(dt: datetime.datetime, zone: str = "Peninsula", margin: float = 0.0,
+                                fallback: float = 0.15) -> Tuple[float, str]:
+    """`pvpc_price` without the estimated flag (the current-price route)."""
+    price, label, _ = await pvpc_price(dt, zone=zone, margin=margin, fallback=fallback)
+    return price, label
 
 
 def _price(value, default: float = 0.15) -> float:
@@ -181,6 +191,7 @@ async def calculate_charging_session_cost(
     # split the session hour by hour for an exact figure
     curr = start_time
     total_cost_accum = 0.0
+    estimated_hours = 0
 
     while curr < finish_time:
         # end of the current hour
@@ -196,7 +207,8 @@ async def calculate_charging_session_cost(
             zone = getattr(geofence, "pvpc_zone", "Peninsula") or "Peninsula"
             margin = getattr(geofence, "cost_margin", 0.0) or 0.0
             fallback = _price(getattr(geofence, "cost_fallback", None))
-            p, _ = await get_pvpc_hourly_price(curr, zone=zone, margin=margin, fallback=fallback)
+            p, _, guessed = await pvpc_price(curr, zone=zone, margin=margin, fallback=fallback)
+            estimated_hours += 1 if guessed else 0
         else:
             p = _price(getattr(geofence, "cost_per_kwh", None))
 
@@ -211,6 +223,9 @@ async def calculate_charging_session_cost(
         details_txt = f"Tarifa 2.0TD ({avg_price:.3f} €/kWh medio, inicio en {period_name})"
     elif mode == "pvpc":
         details_txt = f"Tarifa Regulada PVPC ({avg_price:.3f} €/kWh medio)"
+        if estimated_hours:
+            # Said in the charge, so it is not taken for the real PVPC (it used to be indistinguishable)
+            details_txt += f" · estimado: sin precios de PVPC para {estimated_hours} h, se usó el precio de respaldo"
     else:
         details_txt = f"{avg_price:.3f} €/kWh"
 

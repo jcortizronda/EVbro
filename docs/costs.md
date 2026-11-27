@@ -47,7 +47,14 @@ Debajo de «Otros documentos» se ve el **espacio usado** del gestor («Espacio 
 
 ## Costes (Más → Costes)
 
-`GET /api/vehicles/{vin}/costs?period=all|year|last_year|12m|month` (o `from`/`to` en `AAAA-MM`, ver «Periodos» en [frontend.md](frontend.md)) suma **compra + cargas + repostajes + mantenimiento + gastos** y devuelve totales, gasto por mes, desglose de gastos por categoría, euros por 100 km y los últimos movimientos. Es **solo de lectura**: no hay altas aquí. Cargas y repostajes **sin precio no suman**: se listan como «sin precio» y se avisa cuánto falta por valorar.
+`GET /api/vehicles/{vin}/costs?period=all|year|last_year|12m|month` (o `from`/`to` en `AAAA-MM`, ver «Periodos» en [frontend.md](frontend.md)) suma **compra + cargas + repostajes + mantenimiento + gastos** y devuelve totales, gasto por mes, desglose de gastos por categoría, euros por 100 km y los últimos movimientos. Los **euros por 100 km** dividen entre los km que el
+cuentakilómetros avanzó mientras se hicieron esos gastos (`services/odometer.py`: lecturas de viajes y repostajes detectados, la entrega y
+el valor actual, interpolando en el tiempo; los apuntes a mano no cuentan, suelen llevar el cuentakilómetros de hoy con fecha pasada), y
+Estadísticas usa la misma cuenta. Hasta el 27-11-2026 Costes dividía entre los km desde la compra (cifras varias veces más bajas) y
+Estadísticas entre los km de los viajes vistos (más altas con gastos importados de antes). Sin lecturas para ese tramo, los km de los
+viajes. **PVPC:** precios de Red Eléctrica (`apidatos.ree.es`) por fecha y zona, cada hora con su instante; sin precios de un día se usa
+el precio de respaldo de la geocerca y la carga lo dice («estimado»). **Litros:** al cambiar el depósito de la ficha se recalculan los de
+los viajes y los repostajes detectados (no los tecleados), como la batería con la capacidad. Es **solo de lectura**: no hay altas aquí. Cargas y repostajes **sin precio no suman**: se listan como «sin precio» y se avisa cuánto falta por valorar.
 
 - **Geocerca creada después** (`services/geofence_history.py`, al crear o editar una geocerca): las cargas (si es punto de carga) y los inicios y finales de viaje que ya estaban dentro y no tenían geocerca pasan a llevar su nombre. **Los precios pasados no cambian nunca**, ni fijos ni automáticos ni a mano (decisión del dueño, 2026-11-01): la tarifa de una geocerca puede cambiar con los años y no debe reescribir el gasto pasado; solo las cargas nuevas la toman. La respuesta lleva `applied` (`charges`, `drives`) y la interfaz lo avisa.
 - Precio de una carga: el de la geocerca si la hay; si no, **0 €/kWh** por defecto (modo `default`, no cuenta como «sin precio»); el precio real se introduce a mano (`PUT /api/charges/{id}/cost`, por €/kWh o total).
