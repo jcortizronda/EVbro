@@ -480,6 +480,9 @@ class MqttLink(Base):
     ha_discovery = Column(Boolean, default=True, nullable=False, server_default="true")
     ha_prefix = Column(String(60), nullable=False, default="homeassistant", server_default="homeassistant")
     enabled = Column(Boolean, default=True, nullable=False, server_default="true")
+    # Orders that open, unlock or disarm (command_policy.PIN_REQUIRED) are only obeyed with this on; switching it on asks for the
+    # PIN, and changing the broker switches it off (security audit, 27-11-2026)
+    allow_open_commands = Column(Boolean, default=False, nullable=False, server_default="false")
     created_at = Column(DateTime, default=utcnow)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 

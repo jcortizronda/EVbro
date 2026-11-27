@@ -316,9 +316,10 @@
     $('scheduleForm')?.addEventListener('input', summarize);
     document.querySelectorAll('input[name="schedMode"]').forEach((r) => r.addEventListener('change', onModeChange));
     onModeChange();
-    // Refreshed while the Energía tab is visible (the «live» read queries the car: no more than every 30 s)
+    // Refreshed while the Energía tab is visible (the «live» read queries the car: no more than every 30 s). With the app in the
+    // background (`document.hidden`) nobody sees it: it used to keep asking the cloud (3 times in 95 s, performance audit 27-11-2026)
     setInterval(() => {
-      const visible = $('tabCharges')?.classList.contains('active');
+      const visible = !document.hidden && $('tabCharges')?.classList.contains('active');
       if (visible && Date.now() - lastLoad > REFRESH_MS) load(true);
     }, 3000);
   });

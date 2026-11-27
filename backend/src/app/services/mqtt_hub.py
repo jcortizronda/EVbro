@@ -26,6 +26,7 @@ from app.db.models import MqttLink
 from app.db.session import async_session_factory
 from app.security.netguard import private_link_problem
 from app.services import ha_discovery
+from app.services.command_policy import PIN_REQUIRED
 from app.timeutil import utcnow
 
 _LOGGER = logging.getLogger(__name__)
@@ -52,6 +53,9 @@ class MqttLinkConfig:
     ha_discovery: bool = True
     ha_prefix: str = "homeassistant"
     client_id: str = "evbro_server"
+    # Orders that open, unlock or disarm (command_policy.PIN_REQUIRED): a manager's broker obeys them only when switched on with the
+    # PIN; the `.env` broker is the server operator's own
+    allow_open_commands: bool = True
 
     @classmethod
     def from_env(cls) -> "MqttLinkConfig":
@@ -62,7 +66,8 @@ class MqttLinkConfig:
     def from_link(cls, link: MqttLink) -> "MqttLinkConfig":
         return cls(host=link.host, port=link.port or (8883 if link.use_tls else 1883), username=link.username or None, password=link.password or None,
                    use_tls=bool(link.use_tls), guarded=True, topic_prefix=link.topic_prefix or "evbro", ha_discovery=bool(link.ha_discovery),
-                   ha_prefix=link.ha_prefix or "homeassistant", client_id=f"evbro_{link.user_id}")
+                   ha_prefix=link.ha_prefix or "homeassistant", client_id=f"evbro_{link.user_id}",
+                   allow_open_commands=bool(getattr(link, "allow_open_commands", False)))
 
 
 def _new_client(client_id: str):
@@ -236,6 +241,10 @@ class MqttLinkClient:
         if parsed is None:
             return
         vin, command, params = parsed
+        if command in PIN_REQUIRED and not self.config.allow_open_commands:
+            # Whoever writes to the broker would open the car with the stored PIN: only with the switch the manager turned on with it
+            _LOGGER.warning(f"MQTT order '{command}' for {vin[-6:]} ignored: orders that open the car are off for this broker")
+            return
         if vin not in self._published:
             _LOGGER.warning(f"MQTT command for a car that is not published ({vin[-6:]}): ignored")
             return

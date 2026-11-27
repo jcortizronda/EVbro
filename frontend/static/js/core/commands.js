@@ -332,11 +332,11 @@ async function executePendingCommand() {
  * Saves or updates the PIN on the server's active account so it is not asked for again.
  * @param {string} pin - the 6-digit PIN of the Ebro account.
  */
-async function saveAccountPin(pin) {
+async function saveAccountPin(pin, currentPin) {
   const res = await fetch('/api/account/pin', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ pin: pin })
+    body: JSON.stringify({ pin: pin, current_pin: currentPin || null })
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(typeof data.detail === 'string' ? data.detail : res.status);   // it used to say «guardado» anyway
@@ -360,9 +360,15 @@ async function openUpdatePinModal() {
   if (newPin === null) return; // Cancelled
   const pin = newPin.trim();
   if (pin && !/^[0-9]{6}$/.test(pin)) { showToast(t('El PIN de Ebro tiene 6 dígitos.'), 'warning', 6000); return; }
+  let currentPin = null;
+  if (pin && currentAccountInfo?.has_pin) {
+    // Replacing the stored PIN asks for it (deleting it does not): a session alone must not be able to swap it
+    currentPin = await askStoredPin('Escribe el PIN guardado ahora para sustituirlo.', 'PIN guardado en EVbro', 'Sustituir');
+    if (currentPin === null) return;
+  }
 
   try {
-    await saveAccountPin(pin);
+    await saveAccountPin(pin, currentPin);
     showToast(pin ? t('PIN guardado. {p0}', {p0: policyNote}) : 'PIN eliminado. Las órdenes volverán a pedir el PIN.', 'success', 6000);
   } catch (e) {
     showToast(t('No se pudo guardar el PIN: {p0}', {p0: e.message || e}), 'error', 6000);

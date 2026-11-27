@@ -128,6 +128,12 @@ async def get_pvpc_hourly_price(
     return fb, f"PVPC Estimado / Respaldo ({fb:.4f} €/kWh)"
 
 
+def _price(value, default: float = 0.15) -> float:
+    """A price the user set, or the default when there is none. A price of 0 is free, not missing: `value or 0.15` charged
+    a fixed tariff of 0 €/kWh at 0.15 (calculations audit, 27-11-2026)."""
+    return default if value is None else float(value)
+
+
 async def calculate_charging_session_cost(
     geofence: Optional[Any],
     start_time: datetime.datetime,
@@ -159,7 +165,7 @@ async def calculate_charging_session_cost(
 
     # 2. fixed cost
     if mode == "fixed":
-        fixed_p = getattr(geofence, "cost_per_kwh", 0.15) or 0.15
+        fixed_p = _price(getattr(geofence, "cost_per_kwh", None))
         total = round(kwh_added * fixed_p, 2)
         return {
             "total_cost": total,
@@ -189,10 +195,10 @@ async def calculate_charging_session_cost(
         elif mode == "pvpc":
             zone = getattr(geofence, "pvpc_zone", "Peninsula") or "Peninsula"
             margin = getattr(geofence, "cost_margin", 0.0) or 0.0
-            fallback = getattr(geofence, "cost_fallback", 0.15) or 0.15
+            fallback = _price(getattr(geofence, "cost_fallback", None))
             p, _ = await get_pvpc_hourly_price(curr, zone=zone, margin=margin, fallback=fallback)
         else:
-            p = getattr(geofence, "cost_per_kwh", 0.15) or 0.15
+            p = _price(getattr(geofence, "cost_per_kwh", None))
 
         total_cost_accum += segment_kwh * p
         curr = segment_end

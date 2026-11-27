@@ -434,5 +434,19 @@
  "Tipo de carga no válido.": "Tipo de carregamento inválido.",
  "La lista de cargadores está desactivada en este servidor.": "A lista de carregadores está desativada neste servidor.",
  "No se pudo descargar la lista oficial de cargadores. Inténtalo dentro de un rato.": "Não foi possível descarregar a lista oficial de carregadores. Tenta de novo daqui a pouco.",
- "No hay datos de fusibles de este modelo.": "Não há dados de fusíveis deste modelo."
+ "No hay datos de fusibles de este modelo.": "Não há dados de fusíveis deste modelo.",
+ "Al cambiar de servidor hay que volver a escribir el token de la API de Traccar.": "Ao mudar de servidor, é preciso voltar a escrever o token da API do Traccar.",
+ "Al cambiar de servidor, usuario o puerto hay que volver a escribir la contraseña del broker.": "Ao mudar de servidor, utilizador ou porta, é preciso voltar a escrever a palavra-passe do broker.",
+ "Cambio de seguridad en tu cuenta": "Alteração de segurança na tua conta",
+ "Demasiados PIN incorrectos. Espera {p0} min antes de reintentar.": "Demasiados PIN errados. Espera {p0} min antes de voltar a tentar.",
+ "EVbro ya no pedirá el PIN para abrir el coche.": "O EVbro deixará de pedir o PIN para abrir o carro.",
+ "EVbro ya solo pedirá el PIN para abrir el coche.": "O EVbro passará a pedir o PIN só para abrir o carro.",
+ "El PIN no coincide con el guardado.": "O PIN não coincide com o guardado.",
+ "Escribe el PIN de Ebro para confirmar este cambio.": "Escreve o PIN da Ebro para confirmar esta alteração.",
+ "Escribe el token de la API de Traccar.": "Escreve o token da API do Traccar.",
+ "Guarda primero el PIN de Ebro en Ajustes → Cuenta.": "Guarda primeiro o PIN da Ebro em Definições → Conta.",
+ "Home Assistant (MQTT) puede abrir el coche desde {p0}.": "O Home Assistant (MQTT) pode abrir o carro a partir de {p0}.",
+ "Se ha cambiado el PIN de Ebro guardado en EVbro.": "O PIN da Ebro guardado no EVbro foi alterado.",
+ "Si no has sido tú, cambia tu contraseña de EVbro y revisa Ajustes → Cuenta y Conexiones.": "Se não foste tu, muda a tua palavra-passe do EVbro e revê Definições → Conta e Ligações.",
+ "Tus coches se publican ahora por MQTT en {p0}.": "Os teus carros são agora publicados por MQTT em {p0}."
 }

@@ -39,3 +39,18 @@ def test_fixed_national_holidays_are_off_peak_all_day_but_moved_ones_are_not(mon
     assert get_time_of_use_period(utc(2026, 11, 2, 11, 0))[0] == "punta"
     # Good Friday (3 Apr 2026) has no fixed date -> a normal working day
     assert get_time_of_use_period(utc(2026, 4, 3, 11, 0))[0] == "punta"
+
+
+async def test_a_fixed_tariff_of_zero_is_free_not_the_default_price() -> None:
+    """`cost_per_kwh or 0.15` charged a fixed 0 €/kWh at 0.15 (calculations audit, 27-11-2026)."""
+    import datetime
+    from types import SimpleNamespace
+
+    from app.services.electricity_tariffs import calculate_charging_session_cost
+
+    start = datetime.datetime(2026, 11, 20, 22, 0)
+    free = SimpleNamespace(cost_mode="fixed", cost_per_kwh=0.0)
+    res = await calculate_charging_session_cost(free, start, start + datetime.timedelta(hours=2), 10.0)
+    assert (res["total_cost"], res["effective_kwh_cost"]) == (0.0, 0.0)
+    unset = SimpleNamespace(cost_mode="fixed", cost_per_kwh=None)
+    assert (await calculate_charging_session_cost(unset, start, start + datetime.timedelta(hours=2), 10.0))["total_cost"] == 1.5

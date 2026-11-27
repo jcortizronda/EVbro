@@ -25,14 +25,23 @@ STAMP="$(date +%F)"
 
 umask 077
 mkdir -p "$DEST"
-docker exec "$DB_CONTAINER" pg_dump -U "$DB_USER" "$DB_NAME" | gzip > "$DEST/evbro-db-$STAMP.sql.gz"
+# Each file is written under a temporary name, checked, and only then given its real name: a dump cut short (the database
+# stopped, the disk full) used to stay as the day's backup, looking fine (operations audit, 27-11-2026). Any failure ends the
+# script with an error, which is what the off-site copy and its alert look at (deploy/offsite.sh).
+fail() { echo "$(date -Is) ERROR: $*" >&2; rm -f "$DEST"/*.part; exit 1; }
+docker exec "$DB_CONTAINER" pg_dump --no-owner --no-privileges -U "$DB_USER" "$DB_NAME" | gzip > "$DEST/evbro-db-$STAMP.sql.gz.part" || fail "pg_dump"
+gzip -t "$DEST/evbro-db-$STAMP.sql.gz.part" || fail "the database dump is not a valid gzip"
+zcat "$DEST/evbro-db-$STAMP.sql.gz.part" | tail -n 5 | grep -c "PostgreSQL database dump complete" > /dev/null || fail "the database dump is incomplete"
+mv "$DEST/evbro-db-$STAMP.sql.gz.part" "$DEST/evbro-db-$STAMP.sql.gz"
 [ -f "$ROOT/deploy/.env" ] && cp "$ROOT/deploy/.env" "$DEST/env-$STAMP"
-docker run --rm -v "$DATA_VOLUME":/d:ro -v "$DEST":/b alpine:3.20 tar czf "/b/evbro-data-$STAMP.tgz" -C /d .
-chmod 600 "$DEST/evbro-data-$STAMP.tgz"           # created by the container as root: not covered by our umask
+docker run --rm -v "$DATA_VOLUME":/d:ro -v "$DEST":/b alpine:3.20 tar czf "/b/evbro-data-$STAMP.tgz.part" -C /d . || fail "archive of the data volume"
+chmod 600 "$DEST/evbro-data-$STAMP.tgz.part"      # created by the container as root: not covered by our umask
+tar tzf "$DEST/evbro-data-$STAMP.tgz.part" > /dev/null || fail "the archive of the data volume is not readable"
+mv "$DEST/evbro-data-$STAMP.tgz.part" "$DEST/evbro-data-$STAMP.tgz"
 find "$DEST" -maxdepth 1 \( -name 'evbro-db-*.sql.gz' -o -name 'evbro-data-*.tgz' -o -name 'env-*' \) -mtime +"$KEEP_DAYS" -delete
 # The dumps taken by hand before a deploy or a data fix (pre-*.sql.gz): kept longer, but not for ever, and readable only by root
 find "$DEST" -maxdepth 1 -name 'pre-*.sql.gz' -mtime +"$KEEP_PRE_DAYS" -delete
 find "$DEST" -maxdepth 1 -type f -name '*.sql.gz' -perm /077 -exec chmod 600 {} +
 docker builder prune -af --filter "until=72h" >/dev/null 2>&1 || true
-docker image prune -f >/dev/null 2>&1 || true
+docker image prune -f >/dev/null 2>&1 || true      # only untagged images: deploy.sh tags every build it deploys (evbro-local:<commit>)
 echo "$(date -Is) ok: $DEST/evbro-db-$STAMP.sql.gz ($(du -h "$DEST/evbro-db-$STAMP.sql.gz" | cut -f1)) + evbro-data-$STAMP.tgz ($(du -h "$DEST/evbro-data-$STAMP.tgz" | cut -f1))"

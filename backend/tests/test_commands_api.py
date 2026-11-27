@@ -289,7 +289,7 @@ async def test_changing_the_pin_resets_the_anti_lockout_and_the_taskid(db, send)
     ctx.state.taskid = "viejo"
     assert ctx.lockout.is_locked() is True
     async with client:
-        r = await client.post("/api/account/pin", json={"pin": "567800"})
+        r = await client.post("/api/account/pin", json={"pin": "567800", "current_pin": STORED_PIN})
     assert r.status_code == 200
     assert ctx.lockout.is_locked() is False and ctx.state.taskid is None and ctx.pin == "567800"
     async with async_session_factory() as s:
@@ -314,9 +314,35 @@ async def test_disconnecting_the_ebro_account_wipes_the_pin_from_memory(db, send
     assert ctx.pin == ""
 
 
+async def test_disconnecting_the_ebro_account_deletes_its_credentials_and_session(db, send) -> None:
+    """`/legal` says the credentials are deleted: they used to stay, encrypted, with the account only switched off."""
+    import os
+
+    from app.services.accounts import vehicle_data_dir
+    from app.services.ebro_sessions import account_session_path, write_token_file
+
+    client = await prepare(db)
+    async with async_session_factory() as s:
+        account = (await s.execute(select(EbroAccount))).scalar_one()
+        account.token_data = {"access_token": "a", "refresh_token": "r"}
+        await s.commit()
+        acc_id = account.id
+    os.makedirs(os.path.dirname(account_session_path(acc_id)), exist_ok=True)
+    write_token_file(account_session_path(acc_id), {"access_token": "a"})
+    os.makedirs(vehicle_data_dir(VIN), exist_ok=True)
+    write_token_file(os.path.join(vehicle_data_dir(VIN), "token.json"), {"access_token": "old"})
+    async with client:
+        assert (await client.post("/api/account/logout")).status_code == 200
+    async with async_session_factory() as s:
+        account = await s.get(EbroAccount, acc_id)
+        assert (account.is_active, account.password, account.pin, account.token_data) == (False, "", None, None)
+    assert not os.path.exists(account_session_path(acc_id))
+    assert not os.path.exists(os.path.join(vehicle_data_dir(VIN), "token.json"))
+
+
 # ───────────────────────── when the PIN is asked: the manager's choice ─────────────────────────
-async def _set_policy(client, policy):
-    return await client.put("/api/account/pin-policy", json={"policy": policy})
+async def _set_policy(client, policy, pin=STORED_PIN):
+    return await client.put("/api/account/pin-policy", json={"policy": policy, "pin": pin})
 
 
 async def test_the_always_policy_asks_for_the_pin_also_to_switch_on(db, send) -> None:
@@ -410,3 +436,34 @@ async def test_tilting_the_roof_asks_for_the_pin_like_opening_it(db, send) -> No
         assert (await send_command(client, "techo_ventilar", pin=STORED_PIN)).status_code == 200
         assert (await send_command(client, "calefaccion_rapida")).status_code == 200                 # heating opens nothing: no PIN
     assert [c["key"] for c in send.calls] == ["techo_ventilar", "calefaccion_rapida"]
+
+
+async def test_asking_for_the_pin_less_often_needs_the_pin_and_tells_the_manager(db, send, monkeypatch) -> None:
+    """A session alone (an unlocked phone, a stolen cookie) used to switch the policy to «never» and open the car with the stored PIN."""
+    from app.services.notification_service import NotificationService
+
+    told = []
+
+    async def note(cls, user_id, what):
+        told.append(user_id)
+    monkeypatch.setattr(NotificationService, "notify_security_change", classmethod(note))
+    client = await prepare(db)
+    async with client:
+        r = await client.put("/api/account/pin-policy", json={"policy": "never"})
+        assert r.status_code == 422                                                   # no PIN typed
+        assert (await client.put("/api/account/pin-policy", json={"policy": "never", "pin": "9999"})).status_code == 403
+        assert (await send_command(client, "desbloquear")).json()["reason"] == "pin_required"      # nothing changed
+        assert (await client.put("/api/account/pin-policy", json={"policy": "always"})).status_code == 200   # stricter: no PIN
+        assert (await client.put("/api/account/pin-policy", json={"policy": "never", "pin": STORED_PIN})).status_code == 200
+    assert len(told) == 1
+
+
+async def test_replacing_the_stored_pin_needs_the_current_one_but_deleting_it_does_not(db, send) -> None:
+    client = await prepare(db)
+    async with client:
+        assert (await client.post("/api/account/pin", json={"pin": "567800"})).status_code == 422
+        assert (await client.post("/api/account/pin", json={"pin": "567800", "current_pin": "000000"})).status_code == 403
+        assert (await client.post("/api/account/pin", json={"pin": ""})).status_code == 200          # deleting takes power away
+        assert (await client.post("/api/account/pin", json={"pin": "567800"})).status_code == 200     # nothing stored: nothing to check
+    async with async_session_factory() as s:
+        assert (await s.execute(select(EbroAccount.pin))).scalar_one() == "567800"

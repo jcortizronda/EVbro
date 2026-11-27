@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import hmac
 import logging
+import os
 import re
 import time
 from typing import Any, Dict, List, Literal, Optional
@@ -20,7 +21,7 @@ from app.core import ebro_account, ebro_login, ebro_reset
 from app.core.errors import CommandError
 from app.db.models import AppUser, EbroAccount, MqttLink, Vehicle
 from app.db.session import get_db
-from app.i18n import _, get_language
+from app.i18n import M, _, get_language
 from app.security import auth, passwords
 from app.security.access import foreign_vins, is_root, space_owner_id, within_vehicle_limit
 from app.security.netguard import private_link_problem
@@ -36,12 +37,14 @@ from app.services.accounts import (
     reset_password_with_code,
     reset_pin_with_code,
     reset_send_sms,
+    vehicle_data_dir,
 )
 from app.services.car_events import CarEventHub
 from app.services.cloud_pool import CLOUD_EXECUTOR
 from app.services.command_policy import pin_throttle, pin_throttle_key
-from app.services.ebro_sessions import account_session_path
+from app.services.ebro_sessions import account_session_path, remove_account_session
 from app.services.mqtt_hub import MqttHub, MqttLinkConfig
+from app.services.notification_service import NotificationService
 from app.services.poller import VehiclePoller
 from app.timeutil import utcnow
 
@@ -331,6 +334,31 @@ async def _first_read(poller: VehiclePoller, vin: str) -> None:
 
 class UpdatePinRequest(BaseModel):
     pin: str = Field(max_length=32)
+    current_pin: Optional[str] = Field(default=None, max_length=32)    # the stored one: needed to replace it (not to delete it)
+
+
+async def _confirm_stored_pin(session: AsyncSession, user: AppUser, typed: Optional[str]) -> None:
+    """The typed PIN must be the stored one before something that weakens the PIN's protection: lowering when it is asked,
+    opening orders over MQTT, replacing it. A session alone (a phone left unlocked, a stolen cookie, an administrator who reset the
+    password) knows the EVbro password at most, never the PIN (security audit, 27-11-2026). Compared locally, with the same retry
+    limit as an order."""
+    account = (await session.execute(select(EbroAccount).where(EbroAccount.is_active == True, EbroAccount.user_id == user.id)  # noqa: E712
+                                      .order_by(EbroAccount.id.desc()))).scalars().first()
+    stored = ((account.pin if account else None) or "").strip()
+    if not stored:
+        raise HTTPException(status_code=409, detail=_("Guarda primero el PIN de Ebro en Ajustes → Cuenta."))
+    key = f"pin-confirm:{user.id}"
+    wait = pin_throttle.retry_after(key)
+    if wait:
+        raise HTTPException(status_code=429, headers={"Retry-After": str(wait)},
+                            detail=_("Demasiados PIN incorrectos. Espera {p0} min antes de reintentar.", p0=max(1, wait // 60)))
+    typed = (typed or "").strip()
+    if not typed:
+        raise HTTPException(status_code=422, detail=_("Escribe el PIN de Ebro para confirmar este cambio."))
+    if not hmac.compare_digest(typed.encode(), stored.encode()):
+        pin_throttle.record_failure(key)
+        raise HTTPException(status_code=403, detail=_("El PIN no coincide con el guardado."))
+    pin_throttle.reset(key)
 
 
 @router.post("/pin")
@@ -344,8 +372,13 @@ async def update_account_pin(req: UpdatePinRequest, session: AsyncSession = Depe
     clean_pin = req.pin.strip() if req.pin else None
     if clean_pin and not ebro_account.pin_format_ok(clean_pin):
         raise HTTPException(status_code=422, detail=_("El PIN de Ebro tiene 6 dígitos."))
+    replacing = bool(clean_pin and (account.pin or "").strip() and clean_pin != (account.pin or "").strip())
+    if replacing:
+        await _confirm_stored_pin(session, user, req.current_pin)       # deleting it needs nothing: that takes power away
     account.pin = clean_pin
     await session.commit()
+    if replacing:
+        await NotificationService.notify_security_change(user.id, M("Se ha cambiado el PIN de Ebro guardado en EVbro."))
 
     # changing the PIN is an explicit remedy: the anti-lockout and the cached taskId (tied to the
     # previous PIN) are reset, just as the integration did when the PIN was reconfigured.
@@ -775,6 +808,11 @@ async def reset_home_layout(page: Literal["overview", "charges", "climate", "doc
 
 class PinPolicyRequest(BaseModel):
     policy: str = Field(pattern="^(open|always|never)$")
+    pin: Optional[str] = Field(default=None, max_length=32)          # needed to ask for it less often than now
+
+
+# How strict each policy is: going down this list asks for the PIN
+_POLICY_STRICTNESS = {"always": 2, "open": 1, "never": 0}
 
 
 @router.put("/pin-policy")
@@ -786,8 +824,15 @@ async def update_pin_policy(req: PinPolicyRequest, session: AsyncSession = Depen
         if not (account and (account.pin or "").strip()):
             raise HTTPException(status_code=409, detail="Para no pedir nunca el PIN hay que tener el PIN guardado en la cuenta.")
     db_user = await session.get(AppUser, user.id)
+    current = db_user.pin_policy or "open"
+    lowering = _POLICY_STRICTNESS[req.policy] < _POLICY_STRICTNESS.get(current, 1)
+    if lowering:
+        await _confirm_stored_pin(session, user, req.pin)
     db_user.pin_policy = req.policy
     await session.commit()
+    if lowering:
+        await NotificationService.notify_security_change(user.id, M("EVbro ya no pedirá el PIN para abrir el coche.") if req.policy == "never"
+                                                         else M("EVbro ya solo pedirá el PIN para abrir el coche."))
     return {"status": "ok", "pin_policy": req.policy}
 
 
@@ -801,6 +846,8 @@ class MqttLinkIn(BaseModel):
     topic_prefix: str = Field(default="evbro", min_length=1, max_length=60, pattern=r"^[A-Za-z0-9_-]+$")
     ha_discovery: bool = True
     ha_prefix: str = Field(default="homeassistant", min_length=1, max_length=60, pattern=r"^[A-Za-z0-9_-]+$")
+    allow_open_commands: Optional[bool] = None      # orders that open the car: switching it on asks for `pin`; None = as it was
+    pin: Optional[str] = Field(default=None, max_length=32)
     enabled: bool = True
 
 
@@ -809,7 +856,14 @@ def _mqtt_out(link: Optional[MqttLink], user_id: int) -> Dict[str, Any]:
         return {"link": None}
     return {"link": {"host": link.host, "port": link.port, "username": link.username, "has_password": bool(link.password), "use_tls": link.use_tls,
                      "topic_prefix": link.topic_prefix, "ha_discovery": link.ha_discovery, "ha_prefix": link.ha_prefix, "enabled": link.enabled,
+                     "allow_open_commands": bool(link.allow_open_commands),
                      **(MqttHub.get_instance().status(user_id) or {"connected": False, "last_error": None, "connected_at": None, "cars": []})}}
+
+
+def _same_broker(link: MqttLink, req: "MqttLinkIn") -> bool:
+    port = req.port or (8883 if req.use_tls else 1883)
+    stored_port = link.port or (8883 if link.use_tls else 1883)
+    return ((link.host or "").strip().lower(), stored_port, link.username or None) == (req.host.strip().lower(), port, (req.username or "").strip() or None)
 
 
 async def _mqtt_link(session: AsyncSession, user_id: int) -> Optional[MqttLink]:
@@ -829,6 +883,14 @@ async def save_mqtt_link(req: MqttLinkIn, session: AsyncSession = Depends(get_db
     if problem:
         raise HTTPException(status_code=422, detail=problem)
     link = await _mqtt_link(session, user.id)
+    new_broker = link is None or not _same_broker(link, req)
+    if link is not None and new_broker and link.password and not req.password:
+        # The stored password only goes to the broker it was saved for (security audit, 27-11-2026)
+        raise HTTPException(status_code=422, detail=_("Al cambiar de servidor, usuario o puerto hay que volver a escribir la contraseña del broker."))
+    was_open = bool(link and link.allow_open_commands and not new_broker)
+    wants_open = was_open if req.allow_open_commands is None else bool(req.allow_open_commands)
+    if wants_open and not was_open:
+        await _confirm_stored_pin(session, user, req.pin)
     if link is None:
         link = MqttLink(user_id=user.id, host=req.host.strip())
         session.add(link)
@@ -836,8 +898,13 @@ async def save_mqtt_link(req: MqttLinkIn, session: AsyncSession = Depends(get_db
     if req.password is not None and req.password != "":
         link.password = req.password
     link.use_tls, link.topic_prefix, link.ha_discovery, link.ha_prefix, link.enabled = req.use_tls, req.topic_prefix, req.ha_discovery, req.ha_prefix, req.enabled
+    link.allow_open_commands = wants_open
     await session.commit()
     await session.refresh(link)
+    if wants_open and not was_open:
+        await NotificationService.notify_security_change(user.id, M("Home Assistant (MQTT) puede abrir el coche desde {p0}.", p0=link.host))
+    elif new_broker:
+        await NotificationService.notify_security_change(user.id, M("Tus coches se publican ahora por MQTT en {p0}.", p0=link.host))
     await MqttHub.get_instance().reload_user(user.id)
     await asyncio.sleep(0.3)                                   # give the first connection attempt a moment so the answer can say «conectado»
     return _mqtt_out(link, user.id)
@@ -862,7 +929,7 @@ async def test_mqtt_link(req: MqttLinkIn, session: AsyncSession = Depends(get_db
     password = req.password or None
     if not password:
         link = await _mqtt_link(session, user.id)
-        password = link.password if link else None
+        password = link.password if link and _same_broker(link, req) else None      # never sent to another broker
     config = MqttLinkConfig(host=req.host.strip(), port=req.port or (8883 if req.use_tls else 1883), username=(req.username or "").strip() or None,
                             password=password, use_tls=req.use_tls, topic_prefix=req.topic_prefix, client_id=f"evbro_{user.id}")
     return await mqtt_hub.test_connection(config)
@@ -903,14 +970,27 @@ async def delete_own_account(req: AccountDelete, request: Request, response: Res
 
 @router.post("/logout")
 async def logout_ebro_account(session: AsyncSession = Depends(get_db), user: AppUser = Depends(auth.require_auth)):
-    """Unlinks this user's active Ebro account."""
+    """Unlinks this user's active Ebro account and deletes its credentials: the password, the PIN and the session (in the
+    database and on disk). It used to switch the account off only, while `/legal` said the credentials were deleted (security
+    audit, 27-11-2026). Connecting it again asks for the password, as the first time."""
     stmt = select(EbroAccount).where(EbroAccount.is_active == True, EbroAccount.user_id == user.id)  # noqa: E712
     accounts = (await session.execute(stmt)).scalars().all()
 
     for a in accounts:
         a.is_active = False
+        a.password = ""                                      # the column cannot be empty of a value: an empty one is no password
+        a.pin = None
+        a.token_data = None
 
     await session.commit()
+    own_cars = await _own_vins(session, user.id)
+    for a in accounts:
+        remove_account_session(a.id)
+    for vin in own_cars:                                     # the old per-car copies of the session, from before 09-11-2026
+        try:
+            os.remove(os.path.join(vehicle_data_dir(vin), "token.json"))
+        except (FileNotFoundError, ValueError):
+            pass
 
     await CarEventHub.get_instance().stop_owner(user.id)
 

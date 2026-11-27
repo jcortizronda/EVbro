@@ -601,15 +601,28 @@ function renderPinPolicy(data) {
   if (hint) hint.textContent = (PIN_POLICY_HINT[policy] || '') + (!data.has_pin && policy !== 'always' ? ' Sin PIN guardado, la nube de Ebro lo pide en toda orden.' : '');
 }
 
+/** The stored PIN, typed to confirm a change that weakens its protection (the server checks it). null when cancelled. */
+async function askStoredPin(message, title, confirmText) {
+  const pin = await promptDialog(message, { title, type: 'password', inputmode: 'numeric', placeholder: '••••••', maxLength: 6, confirmText });
+  return pin === null ? null : pin.trim();
+}
+
+const PIN_POLICY_STRICTNESS = { always: 2, open: 1, never: 0 };
+
 async function setPinPolicy(policy) {
-  if (policy === 'never') {
+  const current = currentAccountInfo?.pin_policy || 'open';
+  let pin = null;
+  if (PIN_POLICY_STRICTNESS[policy] < PIN_POLICY_STRICTNESS[current]) {
+    // Asking for it less often needs the PIN itself: being signed in to EVbro is not enough (security audit, 27-11-2026)
     if (!currentAccountInfo?.has_pin) { showToast('Guarda primero el PIN en la cuenta.', 'warning', 5000); return; }
-    const sure = await confirmDialog('Ninguna orden pedirá el PIN: quien entre en EVbro con tu cuenta podrá abrir y desbloquear el coche sin teclearlo. ¿Seguro?',
-      { title: 'No pedir nunca el PIN', confirmText: 'No pedirlo nunca', danger: true });
-    if (!sure) return;
+    const message = policy === 'never'
+      ? 'Ninguna orden pedirá el PIN: quien entre en EVbro con tu cuenta podrá abrir el coche sin teclearlo. Escribe tu PIN de Ebro para confirmarlo.'
+      : 'Escribe tu PIN de Ebro para confirmar el cambio.';
+    pin = await askStoredPin(message, policy === 'never' ? 'No pedir nunca el PIN' : 'Pedir el PIN solo para abrir', 'Confirmar');
+    if (pin === null) return;
   }
   try {
-    const res = await fetch('/api/account/pin-policy', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ policy }) });
+    const res = await fetch('/api/account/pin-policy', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ policy, pin }) });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.detail || res.status);
     if (typeof commandPinMap !== 'undefined') commandPinMap = null;      // the catalogue's requires_pin changes with the policy
@@ -628,7 +641,8 @@ window.MqttHa = (function () {
 
   function form() {
     return { host: el('mqHost').value.trim(), port: el('mqPort').value ? parseInt(el('mqPort').value, 10) : null, username: el('mqUser').value.trim() || null,
-             password: el('mqPass').value || null, use_tls: el('mqTls').checked, ha_discovery: el('mqDiscovery').checked, enabled: el('mqEnabled').checked };
+             password: el('mqPass').value || null, use_tls: el('mqTls').checked, ha_discovery: el('mqDiscovery').checked, enabled: el('mqEnabled').checked,
+             allow_open_commands: el('mqOpen').checked };
   }
 
   function render() {
@@ -641,6 +655,7 @@ window.MqttHa = (function () {
     el('mqTls').checked = link ? !!link.use_tls : false;
     el('mqDiscovery').checked = link ? !!link.ha_discovery : true;
     el('mqEnabled').checked = link ? !!link.enabled : true;
+    el('mqOpen').checked = link ? !!link.allow_open_commands : false;
     el('mqDelete').hidden = !link;
     const st = el('mqStatus');
     if (!link) { st.textContent = 'Sin conectar. Tus coches no se publican en ningún broker.'; st.dataset.tone = 'neutral'; return; }
@@ -684,6 +699,12 @@ window.MqttHa = (function () {
   async function save() {
     const body = form();
     if (!body.host) { showToast('Indica el broker.', 'warning'); return; }
+    if (body.allow_open_commands && !(link && link.allow_open_commands && link.host === body.host)) {
+      // Whoever writes to that broker could open the car: switching it on asks for the PIN (the server checks it)
+      body.pin = await askStoredPin('Home Assistant, y cualquiera que pueda escribir en ese broker, podrá abrir y desbloquear el coche. Escribe tu PIN de Ebro para permitirlo.',
+        'Abrir el coche desde Home Assistant', 'Permitir');
+      if (body.pin === null) return;
+    }
     try {
       link = (await call('PUT', body)).link;
       render();

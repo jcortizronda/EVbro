@@ -90,8 +90,12 @@ async def test_the_link_is_saved_encrypted_connects_and_never_returns_the_passwo
     async with async_session_factory() as s:
         row = (await s.execute(__import__("sqlalchemy").select(MqttLink))).scalar_one()
         assert row.password == "secreta-123" and row.user_id == 2
-    # saving again without a password keeps the stored one; "" too
-    r = await ana.put("/api/account/mqtt", json={"host": "ha.local", "username": "evbro", "password": "", "port": 1884})
+    # saving again without a password keeps the stored one; "" too (same broker)
+    r = await ana.put("/api/account/mqtt", json={"host": "ha.local", "username": "evbro", "password": ""})
+    assert r.json()["link"]["has_password"] is True
+    # another port is another broker: the password has to be typed again
+    assert (await ana.put("/api/account/mqtt", json={"host": "ha.local", "username": "evbro", "port": 1884})).status_code == 422
+    r = await ana.put("/api/account/mqtt", json={"host": "ha.local", "username": "evbro", "password": "secreta-123", "port": 1884})
     assert r.json()["link"]["has_password"] is True and r.json()["link"]["port"] == 1884
     assert (await ana.put("/api/account/mqtt", json={"host": "ha.local", "topic_prefix": "bad prefix"})).status_code == 422
     # the hub has one client for Ana, none for Bea
@@ -151,9 +155,53 @@ async def test_each_car_is_published_only_on_its_owners_broker_and_commands_stay
     hub._clients[2]._on_message(None, None, type("M", (), {"topic": topic, "payload": b"UNLOCK", "retain": True})())
     await asyncio.sleep(0.05)
     assert runs == [(VIN_A, "bloquear", "mqtt")]
+    # a live UNLOCK is refused too while the orders that open the car are off (the default: switching them on asks for the PIN)
+    hub._clients[2]._on_message(None, None, type("M", (), {"topic": topic, "payload": b"UNLOCK", "retain": False})())
+    await asyncio.sleep(0.05)
+    assert runs == [(VIN_A, "bloquear", "mqtt")]
+    hub._clients[2].config.allow_open_commands = True
     hub._clients[2]._on_message(None, None, type("M", (), {"topic": topic, "payload": b"UNLOCK", "retain": False})())
     await asyncio.sleep(0.05)
     assert runs == [(VIN_A, "bloquear", "mqtt"), (VIN_A, "desbloquear", "mqtt")]
+
+
+async def test_opening_orders_over_mqtt_need_the_pin_and_a_new_broker_switches_them_off(world) -> None:
+    """A session alone could point the link at a broker of its own and open the car with the stored PIN (security audit,
+    27-11-2026). Switching opening orders on asks for the PIN; another broker switches them off and needs its password typed."""
+    from app.db.models import EbroAccount
+    ana = world["ana"]
+    async with async_session_factory() as s:
+        s.add(EbroAccount(user_id=2, phone="600000002", password="x", pin="123456", is_active=True))
+        await s.commit()
+    r = await ana.put("/api/account/mqtt", json={"host": "ha.local", "username": "u", "password": "secreta-123"})
+    assert r.status_code == 200 and r.json()["link"]["allow_open_commands"] is False
+    r = await ana.put("/api/account/mqtt", json={"host": "ha.local", "username": "u", "allow_open_commands": True})
+    assert r.status_code == 422                                                            # no PIN typed
+    r = await ana.put("/api/account/mqtt", json={"host": "ha.local", "username": "u", "allow_open_commands": True, "pin": "000000"})
+    assert r.status_code == 403
+    r = await ana.put("/api/account/mqtt", json={"host": "ha.local", "username": "u", "allow_open_commands": True, "pin": "123456"})
+    assert r.status_code == 200 and r.json()["link"]["allow_open_commands"] is True
+    assert MqttHub.get_instance()._clients[2].config.allow_open_commands is True
+    r = await ana.put("/api/account/mqtt", json={"host": "ha.local", "username": "u"})                 # same broker: it stays on
+    assert r.json()["link"]["allow_open_commands"] is True
+    # another broker: the stored password is not sent there, and opening orders go off
+    assert (await ana.put("/api/account/mqtt", json={"host": "evil.example", "username": "u"})).status_code == 422
+    r = await ana.put("/api/account/mqtt", json={"host": "evil.example", "username": "u", "password": "otra"})
+    assert r.status_code == 200 and r.json()["link"]["allow_open_commands"] is False
+    # the connection test does not send the stored password to a broker other than the stored one
+    seen = []
+    orig = mqtt_hub.test_connection
+
+    async def capture(config):
+        seen.append(config.password)
+        return {"ok": True}
+    mqtt_hub.test_connection = capture
+    try:
+        await ana.post("/api/account/mqtt/test", json={"host": "evil.example", "username": "u"})
+        await ana.post("/api/account/mqtt/test", json={"host": "other.example", "username": "u"})
+    finally:
+        mqtt_hub.test_connection = orig
+    assert seen == ["otra", None]
 
 
 def test_config_from_env_and_link_defaults() -> None:

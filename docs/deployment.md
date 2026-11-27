@@ -138,7 +138,7 @@ docker compose exec app tail -n 200 /app/data/logs/evbro.log
 **Automática:** `deploy/backup.sh` hace cada madrugada el volcado de la BD, un archivo del **volumen de datos** (documentos, facturas y fotos cifrados, tokens, clave VAPID) y una copia de `deploy/.env` (lleva la clave de cifrado) en `backups/`; borra lo de más de 14 días (y los volcados `pre-*.sql.gz` hechos a mano antes de un despliegue, a los 30: `KEEP_PRE_DAYS`) y limpia los restos de construcción de Docker de más de 3 días (cada despliegue deja cientos de MB). El guion **lee** de `deploy/.env` el usuario y el nombre de la base de datos, no lo ejecuta: hasta el 26-11-2026 lo cargaba como si fuera un guion de shell y una línea como `SMTP_FROM=EVbro <correo@ejemplo.com>` lo paraba sin hacer la copia. **Mira `backups/backup.log` de vez en cuando:** si la copia falla, nadie avisa. Se programa con `cron` (`0 4 * * * /opt/evbro/deploy/backup.sh >> /opt/evbro/backups/backup.log 2>&1`).
 
 **Fuera del servidor (obligatorio en cuanto haya datos de otra persona):** `backups/` vive dentro del mismo LXC; si se pierde el contenedor se pierde todo. Dos formas, la primera basta:
-1. **Copia del contenedor desde Proxmox:** Datacenter → Backup → Add: CT 112, cada día a las 05:00 (después del `backup.sh`), modo *snapshot*, almacenamiento que no sea `local` (NAS por NFS/CIFS o Proxmox Backup Server), conservar 7. Incluye `/var/lib/docker` (volúmenes) y `/opt/evbro/backups`.
+1. **Copia del contenedor desde Proxmox:** Datacenter → Backup → Add: el CT de EVbro, cada día a las 05:00 (después del `backup.sh`), modo *snapshot*, almacenamiento que no sea `local` (NAS por NFS/CIFS o Proxmox Backup Server), conservar 7. Incluye `/var/lib/docker` (volúmenes) y `/opt/evbro/backups`.
 2. **Solo la carpeta de copias:** `rsync -a /opt/evbro/backups/ usuario@nas:/copias/evbro/` en otra línea de `cron`, después de las 04:00.
 En los dos casos la carpeta contiene la clave de cifrado (`env-*`): el destino debe ser tan privado como el servidor.
 
@@ -146,12 +146,41 @@ Hacen falta **tres cosas juntas**; sin la clave, la copia de la base de datos no
 
 ```bash
 # 1) Base de datos
-docker exec evbro-db pg_dump -U evbro evbro | gzip > evbro-db-$(date +%F).sql.gz
+docker exec evbro-db pg_dump --no-owner --no-privileges -U evbro evbro | gzip > evbro-db-$(date +%F).sql.gz
 # 2) Volumen de datos (tokens, documentos/facturas/fotos cifrados, certificados, vapid_private.pem, secret.key si no usas ENCRYPTION_KEY)
 docker run --rm -v evbro_evbro_data:/d -v "$PWD":/b alpine tar czf /b/evbro-data-$(date +%F).tgz -C /d .
 # 3) ENCRYPTION_KEY (deploy/.env): en un gestor de contraseñas, fuera del servidor
 ```
-Restaurar: `gunzip -c evbro-db-*.sql.gz | docker exec -i evbro-db psql -U evbro evbro` y desempaquetar el volumen. Si se pierde `vapid_private.pem`, hay que reactivar las notificaciones en cada dispositivo.
+**Restaurar** (procedimiento probado el 27-11-2026, 0 errores; el anterior, `gunzip … | psql` sobre la base que crea la app al arrancar,
+daba 257 errores con salida 0 y perdía los ajustes del servidor). La base tiene que estar **vacía**, y `ON_ERROR_STOP` hace que un error
+pare la restauración en vez de esconderse:
+
+```bash
+cd deploy
+docker compose stop app
+docker compose exec -T db dropdb -U evbro evbro && docker compose exec -T db createdb -U evbro evbro
+gunzip -c evbro-db-FECHA.sql.gz | docker compose exec -T db psql -q -U evbro -v ON_ERROR_STOP=1 evbro
+docker run --rm -v evbro_evbro_data:/d -v "$PWD":/b alpine sh -c 'cd /d && tar xzf /b/evbro-data-FECHA.tgz'
+docker compose up -d
+```
+Cambia `evbro` por tu `POSTGRES_USER`/`POSTGRES_DB`. Las copias de `backup.sh` y `deploy.sh` se hacen sin propietario (`--no-owner`) desde el
+27-11-2026, así que entran en una instalación con otro usuario de base de datos; una copia anterior trae `OWNER TO <usuario>` y necesita
+el mismo `POSTGRES_USER` que el servidor de origen. Comprueba después que la app arranca y que las cuentas de Ebro siguen conectadas (eso
+prueba que la clave es la buena). Si se pierde `vapid_private.pem`, hay que reactivar las notificaciones en cada dispositivo.
+
+**Ensayo de restauración del 27-11-2026** (servidor del proyecto, copia de las 04:00 en un proyecto de Compose aparte con una red
+`internal: true`, sin salida a internet, para que la copia no pudiera hablar con la nube de Ebro ni mandar avisos): base restaurada en
+menos de un minuto, aplicación sana al arrancar, todas las filas anteriores a la copia presentes y las 39 cuentas de Ebro descifradas con la
+clave del `.env`. Lo que faltaba era lo escrito después de las 04:00: con una copia al día se pierden hasta 24 horas.
+
+**Despliegue y marcha atrás desde el código fuente:** `deploy/deploy.sh` (volcado comprobado, avance a `origin/main`, imagen etiquetada
+`evbro-local:<commit>`, espera a `/health/ready`) y `deploy/rollback.sh <commit> <volcado>` (vuelve a esa imagen y, si se le da un volcado,
+a esa base de datos; guarda antes otra copia de la actual). `backup.sh` solo borra imágenes sin etiqueta, así que las cinco últimas
+versiones desplegadas siguen disponibles.
+
+**Para un monitor externo:** `GET /health/ready` devuelve 200 si la base de datos contesta y el bucle de lecturas ha terminado una vuelta en
+los últimos 5 minutos, y 503 si no (`/health` sigue contestando siempre: es el de Docker, que no debe reiniciar la app por una caída de la
+base de datos).
 
 ## Aviso legal y privacidad
 

@@ -434,5 +434,19 @@
  "Tipo de carga no válido.": "Invalid type of charging.",
  "La lista de cargadores está desactivada en este servidor.": "The list of chargers is switched off on this server.",
  "No se pudo descargar la lista oficial de cargadores. Inténtalo dentro de un rato.": "The official list of chargers could not be downloaded. Try again in a while.",
- "No hay datos de fusibles de este modelo.": "There is no fuse data for this model."
+ "No hay datos de fusibles de este modelo.": "There is no fuse data for this model.",
+ "Al cambiar de servidor hay que volver a escribir el token de la API de Traccar.": "When you change the server, type the Traccar API token again.",
+ "Al cambiar de servidor, usuario o puerto hay que volver a escribir la contraseña del broker.": "When you change the server, user or port, type the broker password again.",
+ "Cambio de seguridad en tu cuenta": "Security change on your account",
+ "Demasiados PIN incorrectos. Espera {p0} min antes de reintentar.": "Too many wrong PINs. Wait {p0} min before trying again.",
+ "EVbro ya no pedirá el PIN para abrir el coche.": "EVbro will no longer ask for the PIN to open the car.",
+ "EVbro ya solo pedirá el PIN para abrir el coche.": "EVbro will now ask for the PIN only to open the car.",
+ "El PIN no coincide con el guardado.": "The PIN does not match the saved one.",
+ "Escribe el PIN de Ebro para confirmar este cambio.": "Type your Ebro PIN to confirm this change.",
+ "Escribe el token de la API de Traccar.": "Type the Traccar API token.",
+ "Guarda primero el PIN de Ebro en Ajustes → Cuenta.": "First save your Ebro PIN in Settings → Account.",
+ "Home Assistant (MQTT) puede abrir el coche desde {p0}.": "Home Assistant (MQTT) can open the car from {p0}.",
+ "Se ha cambiado el PIN de Ebro guardado en EVbro.": "The Ebro PIN saved in EVbro has been changed.",
+ "Si no has sido tú, cambia tu contraseña de EVbro y revisa Ajustes → Cuenta y Conexiones.": "If it was not you, change your EVbro password and check Settings → Account and Connections.",
+ "Tus coches se publican ahora por MQTT en {p0}.": "Your cars are now published over MQTT on {p0}."
 }

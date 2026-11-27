@@ -81,3 +81,10 @@
   padding: 0 12px !important;
   font-size: 12px !important;
 }
+
+/* A button whose action is still running (core/actions.js, `holdWhile`): no second tap, and it shows it is working */
+button.is-busy {
+  cursor: progress;
+  opacity: 0.6;
+  transform: none;
+}

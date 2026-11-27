@@ -2709,5 +2709,15 @@
  "1 repostaje": "1 abastecimento",
  "{p0} repostajes": "{p0} abastecimentos",
  "Ponerla en la ficha del coche": "Indicar na ficha do carro",
- "La nube de Ebro no ha confirmado la orden. Mira el estado del coche antes de repetirla: puede que se haya hecho o que no.": "A nuvem da Ebro não confirmou a ordem. Veja o estado do carro antes de a repetir: pode ter sido feita ou não."
+ "La nube de Ebro no ha confirmado la orden. Mira el estado del coche antes de repetirla: puede que se haya hecho o que no.": "A nuvem da Ebro não confirmou a ordem. Veja o estado do carro antes de a repetir: pode ter sido feita ou não.",
+ "Se ha cambiado el PIN de Ebro guardado en EVbro.": "O PIN da Ebro guardado no EVbro foi alterado.",
+ "EVbro ya no pedirá el PIN para abrir el coche.": "O EVbro deixará de pedir o PIN para abrir o carro.",
+ "EVbro ya solo pedirá el PIN para abrir el coche.": "O EVbro passará a pedir o PIN só para abrir o carro.",
+ "Permitir que Home Assistant abra el coche (pide el PIN)": "Permitir que o Home Assistant abra o carro (pede o PIN)",
+ "Escribe el PIN guardado ahora para sustituirlo.": "Escreve o PIN guardado agora para o substituir.",
+ "Ninguna orden pedirá el PIN: quien entre en EVbro con tu cuenta podrá abrir el coche sin teclearlo. Escribe tu PIN de Ebro para confirmarlo.": "Nenhuma ordem pedirá o PIN: quem entrar no EVbro com a tua conta poderá abrir o carro sem o escrever. Escreve o teu PIN da Ebro para confirmar.",
+ "Escribe tu PIN de Ebro para confirmar el cambio.": "Escreve o teu PIN da Ebro para confirmar a alteração.",
+ "Pedir el PIN solo para abrir": "Pedir o PIN só para abrir",
+ "Home Assistant, y cualquiera que pueda escribir en ese broker, podrá abrir y desbloquear el coche. Escribe tu PIN de Ebro para permitirlo.": "O Home Assistant, e qualquer pessoa que possa escrever nesse broker, poderá abrir e desbloquear o carro. Escreve o teu PIN da Ebro para o permitir.",
+ "Abrir el coche desde Home Assistant": "Abrir o carro a partir do Home Assistant"
 }

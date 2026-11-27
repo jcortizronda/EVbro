@@ -618,6 +618,20 @@ class NotificationService:
         )
 
     @classmethod
+    async def notify_security_change(cls, user_id: int, what: Message):
+        """A change that weakens what protects the car (when the PIN is asked, orders that open the car over MQTT, the broker they
+        come from): the manager hears of it at once on their own channels, so a change they did not make does not go unnoticed. To
+        the manager alone, and not one of the switchable categories (security audit, 27-11-2026)."""
+        await cls.dispatch(
+            user_id=user_id,
+            category="account",
+            title=M("Cambio de seguridad en tu cuenta"),
+            message=Message.join(" ", [what, M("Si no has sido tú, cambia tu contraseña de EVbro y revisa Ajustes → Cuenta y Conexiones.")]),
+            tags=["lock", "warning"],
+            priority="high",
+        )
+
+    @classmethod
     async def notify_charge_interrupted(cls, vehicle_name: str, battery_pct: float, reason: Optional[str] = None, vin: Optional[str] = None):
         """Notifies when a charge in progress stops unexpectedly."""
         await cls.dispatch(

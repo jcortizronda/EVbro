@@ -100,6 +100,8 @@ class VehiclePoller(SessionMixin, CommandsMixin, AlertsMixin, PositionWatchMixin
     _instance: Optional["VehiclePoller"] = None
     _contexts: Dict[str, CoreCtx] = {}
     _running: bool = False
+    # When the loop last finished a pass (naive UTC): `/health/ready` says the reads have stopped when it gets old
+    loop_heartbeat: Optional[datetime.datetime] = None
     _task: Optional[asyncio.Task] = None
     _ws_subscribers: Set[Callable[[Dict], None]] = set()
 
@@ -793,6 +795,7 @@ class VehiclePoller(SessionMixin, CommandsMixin, AlertsMixin, PositionWatchMixin
     async def _poller_loop(self) -> None:
         """Main adaptive, continuous polling loop."""
         _LOGGER.info("Starting the EVbro smart polling loop...")
+        VehiclePoller.loop_heartbeat = utcnow()                # the first pass has its own time to finish
         while self._running:
             try:
                 await self.bind_sessions()                    # a connected, changed or new account takes effect on the next pass
@@ -848,18 +851,22 @@ class VehiclePoller(SessionMixin, CommandsMixin, AlertsMixin, PositionWatchMixin
 
             except asyncio.CancelledError:
                 break
-            except Exception as e:
-                _LOGGER.error(f"Error in a polling iteration: {e}")
+            except Exception:                                 # noqa: BLE001 — with its trace: it used to say only the message
+                _LOGGER.exception("Error in a polling iteration")
 
-            await ChargeManager.get_instance().tick()
-            try:
-                await cloud_usage.flush()
-            except Exception as e:                            # noqa: BLE001 — only a counter
-                _LOGGER.debug("Could not write the cloud usage counter: %s", e)
-            await self._run_climate_schedules()
-            await self._maybe_apply_retention()
-            await self._maybe_sync_catalog()
-            await self._maybe_refresh_entitled_services()
+            # The periodic jobs ride on this loop: each one on its own, so a failure (a database outage at that very moment, a bug)
+            # costs that job one pass and never ends the loop. They used to sit outside any `try`: one exception stopped every
+            # read of every car for good, and nothing said so (operations audit, 27-11-2026).
+            for name, job in (("charge manager", ChargeManager.get_instance().tick), ("cloud usage", cloud_usage.flush),
+                              ("climate schedules", self._run_climate_schedules), ("retention", self._maybe_apply_retention),
+                              ("catalogue", self._maybe_sync_catalog), ("entitlements", self._maybe_refresh_entitled_services)):
+                try:
+                    await job()
+                except asyncio.CancelledError:
+                    raise
+                except Exception:                             # noqa: BLE001 — logged with its trace; the loop goes on
+                    _LOGGER.exception("Periodic job '%s' failed; the polling loop goes on", name)
+            VehiclePoller.loop_heartbeat = utcnow()
             await asyncio.sleep(10)
 
     async def _poll_limited(self, vin: str) -> None:

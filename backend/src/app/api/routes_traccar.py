@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import GpsPosition, TraccarLink, Vehicle
 from app.db.session import get_db
+from app.i18n import _
 from app.security.netguard import private_link_problem, url_host_port
 from app.services.traccar import TraccarClient, TraccarError, TraccarHub, base_url
 from app.timeutil import utcnow
@@ -42,6 +43,10 @@ def serialize(link: TraccarLink) -> Dict[str, Any]:
             **TraccarHub.get_instance().status(link.vin)}
 
 
+def _same_server(link: TraccarLink, host: str, port: Optional[int], use_ssl: bool) -> bool:
+    return ((link.host or "").strip().lower(), link.port, bool(link.use_ssl)) == ((host or "").strip().lower(), port, bool(use_ssl))
+
+
 async def _link(session: AsyncSession, vin: str) -> Optional[TraccarLink]:
     return (await session.execute(select(TraccarLink).where(TraccarLink.vin == vin))).scalar_one_or_none()
 
@@ -58,9 +63,11 @@ async def test_link(vin: str, req: TraccarTest, session: AsyncSession = Depends(
     token = (req.api_token or "").strip()
     if not token:
         link = await _link(session, vin)
-        token = link.api_token if link else ""
+        # The stored token only goes to the server it was saved for: sent to whatever host the request names, it left the server
+        # for anybody holding the session (security audit, 27-11-2026)
+        token = link.api_token if link and _same_server(link, req.host, req.port, req.use_ssl) else ""
     if not token:
-        raise HTTPException(status_code=422, detail="Falta el token de la API de Traccar.")
+        raise HTTPException(status_code=422, detail=_("Escribe el token de la API de Traccar."))
     client = TraccarClient(req.host, token, req.port, req.use_ssl, req.verify_ssl)
     try:
         server = await client.get_server()
@@ -88,6 +95,8 @@ async def save_link(vin: str, req: TraccarSave, session: AsyncSession = Depends(
         session.add(link)
     elif token:
         link.api_token = token
+    elif not _same_server(link, req.host, req.port, req.use_ssl):
+        raise HTTPException(status_code=422, detail=_("Al cambiar de servidor hay que volver a escribir el token de la API de Traccar."))
     link.host, link.port, link.use_ssl, link.verify_ssl = req.host.strip(), req.port, req.use_ssl, req.verify_ssl
     link.device_id, link.device_name = req.device_id, (req.device_name or "").strip() or None
     link.enabled, link.build_trips, link.stop_minutes = req.enabled, req.build_trips, req.stop_minutes

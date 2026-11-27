@@ -283,8 +283,36 @@ async def get_favicon():
 
 @app.get("/health")
 async def health_check():
-    """Health endpoint for Docker / Kubernetes."""
+    """Liveness for Docker: the process answers. It checks nothing else on purpose (a database outage must not make Docker
+    restart the app in a loop); `/health/ready` is the one an outside monitor should watch."""
     return {"status": "healthy", "service": "EVbro"}
+
+
+# A pass of the polling loop takes about 10 s plus the reads; this long without one means the reads of every car have stopped
+POLL_LOOP_STALE_S = 300
+
+
+@app.get("/health/ready")
+async def readiness_check():
+    """For an outside monitor: 200 when the database answers and the polling loop has finished a pass recently, 503 otherwise.
+    Says which check failed, nothing more (it is public)."""
+    from sqlalchemy import text
+
+    from app.db.session import async_session_factory
+    from app.timeutil import utcnow
+
+    checks = {"database": True, "polling": True}
+    try:
+        async with async_session_factory() as session:
+            await session.execute(text("SELECT 1"))
+    except Exception:                                         # noqa: BLE001 — the answer is the check itself
+        checks["database"] = False
+    poller = VehiclePoller.get_instance()
+    if poller._running:
+        beat = VehiclePoller.loop_heartbeat
+        checks["polling"] = beat is not None and (utcnow() - beat).total_seconds() < POLL_LOOP_STALE_S
+    ok = all(checks.values())
+    return JSONResponse(status_code=200 if ok else 503, content={"status": "ok" if ok else "degraded", "checks": checks})
 
 
 if __name__ == "__main__":

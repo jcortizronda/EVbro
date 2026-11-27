@@ -167,6 +167,11 @@ async def test_routes_are_owner_only_never_return_the_token_and_test_uses_the_cl
     assert r.json()["link"]["enabled"] is False and r.json()["link"]["has_token"] is True
     async with async_session_factory() as s:
         assert (await s.execute(select(TraccarLink.api_token).where(TraccarLink.vin == VIN))).scalar_one() == "secreto"
+    # the stored token only goes to the server it was saved for (security audit, 27-11-2026)
+    calls.clear()
+    assert (await owner.post(f"/api/vehicles/{VIN}/traccar/test", json={"host": "evil.example"})).status_code == 422
+    assert calls == []
+    assert (await owner.put(f"/api/vehicles/{VIN}/traccar", json={"host": "evil.example", "device_id": 3})).status_code == 422
     assert (await member.put(f"/api/vehicles/{VIN}/traccar", json={"host": "x", "api_token": "y", "device_id": 1})).status_code == 403
     assert (await owner.get(f"/api/vehicles/{VIN}/gps/latest")).json()["position"] is None
     assert (await member.get(f"/api/vehicles/{VIN}/gps/latest")).status_code == 200                # the map is for everyone who sees the car

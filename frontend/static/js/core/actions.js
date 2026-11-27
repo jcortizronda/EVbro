@@ -98,7 +98,27 @@
     const el = event.target && event.target.closest ? event.target.closest(`[${attr}]`) : null;
     if (!el) return;
     if (el.hasAttribute('data-self-only') && event.target !== el) return;
-    run(el.getAttribute(attr), el, event);
+    if (attr === 'data-on-click' && el.dataset.busy) return;       // its previous call has not finished
+    const result = run(el.getAttribute(attr), el, event);
+    if (attr === 'data-on-click' && el.tagName === 'BUTTON' && result && typeof result.then === 'function') holdWhile(el, result);
+  }
+
+  /** A button whose action is still running (a save, a delete, an order) stays disabled and marked busy until it ends. A double
+   *  tap on «Guardar» created every record twice (nine forms, QA audit 27-11-2026), and on a slow phone nothing said that it was
+   *  saving, so tapping again was the natural thing to do. */
+  function holdWhile(button, promise) {
+    const wasDisabled = button.disabled;
+    button.dataset.busy = '1';
+    button.disabled = true;
+    button.classList.add('is-busy');
+    button.setAttribute('aria-busy', 'true');
+    const release = () => {
+      delete button.dataset.busy;
+      if (!wasDisabled) button.disabled = false;
+      button.classList.remove('is-busy');
+      button.removeAttribute('aria-busy');
+    };
+    promise.then(release, release);
   }
 
   for (const [type, attr] of Object.entries(EVENTS)) {

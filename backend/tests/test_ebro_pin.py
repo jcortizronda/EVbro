@@ -220,6 +220,6 @@ async def test_the_stored_pin_is_the_ebro_pin_six_digits_or_nothing(web) -> None
     for bad in ("1234", "12345a", "1234567"):
         assert (await web.post("/api/account/pin", json={"pin": bad})).status_code == 422
     assert await _stored_pin() == "222222"
-    assert (await web.post("/api/account/pin", json={"pin": "654321"})).status_code == 200
+    assert (await web.post("/api/account/pin", json={"pin": "654321", "current_pin": "222222"})).status_code == 200
     assert (await web.post("/api/account/pin", json={"pin": ""})).status_code == 200
     assert await _stored_pin() is None
